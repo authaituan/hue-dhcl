@@ -15,6 +15,9 @@
 
 ## Dữ liệu sản lượng đến (SANLUONG)
 6. ✅ SANLUONG-3 — API lọc/tổng hợp `/api/arrivals/*`; ✅ SANLUONG-3b — đổi sang "Sản lượng đến", lọc theo giờ, bỏ BĐX, chất lượng khai thác (08/10/2026).
+6b. ✅ SANLUONG-3d — API "Hàng đến theo đường thư và dịch vụ" + hàng nặng (`/by-route`, `/by-service`, hàng nặng trong `/summary`) (09/10/2026).
+6c. ADMIN chỉnh ngưỡng hàng nặng trên giao diện — cần bảng cấu hình (hiện là hằng số + tham số `heavy_g`, #40).
+6d. Khối "chốt 11h/17h" và "độ trễ giữa các mốc" — ticket riêng sau khi PO chốt khung giờ.
 7. SANLUONG-3c — phân quyền TTVH/GĐVH + gán GĐVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
 8. Module danh mục trạng thái + file mẫu import trạng thái.
 9. Module tính tỷ lệ phát.

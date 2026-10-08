@@ -44,7 +44,7 @@ let trackSeq = 0;
 function row(over = {}) {
   trackSeq++;
   const base = {
-    Ma_BC_dong: '990001', BC_nhan_BG: '990099', Ten_duong_thu: 'Tuyến thử', SHBG: `ZZ${String(trackSeq).padStart(9, '0')}VN`,
+    Ma_BC_dong: '990001', BC_nhan_BG: '990099', Ten_duong_thu: 'Đường thư thử', SHBG: `ZZ${String(trackSeq).padStart(9, '0')}VN`,
     So_hieu_BD10: '9900019900990000001', 'Thời gian XN túi': '10/4/2026 8:00:00 AM', 'Thời gian XN BG': '10/4/2026 8:10:00 AM',
     Ngay_gio_XND_BD10: '10/4/2026 8:05:00 AM', Ngay_gio_XND_BD10_tai_TTKT: '10/3/2026 9:00:00 PM', So_hieu_BD8: `990001990099TST${String(trackSeq).padStart(14, '0')}`,
     Khoi_luong_thuc_te: '250', Dich_vu_code: 'R', Ten_dich_vu: 'Dịch vụ thử', Ghi_chu: 'Bộ;Thử (Túi)', Ten_Xa_Phuong: 'Phường Phú Xuân', Ten_Tinh_Thanh: 'Tỉnh Thử'
