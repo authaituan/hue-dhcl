@@ -106,4 +106,14 @@ try {
   console.error('[db] Lỗi tạo bảng dashboard_widgets:', err.message);
 }
 
+// ==========================================
+// Dữ liệu "Hàng đến" (arrival_import_files, arrival_items, ward_bdx_map). Idempotent.
+// Schema đặt trong server/lib/arrivalsImport.js để công cụ dòng lệnh dùng chung trên DB bất kỳ.
+// ==========================================
+try {
+  require('./lib/arrivalsImport').ensureArrivalSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng dữ liệu Hàng đến:', err.message);
+}
+
 module.exports = db;
