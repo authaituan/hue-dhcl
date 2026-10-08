@@ -70,5 +70,70 @@ Sai cú pháp danh sách → server không khởi động. Chỉ tin `X-Forwarde
 Script chỉ đọc nguồn (+ `-wal` nếu có) để chép sang thư mục tạm của hệ điều hành, mở bản sao `readonly`, xong xoá.
 Sao chép theo giao tập cột, 1 transaction, `defer_foreign_keys` + `foreign_key_check` trước khi commit.
 
+## Dữ liệu "Hàng đến" (SANLUONG)
+
+### 11. Sản lượng = số lượt đến (PO, 08/10/2026)
+Mỗi tổ hợp `(SHBG, So_hieu_BD10, So_hieu_BD8)` khác nhau là 1 lượt (tính thêm khi BD8 hoặc BD10 khác); các dòng trùng cả ba
+(chỉ khác giờ xác nhận) chỉ đếm 1. Luôn hiển thị kèm số bưu gửi khác nhau (`COUNT(DISTINCT SHBG)`) để đối chiếu và phát hiện lượt
+tăng ảo (bưu cục gốc đóng trùng hoặc lỗi). Số túi/kiện = số `BD8` khác nhau (túi và kiện dùng chung một đơn vị). Mọi dòng vẫn được lưu đủ.
+
+### 12. Khối lượng (PO, 08/10/2026)
+`Khoi_luong_thuc_te` tính bằng gam, là khối lượng của từng bưu gửi trên từng dòng. Khi cộng theo lượt đến, mỗi lượt chỉ lấy 1 giá trị
+(không cộng lặp qua các dòng cùng lượt).
+
+### 13. Thời gian đến BCVH (PO, 08/10/2026)
+Thời gian đến BCVH = mốc SỚM NHẤT trong 3 mốc `Thời gian XN túi`, `Ngay_gio_XND_BD10`, `Thời gian XN BG` (có dấu vết nào ở BCVH là
+đã đến; BCVH chịu trách nhiệm hàng ngay khi túi đã quét; dữ liệu có lúc rỗng nên không dựa vào một cột). Đủ cả 3 mốc = đầy đủ nghiệp vụ;
+thiếu mốc vẫn chấp nhận nếu còn ít nhất 1 mốc làm căn cứ xác định hàng đã đến; không có mốc nào = chưa đủ căn cứ (xếp nhóm "Chưa xác định
+ngày đến", vẫn lưu dòng). Bộ lọc ngày cho chọn tiêu chí: Đến BCVH (mặc định) / XN túi / XN BD10 / XN BG. `Ngay_gio_XND_BD10_tai_TTKT`
+KHÔNG dùng (là bưu cục trước BCVH).
+
+### 14. Bộ lọc bưu cục / BĐX (PO, 08/10/2026)
+Bộ lọc bưu cục = bưu cục nhận `BC_nhan_BG` (nay 533140, sau này có thêm BCVH khác; BCVH có loại hình PH2 trong danh mục).
+Bộ lọc BĐX = BĐX của phường/xã nơi phát (`Ten_Xa_Phuong` → bảng ánh xạ).
+
+### 15. Ý nghĩa phường/xã, tỉnh (PO, 08/10/2026)
+`Ten_Xa_Phuong` = phường/xã mà bưu tá đến phát; `Ten_Tinh_Thanh` = tỉnh/thành nhận để phát. Dòng tỉnh khác chủ yếu là hàng chuyển
+hoàn về bưu cục để phát hoàn.
+
+### 16. Lưu trữ & trùng tên (PO, 08/10/2026)
+Không loại dòng nào; lưu vĩnh viễn. Trùng tên file khác nội dung → từ chối + báo ADMIN.
+
+### 17. "Thiếu đợt" (PO, 08/10/2026)
+Mỗi ngày đã qua phải có 2 file; ngày có ít hơn 2 file thì báo để ADMIN kiểm tra SFTP. Không gắn giờ cố định. (File rỗng hợp lệ vẫn
+tính là 1 file.)
+
+### 18. Quyền xem màn hình (PO, 08/10/2026)
+MANAGER + ADMIN (làm ở ticket sau).
+
+### 19. Nhiều BCVH (PO, 08/10/2026)
+Mỗi BCVH có thư mục SFTP riêng; SFTP lưu file mãi và NAS kết nối được nên sẽ nạp toàn bộ lịch sử. Lõi nạp KHÔNG được viết cứng mã
+`533140` hay thư mục (cấu hình nguồn dạng danh sách "thư mục + mã BCVH" làm ở SANLUONG-5).
+
+### 20. Ý nghĩa cột (PO, 08/10/2026)
+`Ma_BC_dong` mã BC đóng; `BC_nhan_BG` mã BC nhận; `Ten_duong_thu` tên đường thư; `SHBG` số hiệu bưu gửi; `So_hieu_BD10`;
+`Thời gian XN túi`; `Thời gian XN BG`; `Ngay_gio_XND_BD10` thời gian xác nhận BD10; `Ngay_gio_XND_BD10_tai_TTKT` thời gian xác nhận
+đến BD10 tại Khai thác tỉnh; `So_hieu_BD8`; `Dich_vu_code`; `Ten_dich_vu`; `Ghi_chu`.
+
+### 21. Thiết kế kỹ thuật nạp "Hàng đến" (SANLUONG-2, Claude Code tự chọn)
+- **Schema** đặt trong `server/lib/arrivalsImport.js` (`ensureArrivalSchema`), `server/db.js` gọi lại — để công cụ dòng lệnh dùng
+  chung trên DB bất kỳ (DB tạm khi chạy thử). `CREATE ... IF NOT EXISTS`, chạy được trên DB đã có.
+- **`arrival_import_files`**: thay `file_name UNIQUE` bằng `UNIQUE(file_name, sha256)` + chỉ mục unique có điều kiện
+  "mỗi tên chỉ 1 bản OK/EMPTY" — nếu `file_name` UNIQUE thì không ghi được dòng `CONFLICT`/`REJECTED` cho file trùng tên.
+  Nạp lại file từng `REJECTED` (cùng băm) cập nhật chính dòng đó. Thêm cột `warning` (cảnh báo ≤1% dòng ngoài khoảng hợp lý).
+- **Chữ rỗng lưu `''`** (không NULL) ở mọi cột chữ gốc; thời gian rỗng = NULL. Khoá chống trùng:
+  unique index `(tracking_no, bd10_no, bd8_no, COALESCE(item_confirmed_at, ''))` + `INSERT OR IGNORE`.
+- **Cột ngày dẫn xuất** cho từng tiêu chí lọc: `arrival_date`, `bag_date`, `bd10_date`, `item_date`, mỗi cột có chỉ mục
+  `(receiver_code, <ngày>)`.
+- **`arrival_at` khi các mốc bằng nhau**: ưu tiên `bag` → `bd10` → `item` (`arrival_at_basis`).
+- **File chỉ có tiêu đề** = `EMPTY` (như 0 byte / chỉ BOM). Khối lượng phải là số nguyên (chữ số), khác → `REJECTED`.
+- **Bộ đọc CSV**: `csv-parse` ^7.0.3 (MIT, JS thuần, không phụ thuộc, không biên dịch native), dạng luồng, `bom: true`.
+  Thông báo lỗi chỉ ghi mã lỗi + số dòng + tên cột — không chép thông báo gốc của thư viện (có thể chứa giá trị ô).
+- **`ward_bdx_map`**: khớp tên chuẩn hoá với `commune_post_offices.name` bỏ chữ "Bưu điện"; ưu tiên khớp đủ tiền tố Phường/Xã/Thị trấn,
+  chỉ bỏ tiền tố khi ra đúng 1 BĐX. Không ghi đè `MANUAL`; dòng `AUTO` còn NULL được thử khớp lại mỗi lần nạp.
+- **`getMissingBatches`** tính theo từng `unit_code`, từ ngày file sớm nhất đã chấp nhận đến hôm qua (giờ máy chủ); `REJECTED`/`CONFLICT`
+  không tính là đã có file.
+- Số liệu "ngoài tỉnh" của công cụ dòng lệnh lấy từ khoá tên tỉnh trong danh mục (`BĐTP Huế` → "hue") — chỉ để hiển thị.
+
 ## Drift phát hiện
 _(chưa có)_

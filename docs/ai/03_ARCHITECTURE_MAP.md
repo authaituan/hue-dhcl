@@ -14,6 +14,7 @@ server/
   lib/orgImport.js      # resolveOrCreateOrgChain: tạo/cập nhật Tỉnh -> BĐX -> Bưu cục khi import mạng lưới
   lib/dashboardSources.js   # whitelist nguồn/nhóm/bộ lọc của Dashboard động + computeWidgetData + buildMeta
   lib/dashboardDefaults.js  # bộ ô mặc định + seed/reset
+  lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
   routes/auth.js        # đăng nhập (+ rate-limit)
   routes/users.js       # quản lý tài khoản + tìm kiếm người phụ trách
   routes/network.js     # quản lý mạng lưới (danh sách / import / export / sửa / xoá bưu cục)
@@ -26,6 +27,8 @@ src/
   components/           # LoginView, Sidebar, Header, DashboardView, NetworkListView, UserAdminView + modal người dùng
   components/dashboard/ # ChartWidget + editor/ (ChartWidgetModal, SystemWidgetModal, WidgetToolbar, DashboardEditorToolbar, ConfirmModal)
 scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thống cũ vào data/hue-dhcl.db (06_DEPLOYMENT.md mục 5)
+scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
+scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
 tests/                  # node --test; helpers/serverHarness.js chạy server thật trên DB tạm
 ```
 
@@ -37,6 +40,9 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `post_offices` | Bưu cục (MBC) + thông tin mạng lưới, `responsible_user_id` (không FK cứng) | `commune_id` → commune |
 | `users` | Tài khoản đăng nhập (khoá theo `hrm_code`), `deactivated_at` = khoá | `post_office_id` → post_offices |
 | `dashboard_widgets` | Cấu hình ô Dashboard (SYSTEM/CHART), dùng chung mọi người | — |
+| `arrival_import_files` | Nhật ký nạp file "Hàng đến": tên, mã BC nhận, ngày/giờ file, sha256, số dòng, `status` OK/EMPTY/REJECTED/CONFLICT, lỗi/cảnh báo | — |
+| `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
+| `ward_bdx_map` | Phường/xã (`ward_key`) → BĐX, `source` AUTO/MANUAL | `commune_id` → commune |
 
 ## 3. API (mọi `/api/*` trừ đăng nhập đều cần token)
 | Route | Quyền | File |
@@ -67,7 +73,19 @@ Phân quyền: `STAFF` = chỉ đọc; vai trò khác = quản lý; `ADMIN` thê
 - Bộ mặc định (3 ô CHART): "Bưu cục theo BĐX" (BAR, XL), "Theo tình trạng hoạt động" (DONUT, M), "Theo loại hình" (LIST, M).
 - Ô SYSTEM: cơ chế còn giữ (backend + `SystemWidgetModal`) nhưng hiện chưa có ô nào; `DashboardView` bỏ qua `system_key` lạ.
 
-## 6. Quản lý Mạng Lưới — field Excel ⇄ JSON (import và export dùng CHUNG key)
+## 6. Dữ liệu "Hàng đến" (CSV → `arrival_items`)
+| Cột CSV | Cột DB | Ghi chú |
+|---|---|---|
+| `Ma_BC_dong` / `BC_nhan_BG` | `sender_code` / `receiver_code` | `receiver_code` = mã BC nhận = bộ lọc bưu cục |
+| `Ten_duong_thu` | `route_name` | |
+| `SHBG` / `So_hieu_BD10` / `So_hieu_BD8` | `tracking_no` / `bd10_no` / `bd8_no` | luôn CHỮ (BD10 dài 18–19 chữ số) |
+| `Thời gian XN túi` / `Thời gian XN BG` / `Ngay_gio_XND_BD10` / `Ngay_gio_XND_BD10_tai_TTKT` | `bag_confirmed_at` / `item_confirmed_at` / `bd10_confirmed_at` / `bd10_ttkt_confirmed_at` | `M/D/YYYY h:mm:ss AM/PM` → `YYYY-MM-DD HH:MM:SS` |
+| `Khoi_luong_thuc_te` | `weight_g` | gam, số nguyên |
+| `Dich_vu_code` / `Ten_dich_vu` / `Ghi_chu` | `service_code` / `service_name` / `note` | |
+| `Ten_Xa_Phuong` / `Ten_Tinh_Thanh` | `ward_name` / `province_name` | `ward_key` = chuẩn hoá → `ward_bdx_map` → BĐX |
+| (dẫn xuất) | `arrival_at` = sớm nhất của túi/BD10/BG; `arrival_date`, `bag_date`, `bd10_date`, `item_date` | `04_DECISIONS.md` #13, #21 |
+
+## 7. Quản lý Mạng Lưới — field Excel ⇄ JSON (import và export dùng CHUNG key)
 | Key | Cột Excel | Cột DB |
 |---|---|---|
 | `maBdtTp` / `tenBdtTp` | Mã / Tên BĐT/TP | `province_post_offices.code/name` |

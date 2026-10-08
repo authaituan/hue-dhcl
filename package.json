@@ -9,7 +9,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/auth.test.js tests/users.test.js tests/network.test.js tests/security.test.js tests/dashboard.test.js tests/dashboard-widgets.test.js tests/seed-import.test.js"
+    "test": "node --test tests/auth.test.js tests/users.test.js tests/network.test.js tests/security.test.js tests/dashboard.test.js tests/dashboard-widgets.test.js tests/seed-import.test.js tests/arrivals-import.test.js"
   },
   "keywords": [
     "hue-dhcl",
@@ -24,6 +24,7 @@
     "@fontsource/montserrat": "^5.3.0",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
+    "csv-parse": "^7.0.3",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
