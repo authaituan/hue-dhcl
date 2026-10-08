@@ -60,7 +60,9 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/dashboard/widgets`, `GET /api/dashboard/widgets-data` | đã đăng nhập | `routes/dashboardWidgets.js` |
 | `GET widgets-meta`, `POST widgets-preview`, `POST/PUT/DELETE widgets`, `PUT widgets-order`, `POST widgets-reset` | ADMIN | `routes/dashboardWidgets.js` |
 | `GET /api/arrivals/meta` — mã BC nhận (tên, loại hình), phường/xã có dữ liệu, khoảng thời gian, tiêu chí ngày | quản lý | `routes/arrivals.js` |
-| `GET /api/arrivals/summary` — sản lượng, khối lượng, túi/kiện, địa bàn phát; `canh_bao` chỉ ADMIN | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/summary` — sản lượng, khối lượng, túi/kiện, hàng nặng + tỷ lệ (`heavy_g`), địa bàn phát; `canh_bao` chỉ ADMIN | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/by-route` — theo đường thư: sản lượng, tỷ trọng, giờ nhiều nhất, hàng nặng + tỷ lệ; nhóm riêng "Chưa có tên đường thư" (`heavy_g`) | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/by-service` — theo dịch vụ (mã + tên): sản lượng, tỷ trọng, khối lượng TB, hàng nặng + tỷ lệ; nhóm riêng "Chưa có tên dịch vụ" (`heavy_g`) | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/by-time?granularity=day\|hour` — đủ mốc trong khoảng (`hour` ≤ 7 ngày) | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/by-ward` — theo phường/xã nơi phát, giảm dần, tỷ trọng; nhóm Phường/xã tỉnh khác, Chưa xác định tỉnh, Chưa xác định phường/xã | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/quality-mocs` — 7 tổ hợp mốc BCVH + tỷ lệ có từng mốc + bưu gửi không có mốc | quản lý | `routes/arrivals.js` |
@@ -71,7 +73,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất
-trong khoảng (`04_DECISIONS.md` #28–#35).
+trong khoảng (`04_DECISIONS.md` #28–#35). Hàng nặng: khối lượng dòng đại diện > `heavy_g` (mặc định 2.500 g, 500–30.000) — #36–#40.
 
 Phân quyền: `STAFF` = chỉ đọc; vai trò khác = quản lý; `ADMIN` thêm quyền cấu hình Dashboard.
 

@@ -28,7 +28,7 @@ let seq = 0;
 function row(over = {}) {
   seq++;
   return {
-    Ma_BC_dong: '990001', BC_nhan_BG: '990099', Ten_duong_thu: 'Tuyến giả', SHBG: `ZZ9${String(seq).padStart(8, '0')}VN`,
+    Ma_BC_dong: '990001', BC_nhan_BG: '990099', Ten_duong_thu: 'Đường thư giả', SHBG: `ZZ9${String(seq).padStart(8, '0')}VN`,
     So_hieu_BD10: 'BD10-A', 'Thời gian XN túi': '10/4/2026 8:00:00 AM', 'Thời gian XN BG': '10/4/2026 8:10:00 AM',
     Ngay_gio_XND_BD10: '', Ngay_gio_XND_BD10_tai_TTKT: '10/3/2026 9:00:00 PM', So_hieu_BD8: `T-${seq}`,
     Khoi_luong_thuc_te: '100', Dich_vu_code: 'R', Ten_dich_vu: 'Dịch vụ giả', Ghi_chu: 'Bộ;Giả (Túi)',
@@ -82,6 +82,33 @@ const FILE_05 = [row({ SHBG: T(2), 'Thời gian XN túi': '10/5/2026 7:00:00 AM'
 const FILE_04_OTHER = [row({ SHBG: T(18), BC_nhan_BG: '990088' })];
 const SL_DAY4 = 16; // ngày 04/10: T1–T5, T7–T11, T13–T18 (T6 không mốc, T12 đến 02/10)
 
+// SANLUONG-3d — đường thư / dịch vụ / hàng nặng: dữ liệu riêng ngày 10/10 (không ảnh hưởng các ca 04/10).
+// Mặc định: chỉ mốc XN túi (thời điểm đến = giờ túi), đường thư X, dịch vụ C.
+const D = (n) => `ZZ7${String(n).padStart(8, '0')}VN`;
+const X = 'Đường thư giả X'; const Y = 'Đường thư giả Y'; const Z = 'Đường thư giả Z';
+const C = { Dich_vu_code: 'C', Ten_dich_vu: 'Bưu kiện giả' };
+const E = { Dich_vu_code: 'E', Ten_dich_vu: 'EMS giả' };
+const R = { Dich_vu_code: 'R', Ten_dich_vu: 'Bảo đảm giả' };
+const drow = (n, time, over = {}) => row({ SHBG: D(n), 'Thời gian XN túi': `10/10/2026 ${time}`, 'Thời gian XN BG': '',
+  Ten_duong_thu: X, ...C, ...over });
+const FILE_10 = [
+  drow(1, '8:00:00 AM', { Khoi_luong_thuc_te: '2499', 'Thời gian XN BG': '10/10/2026 8:05:00 AM' }),
+  drow(2, '8:30:00 AM', { Khoi_luong_thuc_te: '2500' }),
+  drow(3, '1:00:00 PM', { Khoi_luong_thuc_te: '2501' }),
+  drow(4, '1:10:00 PM', { Khoi_luong_thuc_te: '' }),
+  drow(10, '1:20:00 PM', { Khoi_luong_thuc_te: '10' }),
+  drow(5, '10:00:00 AM', { Khoi_luong_thuc_te: '0', Ten_duong_thu: Y, ...E }),
+  drow(6, '9:15:00 AM', { Khoi_luong_thuc_te: '30000', Ten_duong_thu: Y, ...E }),
+  drow(7, '8:00:00 AM', { Khoi_luong_thuc_te: '100', Ten_duong_thu: '', ...E }),
+  drow(8, '10:30:00 AM', { Khoi_luong_thuc_te: '100', Ten_duong_thu: Y, Dich_vu_code: '', Ten_dich_vu: '' }),
+  drow(12, '9:40:00 AM', { Khoi_luong_thuc_te: '100', Ten_duong_thu: Y, ...R, Ten_Xa_Phuong: 'Phường Bình' }),
+  // D9: 2 dòng — dòng đại diện (sớm nhất, 07:00) thuộc đường thư Z / dịch vụ R; dòng 09:00 (X / C) không được tính tên
+  drow(9, '7:00:00 AM', { Khoi_luong_thuc_te: '3000', Ten_duong_thu: Z, ...R }),
+  drow(9, '9:00:00 AM', { Khoi_luong_thuc_te: '3000' })
+];
+const FILE_10_OTHER = [drow(11, '1:40:00 PM', { Khoi_luong_thuc_te: '5000', BC_nhan_BG: '990088' })];
+const DAY10 = 'from=2026-10-10&to=2026-10-10';
+
 async function api(p, who) {
   const headers = {};
   if (who) headers.Authorization = `Bearer ${tokens[who]}`;
@@ -121,7 +148,8 @@ before(async () => {
     tokens[k] = (await r.json()).token;
   }
   for (const [name, rows] of [['HangDen_990099_20261004_093012.csv', FILE_04], ['HangDen_990099_20261005_093012.csv', FILE_05],
-    ['HangDen_990088_20261004_093012.csv', FILE_04_OTHER]]) {
+    ['HangDen_990088_20261004_093012.csv', FILE_04_OTHER], ['HangDen_990099_20261010_093012.csv', FILE_10],
+    ['HangDen_990088_20261010_093012.csv', FILE_10_OTHER]]) {
     const r = await importArrivalFile(ctx.db, writeCsv(name, rows));
     assert.equal(r.status, 'OK', JSON.stringify(r));
   }
@@ -331,13 +359,98 @@ test('/meta và /import-status (ADMIN)', async () => {
   await importArrivalFile(ctx.db, writeCsv('HangDen_990099_20261004_150011.csv', [row({ Ghi_chu: 'NOI_DUNG_DONG' })], bad));
   await importArrivalFile(ctx.db, writeCsv('HangDen_990088_20261004_093012.csv', [row({ SHBG: T(99), BC_nhan_BG: '990088' })]));
   const s = (await adm('/api/arrivals/import-status')).body;
-  assert.deepEqual(s.by_status, { OK: 3, REJECTED: 1, CONFLICT: 1 });
+  assert.deepEqual(s.by_status, { OK: 5, REJECTED: 1, CONFLICT: 1 });
   assert.deepEqual(s.problems.map((p) => [p.file_name, p.status, p.has_accepted_version]).sort(), [
     ['HangDen_990088_20261004_093012.csv', 'CONFLICT', true],
     ['HangDen_990099_20261004_150011.csv', 'REJECTED', false]
   ]);
   assert.ok(!JSON.stringify(s).includes('NOI_DUNG_DONG') && !JSON.stringify(s).includes('ZZ5'), 'không lộ nội dung dòng');
   assert.ok(s.missing_batches.some((x) => x.unit_code === '990099' && x.date === '2026-10-04' && x.file_count === 1));
+});
+
+// ------------------ SANLUONG-3d: đường thư / dịch vụ / hàng nặng ------------------
+const named = (body, ten) => body.items.find((i) => i.ten === ten);
+
+test('/by-route, /by-service: quyền 401 / 403 / 200', async () => {
+  for (const e of [`by-route?${DAY10}`, `by-service?${DAY10}`, `summary?${DAY10}&heavy_g=3000`]) {
+    assert.equal((await api(`/api/arrivals/${e}`)).status, 401, e);
+    assert.equal((await api(`/api/arrivals/${e}`, 'staff')).status, 403, e);
+    assert.equal((await mgr(`/api/arrivals/${e}`)).status, 200, e);
+    assert.equal((await adm(`/api/arrivals/${e}`)).status, 200, e);
+  }
+});
+
+test('/by-route: tổng các nhóm = sản lượng; đường thư rỗng vào nhóm riêng; tên theo dòng đại diện; sắp giảm dần', async () => {
+  const s = (await mgr(`/api/arrivals/summary?${DAY10}`)).body;
+  const r = (await mgr(`/api/arrivals/by-route?${DAY10}`)).body;
+  assert.equal(s.san_luong, 12);
+  assert.equal(r.san_luong, 12);
+  assert.equal(r.items.reduce((a, x) => a + x.san_luong, 0) + r.chua_co_ten.san_luong, s.san_luong);
+  assert.deepEqual(r.items.map((x) => [x.ten, x.san_luong]), [[X, 6], [Y, 4], [Z, 1]], 'giảm dần; D9 tính vào Z (dòng đại diện)');
+  assert.deepEqual([r.chua_co_ten.ten, r.chua_co_ten.san_luong], ['Chưa có tên đường thư', 1]);
+  assert.equal(named(r, X).ty_trong, 50);
+  for (const x of [...r.items, r.chua_co_ten]) assert.ok(x.hang_nang <= x.san_luong);
+});
+
+test('/by-route: gio_nhieu_nhat theo mốc đến của dòng đại diện; hoà thì giờ sớm hơn', async () => {
+  const r = (await mgr(`/api/arrivals/by-route?${DAY10}`)).body;
+  assert.equal(named(r, X).gio_nhieu_nhat, 13, 'X: 13h có 4 (D3, D4, D10, D11) > 8h có 2');
+  assert.equal(named(r, Y).gio_nhieu_nhat, 9, 'Y: 9h (D6, D12) hoà 10h (D5, D8) -> chọn 9');
+  assert.equal(named(r, Z).gio_nhieu_nhat, 7, 'Z: D9 lúc 07:00 (dòng đại diện), không phải 09:00');
+});
+
+test('hàng nặng: > 2.500 g (2.499 / 2.500 không nặng, 2.501 nặng; rỗng, 0 không nặng); /summary có hang_nang và tỷ lệ', async () => {
+  const s = (await mgr(`/api/arrivals/summary?${DAY10}`)).body;
+  assert.deepEqual([s.hang_nang, s.ty_le_hang_nang, s.nguong_hang_nang_g], [4, 33.33, 2500], 'D3, D6, D9, D11');
+  const r = (await mgr(`/api/arrivals/by-route?${DAY10}`)).body;
+  assert.deepEqual([named(r, X).hang_nang, named(r, X).ty_le_hang_nang], [2, 33.33], 'X: D3 (2.501 g), D11 (5.000 g)');
+  assert.equal(named(r, Y).hang_nang, 1, 'Y: D6 (30.000 g); D5 = 0 g không nặng');
+  const v = (await mgr(`/api/arrivals/by-service?${DAY10}`)).body;
+  const sumHeavy = (b) => b.items.reduce((a, x) => a + x.hang_nang, 0) + b.chua_co_ten.hang_nang;
+  assert.equal(sumHeavy(r), sumHeavy(v), 'tổng hàng nặng theo đường thư = theo dịch vụ');
+  assert.equal(sumHeavy(r), s.hang_nang);
+});
+
+test('heavy_g đổi ngưỡng; heavy_g sai -> 400 tiếng Việt', async () => {
+  const h = async (g) => (await mgr(`/api/arrivals/summary?${DAY10}&heavy_g=${g}`)).body.hang_nang;
+  assert.equal(await h(2499), 5, 'thêm D2 (2.500 g)');
+  assert.equal(await h(500), 6, 'D1, D2, D3, D6, D9, D11');
+  assert.equal(await h(30000), 0, 'D6 = 30.000 g không lớn hơn 30.000');
+  assert.equal((await mgr(`/api/arrivals/by-route?${DAY10}&heavy_g=3000`)).body.nguong_hang_nang_g, 3000);
+  for (const bad of ['499', '30001', '2.5', 'abc', '-1', encodeURIComponent("2500' OR 1=1")]) {
+    for (const e of ['summary', 'by-route', 'by-service']) {
+      const r = await mgr(`/api/arrivals/${e}?${DAY10}&heavy_g=${bad}`);
+      assert.equal(r.status, 400, `${e} ${bad}`);
+      assert.match(r.body.error, /"heavy_g"/);
+    }
+  }
+  assert.equal((await mgr(`/api/arrivals/by-ward?${DAY10}&heavy_g=3000`)).status, 400, 'endpoint khác không nhận heavy_g');
+});
+
+test('/by-service: nhóm theo mã + tên dịch vụ, khối lượng trung bình, nhóm riêng "Chưa có tên dịch vụ"', async () => {
+  const v = (await mgr(`/api/arrivals/by-service?${DAY10}`)).body;
+  assert.equal(v.items.reduce((a, x) => a + x.san_luong, 0) + v.chua_co_ten.san_luong, 12);
+  assert.deepEqual(v.items.map((x) => [x.ma, x.ten, x.san_luong]), [['C', 'Bưu kiện giả', 6], ['E', 'EMS giả', 3], ['R', 'Bảo đảm giả', 2]]);
+  assert.equal(named(v, 'Bưu kiện giả').khoi_luong_tb_g, 2085, '(2499 + 2500 + 2501 + 0 + 10 + 5000) / 6');
+  assert.equal(named(v, 'EMS giả').khoi_luong_tb_g, 10033, '(0 + 30000 + 100) / 3');
+  assert.deepEqual([v.chua_co_ten.ten, v.chua_co_ten.san_luong, v.chua_co_ten.khoi_luong_tb_g], ['Chưa có tên dịch vụ', 1, 100]);
+  assert.ok(!('gio_nhieu_nhat' in v.items[0]));
+});
+
+test('/by-route, /by-service: bộ lọc bưu cục / phường-xã / tiêu chí ngày / giờ', async () => {
+  const r = async (qs) => (await mgr(`/api/arrivals/by-route?${DAY10}&${qs}`)).body;
+  const recv = await r('receiver_code=990088');
+  assert.deepEqual([recv.san_luong, recv.items.map((x) => x.ten), named(recv, X).hang_nang], [1, [X], 1]);
+  const ward = await r(`ward_key=${encodeURIComponent('Phường Bình')}`);
+  assert.deepEqual([ward.san_luong, ward.items.map((x) => x.ten)], [1, [Y]]);
+  const item = await r('date_basis=item');
+  assert.deepEqual([item.san_luong, item.items.map((x) => x.ten)], [1, [X]], 'chỉ D1 có XN bưu gửi');
+  assert.equal(named(item, X).gio_nhieu_nhat, 8);
+  assert.equal((await r('date_basis=bag')).san_luong, 12);
+  assert.equal((await mgr(`/api/arrivals/by-service?${DAY10}&receiver_code=990099`)).body.san_luong, 11);
+  const morning = (await mgr('/api/arrivals/by-route?from=2026-10-10 07:00&to=2026-10-10 09:59')).body;
+  assert.deepEqual(morning.items.map((x) => [x.ten, x.san_luong]), [[X, 2], [Y, 2], [Z, 1]], 'lọc theo giờ');
+  assert.equal(morning.chua_co_ten.san_luong, 1);
 });
 
 test('isHomeProvince: so khớp tỉnh nhà theo từ khoá danh mục', () => {

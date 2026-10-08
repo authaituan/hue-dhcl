@@ -38,7 +38,7 @@ Tổng 13 102 dòng. Giờ chạy lệch 1 giây giữa các lần (`…11`/`…
 |---|---|---|---|---|---|---|---|
 | 1 | Ma_BC_dong | mã 6 số (CHỮ) | 186 | 534 | `999999` | 531950, 533140, 763430 | Bưu cục **đóng túi/gửi đi** (nơi đi) [đoán, khá chắc: trùng 6 số đầu `So_hieu_BD10` ở 57% dòng] |
 | 2 | BC_nhan_BG | mã 6 số (CHỮ) | 0 | **1** | luôn `533140` | 533140 | Bưu cục **nhận** = mã đơn vị trong tên file [chắc] |
-| 3 | Ten_duong_thu | chữ | 779 | 5 | ≤36 ký tự | "TP Huế - Sàn KT KCN - BCVH Thuận Hóa", "TP Huế - BĐ TP Huế - Sàn KT KCN", "TP Huế - Sàn KT KCN - Hương Trà" | Tên tuyến/đường thư vận chuyển [chắc] |
+| 3 | Ten_duong_thu | chữ | 779 | 5 | ≤36 ký tự | "TP Huế - Sàn KT KCN - BCVH Thuận Hóa", "TP Huế - BĐ TP Huế - Sàn KT KCN", "TP Huế - Sàn KT KCN - Hương Trà" | Tên đường thư vận chuyển [chắc] |
 | 4 | SHBG | mã 13 ký tự `AA999999999AA` | 0 | 12 848 | chuẩn UPU S10 (RB…VN, CE…, EL…) | (dạng `AA999999999AA`, không in giá trị thật) | Số hiệu bưu gửi [chắc] |
 | 5 | So_hieu_BD10 | mã 18–19 số (**bắt buộc CHỮ**) | 779 | 104 | 18–19 chữ số, **vượt giới hạn số nguyên an toàn** (Excel/JS sẽ làm tròn) | (18–19 chữ số, không in giá trị thật) | Số hiệu bảng kê/chuyến thư BD10: 6 số BC đi + 6 số BC đến + số thứ tự [đoán] |
 | 6 | Thời gian XN túi | ngày giờ | 1 515 | 2 953 | 04/10 07:54 → 08/10 08:49 | 10/4/2026 8:29:46 AM | Thời điểm xác nhận **túi** đến tại BC nhận [đoán] |
@@ -77,7 +77,7 @@ Tổng 13 102 dòng. Giờ chạy lệch 1 giây giữa các lần (`…11`/`…
 | **SHBG + BD10 + BD8 + XN_BG** | **0** | **0** |
 | Toàn bộ dòng | 0 | 0 |
 
-- **Một SHBG xuất hiện nhiều dòng là hợp lệ**: 183 SHBG có 2–5 dòng trong cùng file (164×2, 18×3, 1×5); các dòng khác nhau ở BD8 (173), BD10 (164), tuyến thư, BC đóng → cùng bưu gửi đi qua nhiều túi/chuyến [đoán]. 50 SHBG xuất hiện ở ≥2 file, **luôn khác thời gian XN** → là lần xác nhận đến mới (vd chuyển hoàn, phát lại) chứ không phải file chồng dữ liệu.
+- **Một SHBG xuất hiện nhiều dòng là hợp lệ**: 183 SHBG có 2–5 dòng trong cùng file (164×2, 18×3, 1×5); các dòng khác nhau ở BD8 (173), BD10 (164), đường thư, BC đóng → cùng bưu gửi đi qua nhiều túi/chuyến [đoán]. 50 SHBG xuất hiện ở ≥2 file, **luôn khác thời gian XN** → là lần xác nhận đến mới (vd chuyển hoàn, phát lại) chứ không phải file chồng dữ liệu.
 - **Cửa sổ thời gian** (theo `Thời gian XN BG`, min → max):
 
 | File | Min | Max |

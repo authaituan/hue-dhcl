@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-08 (SANLUONG-3b).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3d).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -23,7 +23,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Lọc IP truy cập, header bảo mật, trang 404 | Có |
 | Nạp DB ban đầu từ hệ thống cũ (`scripts/import-seed.js`: tài khoản + mạng lưới) | Có |
 | Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
-| API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — MANAGER + ADMIN | Có (chưa giao diện/SFTP/export) |
+| API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — MANAGER + ADMIN | Có (chưa giao diện/SFTP/export) |
 
 ## 4. Quy tắc nghiệp vụ chính
 - `STAFF` chỉ đọc (chỉ thấy Dashboard); vai trò khác = quản lý; `ADMIN` cấu hình Dashboard.
@@ -35,9 +35,10 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
   thời gian đến BCVH = mốc sớm nhất của XN túi / XND BD10 / XN BG; bưu cục = BC nhận; bảng phường/xã nơi phát có nhóm "Phường/xã tỉnh khác",
   "Chưa xác định tỉnh", "Chưa xác định phường/xã" (vẫn tính vào tổng); không dùng BĐX ở màn hình này; cảnh báo chỉ ADMIN;
   file trùng tên khác nội dung → CONFLICT; mỗi ngày cần 2 file (`04_DECISIONS.md` #11–#21, #23, #25–#26, #28–#35).
+- Hàng đến theo đường thư / dịch vụ: gom trên dòng đại diện; hàng nặng = khối lượng > 2.500 g (chỉ số phụ, nằm trong sản lượng) — #36–#40.
 
 ## 5. Kiểm thử
-`npm test`: 9 file, 146 ca — 145 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-08.
+`npm test`: 9 file, 153 ca — 152 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
 
 ## 6. Rủi ro / việc treo
 - DB mới trống: PO nạp tài khoản + mạng lưới từ DB hệ thống cũ bằng `scripts/import-seed.js` (`06_DEPLOYMENT.md` mục 5).

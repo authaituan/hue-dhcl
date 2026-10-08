@@ -4,6 +4,16 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-09] - API "Hàng đến theo đường thư và dịch vụ" + hàng nặng (SANLUONG-3d)
+
+- `server/lib/arrivalsQuery.js`: thêm `byRoute`, `byService` (tái dùng lõi `buildCountedCte` của 3b, thêm `route_name` vào dòng đại diện), tham số `heavy_g` (500–30000, mặc định hằng số 2.500 g), `hang_nang` / `ty_le_hang_nang` / `nguong_hang_nang_g` trong `/summary`.
+- `server/routes/arrivals.js`: `GET /api/arrivals/by-route`, `/by-service` (MANAGER + ADMIN).
+- `tests/arrivals-api.test.js`: +7 ca (ngưỡng 2.499/2.500/2.501 g, rỗng, 0; `heavy_g`; nhóm chưa có tên; tên theo dòng đại diện; giờ nhiều nhất + hoà; bộ lọc). `npm test` 153 ca: 152 pass, 1 skip có chủ đích.
+- Đổi chữ "Tuyến thư" → "Đường thư" trong docs và giá trị giả của test (#36).
+- 9 file mẫu (DB tạm): 5 đường thư + nhóm chưa có tên (738); 5 dịch vụ + nhóm chưa có tên (186); hàng nặng 2.030 / 12.786 = 15,88%; bất biến tổng khớp.
+- Hiệu năng (~1 triệu dòng giả): 1 tháng 0,28–0,36 s; 1 năm 4,0–4,5 s.
+- Docs: quyết định #36–#40, bản đồ kiến trúc, backlog, snapshot.
+
 ## [2026-10-08] - Đổi lõi sang "Sản lượng đến", lọc theo giờ, bỏ BĐX, chất lượng khai thác (SANLUONG-3b)
 
 - `server/lib/arrivalsQuery.js` viết lại: sản lượng = SHBG khác nhau tại lần đến sớm nhất trong khoảng (#28), lọc `from`/`to` tới phút (#31), nhóm phường/xã (#29), 7 tổ hợp mốc (#33); bỏ lượt đến / gộp dòng thiếu / BĐX.

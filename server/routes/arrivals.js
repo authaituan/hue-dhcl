@@ -37,7 +37,10 @@ router.get('/arrivals/meta', handle((req) => {
   return q.meta(db);
 }, 'meta'));
 
-router.get('/arrivals/summary', handle((req) => q.summary(db, filters(req), { isAdmin: isAdmin(req) }), 'summary'));
+router.get('/arrivals/summary', handle((req) => q.summary(db, filters(req, ['heavy_g']), { isAdmin: isAdmin(req) }), 'summary'));
+// Hàng đến theo đường thư / dịch vụ + hàng nặng (SANLUONG-3d, 04_DECISIONS.md #36–#39).
+router.get('/arrivals/by-route', handle((req) => q.byRoute(db, filters(req, ['heavy_g'])), 'by-route'));
+router.get('/arrivals/by-service', handle((req) => q.byService(db, filters(req, ['heavy_g'])), 'by-service'));
 router.get('/arrivals/by-time', handle((req) => q.byTime(db, filters(req, ['granularity'])), 'by-time'));
 router.get('/arrivals/by-ward', handle((req) => q.byWard(db, filters(req)), 'by-ward'));
 router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(req)), 'quality-mocs'));

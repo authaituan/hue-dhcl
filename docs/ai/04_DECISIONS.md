@@ -242,5 +242,34 @@ MANAGER (vẫn 200, các chỉ số chính giữ nguyên). `/quality-mocs` (gồ
   dòng/năm/BCVH ≈ 3–5 MB/năm cho mỗi tiêu chí ngày, cập nhật khi nạp file; khoảng > 1 quý đọc từ bảng này (bưu gửi đến lại ở nhiều ngày sẽ bị
   đếm mỗi ngày — trên mẫu 41/12 786 = 0,3%, cần ghi chú "≈"); hoặc bảng 1 dòng/SHBG/ngày (~1 triệu dòng, ~150–200 MB/năm) cho kết quả chính xác.
 
+### 36. "Đường thư" thay cho "Tuyến thư" (PO, 08/10/2026)
+"Tuyến thư" đổi tên thành "Đường thư" trong mọi chữ hiển thị/tài liệu (cột dữ liệu gốc vẫn là `Ten_duong_thu`, trong DB là `route_name`).
+
+### 37. Hàng nặng (PO, 08/10/2026)
+Hàng nặng = bưu gửi có khối lượng lớn hơn 2,5 kg (> 2.500 g; đúng 2.500 g chưa tính là nặng). Khối lượng của bưu gửi lấy theo đúng định
+nghĩa đang dùng ở `/summary` của 3b (một giá trị cho mỗi bưu gửi; báo cáo 3b ghi không có SHBG nào lệch khối lượng giữa các dòng).
+Khối lượng rỗng/0 không tính là nặng.
+
+### 38. Hàng nặng là chỉ số phụ (PO, 08/10/2026)
+Hàng nặng nằm trong sản lượng đến, không tách ra khỏi sản lượng. Chỉ là chỉ số phụ: số bưu gửi nặng và tỷ lệ trên sản lượng của nhóm.
+
+### 39. Quy tắc đếm cho đường thư / dịch vụ (PO, 08/10/2026)
+Mọi con số dùng đúng quy tắc "Sản lượng đến" của 3b (mỗi bưu gửi 1 lần tại lần đến sớm nhất trong khoảng lọc; không loại dòng nào).
+Tên đường thư/dịch vụ/khối lượng lấy từ dòng đại diện của bưu gửi (cùng dòng dùng cho phường/xã ở 3b).
+
+### 40. Thiết kế "Hàng đến theo đường thư và dịch vụ" (SANLUONG-3d, Claude Code tự chọn)
+- **Tái dùng lõi 3b** (`buildCountedCte`): chỉ thêm cột `route_name` vào dòng đại diện `s`; không có logic đếm thứ hai.
+- `/by-route`, `/by-service`: mỗi endpoint **1 truy vấn** `GROUP BY (nhóm, giờ trong ngày)` trên `s`, cộng dồn trong JS → sản lượng, hàng nặng,
+  khối lượng, giờ nhiều nhất.
+- **Khoá nhóm**: đường thư = `route_name` (rỗng/chỉ khoảng trắng → nhóm riêng "Chưa có tên đường thư"); dịch vụ = `service_code` + `service_name`
+  (cả hai rỗng → nhóm riêng "Chưa có tên dịch vụ"; tên rỗng nhưng có mã → hiển thị mã). Nhóm riêng trả ở trường `chua_co_ten`, không nằm trong `items`;
+  tổng `items` + `chua_co_ten` = sản lượng.
+- **`gio_nhieu_nhat`** = giờ (0–23) của **thời điểm theo tiêu chí ngày đang lọc** của dòng đại diện (với tiêu chí mặc định là thời điểm đến BCVH);
+  hoà → giờ sớm hơn.
+- **Ngưỡng**: hằng số `HEAVY_THRESHOLD_G_DEFAULT = 2500` (`server/lib/arrivalsQuery.js`); tham số `heavy_g` 500–30000 cho `/summary`, `/by-route`,
+  `/by-service` (endpoint khác không nhận → 400). ADMIN sửa ngưỡng trên giao diện cần bảng cấu hình — ticket sau.
+- **`khoi_luong_tb_g`** = tổng khối lượng (rỗng tính 0) / sản lượng của nhóm, làm tròn gam. Tỷ lệ % làm tròn 2 chữ số.
+- **Hiệu năng** (~1 triệu dòng giả): 1 tuần ≤ 0,11 s; 1 tháng 0,28–0,36 s; 1 năm 4,0–4,5 s.
+
 ## Drift phát hiện
 _(chưa có)_
