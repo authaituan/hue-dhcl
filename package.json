@@ -1,0 +1,43 @@
+{
+  "name": "hue-dhcl",
+  "version": "0.1.0",
+  "description": "Hệ thống điều hành chất lượng - khâu Phát (Fullstack React + Node.js)",
+  "main": "server/index.js",
+  "scripts": {
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/auth.test.js tests/users.test.js tests/network.test.js tests/security.test.js tests/dashboard.test.js tests/dashboard-widgets.test.js tests/seed-import.test.js"
+  },
+  "keywords": [
+    "hue-dhcl",
+    "buudien",
+    "react",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/montserrat": "^5.3.0",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "concurrently": "^10.0.4",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.1"
+  }
+}

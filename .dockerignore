@@ -1,0 +1,21 @@
+# Không đưa vào ngữ cảnh build Docker: dữ liệu thật, bí mật, mã không cần cho runtime.
+.git
+.gitignore
+.claude
+node_modules
+dist
+data
+.env
+.env.*
+!.env.example
+*.log
+tests
+docs
+scripts
+*.xlsx
+*.md
+*.bat
+*.patch
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -1,0 +1,263 @@
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/montserrat/600.css";
+@import "@fontsource/montserrat/700.css";
+@import "@fontsource/montserrat/800.css";
+@theme {
+  --color-page: #F4F4F5;
+  --color-card: #FFFFFF;
+  --color-title: #27272A;
+  --color-body: #71717A;
+  --color-subtext: #A1A1AA;
+  --color-border: #E3E3E7;
+  --color-input-border: #D2D6DA;
+  --color-primary: #F97316;
+  --color-dark: #27272A;
+  --color-success: #22C55E;
+  --color-info: #0EA5E9;
+  --color-warning: #EAB308;
+  --color-danger: #EF4444;
+  
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-page);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  input, button, select {
+    font-family: var(--font-sans);
+  }
+  .recharts-text {
+    font-family: var(--font-sans) !important;
+  }
+}
+
+@layer components {
+  /* Cards */
+  .card-soft {
+    background-color: var(--color-card);
+    border-radius: 0.75rem; /* 12px */
+    box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+    border: none;
+  }
+  
+  /* KPI & Icons */
+  .icon-shape {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem; /* 12px */
+    transition: all 0.15s ease;
+  }
+  .icon-sm {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem; /* 8px */
+    background-color: var(--color-card);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.15s ease;
+  }
+
+  /* Buttons */
+  .btn {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  .btn-sm {
+    padding: 8px 32px;
+  }
+  .btn-primary {
+    background-image: linear-gradient(310deg, var(--color-primary), var(--color-primary));
+    color: #fff;
+    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07);
+    border: none;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07); /* keeps same or slight adjust */
+  }
+  .btn-outline-primary {
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    background: transparent;
+    box-shadow: none;
+  }
+  .btn-outline-primary:hover {
+    background-color: var(--color-primary);
+    color: #fff;
+  }
+  .btn-dark {
+    background-color: var(--color-dark);
+    color: #fff;
+    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07);
+    border: none;
+  }
+  
+  /* Inputs */
+  .input-soft {
+    background-color: #fff;
+    border: 1px solid var(--color-input-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #3F3F46;
+    transition: all 0.15s ease;
+  }
+  .input-soft:focus {
+    outline: none;
+    border-color: #FDBA74; /* cam nhạt */
+  }
+  .input-soft:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Badges */
+  .badge-soft {
+    border-radius: 0.45rem; /* 7.2px */
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.55em 0.9em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Progress */
+  .progress-soft {
+    height: 6px;
+    border-radius: 6px;
+    background-color: var(--color-border);
+    overflow: hidden;
+  }
+  .progress-bar-soft {
+    height: 100%;
+    border-radius: 6px;
+    background-color: var(--color-primary);
+  }
+  
+  /* Sidebar items */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    padding: 0.675rem 1rem;
+    border-radius: 0.5rem;
+    color: var(--color-body);
+    font-weight: 400;
+    transition: all 0.15s ease;
+  }
+  .nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+  .nav-item.active {
+    background-color: #fff;
+    box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+    color: var(--color-title);
+    font-weight: 600;
+  }
+  .nav-item .icon-sm {
+    color: var(--color-dark);
+  }
+  .nav-item.active .icon-sm {
+    background-color: var(--color-primary);
+    color: #fff;
+  }
+  
+  /* Table */
+  .table-soft th {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-subtext);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--color-border);
+    padding: 12px 24px;
+    text-align: left;
+  }
+  .table-soft td {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .table-soft tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Login specific styles */
+  .login-bg {
+    background-color: #F97316;
+  }
+  .login-montserrat {
+    font-family: "Montserrat", sans-serif;
+  }
+  .login-card-img {
+    box-shadow: 0 30px 60px -10px rgba(60,20,0,.55);
+  }
+  .login-card-form {
+    box-shadow: 0 30px 60px -10px rgba(60,20,0,.45);
+  }
+  .login-input-wrap {
+    border-bottom: 2px solid #D2D6DA;
+    transition: border-color 0.15s ease;
+  }
+  .login-input-wrap:focus-within {
+    border-bottom-color: #CC4A0A;
+  }
+  .login-input-wrap.login-error {
+    border-bottom-color: #D63B3F;
+  }
+  .login-btn {
+    background-color: #CC4A0A;
+    box-shadow: 0 10px 18px -6px rgba(204,74,10,.6);
+    transition: all 150ms ease;
+  }
+  .login-btn:hover {
+    background-color: #B83F08;
+  }
+  .login-btn:focus-visible {
+    outline: 2px solid #CC4A0A;
+    outline-offset: 2px;
+  }
+
+  /* Custom Scrollbar for Sidebar Nav */
+  .nav-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+  .nav-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .nav-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .nav-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
+  }
+}
+

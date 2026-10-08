@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+
+# Database files + dữ liệu chạy thật (KHÔNG BAO GIỜ commit)
+/data/
+*.db
+*.db-wal
+*.db-shm
+security.log
+
+# Environment & Logs
+.env
+.env.local
+*.log
+npm-debug.log*
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Editor/IDE tooling configs (không thuộc mã nguồn ứng dụng)
+.claude/
+
+# Script cá nhân chạy/dừng server (khác nhau tuỳ máy mỗi người, không chia sẻ qua Git)
+start-server.bat
+stop-server.bat

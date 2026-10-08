@@ -1,0 +1,5 @@
+# File Excel: đánh dấu binary để Git không chuẩn hoá line-ending.
+*.xlsx binary
+
+# Trang 404 băm CSP trên nội dung <style>: ép LF để mã băm không lệch giữa các máy.
+server/pages/*.html text eol=lf
