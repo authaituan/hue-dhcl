@@ -4,6 +4,23 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-08] - Đổi lõi sang "Sản lượng đến", lọc theo giờ, bỏ BĐX, chất lượng khai thác (SANLUONG-3b)
+
+- `server/lib/arrivalsQuery.js` viết lại: sản lượng = SHBG khác nhau tại lần đến sớm nhất trong khoảng (#28), lọc `from`/`to` tới phút (#31), nhóm phường/xã (#29), 7 tổ hợp mốc (#33); bỏ lượt đến / gộp dòng thiếu / BĐX.
+- `server/routes/arrivals.js`: `/meta`, `/summary`, `/by-time` (day/hour), `/by-ward`, `/quality-mocs`, `/lookup`, `/items`; `/exceptions`, `/import-status` chỉ ADMIN; `canh_bao` trong `/summary` chỉ ADMIN (#34). Bỏ `/by-bdx`, `/by-day`.
+- `tests/arrivals-api.test.js` viết lại (15 ca). `npm test` 146 ca: 145 pass, 1 skip có chủ đích.
+- 9 file mẫu (DB tạm): sản lượng 12 786 SHBG (+ 62 không có mốc = 12 848); 49 đến lại trong khoảng; 9 cảnh báo BD10 sớm; 36/40 phường/xã có hàng.
+- Hiệu năng (1,05 triệu dòng giả): 1 tháng 0,26–0,48 s; 1 năm 3,7–7,8 s — đề xuất bảng tổng hợp (#35).
+- Docs: quyết định #28–#35, dòng "thay thế bởi" ở #11, #14, #22, #24, #27; bản đồ kiến trúc; backlog (SANLUONG-3c và các module sau); snapshot.
+
+## [2026-10-08] - API lọc và tổng hợp "Hàng đến", quy tắc đếm lượt mới (SANLUONG-3)
+
+- Thêm `server/lib/arrivalsQuery.js` (quy tắc gộp lượt #22, nhóm tỉnh/phường #24, kiểm tham số, các truy vấn) và `server/routes/arrivals.js` (`/api/arrivals/meta|summary|by-day|by-bdx|by-ward|items|import-status`, MANAGER + ADMIN); đăng ký trong `server/index.js`. Không đổi schema.
+- Thêm `tests/arrivals-api.test.js` (12 ca, CSV giả). `npm test` 143 ca: 142 pass, 1 skip có chủ đích.
+- 9 file mẫu (DB tạm): 13 049 → 13 048 lượt (1 dòng thiếu BD10 được gộp); 677 lượt thiếu cả BD10 lẫn BD8; 9 lượt cảnh báo BD10 sớm; 410 dòng Ngoài tỉnh.
+- Hiệu năng trên 1,05 triệu dòng giả: 1 tháng 0,4–0,8 s; 1 năm 6,9–10,2 s — đề xuất bảng phụ (#27, backlog 14).
+- Docs: quyết định #22–#27 + đính chính #14, bản đồ kiến trúc (module + endpoint), backlog, snapshot.
+
 ## [2026-10-08] - Bảng dữ liệu "Hàng đến" + công cụ nạp CSV (SANLUONG-2)
 
 - Thêm `server/lib/arrivalsImport.js` (schema `arrival_import_files`, `arrival_items`, `ward_bdx_map`; nạp 1 file / 1 thư mục; `getMissingBatches`); `server/db.js` gọi `ensureArrivalSchema`.

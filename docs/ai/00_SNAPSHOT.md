@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-08 (SANLUONG-2).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-08 (SANLUONG-3b).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -22,7 +22,8 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Dashboard động (3 ô CHART mặc định trên dữ liệu bưu cục; ADMIN chỉnh sửa) | Có |
 | Lọc IP truy cập, header bảo mật, trang 404 | Có |
 | Nạp DB ban đầu từ hệ thống cũ (`scripts/import-seed.js`: tài khoản + mạng lưới) | Có |
-| Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có (chưa API/giao diện/SFTP) |
+| Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
+| API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — MANAGER + ADMIN | Có (chưa giao diện/SFTP/export) |
 
 ## 4. Quy tắc nghiệp vụ chính
 - `STAFF` chỉ đọc (chỉ thấy Dashboard); vai trò khác = quản lý; `ADMIN` cấu hình Dashboard.
@@ -30,13 +31,16 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Xoá bưu cục là xoá cứng; còn người dùng tham chiếu (`users.post_office_id`) → 400.
 - Người phụ trách bưu cục = 1 dòng `users` (không FK cứng; kiểm tra tồn tại ở route).
 - Tài khoản bị khoá (`deactivated_at`) không đăng nhập được, không hiện trong gợi ý người phụ trách.
-- Hàng đến: lượt đến = `(SHBG, BD10, BD8)`; thời gian đến BCVH = mốc sớm nhất của XN túi / XND BD10 / XN BG; bưu cục = BC nhận;
-  BĐX = theo phường/xã phát (`ward_bdx_map`); file trùng tên khác nội dung → CONFLICT; mỗi ngày cần 2 file (`04_DECISIONS.md` #11–#21).
+- Hàng đến: **sản lượng đến = số SHBG khác nhau**, đếm 1 lần tại lần đến sớm nhất trong khoảng lọc (theo tiêu chí ngày giờ; lọc tới phút);
+  thời gian đến BCVH = mốc sớm nhất của XN túi / XND BD10 / XN BG; bưu cục = BC nhận; bảng phường/xã nơi phát có nhóm "Phường/xã tỉnh khác",
+  "Chưa xác định tỉnh", "Chưa xác định phường/xã" (vẫn tính vào tổng); không dùng BĐX ở màn hình này; cảnh báo chỉ ADMIN;
+  file trùng tên khác nội dung → CONFLICT; mỗi ngày cần 2 file (`04_DECISIONS.md` #11–#21, #23, #25–#26, #28–#35).
 
 ## 5. Kiểm thử
-`npm test`: 8 file, 131 ca (thêm arrivals-import) — 130 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-08.
+`npm test`: 9 file, 146 ca — 145 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-08.
 
 ## 6. Rủi ro / việc treo
 - DB mới trống: PO nạp tài khoản + mạng lưới từ DB hệ thống cũ bằng `scripts/import-seed.js` (`06_DEPLOYMENT.md` mục 5).
   Triển khai sạch không có DB cũ: chưa có cơ chế tạo ADMIN đầu tiên (`05_BACKLOG.md` mục 1).
 - `NetworkListView.jsx` ~1.380 dòng, cần tách nhỏ (ticket riêng).
+- API Hàng đến: khoảng 1 năm mất 3,7–7,8 s trên 1 triệu dòng (1 tháng < 0,5 s) — cần bảng phụ nếu xem dài hạn (`05_BACKLOG.md` mục 5).

@@ -1,0 +1,53 @@
+const express = require('express');
+const db = require('../db');
+const { authRequired, requireManager, requireAdmin } = require('../auth');
+const q = require('../lib/arrivalsQuery');
+const { getMissingBatches } = require('../lib/arrivalsImport');
+
+const router = express.Router();
+
+// ==========================================
+// DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: MANAGER + ADMIN (STAFF 403, không token 401).
+// Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với MANAGER;
+// /summary bỏ trường `canh_bao` với MANAGER (docs/ai/04_DECISIONS.md #34).
+// Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js.
+// ==========================================
+router.use('/arrivals', authRequired, requireManager);
+
+const FILTER_KEYS = ['from', 'to', 'date_basis', 'receiver_code', 'ward_key'];
+const isAdmin = (req) => req.user && req.user.role === 'ADMIN';
+
+function handle(fn, label) {
+  return (req, res) => {
+    try {
+      res.json(fn(req));
+    } catch (err) {
+      if (err instanceof q.QueryParamError) return res.status(400).json({ error: err.message });
+      // Không để SQL/stack trace lọt ra response.
+      console.error(`Arrivals ${label} error:`, err);
+      return res.status(500).json({ error: 'Lỗi hệ thống khi truy vấn dữ liệu Hàng đến' });
+    }
+  };
+}
+
+const filters = (req, extra = []) => q.parseFilters(req.query, { allowed: [...FILTER_KEYS, ...extra] });
+
+router.get('/arrivals/meta', handle((req) => {
+  q.parseFilters(req.query, { allowed: [], requireRange: false });
+  return q.meta(db);
+}, 'meta'));
+
+router.get('/arrivals/summary', handle((req) => q.summary(db, filters(req), { isAdmin: isAdmin(req) }), 'summary'));
+router.get('/arrivals/by-time', handle((req) => q.byTime(db, filters(req, ['granularity'])), 'by-time'));
+router.get('/arrivals/by-ward', handle((req) => q.byWard(db, filters(req)), 'by-ward'));
+router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(req)), 'quality-mocs'));
+router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
+router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
+
+router.get('/arrivals/exceptions', requireAdmin, handle((req) => q.exceptions(db, filters(req)), 'exceptions'));
+router.get('/arrivals/import-status', requireAdmin, handle((req) => {
+  q.parseFilters(req.query, { allowed: [], requireRange: false });
+  return q.importStatus(db, { getMissingBatches });
+}, 'import-status'));
+
+module.exports = router;
