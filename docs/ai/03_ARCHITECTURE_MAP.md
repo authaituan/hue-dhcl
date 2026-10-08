@@ -15,12 +15,14 @@ server/
   lib/dashboardSources.js   # whitelist nguồn/nhóm/bộ lọc của Dashboard động + computeWidgetData + buildMeta
   lib/dashboardDefaults.js  # bộ ô mặc định + seed/reset
   lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
+  lib/arrivalsQuery.js  # "Hàng đến": NƠI DUY NHẤT cài quy tắc đếm sản lượng (buildCountedCte) + kiểm tham số + các truy vấn API
   routes/auth.js        # đăng nhập (+ rate-limit)
   routes/users.js       # quản lý tài khoản + tìm kiếm người phụ trách
   routes/network.js     # quản lý mạng lưới (danh sách / import / export / sửa / xoá bưu cục)
   routes/organization.js    # danh sách BĐX, bưu cục (chỉ đọc, cho dropdown)
   routes/dashboard.js       # số đếm tổng quan
   routes/dashboardWidgets.js # Dashboard động: CRUD ô, dữ liệu, xem trước
+  routes/arrivals.js    # API "Hàng đến" (chỉ GET, MANAGER + ADMIN)
 src/
   App.jsx               # khung app: đăng nhập / Sidebar / Header / 3 màn hình
   utils/api.js          # apiFetch/apiFetchJson, lưu token, sự kiện hết phiên
@@ -57,6 +59,19 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/dashboard/stats` | đã đăng nhập | `routes/dashboard.js` |
 | `GET /api/dashboard/widgets`, `GET /api/dashboard/widgets-data` | đã đăng nhập | `routes/dashboardWidgets.js` |
 | `GET widgets-meta`, `POST widgets-preview`, `POST/PUT/DELETE widgets`, `PUT widgets-order`, `POST widgets-reset` | ADMIN | `routes/dashboardWidgets.js` |
+| `GET /api/arrivals/meta` — mã BC nhận (tên, loại hình), phường/xã có dữ liệu, khoảng thời gian, tiêu chí ngày | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/summary` — sản lượng, khối lượng, túi/kiện, địa bàn phát; `canh_bao` chỉ ADMIN | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/by-time?granularity=day\|hour` — đủ mốc trong khoảng (`hour` ≤ 7 ngày) | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/by-ward` — theo phường/xã nơi phát, giảm dần, tỷ trọng; nhóm Phường/xã tỉnh khác, Chưa xác định tỉnh, Chưa xác định phường/xã | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/quality-mocs` — 7 tổ hợp mốc BCVH + tỷ lệ có từng mốc + bưu gửi không có mốc | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/lookup?tracking_no=` — các dòng của 1 SHBG, mốc dùng làm thời điểm đến | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/items` — bưu gửi đã đếm (1 dòng/SHBG), `page_size` ≤ 200 (kiểm tra) | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/exceptions` — ≤ 50 bưu gửi ngoại lệ (BD10 sớm, không mốc, đến lại) | ADMIN | `routes/arrivals.js` |
+| `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
+
+Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
+`arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất
+trong khoảng (`04_DECISIONS.md` #28–#35).
 
 Phân quyền: `STAFF` = chỉ đọc; vai trò khác = quản lý; `ADMIN` thêm quyền cấu hình Dashboard.
 

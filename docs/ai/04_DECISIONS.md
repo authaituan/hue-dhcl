@@ -73,6 +73,7 @@ Sao chép theo giao tập cột, 1 transaction, `defer_foreign_keys` + `foreign_
 ## Dữ liệu "Hàng đến" (SANLUONG)
 
 ### 11. Sản lượng = số lượt đến (PO, 08/10/2026)
+> **Thay thế bởi #28** (SANLUONG-3b): bỏ khái niệm lượt, sản lượng = số SHBG khác nhau.
 Mỗi tổ hợp `(SHBG, So_hieu_BD10, So_hieu_BD8)` khác nhau là 1 lượt (tính thêm khi BD8 hoặc BD10 khác); các dòng trùng cả ba
 (chỉ khác giờ xác nhận) chỉ đếm 1. Luôn hiển thị kèm số bưu gửi khác nhau (`COUNT(DISTINCT SHBG)`) để đối chiếu và phát hiện lượt
 tăng ảo (bưu cục gốc đóng trùng hoặc lỗi). Số túi/kiện = số `BD8` khác nhau (túi và kiện dùng chung một đơn vị). Mọi dòng vẫn được lưu đủ.
@@ -89,8 +90,10 @@ ngày đến", vẫn lưu dòng). Bộ lọc ngày cho chọn tiêu chí: Đến
 KHÔNG dùng (là bưu cục trước BCVH).
 
 ### 14. Bộ lọc bưu cục / BĐX (PO, 08/10/2026)
+> **Phần bộ lọc BĐX thay thế bởi #30** (bỏ BĐX khỏi màn hình này). Bộ lọc bưu cục = `receiver_code` vẫn giữ.
 Bộ lọc bưu cục = bưu cục nhận `BC_nhan_BG` (nay 533140, sau này có thêm BCVH khác; BCVH có loại hình PH2 trong danh mục).
 Bộ lọc BĐX = BĐX của phường/xã nơi phát (`Ten_Xa_Phuong` → bảng ánh xạ).
+**Đính chính (SANLUONG-3, 08/10/2026)**: trong danh mục, 533140 "BCVH Thuận Hóa" có loại hình **PH1** (BCVH loại 1), không phải PH2; bộ lọc bưu cục không lọc theo loại hình (#25).
 
 ### 15. Ý nghĩa phường/xã, tỉnh (PO, 08/10/2026)
 `Ten_Xa_Phuong` = phường/xã mà bưu tá đến phát; `Ten_Tinh_Thanh` = tỉnh/thành nhận để phát. Dòng tỉnh khác chủ yếu là hàng chuyển
@@ -134,6 +137,110 @@ Mỗi BCVH có thư mục SFTP riêng; SFTP lưu file mãi và NAS kết nối �
 - **`getMissingBatches`** tính theo từng `unit_code`, từ ngày file sớm nhất đã chấp nhận đến hôm qua (giờ máy chủ); `REJECTED`/`CONFLICT`
   không tính là đã có file.
 - Số liệu "ngoài tỉnh" của công cụ dòng lệnh lấy từ khoá tên tỉnh trong danh mục (`BĐTP Huế` → "hue") — chỉ để hiển thị.
+
+### 22. Đếm lượt đến — quy tắc mới (PO, 08/10/2026; thay quy tắc #11 ở tầng truy vấn)
+> **Thay thế bởi #28** (SANLUONG-3b): không còn lượt đến, không gộp dòng thiếu BD10/BD8.
+Đếm lượt đến (thay quy tắc cũ, chỉ ở tầng truy vấn, mọi dòng vẫn được lưu):
+- Dòng đủ = có cả `bd10_no` và `bd8_no` khác rỗng. Dòng thiếu = thiếu `bd10_no` hoặc `bd8_no` (hoặc cả hai).
+- Với cùng SHBG đã có dòng đủ: dòng thiếu BD10 bị gộp (không tạo lượt) nếu `bd8_no` của nó trùng một dòng đủ của SHBG đó; dòng thiếu
+  BD8 bị gộp nếu `bd10_no` trùng một dòng đủ. Không khớp → vẫn là một lượt riêng.
+- SHBG chỉ có dòng thiếu, không có dòng đủ: mỗi tổ hợp `(SHBG, bd10_no, bd8_no)` khác nhau là một lượt.
+- Dòng thiếu cả hai (BD10 và BD8 đều trống): PO chưa quyết. Tạm thời KHÔNG gộp (coi là lượt riêng) và báo số lượng riêng trong báo cáo
+  để PO quyết.
+- Lượt gộp lấy thời gian đến, phường/xã, khối lượng của dòng đủ (khối lượng: 1 giá trị/lượt, dùng MAX). Lượt chỉ có dòng thiếu lấy
+  mốc đến sớm nhất của các dòng cùng tổ hợp.
+
+### 23. Mốc `Ngay_gio_XND_BD10` sớm bất thường (PO, 08/10/2026)
+KHÔNG điều chỉnh dữ liệu, KHÔNG đổi quy tắc "mốc sớm nhất". Chỉ đếm và báo cảnh báo (lượt có `arrival_at_basis = bd10` và
+`arrival_date` sớm hơn ngày file chứa nó).
+
+### 24. Ánh xạ phường/xã → BĐX chỉ cho tỉnh Huế (PO, 08/10/2026)
+> **Phần ánh xạ BĐX thay thế bởi #30** (API này không dùng `ward_bdx_map`). Cách nhận biết tỉnh Huế và các nhóm phân loại vẫn giữ (#29).
+Ánh xạ phường/xã → BĐX chỉ áp khi `province_name` là tỉnh Huế. Dòng tỉnh khác (hàng chuyển hoàn…) không gán BĐX Huế; xếp nhóm riêng
+"Ngoài tỉnh". Dòng không có phường/xã: nhóm "Chưa xác định phường/xã". Tính tại truy vấn, không sửa dữ liệu đã lưu, không sửa
+`ward_bdx_map`.
+**Cách nhận biết "Huế" (Claude Code đề xuất, đã cài)**: từ khoá lấy từ danh mục `province_post_offices` (bỏ "BĐTP/BĐT/Bưu điện":
+"BĐTP Huế" → `hue`); tên tỉnh trong CSV chuẩn hoá (`wardKey`) rồi bỏ tiền tố "Tỉnh/Thành phố/TP." — là tỉnh nhà nếu **bằng** hoặc
+**kết thúc bằng** từ khoá (khớp cả "Tỉnh Thừa Thiên Huế" tên cũ lẫn "Thành phố Huế"; không khớp "TP. Hồ Chí Minh"). Không viết cứng "Huế".
+Thêm 1 nhóm riêng **"Chưa xác định tỉnh"** (`NO_PROVINCE`) cho dòng có phường/xã nhưng thiếu tỉnh (không đủ căn cứ là Huế, cũng không phải
+tỉnh khác) — 0 dòng trên 9 file mẫu. Thứ tự xét: tỉnh khác → thiếu phường/xã → thiếu tỉnh → phường chưa gán BĐX → BĐX.
+
+### 25. Loại hình BCVH (PO, 08/10/2026)
+PH1 = BCVH loại 1 (quy mô lớn), PH2 = BCVH loại 2. Bộ lọc bưu cục dùng thẳng mã `receiver_code`, KHÔNG lọc theo loại hình.
+
+### 26. Quyền xem dữ liệu Hàng đến (PO, 08/10/2026)
+MANAGER + ADMIN xem; STAFF 403; không token 401.
+
+### 27. Thiết kế API "Hàng đến" (SANLUONG-3, Claude Code tự chọn)
+> **Thay thế bởi #35** (SANLUONG-3b): lõi đếm và danh sách endpoint mới.
+- **Một nơi cài quy tắc**: `server/lib/arrivalsQuery.js` → `buildVisitsCte()` dựng CTE `fv` (lượt đã lọc), mọi endpoint chỉ thêm SELECT/GROUP BY lên `fv`.
+- **Cách cài quy tắc gộp (SQL thuần)**: (1) chọn SHBG ứng viên có ít nhất 1 dòng mang ngày trong khoảng; (2) với MỌI dòng của các SHBG đó
+  (kể cả ngoài khoảng), dòng thiếu tìm dòng đủ cùng SHBG bằng subquery tương quan qua chỉ mục `(tracking_no, bd10_no, bd8_no)` → khoá lượt
+  `(SHBG, v_bd10, v_bd8)`; khớp nhiều dòng đủ → lấy `bd10_no`/`bd8_no` nhỏ nhất (cố định); (3) `GROUP BY` khoá lượt; dòng đại diện =
+  MIN(khoá ghép "dòng đủ trước, mốc đến sớm nhất, id nhỏ nhất") — thời gian đến, phường, tỉnh, bưu cục nhận, dịch vụ lấy từ dòng này;
+  ngày theo tiêu chí và khối lượng (MAX) lấy trên các dòng đủ (hoặc các dòng thiếu nếu lượt không có dòng đủ); (4) lọc lượt theo ngày/bộ lọc.
+  Không dùng window function (bản đầu dùng ROW_NUMBER chậm hơn ~5 lần).
+- **Tỉnh nhà** tính bằng hàm SQL `arrivals_is_home()` đăng ký từ JS (tránh quét DISTINCT `province_name` toàn bảng mỗi lần gọi).
+- **"Không có ngày" (`quality.undated`)**: tiêu chí `arrival` = lượt không có mốc nào (toàn bộ dữ liệu); tiêu chí `bag/bd10/item` = lượt đã
+  đến BCVH trong khoảng nhưng thiếu mốc của tiêu chí đó (có ý nghĩa hơn và không phải quét mọi dòng thiếu mốc).
+- **Tham số**: whitelist khoá (khoá lạ → 400), `from`/`to` bắt buộc, khoảng tối đa 731 ngày, `page_size` ≤ 200, `commune_id` nhận id BĐX trong
+  danh mục hoặc mã nhóm `OUT_PROVINCE`/`NO_WARD`/`NO_PROVINCE`/`UNMAPPED`; `receiver_code`/`commune_id` nhận nhiều giá trị (lặp tham số
+  hoặc phân tách bằng dấu phẩy); `ward_key` nhận cả tên phường/xã gốc (được chuẩn hoá). Lỗi 500 không trả SQL.
+- **Hiệu năng** (1,05 triệu dòng giả, 1 BCVH): 1 tháng 0,4–0,8 s mọi endpoint; 1 năm 6,9–10,2 s — vượt mức chấp nhận cho giao diện.
+  **Đề xuất (chưa làm, cần PO duyệt vì đổi schema)**: bảng phụ `arrival_visits` (1 dòng/lượt, tính lại cho các SHBG bị ảnh hưởng mỗi lần nạp file),
+  hoặc bảng tổng hợp theo ngày × bưu cục × BĐX cho `/by-day`, `/by-bdx`, `/summary` khoảng dài; thêm chỉ mục `(bag_date)`, `(bd10_date)`,
+  `(item_date)` đơn nếu lọc theo tiêu chí này không kèm bưu cục.
+
+### 28. Sản lượng đến (PO, 08/10/2026; thay #11, #22)
+Sản lượng đến = số bưu gửi (SHBG) khác nhau, mỗi bưu gửi đếm 1 lần trong khoảng lọc, tại lần đến sớm nhất trong khoảng theo tiêu chí
+ngày giờ đã chọn. Phường/xã, tỉnh, khối lượng, bưu cục nhận lấy từ dòng đại diện của lần đó (nhiều dòng cùng thời điểm: chọn dòng `id`
+nhỏ nhất, để kết quả cố định). KHÔNG xét `bd10_no`, `bd8_no` và giờ XN bưu gửi khi đếm. Bưu gửi đến lại trong cùng khoảng không đếm
+thêm; đến lại ở khoảng khác thì đếm ở khoảng đó. Mọi dòng vẫn được lưu đủ.
+
+### 29. Không loại dòng nào (PO, 08/10/2026)
+Không loại dòng nào: hàng chuyển hoàn và hàng tỉnh khác tính vào sản lượng. Vẫn tách nhóm phân loại ở bảng phường/xã: "Phường/xã tỉnh
+khác", "Chưa xác định tỉnh", "Chưa xác định phường/xã". Cách nhận biết tỉnh Huế giữ như đã làm.
+
+### 30. Bỏ BĐX khỏi màn hình này (PO, 08/10/2026)
+Bỏ khái niệm BĐX khỏi màn hình này: bỏ `/by-bdx`, tham số `commune_id`, nhóm "chưa gán BĐX". Giữ nguyên bảng `ward_bdx_map` trong
+schema (dùng sau cho Dashboard), nhưng không dùng ở API này. Việc "gán tay Xã A Lưới 4 → BĐX 5336" chưa cần cho màn hình này.
+
+### 31. Lọc có giờ (PO, 08/10/2026)
+Lọc có giờ: `from`, `to` dạng `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM` (cũng nhận dấu `T`). Chỉ ngày: `from` = 00:00 đầu ngày, `to` = hết
+ngày. So sánh `from <= thời điểm <= to` trên cột thời gian đầy đủ của tiêu chí đã chọn; cột ngày dẫn xuất và chỉ mục chỉ dùng để thu hẹp
+ứng viên. Giữ giới hạn khoảng tối đa 731 ngày.
+
+### 32. Địa bàn phát (PO, 08/10/2026)
+Địa bàn phát = phường/xã nơi phát có bưu gửi đến. Bảng chính sắp theo sản lượng đến giảm dần.
+
+### 33. Chất lượng khai thác hàng đến tại BCVH (PO, 08/10/2026)
+Chất lượng khai thác hàng đến tại BCVH (mọi vai trò MANAGER/ADMIN thấy): mỗi bưu gửi được xếp theo tổ hợp mốc BCVH đã xác nhận trong
+3 mốc (XN túi, XND BD10, XN bưu gửi). Mốc "có" = ít nhất một dòng của SHBG đó (trong khoảng lọc) có giá trị. Bảng trả đủ 7 tổ hợp có ít
+nhất 1 mốc, kèm số bưu gửi và tỷ lệ; tổng 7 tổ hợp bằng đúng sản lượng đến. Bưu gửi không có mốc nào (chưa xác định ngày đến) không vào
+sản lượng; báo riêng.
+
+### 34. Cảnh báo và chất lượng dữ liệu chỉ ADMIN (PO, 08/10/2026)
+Cảnh báo và chất lượng dữ liệu chỉ ADMIN thấy: các trường cảnh báo trong `/summary` và `/import-status`, `/exceptions` trả 403 hoặc bị bỏ
+khỏi kết quả với MANAGER. Nội dung giữ lại, PO sẽ bàn tiếp.
+**Cách đã chọn (Claude Code)**: `/exceptions`, `/import-status` → **403** với MANAGER; `/summary` **bỏ hẳn trường `canh_bao`** với
+MANAGER (vẫn 200, các chỉ số chính giữ nguyên). `/quality-mocs` (gồm số bưu gửi không có mốc nào) thuộc #33 nên MANAGER vẫn thấy.
+
+### 35. Thiết kế lõi "Sản lượng đến" (SANLUONG-3b, Claude Code tự chọn; thay #27)
+- **Lõi** `buildCountedCte()` (`server/lib/arrivalsQuery.js`): `r` = dòng có thời điểm (cột thời gian của tiêu chí) trong `[from, to]`, thu hẹp
+  bằng cột ngày dẫn xuất + chỉ mục; `firsts` = mỗi SHBG `MIN(thời điểm || id)` (sớm nhất, hoà thì id nhỏ nhất) + số file + mốc "có" trên mọi
+  dòng trong khoảng; `s` = dòng đại diện + nhóm phân loại. Một lần `GROUP BY`, không window function. Bộ lọc bưu cục áp ở mức dòng (mỗi BCVH
+  đếm hàng đến chính nó); `ward_key` áp trên dòng đại diện.
+- **`s` chỉ vật chất hoá (MATERIALIZED) cho `/summary`** (đọc lại nhiều lần trong 1 câu lệnh); endpoint khác để SQLite gộp thẳng (nhanh hơn ~30% ở khoảng năm).
+- **Tổng phường/xã của địa bàn** (`dia_ban_phat.tong`) = số tên `post_offices.new_ward_name` khác nhau (chuẩn hoá) trong danh mục (= 40 với
+  danh mục hiện tại); `co` = số phường/xã trong danh mục đó có sản lượng ≥ 1 (phường/xã không có trong danh mục không được tính vào `co`).
+- **Túi/kiện** = số `bd8_no` khác rỗng, khác nhau trên các dòng trong khoảng của các SHBG đã đếm.
+- **Cảnh báo (ADMIN)**: chưa xác định ngày đến = SHBG mà mọi dòng trong các file có ngày file thuộc khoảng đều không có mốc; mốc BD10 sớm =
+  dòng đại diện có `arrival_at_basis = bd10` và ngày đến < ngày file; đến lại trong khoảng = SHBG có dòng trong khoảng ở ≥ 2 file.
+- **`/by-time?granularity=hour`** chỉ cho khoảng ≤ 7 ngày (theo ngày lịch). Sản lượng mỗi mốc = số SHBG có lần đến sớm nhất trong khoảng rơi vào mốc đó.
+- **Hiệu năng** (1,05 triệu dòng giả, 1 BCVH): 1 tuần ≤ 0,13 s; 1 tháng 0,26–0,48 s; 1 quý 0,85–1,8 s; 1 năm 3,7–7,8 s (`/summary` ADMIN chậm nhất).
+  **Đề xuất cho khoảng dài (cần PO duyệt, đổi schema)**: bảng tổng hợp theo ngày (ngày × bưu cục × phường/xã × tỉnh × tổ hợp mốc), ~33–50 nghìn
+  dòng/năm/BCVH ≈ 3–5 MB/năm cho mỗi tiêu chí ngày, cập nhật khi nạp file; khoảng > 1 quý đọc từ bảng này (bưu gửi đến lại ở nhiều ngày sẽ bị
+  đếm mỗi ngày — trên mẫu 41/12 786 = 0,3%, cần ghi chú "≈"); hoặc bảng 1 dòng/SHBG/ngày (~1 triệu dòng, ~150–200 MB/năm) cho kết quả chính xác.
 
 ## Drift phát hiện
 _(chưa có)_
