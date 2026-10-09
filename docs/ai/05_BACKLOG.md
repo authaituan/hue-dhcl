@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-2).
+> Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-3).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -25,7 +25,9 @@
 7. SANLUONG-3c — phân quyền TTVH/GDVH + gán GDVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
 7a. ✅ SANLUONG-3c-2 — 4 vai trò ADMIN/TTVH/GDVH/STAFF, quản lý tài khoản chỉ ADMIN, bảng `user_bcvh` + API gán, `scripts/migrate-roles.js` (09/10/2026). **PO còn phải**: chạy chuyển đổi vai trò trên DB thật (`06_DEPLOYMENT.md` mục 7).
 7b. Giao diện gán BCVH cho GDVH (ticket Antigravity riêng): ô chọn BCVH trong Quản lý người dùng dùng `bcvh_codes` + `PUT /api/users/:id/bcvh`; dọn menu cho TTVH/GDVH (hiện vẫn thấy "Quản lý người dùng" nhưng API trả 403; `isStaff` vẫn là `role === 'STAFF'`). 3c-2 chỉ sửa tối thiểu giao diện (`ROLE_OPTIONS`, nhãn vai trò).
-7c. SANLUONG-3c-3 — xuất file: TTVH/ADMIN mọi BCVH, GDVH chỉ BCVH được giao (`getAssignedBcvh`); thêm `exceljs`, `csv-parse` vào `THIRD_PARTY_NOTICES.md` khi làm.
+7c. ✅ SANLUONG-3c-3 — API xuất Excel dữ liệu thô "Hàng đến" của một BCVH (`/api/arrivals/export-scope`, `/export`), 9 cột chuỗi, ghi luồng; `exceljs`/`csv-parse` đã vào `THIRD_PARTY_NOTICES.md` (09/10/2026). **PO còn phải**: mở thử 1 file xuất bằng Excel thật; duyệt các mặc định của #56 (92 ngày, 1.000.000 dòng, định dạng giờ).
+7c1. Nút "Xuất Excel" trên giao diện (ticket Antigravity): gọi `GET /api/arrivals/export-scope` để lấy danh sách BCVH, chọn BCVH + khoảng ngày (≤ 92 ngày) + tiêu chí ngày, tải bằng `apiFetch` (cần token → dùng blob, không dùng thẻ `<a>`); hiện thông điệp 400/403 của server.
+7c2. Xuất theo bộ lọc (phường/xã, đường thư…), định dạng khác (CSV), nhiều BCVH một file, giới hạn số lần xuất đồng thời — chỉ làm nếu PO cần (#58).
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.

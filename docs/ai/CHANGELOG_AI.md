@@ -4,6 +4,18 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-09] - Xuất Excel dữ liệu thô "Hàng đến" của một BCVH (SANLUONG-3c-3)
+
+- `server/lib/arrivalsExport.js` (mới): tham số (`receiver_code` ∈ 6 BCVH, `from`/`to` `YYYY-MM-DD` ≤ 92 ngày, `date_basis`), phạm vi theo vai trò (`allowedBcvhCodes`/`exportScope`, GDVH qua `getAssignedBcvh`), đếm trước (ngưỡng 1.000.000 dòng, `ARRIVALS_EXPORT_MAX_ROWS` ghi đè), `writeExport` ghi `.xlsx` theo luồng: tiêu đề qua API ExcelJS, dòng dữ liệu ghi thẳng XML (API dòng/ô của ExcelJS ~30 µs/dòng), duyệt từng ngày rồi `id` (một lần seek mỗi lô 2.000 dòng), có chờ khi bộ đệm nén/gửi > 2 MB (luồng sheet của ExcelJS không tự báo áp lực ngược → đọc trạng thái luồng ống dẫn). Đúng 9 cột chuỗi (`numFmt '@'`, `t="str"`), ô rỗng để trống, giờ `dd/MM/yyyy HH:mm:ss`; bỏ ký tự điều khiển XML, cắt ô > 32.767 ký tự.
+- `server/routes/arrivals.js`: `GET /api/arrivals/export-scope` (`{ bcvh: [{ ma, ten }] }`), `GET /api/arrivals/export` (400/403 tiếng Việt; header `Content-Disposition`; lỗi giữa chừng → cắt kết nối; client ngắt → dừng đọc DB; nhật ký `arrivals_export` vào `security.log`, không có dữ liệu bưu gửi). `server/lib/dashboardQuery.js` export thêm `bcvhNames`.
+- `tests/arrivals-export.test.js` (mới, 15 ca; CSV/tài khoản giả): 9 tiêu đề + ánh xạ cột, mọi ô là chuỗi (kể cả đọc XML gốc), chuỗi 19 chữ số / mã 0 đầu, giờ 12 trưa/12 đêm/ngày 1 chữ số, dòng thô (không gộp, không loại hoàn/tỉnh khác), đúng BCVH + khoảng ngày, `date_basis`, khoảng rỗng, quyền 4 vai trò + GDVH chưa được giao, tham số sai, ngưỡng số dòng, ranh giới lô, ký tự lạ/ô dài, nhật ký. `package.json` thêm file vào `npm test`. `npm test` 217 ca: 216 pass, 1 skip có chủ đích; `npm run build` ok.
+- Hiệu năng (1.145.600 dòng giả trong DB tạm, 3 BCVH; server chạy tiến trình riêng): 1 tháng 533140 (334.800 dòng) 3,4 s; 92 ngày (993.600 dòng) 9,7–9,8 s; RSS nền 71 MB, đỉnh 273 MB (1 tháng) và 294–299 MB (~1 triệu dòng) — không tăng theo số dòng; ngắt giữa chừng → dừng, ghi `aborted`, RSS về ~252 MB, server còn phục vụ. Bản đầu dùng API dòng của ExcelJS: 1 tháng 13,7 s, RSS đỉnh 410 MB (~1 triệu dòng: 750 MB) — đã thay.
+- Docs: quyết định #55–#58 (ánh xạ 9 cột; mục #56 là mặc định CTO chọn), bản đồ kiến trúc (2 endpoint, ma trận quyền), `THIRD_PARTY_NOTICES.md` (+`exceljs` 4.4.0, `csv-parse` 7.0.3, đối chiếu LICENSE trong `node_modules`), backlog 7c ✅, 7c1, 7c2.
+
+## [2026-10-09] - Bổ sung 3c-3: test thoát XML + file mẫu
+
+- `tests/arrivals-export.test.js` +1 ca (16 ca): đường thư giả `A & B <C> "D" 'E'`, chữ Việt có dấu, toàn bộ ký tự điều khiển cấm của XML 1.0 → kiểm giá trị đọc lại bằng ExcelJS và XML gốc (đã thoát, không còn ký tự cấm). Chọn **xoá** ký tự cấm (không thay bằng khoảng trắng). Không đổi mã nguồn xuất file. File mẫu giả tạo ngoài repo cho PO mở thử Excel.
+
 ## [2026-10-09] - 4 vai trò ADMIN/TTVH/GDVH/STAFF, quản lý tài khoản chỉ ADMIN, gán GDVH ↔ BCVH (SANLUONG-3c-2)
 
 - `server/roles.js` (mới): `ROLES`, `VALID_ROLES`, `VIEWER_ROLES`, `isValidRole`. `server/auth.js`: `authRequired` tra DB (`role`, `deactivated_at`) ở MỌI request (khoá/không còn → 401, role ngoài danh sách → 403, `req.user.role` từ DB; `db.js` nạp lười để fixtures không mở nhầm DB thật); `requireRoles(...)` thay `requireManager`/`isManager` (đã xoá); `requireAdmin` là lớp bọc.

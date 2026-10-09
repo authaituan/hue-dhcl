@@ -386,5 +386,34 @@ Hệ quả (Claude Code): `GET /api/users/search` (gợi ý người phụ trác
 Hạ vai trò hoặc khoá **ADMIN hoạt động cuối cùng** → 400 (`server/lib/adminGuard.js`). Vì người gọi luôn là ADMIN hoạt động (tra DB) và đã bị chặn tự đổi vai trò / tự khoá, lớp này là phòng thủ chiều sâu (qua API hiện chưa tới được; kiểm thử trực tiếp hàm).
 `POST /api/users`: không gửi `role` → `STAFF` (quyền thấp nhất, như trước); có gửi thì phải đúng 1 trong 4 giá trị (so khớp chính xác sau `trim`, không tự đổi hoa/thường) — sai → 400. `PUT /api/users/:id`: `role` có gửi mà không hợp lệ → 400 (trước đây giá trị rỗng bị bỏ qua).
 
+### 55. Xuất file = dữ liệu thô của MỘT BCVH, 9 cột (PO, 09/10/2026 — SANLUONG-3c-3)
+Quyết định của PO (ghi nguyên):
+1. Xuất file là **dữ liệu thô chưa lọc** của một BCVH: mọi dòng của BCVH đó trong khoảng ngày đã chọn, không gộp theo bưu gửi, không loại dòng nào (kể cả hàng chuyển hoàn, tỉnh khác). File chỉ có **9 cột** (thay cho "toàn bộ cột CSV gốc"). Không xuất nhiều BCVH trong một file.
+2. Các cột mã số hiệu (SHBG, BD8, BD10, mã bưu cục…) phải là **văn bản** trong Excel, không bao giờ bị đổi thành số/ký hiệu khoa học và không mất chữ số 0 đầu.
+3. **Tất cả 9 cột, kể cả tiêu đề, là văn bản**: mọi ô đặt kiểu chuỗi (`numFmt '@'`, giá trị là chuỗi), không có ô số, không có ô ngày giờ của Excel. Tiêu đề không dấu. Ô rỗng để trống thật (không ghi "null", không ghi 0).
+4. Cột thời gian ghi thành chuỗi `dd/MM/yyyy HH:mm:ss` (vd `08/10/2026 15:05:09`), cùng một định dạng cho cả ba cột, không dùng kiểu Mỹ của CSV gốc. (Mặc định do CTO chọn cho người dùng Việt Nam; PO có thể đổi.)
+
+Bảng ánh xạ (tiêu đề trong file → cột `arrival_items`; đối chiếu `server/lib/arrivalsImport.js` `COLUMNS`):
+| # | Tiêu đề | Cột DB | | # | Tiêu đề | Cột DB |
+|---|---|---|---|---|---|---|
+| 1 | `BC_nhan_BG` | `receiver_code` | | 6 | `Thoi_gian_XN_BG` | `item_confirmed_at` |
+| 2 | `Ten_duong_thu` | `route_name` | | 7 | `Thoi_gian_XN_tui` | `bag_confirmed_at` |
+| 3 | `SHBG` | `tracking_no` | | 8 | `Ngay_gio_XND_BD10` | `bd10_confirmed_at` |
+| 4 | `So_hieu_BD8` | `bd8_no` | | 9 | `Dich_vu_code` | `service_code` |
+| 5 | `So_hieu_BD10` | `bd10_no` | | | | |
+Không dùng `bd10_ttkt_confirmed_at`. Đủ nguồn cho cả 9 cột — không phải hỏi PO.
+
+### 56. Tham số, giới hạn và nhật ký xuất file (CTO chọn mặc định — PO có thể đổi sau)
+(a) Khoảng ngày bắt buộc, **tối đa 92 ngày** một lần (chỉ nhận `YYYY-MM-DD`, không nhận giờ). (b) Tối đa **1.000.000 dòng dữ liệu** một file (Excel giới hạn 1.048.576 dòng); đếm trước khi ghi, vượt → 400 nêu số dòng và gợi ý thu hẹp khoảng ngày. Ngưỡng nằm ở `EXPORT_MAX_ROWS_DEFAULT` (`server/lib/arrivalsExport.js`); biến môi trường `ARRIVALS_EXPORT_MAX_ROWS` ghi đè (test dùng ngưỡng nhỏ).
+(c) Mỗi lần xuất ghi 1 dòng JSON vào `security.log`: `event: arrivals_export`, ai (`user_id`, `hrm_code`, `role`), `ip`, `receiver_code`, `from`, `to`, `date_basis`, `rows`, `status` (`ok` | `aborted` khi client ngắt | `error`). KHÔNG ghi dữ liệu bưu gửi. Lần bị từ chối (400/403) không ghi.
+(d) Xuất ở **server**, dạng luồng: `ExcelJS.stream.xlsx.WorkbookWriter` ghi thẳng vào response, đọc DB theo từng lô 2.000 dòng, duyệt từng ngày rồi theo `id` (đi qua chỉ mục `(receiver_code, <ngày>)`, không cần sắp xếp) → bộ nhớ không tăng theo số dòng; NAS RAM nhỏ. Thứ tự dòng trong file: ngày theo `date_basis` rồi `id` (thứ tự nạp).
+Chi tiết kỹ thuật: dòng tiêu đề đi qua API ExcelJS, còn dòng dữ liệu được ghi thẳng XML vào luồng sheet (API dòng/ô của ExcelJS tốn ~30 µs/dòng, 1 tháng mất 13,7 s so với 3,4 s) và có chờ khi bộ đệm nén/gửi vượt 2 MB (luồng sheet của ExcelJS không tự báo áp lực ngược; thiếu bước chờ thì RSS tăng theo số dòng). Phụ thuộc chi tiết nội bộ `exceljs@4.4.0` (`ws.stream`, `wb.styles`) — nếu nâng cấp `exceljs`, chạy lại `tests/arrivals-export.test.js`. Ô chuỗi do ExcelJS (chế độ luồng, không dùng chuỗi dùng chung vì tốn RAM) ghi dạng `t="str"` + `numFmt '@'`. Ký tự không hợp lệ trong XML 1.0 (0x00–0x08, 0x0B, 0x0C, 0x0E–0x1F, 0xFFFE, 0xFFFF) bị **xoá hẳn** (không thay bằng khoảng trắng, để không làm lệch mã số hiệu; tab/xuống dòng/0x7F hợp lệ nên giữ); `& < > " '` được thoát (`&amp; &lt; &gt; &quot; &apos;`); ô dài hơn 32.767 ký tự bị cắt. Chưa mở thử bằng Excel thật — PO nên mở một file mẫu để xác nhận không có cảnh báo.
+
+### 57. Quyền xuất file (PO, 09/10/2026 — SANLUONG-3c-3; cài #52)
+`ADMIN`, `TTVH` xuất BCVH bất kỳ trong 6 BCVH (`DASHBOARD_BCVH`); `GDVH` chỉ BCVH được giao (`user_bcvh`, qua `getAssignedBcvh`) — BCVH khác hoặc chưa được giao BCVH nào → 403; `STAFF` 403; không token 401. `GET /api/arrivals/export-scope` trả `{ bcvh: [{ ma, ten }] }` các BCVH người gọi được xuất (tên lấy như `/dashboard/overview`; GDVH chưa được giao → `[]`). Thứ tự kiểm `/export`: `receiver_code` (400) → quyền (403) → khoảng ngày (400) → ngưỡng số dòng (400).
+
+### 58. Việc ngoài phạm vi 3c-3 (ghi để khỏi quên)
+Nút xuất trên giao diện (ticket Antigravity); xuất theo bộ lọc hoặc định dạng khác nếu PO cần; giới hạn số lần xuất đồng thời (hiện không giới hạn — xuất ~1 triệu dòng chiếm 1 kết nối DB đồng bộ theo từng lô, nhường vòng lặp sự kiện giữa các lô).
+
 ## Drift phát hiện
 _(chưa có)_
