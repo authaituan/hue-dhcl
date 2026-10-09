@@ -16,7 +16,8 @@ const { isHomeProvince } = require('../server/lib/arrivalsQuery');
 const PORT = 5912;
 const USERS = {
   admin: { hrm: 'AR_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
-  manager: { hrm: 'AR_MGR', pass: 'Manager@123', role: 'MANAGER' },
+  ttvh: { hrm: 'AR_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
+  gdvh: { hrm: 'AR_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
   staff: { hrm: 'AR_STAFF', pass: 'Staff@123', role: 'STAFF' }
 };
 const tokens = {};
@@ -117,7 +118,7 @@ async function api(p, who) {
   try { body = await res.json(); } catch (e) { /* không có body */ }
   return { status: res.status, body };
 }
-const mgr = (p) => api(p, 'manager');
+const mgr = (p) => api(p, 'ttvh');
 const adm = (p) => api(p, 'admin');
 const DAY4 = 'from=2026-10-04&to=2026-10-04';
 const WIDE = 'from=2026-10-02&to=2026-10-05';
@@ -161,7 +162,7 @@ after(async () => {
   fs.rmSync(workDir, { recursive: true, force: true });
 });
 
-test('quyền: không token 401, STAFF 403, MANAGER/ADMIN 200; /exceptions và /import-status chỉ ADMIN', async () => {
+test('quyền: không token 401, STAFF 403, ADMIN/TTVH/GDVH 200; /exceptions và /import-status chỉ ADMIN', async () => {
   const common = ['meta', `summary?${DAY4}`, `by-time?${DAY4}`, `by-ward?${DAY4}`, `quality-mocs?${DAY4}`, `items?${DAY4}`, `lookup?tracking_no=${T(1)}`];
   const adminOnly = [`exceptions?${DAY4}`, 'import-status'];
   for (const e of [...common, ...adminOnly]) {
@@ -169,8 +170,10 @@ test('quyền: không token 401, STAFF 403, MANAGER/ADMIN 200; /exceptions và /
     assert.equal((await api(`/api/arrivals/${e}`, 'staff')).status, 403, e);
     assert.equal((await adm(`/api/arrivals/${e}`)).status, 200, e);
   }
-  for (const e of common) assert.equal((await mgr(`/api/arrivals/${e}`)).status, 200, e);
-  for (const e of adminOnly) assert.equal((await mgr(`/api/arrivals/${e}`)).status, 403, e);
+  for (const who of ['ttvh', 'gdvh']) {
+    for (const e of common) assert.equal((await api(`/api/arrivals/${e}`, who)).status, 200, `${who} ${e}`);
+    for (const e of adminOnly) assert.equal((await api(`/api/arrivals/${e}`, who)).status, 403, `${who} ${e}`);
+  }
   for (const gone of [`by-bdx?${DAY4}`, `by-day?${DAY4}`]) assert.equal((await mgr(`/api/arrivals/${gone}`)).status, 404, gone);
 });
 
@@ -263,13 +266,16 @@ test('quality-mocs: đủ 7 tổ hợp, tổng = sản lượng; mốc "có" xé
   assert.equal(wide['111'], 1, 'T12 đủ trạng thái (SHBG, BD8, BD10)');
 });
 
-test('cảnh báo chỉ ADMIN: /summary có canh_bao cho ADMIN, không có cho MANAGER; /exceptions có ly_do', async () => {
+test('cảnh báo chỉ ADMIN: /summary có canh_bao cho ADMIN, không có cho TTVH; /exceptions có ly_do', async () => {
   const a = (await adm(`/api/arrivals/summary?${WIDE}`)).body;
   assert.deepEqual([a.canh_bao.chua_xac_dinh_ngay_den, a.canh_bao.moc_bd10_som, a.canh_bao.den_lai_trong_khoang], [1, 1, 1]);
   assert.ok(a.canh_bao.so_moc_theo_dong[0] >= 1);
   const m = (await mgr(`/api/arrivals/summary?${WIDE}`)).body;
-  assert.ok(!('canh_bao' in m), 'MANAGER không thấy cảnh báo');
+  assert.ok(!('canh_bao' in m), 'TTVH không thấy cảnh báo');
   assert.equal(m.san_luong, a.san_luong);
+  const g = (await api(`/api/arrivals/summary?${WIDE}`, 'gdvh')).body;
+  assert.ok(!('canh_bao' in g), 'GDVH không thấy cảnh báo');
+  assert.equal(g.san_luong, a.san_luong, 'GDVH xem đủ dữ liệu như TTVH');
   const ex = (await adm(`/api/arrivals/exceptions?${WIDE}`)).body.items;
   const reasons = Object.fromEntries(ex.map((e) => [e.ly_do, e.tracking_no]));
   assert.deepEqual(reasons, { MOC_BD10_SOM: T(12), DEN_LAI_TRONG_KHOANG: T(2), KHONG_CO_MOC: T(6) });

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
-const { authRequired, requireManager } = require('../auth');
+const { authRequired, requireRoles } = require('../auth');
+const { ROLES, VIEWER_ROLES } = require('../roles');
 const { parseFloatOrNull } = require('../lib/helpers');
 const { resolveOrCreateOrgChain } = require('../lib/orgImport');
 
@@ -14,11 +15,12 @@ const router = express.Router();
 // post_offices có thêm 9 cột mới (old_ward_*, district_name, new_ward_*, phone,
 // operational_status, latitude, longitude).
 // Bảng 20 field JSON (import ⇄ export dùng CHUNG key): xem 03_ARCHITECTURE_MAP.md.
+// Quyền (04_DECISIONS.md #49, #53): đọc (GET) ADMIN/TTVH/GDVH; ghi/nhập/xoá chỉ ADMIN.
 // ==========================================
 
 // GET /api/network — danh sách bưu cục đầy đủ (join commune/province), hỗ trợ
 // search (mã HOẶC tên bưu cục), lọc communeId, phân trang.
-router.get('/network', authRequired, requireManager, (req, res) => {
+router.get('/network', authRequired, requireRoles(VIEWER_ROLES), (req, res) => {
   try {
     const { search, communeId, page = 1, limit = 20 } = req.query;
 
@@ -72,7 +74,7 @@ router.get('/network', authRequired, requireManager, (req, res) => {
 // POST /api/network/import — import mạng lưới từ Excel (20 cột). Được phép tạo
 // mới Tỉnh/BĐX/Bưu cục qua resolveOrCreateOrgChain(). Validate fail-fast (thiếu
 // maMbc -> lỗi ngay, không ghi gì). Bọc db.transaction().
-router.post('/network/import', authRequired, requireManager, (req, res) => {
+router.post('/network/import', authRequired, requireRoles(ROLES.ADMIN), (req, res) => {
   try {
     const { rows } = req.body || {};
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -119,7 +121,7 @@ router.post('/network/import', authRequired, requireManager, (req, res) => {
 
 // GET /api/network/export-data — xuất toàn bộ bưu cục theo 20 field (cùng key
 // với import), không phân trang.
-router.get('/network/export-data', authRequired, requireManager, (req, res) => {
+router.get('/network/export-data', authRequired, requireRoles(VIEWER_ROLES), (req, res) => {
   try {
     const { search, communeId } = req.query;
     let whereClause = ["1=1"];
@@ -182,7 +184,7 @@ router.get('/network/export-data', authRequired, requireManager, (req, res) => {
 // PUT /api/network/post-offices/:id — sửa 1 bưu cục (gồm 9 cột mới). Chỉ ghi đè
 // field CÓ GỬI trong body (undefined = giữ nguyên; '' = set null, trừ name/
 // communeId có validate riêng).
-router.put('/network/post-offices/:id', authRequired, requireManager, (req, res) => {
+router.put('/network/post-offices/:id', authRequired, requireRoles(ROLES.ADMIN), (req, res) => {
   try {
     const existing = db.prepare("SELECT * FROM post_offices WHERE id = ?").get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Không tìm thấy bưu cục' });
@@ -262,7 +264,7 @@ router.put('/network/post-offices/:id', authRequired, requireManager, (req, res)
 // (better-sqlite3 mặc định foreign_keys = ON): nếu còn users tham
 // chiếu -> SQLITE_CONSTRAINT_FOREIGNKEY -> bắt lỗi, trả 400 rõ ràng. KHÔNG thêm
 // cột soft-delete mới cho post_offices.
-router.delete('/network/post-offices/:id', authRequired, requireManager, (req, res) => {
+router.delete('/network/post-offices/:id', authRequired, requireRoles(ROLES.ADMIN), (req, res) => {
   try {
     const existing = db.prepare("SELECT * FROM post_offices WHERE id = ?").get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Không tìm thấy bưu cục' });

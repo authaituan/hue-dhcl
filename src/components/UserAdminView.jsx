@@ -4,7 +4,7 @@ import { apiFetchJson } from '../utils/api';
 import AddUserModal from './AddUserModal';
 import ResetUserPasswordModal from './ResetUserPasswordModal';
 
-const ROLE_OPTIONS = ['STAFF', 'ADMIN', 'MANAGER'];
+const ROLE_OPTIONS = ['STAFF', 'TTVH', 'GDVH', 'ADMIN'];
 
 export default function UserAdminView({ authUser }) {
   const [users, setUsers] = useState([]);

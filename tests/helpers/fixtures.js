@@ -8,6 +8,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { SERVER_DIR } = require('./serverHarness');
 const { hashPassword } = require(path.join(SERVER_DIR, 'auth.js'));
+// Vai trò hợp lệ lấy từ server/roles.js (một nơi định nghĩa) — test không viết lại chuỗi vai trò rải rác.
+const { ROLES } = require(path.join(SERVER_DIR, 'roles.js'));
 
 function uid() {
   return crypto.randomUUID();
@@ -32,7 +34,7 @@ function seedMinimalOrg(db) {
   return { provinceId, communeId, postOfficeId, provinceCode, communeCode, postOfficeCode };
 }
 
-// Seed 1 user với password_hash thật (dùng hashPassword thật từ server/auth.js)
+// Seed 1 user với password_hash thật (role: một trong ROLES — ADMIN, TTVH, GDVH, STAFF; test vai trò cũ/lạ truyền chuỗi thẳng) (dùng hashPassword thật từ server/auth.js)
 // để login qua route /api/auth/login thật lấy JWT thật.
 function seedUser(db, { hrmCode, fullName, role, password }) {
   const id = uid();
@@ -41,4 +43,14 @@ function seedUser(db, { hrmCode, fullName, role, password }) {
   return id;
 }
 
-module.exports = { seedMinimalOrg, seedUser, uid };
+// Đăng nhập qua /api/auth/login thật, trả { status, body }.
+async function loginAs(baseUrl, hrmCode, password) {
+  const res = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hrm_code: hrmCode, password })
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+module.exports = { seedMinimalOrg, seedUser, loginAs, uid, ROLES };

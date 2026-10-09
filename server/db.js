@@ -116,4 +116,13 @@ try {
   console.error('[db] Lỗi tạo bảng dữ liệu Hàng đến:', err.message);
 }
 
+// ==========================================
+// Gán GDVH ↔ BCVH (user_bcvh). Idempotent. Schema đặt trong server/lib/userBcvh.js.
+// ==========================================
+try {
+  require('./lib/userBcvh').ensureUserBcvhSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng user_bcvh:', err.message);
+}
+
 module.exports = db;

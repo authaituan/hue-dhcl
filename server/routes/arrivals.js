@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
-const { authRequired, requireManager, requireAdmin } = require('../auth');
+const { authRequired, requireRoles, requireAdmin } = require('../auth');
+const { ROLES, VIEWER_ROLES } = require('../roles');
 const q = require('../lib/arrivalsQuery');
 const dash = require('../lib/dashboardQuery');
 const { getMissingBatches } = require('../lib/arrivalsImport');
@@ -8,15 +9,16 @@ const { getMissingBatches } = require('../lib/arrivalsImport');
 const router = express.Router();
 
 // ==========================================
-// DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: MANAGER + ADMIN (STAFF 403, không token 401).
-// Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với MANAGER;
-// /summary bỏ trường `canh_bao` với MANAGER (docs/ai/04_DECISIONS.md #34).
+// DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: ADMIN, TTVH, GDVH (STAFF 403, không token 401) — 04_DECISIONS.md #49.
+// GDVH xem đủ 6 BCVH như TTVH; giới hạn theo BCVH được giao chỉ áp ở xuất file (3c-3, #52).
+// Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với TTVH/GDVH;
+// /summary bỏ trường `canh_bao` với vai trò khác ADMIN (docs/ai/04_DECISIONS.md #34).
 // Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardQuery.js).
 // ==========================================
-router.use('/arrivals', authRequired, requireManager);
+router.use('/arrivals', authRequired, requireRoles(VIEWER_ROLES));
 
 const FILTER_KEYS = ['from', 'to', 'date_basis', 'receiver_code', 'ward_key'];
-const isAdmin = (req) => req.user && req.user.role === 'ADMIN';
+const isAdmin = (req) => req.user && req.user.role === ROLES.ADMIN;
 
 function handle(fn, label) {
   return (req, res) => {
@@ -49,7 +51,7 @@ router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 
 // Dashboard điều hành (SANLUONG-3e, 04_DECISIONS.md #41–#47): 6 BCVH, điểm cần điều hành, xu hướng, phường/xã tăng, tổng hợp Trung tâm.
-// MANAGER + ADMIN (phân quyền TTVH/GĐVH: SANLUONG-3c). Điểm cần điều hành KHÁC cảnh báo dữ liệu ADMIN-only.
+// ADMIN, TTVH, GDVH. Điểm cần điều hành KHÁC cảnh báo dữ liệu ADMIN-only.
 router.get('/arrivals/dashboard/overview', handle((req) => dash.overview(db, req.query), 'dashboard-overview'));
 router.get('/arrivals/dashboard/trend', handle((req) => dash.trend(db, req.query), 'dashboard-trend'));
 router.get('/arrivals/dashboard/wards-surge', handle((req) => dash.wardsSurge(db, req.query), 'dashboard-wards-surge'));

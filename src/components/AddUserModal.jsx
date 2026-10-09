@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { X, UserPlus, AlertCircle } from 'lucide-react';
 import { apiFetchJson } from '../utils/api';
 
-const ROLE_OPTIONS = ['STAFF', 'ADMIN', 'MANAGER'];
+const ROLE_OPTIONS = ['STAFF', 'TTVH', 'GDVH', 'ADMIN'];
+const ROLE_HINTS = { STAFF: ' (chỉ xem Dashboard, mặc định)', TTVH: ' (xem toàn bộ dữ liệu 6 BCVH)', GDVH: ' (xem toàn bộ dữ liệu 6 BCVH)', ADMIN: ' (toàn quyền)' };
 
 export default function AddUserModal({ onClose, onSuccess }) {
   const [hrmCode, setHrmCode] = useState('');
@@ -107,7 +108,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
               className="w-full input-soft p-3 rounded-xl text-xs"
             >
               {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>{r}{r === 'STAFF' ? ' (chỉ xem, mặc định)' : ' (được ghi/quản lý)'}</option>
+                <option key={r} value={r}>{r}{ROLE_HINTS[r]}</option>
               ))}
             </select>
           </div>

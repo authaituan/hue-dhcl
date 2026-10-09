@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../db');
 const { authRequired, requireAdmin } = require('../auth');
+const { ROLES } = require('../roles');
 const { SIZES, validateChartConfig, computeWidgetData, buildMeta } = require('../lib/dashboardSources');
 const { resetDefaultWidgets } = require('../lib/dashboardDefaults');
 
@@ -56,10 +57,10 @@ function sendError(res, error, label) {
 const bad = (res, msg) => res.status(400).json({ error: msg });
 const isVisibleValue = (v) => typeof v === 'boolean' || v === 0 || v === 1;
 
-// GET /api/dashboard/widgets — mọi người dùng; STAFF/MANAGER chỉ thấy ô visible=1, ADMIN thấy tất cả.
+// GET /api/dashboard/widgets — mọi người dùng; mọi vai trò khác ADMIN chỉ thấy ô visible=1, ADMIN thấy tất cả.
 router.get('/dashboard/widgets', authRequired, (req, res) => {
   try {
-    const rows = req.user.role === 'ADMIN'
+    const rows = req.user.role === ROLES.ADMIN
       ? db.prepare('SELECT * FROM dashboard_widgets ORDER BY position, created_at').all()
       : db.prepare('SELECT * FROM dashboard_widgets WHERE visible = 1 ORDER BY position, created_at').all();
     res.json({ items: rows.map(toApi) });
@@ -72,7 +73,7 @@ router.get('/dashboard/widgets', authRequired, (req, res) => {
 // ?include_hidden=1: CHỈ ADMIN mới tính cả ô CHART đang ẩn (chế độ chỉnh sửa); người khác bị bỏ qua tham số.
 router.get('/dashboard/widgets-data', authRequired, (req, res) => {
   try {
-    const includeHidden = req.query.include_hidden === '1' && req.user.role === 'ADMIN';
+    const includeHidden = req.query.include_hidden === '1' && req.user.role === ROLES.ADMIN;
     const rows = db.prepare(
       `SELECT * FROM dashboard_widgets WHERE kind = 'CHART'${includeHidden ? '' : ' AND visible = 1'} ORDER BY position`
     ).all();

@@ -350,5 +350,41 @@ từng ngày). So sánh bằng phép nhân số nguyên `(a·d − c·b)·100 �
 Điểm `hang_nang` trong `issues` nay có `gia_tri` = chênh lệch (điểm %), `so_sanh` = ngưỡng (7), `don_vi = 'diem_pct'`, kèm `ty_le_hom_nay`, `ty_le_binh_thuong`, `so_luong`, `so_tuan`, `it_du_lieu`.
 Dòng BCVH trong `/overview` thêm `hang_nang.ty_le_binh_thuong` (null khi `so_tuan = 0`); dòng tổng gộp trên các BCVH có tuần.
 
+### 49. Bốn vai trò có tên + ma trận quyền (PO, 09/10/2026 — SANLUONG-3c-2; thay mô hình "STAFF / khác STAFF")
+Quyết định của PO (ghi nguyên):
+1. Vai trò hợp lệ (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`. Không còn `MANAGER`.
+   - `ADMIN`: toàn quyền; duy nhất tạo/sửa/khoá/mở khoá tài khoản, đổi vai trò, đặt lại mật khẩu người khác, gán BCVH; xem cảnh báo, ngoại lệ, kết quả nạp; sửa mạng lưới và widget Dashboard.
+   - `TTVH`: xem toàn bộ dữ liệu "Hàng đến" và Dashboard điều hành của 6 BCVH (xuất file mọi BCVH làm ở 3c-3). Không quản lý tài khoản, không sửa mạng lưới.
+   - `GDVH`: xem toàn bộ 6 BCVH như TTVH (kể cả tra từng bưu gửi); chỉ **xuất file** bị giới hạn ở BCVH được giao (3c-3). Không quản lý tài khoản.
+   - `STAFF`: giữ nguyên (chỉ xem Dashboard cũ; không vào `/api/arrivals/*`, `/api/users*`, `/api/network` trừ phần đang mở cho mọi vai trò).
+2. Chuyển đổi: `ADMIN`→`ADMIN`, `MANAGER`→`TTVH`, `STAFF`→`STAFF`. Đổi một lần, không để tên cũ song song (`scripts/migrate-roles.js`, `06_DEPLOYMENT.md` mục 7).
+3. Gán BCVH: bảng quan hệ nhiều-nhiều `user_bcvh`, hiện gán 1 BCVH cho mỗi GDVH; một BCVH có thể có nhiều GDVH (#51).
+4. Giới hạn của GDVH chỉ áp ở xuất file, KHÔNG hạn chế dữ liệu xem (`/arrivals/items`, `/arrivals/lookup` giữ như cũ cho mọi vai trò được xem) (#52).
+**Cách cài (Claude Code)**: `server/roles.js` là nơi duy nhất định nghĩa vai trò; `requireRoles(...)` với danh sách tường minh thay `requireManager` (đã xoá); `requireAdmin` giữ làm lớp bọc cho ADMIN.
+Ma trận route × vai trò: `03_ARCHITECTURE_MAP.md` mục 3. Quyết định #34 (cảnh báo dữ liệu chỉ ADMIN) giữ nguyên, nay áp cho cả TTVH/GDVH; các quyết định cũ nhắc "MANAGER + ADMIN" (#21, #25, #34, #44, #46…) đọc là ADMIN + TTVH + GDVH.
+
+### 50. Quyền có hiệu lực ngay: tra DB mỗi request (CTO chọn mặc định — PO có thể đổi sau)
+`authRequired` đọc `role` + `deactivated_at` từ `users` theo `id` trong token ở MỌI request (một câu lệnh chuẩn bị sẵn; `req.authChecked` tránh tra hai lần khi route gắn thêm `authRequired`).
+Tài khoản bị khoá hoặc không còn → **401**; vai trò ngoài danh sách hợp lệ (vd `MANAGER` chưa chuyển đổi) → **403**, không coi là quản lý. `req.user.role` lấy từ DB, token giữ nguyên cấu trúc, không bắt đăng nhập lại.
+Hệ quả: đổi vai trò / khoá tài khoản có hiệu lực ngay với token cũ. Giao diện vẫn đọc vai trò từ payload token để ẩn/hiện menu nên menu chỉ cập nhật khi đăng nhập lại (chỉ ảnh hưởng hiển thị, không ảnh hưởng quyền thật).
+
+### 51. Bảng `user_bcvh` và API gán BCVH (PO, 09/10/2026)
+`user_bcvh(user_id, bcvh_code, created_at)`, PK `(user_id, bcvh_code)`, `user_id` → `users(id)`; tạo idempotent trong `server/db.js` (`ensureUserBcvhSchema`).
+`GET /api/users/:id/bcvh` và `PUT /api/users/:id/bcvh` (body `{ "codes": ["533140"] }`, thay toàn bộ tập), chỉ ADMIN. Mã phải thuộc `DASHBOARD_BCVH` (sai → 400); chỉ gán cho tài khoản vai trò `GDVH` (khác → 400);
+`codes` rỗng hợp lệ; không giới hạn cứng số BCVH. Đổi một GDVH sang vai trò khác thì xoá các dòng gán (cùng transaction với việc đổi vai trò). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng chung cho 3c-3.
+**Cách đã chọn (Claude Code)**: mã trùng trong `codes` được gộp; kết quả sắp tăng dần; khoá GDVH không xoá dòng gán (mở khoá là dùng lại); `GET` của tài khoản không phải GDVH trả `codes: []` (200).
+
+### 52. Giới hạn BCVH của GDVH chỉ áp ở xuất file (PO, 09/10/2026)
+`/api/arrivals/*` (kể cả `/items`, `/lookup`) trả đủ 6 BCVH cho cả ADMIN, TTVH, GDVH — không lọc theo `user_bcvh`. Ticket 3c-3 (xuất file) mới dùng `getAssignedBcvh` để giới hạn GDVH.
+
+### 53. Mặc định do CTO chọn (PO có thể đổi sau — SANLUONG-3c-2)
+(a) Mạng lưới: đọc (`GET /api/network`, `/network/export-data`) cho ADMIN/TTVH/GDVH; ghi/nhập/xoá chỉ ADMIN. (b) Quyền có hiệu lực ngay (#50). (c) Phải còn ít nhất 1 ADMIN hoạt động (#54).
+(d) Tạo ADMIN đầu tiên khi triển khai sạch: để ticket triển khai NAS sau. (e) `/api/organization/*` và `/api/dashboard/stats` giữ nguyên (mọi người đã đăng nhập) — ghi vào backlog để PO xem lại.
+Hệ quả (Claude Code): `GET /api/users/search` (gợi ý người phụ trách) nằm trong `/api/users*` nên chỉ ADMIN — khớp việc chỉ ADMIN sửa người phụ trách bưu cục.
+
+### 54. ADMIN hoạt động cuối cùng + chi tiết kiểm tra role (Claude Code tự chọn, theo mặc định (c) của #53)
+Hạ vai trò hoặc khoá **ADMIN hoạt động cuối cùng** → 400 (`server/lib/adminGuard.js`). Vì người gọi luôn là ADMIN hoạt động (tra DB) và đã bị chặn tự đổi vai trò / tự khoá, lớp này là phòng thủ chiều sâu (qua API hiện chưa tới được; kiểm thử trực tiếp hàm).
+`POST /api/users`: không gửi `role` → `STAFF` (quyền thấp nhất, như trước); có gửi thì phải đúng 1 trong 4 giá trị (so khớp chính xác sau `trim`, không tự đổi hoa/thường) — sai → 400. `PUT /api/users/:id`: `role` có gửi mà không hợp lệ → 400 (trước đây giá trị rỗng bị bỏ qua).
+
 ## Drift phát hiện
 _(chưa có)_

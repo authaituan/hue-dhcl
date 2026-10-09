@@ -1,8 +1,8 @@
 // ==========================================
 // Test: User Administration (server/index.js:721-848)
 // Evidence: GET/POST /api/users, PUT /api/users/:id, PUT /api/users/:id/reset-password,
-// PUT /api/users/me/password. Middleware dùng lại authRequired/requireManager có sẵn
-// (server/auth.js), không test lại middleware ở đây (đã có tests/auth.test.js).
+// PUT /api/users/me/password. Middleware authRequired/requireAdmin (server/auth.js)
+// — ma trận 4 vai trò nằm ở tests/roles.test.js; ở đây ADMIN = "quản lý".
 // ==========================================
 'use strict';
 const { test, before, after } = require('node:test');
