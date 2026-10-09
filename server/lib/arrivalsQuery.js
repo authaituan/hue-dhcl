@@ -112,6 +112,15 @@ function toList(v, name) {
   return arr;
 }
 
+// Ngưỡng hàng nặng (gam) từ tham số `heavy_g`; rỗng/không có -> mặc định. Dùng chung với dashboardQuery.js.
+function parseHeavyG(raw) {
+  if (raw === undefined || raw === '') return HEAVY_THRESHOLD_G_DEFAULT;
+  if (!/^\d+$/.test(raw) || Number(raw) < HEAVY_THRESHOLD_G_MIN || Number(raw) > HEAVY_THRESHOLD_G_MAX) {
+    throw new QueryParamError(`Tham số "heavy_g" phải là số nguyên gam từ ${HEAVY_THRESHOLD_G_MIN} đến ${HEAVY_THRESHOLD_G_MAX}`);
+  }
+  return Number(raw);
+}
+
 /** Chuẩn hoá query string. allowed = khoá được phép (khoá lạ -> 400). requireRange=false: không cần from/to. */
 function parseFilters(query, { allowed, requireRange = true } = {}) {
   const allowedSet = new Set(allowed);
@@ -153,16 +162,7 @@ function parseFilters(query, { allowed, requireRange = true } = {}) {
       f.wardKey = wardKey(w); // nhận cả tên phường/xã gốc
     }
   }
-  f.heavyG = HEAVY_THRESHOLD_G_DEFAULT;
-  if (allowedSet.has('heavy_g')) {
-    const h = one('heavy_g');
-    if (h !== undefined && h !== '') {
-      if (!/^\d+$/.test(h) || Number(h) < HEAVY_THRESHOLD_G_MIN || Number(h) > HEAVY_THRESHOLD_G_MAX) {
-        throw new QueryParamError(`Tham số "heavy_g" phải là số nguyên gam từ ${HEAVY_THRESHOLD_G_MIN} đến ${HEAVY_THRESHOLD_G_MAX}`);
-      }
-      f.heavyG = Number(h);
-    }
-  }
+  f.heavyG = allowedSet.has('heavy_g') ? parseHeavyG(one('heavy_g')) : HEAVY_THRESHOLD_G_DEFAULT;
   if (allowedSet.has('granularity')) {
     const g = one('granularity') || 'day';
     if (g !== 'day' && g !== 'hour') throw new QueryParamError('Tham số "granularity" phải là day hoặc hour');
@@ -190,7 +190,9 @@ function parseFilters(query, { allowed, requireRange = true } = {}) {
 //   s      : dòng đại diện + nhóm phân loại (lọc phường/xã nếu có) = tập SHBG được đếm.
 // ------------------------------------------
 // materialize=true khi câu lệnh đọc lại `s` nhiều lần (/summary); còn lại để SQLite gộp thẳng vào truy vấn.
-function buildCountedCte(db, f, { materialize = false } = {}) {
+// withMocTimes=true: thêm bag_at / item_at vào `s` = giờ XN túi / XN bưu gửi SỚM NHẤT trên các dòng của bưu gửi trong khoảng
+// (chỉ thêm cột, không đổi cách đếm; Dashboard dùng để tính khoảng XN túi -> XN bưu gửi).
+function buildCountedCte(db, f, { materialize = false, withMocTimes = false } = {}) {
   const b = DATE_BASES[f.dateBasis]; // whitelist
   prepareHomeFunction(db);
   const params = { from: f.from, to: f.to, dfrom: f.fromDate, dto: f.toDate };
@@ -208,17 +210,17 @@ function buildCountedCte(db, f, { materialize = false } = {}) {
   const sql = `
     r AS MATERIALIZED (
       SELECT id, tracking_no, import_file_id, bd8_no, arrival_evidence_count,
-        ${b.time} AS t,
+        ${b.time} AS t${withMocTimes ? ', bag_confirmed_at AS bag_at, item_confirmed_at AS item_at' : ''},
         (bag_confirmed_at IS NOT NULL) AS m_bag, (bd10_confirmed_at IS NOT NULL) AS m_bd10, (item_confirmed_at IS NOT NULL) AS m_item
       FROM arrival_items WHERE ${where.join(' AND ')}
     ),
     firsts AS (
       SELECT tracking_no, MIN(t || printf('%012d', id)) AS k, COUNT(DISTINCT import_file_id) AS file_count,
-        MAX(m_bag) AS m_bag, MAX(m_bd10) AS m_bd10, MAX(m_item) AS m_item
+        MAX(m_bag) AS m_bag, MAX(m_bd10) AS m_bd10, MAX(m_item) AS m_item${withMocTimes ? ', MIN(bag_at) AS bag_at, MIN(item_at) AS item_at' : ''}
       FROM r GROUP BY tracking_no
     ),
     s AS ${materialize ? 'MATERIALIZED' : 'NOT MATERIALIZED'} (
-      SELECT x.tracking_no, x.file_count, x.m_bag, x.m_bd10, x.m_item,
+      SELECT x.tracking_no, x.file_count, x.m_bag, x.m_bd10, x.m_item${withMocTimes ? ', x.bag_at, x.item_at' : ''},
         substr(x.k, 1, 19) AS t, a.id, a.import_file_id, a.receiver_code, a.ward_name, a.ward_key, a.province_name,
         a.weight_g, a.bd10_no, a.bd8_no, a.route_name, a.service_code, a.service_name, a.arrival_at, a.arrival_at_basis, a.arrival_date,
         CASE WHEN a.province_name <> '' AND NOT arrivals_is_home(a.province_name) THEN 'OUT_PROVINCE'
@@ -344,8 +346,15 @@ function sortGroups(list) {
   return list.sort((a, b) => b.san_luong - a.san_luong || String(a.ten).localeCompare(String(b.ten), 'vi'));
 }
 
+const ROUTE_KEY_SQL = "CASE WHEN TRIM(route_name) = '' THEN '' ELSE route_name END";
+const SERVICE_KEY_SQL = "CASE WHEN TRIM(service_code) = '' AND TRIM(service_name) = '' THEN '' ELSE service_code || char(31) || service_name END";
+
 function byRoute(db, f) {
-  const rows = groupWithHours(db, f, "CASE WHEN TRIM(route_name) = '' THEN '' ELSE route_name END", 'MIN(route_name) AS ten, NULL AS ma,');
+  return shapeByRoute(f, groupWithHours(db, f, ROUTE_KEY_SQL, 'MIN(route_name) AS ten, NULL AS ma,'));
+}
+
+// Dựng kết quả từ các dòng (nhóm, giờ) — tách riêng để Dashboard gom nhiều khối trong MỘT lần chạy CTE.
+function shapeByRoute(f, rows) {
   const groups = foldGroups(rows);
   const total = groups.reduce((a, x) => a + x.san_luong, 0);
   const shape = (x, ten) => ({
@@ -363,9 +372,10 @@ function byRoute(db, f) {
 }
 
 function byService(db, f) {
-  const rows = groupWithHours(db, f,
-    "CASE WHEN TRIM(service_code) = '' AND TRIM(service_name) = '' THEN '' ELSE service_code || char(31) || service_name END",
-    'MIN(service_code) AS ma, MIN(service_name) AS ten,');
+  return shapeByService(f, groupWithHours(db, f, SERVICE_KEY_SQL, 'MIN(service_code) AS ma, MIN(service_name) AS ten,'));
+}
+
+function shapeByService(f, rows) {
   const groups = foldGroups(rows);
   const total = groups.reduce((a, x) => a + x.san_luong, 0);
   const shape = (x, ma, ten) => ({
@@ -427,13 +437,26 @@ function byWard(db, f) {
 }
 
 function qualityMocs(db, f) {
-  const rows = run(db, f, 'SELECT m_bag || m_bd10 || m_item AS key, COUNT(*) AS n FROM s GROUP BY key');
+  return shapeQualityMocs(db, f, run(db, f, 'SELECT m_bag || m_bd10 || m_item AS key, COUNT(*) AS n FROM s GROUP BY key'));
+}
+
+function shapeQualityMocs(db, f, rows) {
   const map = new Map(rows.map((r) => [r.key, r.n]));
   const total = rows.reduce((a, r) => a + r.n, 0);
   const pct = (n) => (total ? Math.round((n / total) * 10000) / 100 : 0);
   const has = (field) => MOC_COMBOS.filter((c) => c[field]).reduce((a, c) => a + (map.get(c.key) || 0), 0);
+  const stat = (n) => ({ so_buu_gui: n, ty_le: pct(n) });
+  // Tổng hợp từ 7 tổ hợp, mẫu số = sản lượng đến. "Đủ trạng thái (SHBG, BD8, BD10)" = đủ XN bưu gửi + XN túi + XND BD10 (#43).
+  const tongHop = {
+    du_trang_thai: stat(map.get('111') || 0),
+    co_xn_tui: stat(has('bag')),
+    co_xnd_bd10: stat(has('bd10')),
+    khong_xnd_bd10: stat(total - has('bd10')),
+    co_xn_bg: stat(has('item'))
+  };
   return {
     san_luong: total,
+    tong_hop: tongHop,
     to_hop: MOC_COMBOS.map((c) => ({ ...c, so_buu_gui: map.get(c.key) || 0, ty_le: pct(map.get(c.key) || 0) })),
     ty_le_co_moc: { bag: pct(has('bag')), bd10: pct(has('bd10')), item: pct(has('item')) },
     khong_co_moc: db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(f)})`).get(undatedParams(f)).n,
@@ -536,5 +559,7 @@ module.exports = {
   DATE_BASES, SPECIAL_GROUPS, MOC_COMBOS, MAX_PAGE_SIZE, MAX_RANGE_DAYS, MAX_HOUR_RANGE_DAYS, QueryParamError,
   HEAVY_THRESHOLD_G_DEFAULT, HEAVY_THRESHOLD_G_MIN, HEAVY_THRESHOLD_G_MAX, NO_ROUTE_LABEL, NO_SERVICE_LABEL,
   parseFilters, buildCountedCte, summary, byTime, byWard, byRoute, byService, qualityMocs, items, lookup, exceptions, meta, importStatus,
-  homeProvinceKeys, isHomeProvince, catalogWardKeys
+  homeProvinceKeys, isHomeProvince, catalogWardKeys,
+  parseHeavyG, groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff,
+  ROUTE_KEY_SQL, SERVICE_KEY_SQL, shapeByService, shapeQualityMocs
 };

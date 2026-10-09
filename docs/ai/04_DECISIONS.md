@@ -84,7 +84,7 @@ tăng ảo (bưu cục gốc đóng trùng hoặc lỗi). Số túi/kiện = s�
 
 ### 13. Thời gian đến BCVH (PO, 08/10/2026)
 Thời gian đến BCVH = mốc SỚM NHẤT trong 3 mốc `Thời gian XN túi`, `Ngay_gio_XND_BD10`, `Thời gian XN BG` (có dấu vết nào ở BCVH là
-đã đến; BCVH chịu trách nhiệm hàng ngay khi túi đã quét; dữ liệu có lúc rỗng nên không dựa vào một cột). Đủ cả 3 mốc = đầy đủ nghiệp vụ;
+đã đến; BCVH chịu trách nhiệm hàng ngay khi túi đã quét; dữ liệu có lúc rỗng nên không dựa vào một cột). Đủ trạng thái (SHBG, BD8, BD10 — trước đây gọi "đủ cả 3 mốc", #43) = đầy đủ nghiệp vụ;
 thiếu mốc vẫn chấp nhận nếu còn ít nhất 1 mốc làm căn cứ xác định hàng đã đến; không có mốc nào = chưa đủ căn cứ (xếp nhóm "Chưa xác định
 ngày đến", vẫn lưu dòng). Bộ lọc ngày cho chọn tiêu chí: Đến BCVH (mặc định) / XN túi / XN BD10 / XN BG. `Ngay_gio_XND_BD10_tai_TTKT`
 KHÔNG dùng (là bưu cục trước BCVH).
@@ -270,6 +270,85 @@ Tên đường thư/dịch vụ/khối lượng lấy từ dòng đại diện c
   `/by-service` (endpoint khác không nhận → 400). ADMIN sửa ngưỡng trên giao diện cần bảng cấu hình — ticket sau.
 - **`khoi_luong_tb_g`** = tổng khối lượng (rỗng tính 0) / sản lượng của nhóm, làm tròn gam. Tỷ lệ % làm tròn 2 chữ số.
 - **Hiệu năng** (~1 triệu dòng giả): 1 tuần ≤ 0,11 s; 1 tháng 0,28–0,36 s; 1 năm 4,0–4,5 s.
+
+## Dashboard điều hành (SANLUONG-3e)
+
+### 41. 6 BCVH của Trung tâm (PO, 08–09/10/2026)
+6 BCVH (mã — tên): 533140 BCVH Thuận Hóa; 535470 BCVH Hương Trà; 536250 BCVH Hương Thủy; 537015 BCVH Thuận An; 537220 BCVH Phú Lộc;
+535790 BCVH A Lưới. Hiện chỉ 533140 có dữ liệu; các BCVH còn lại sẽ có khi nối SFTP. API phải trả đủ 6 BCVH; BCVH chưa có dữ liệu trả số 0
+và cờ `co_du_lieu: false` (không lỗi). Danh sách đặt thành hằng số có tên; tên lấy từ `post_offices` nếu khớp mã, không khớp thì dùng tên trên.
+**Cách đã chọn (Claude Code)**: hằng số `DASHBOARD_BCVH` (`server/lib/dashboardQuery.js`). `co_du_lieu` = có ít nhất 1 file đã nạp (`status = 'OK'`)
+với `unit_code` = mã BCVH (file EMPTY không tính là có dữ liệu). Con số của từng BCVH lọc theo `receiver_code` (BC nhận) = mã BCVH.
+
+### 42. "Bình thường" của một BCVH (PO, 08–09/10/2026)
+"Bình thường" = trung bình sản lượng đến của tối đa 4 ngày cùng thứ gần nhất trước ngày xét, cùng khoảng giờ (00:00 đến mốc `as_of`).
+Dữ liệu lịch sử dự kiến ~30 ngày. Không ẩn khi dữ liệu ngắn: tính trên số tuần đang có, trả `so_tuan` (0–4) kèm `it_du_lieu: true` khi `so_tuan < 4`;
+`so_tuan = 0` thì không có so sánh (null).
+**Cách đã chọn**: ứng viên là đúng 4 ngày `date − 7, −14, −21, −28` (không lùi xa hơn để bù ngày thiếu). Một ứng viên được tính là "có tuần" của
+BCVH khi BCVH đó có ≥ 1 file `OK` với `file_date` = ngày đó (không dựa vào sản lượng > 0, để ngày thật sự vắng hàng vẫn tính 0 còn ngày chưa nạp
+file thì bị bỏ qua). Trung bình = tổng sản lượng các tuần có / `so_tuan`. Phần trăm lệch = (hôm nay − bình thường) / bình thường × 100, so sánh ngưỡng
+bằng phép nhân số nguyên (không sai số làm tròn). `/trend` và `/wards-surge` dùng cùng cách chọn tuần (`/trend`: ngày có file của bất kỳ BCVH nào).
+Dòng "tổng" chỉ so sánh trên các BCVH có `so_tuan > 0`; `so_tuan` của dòng tổng = nhỏ nhất trong các BCVH có dữ liệu.
+
+### 43. "Đủ trạng thái (SHBG, BD8, BD10)" (PO, 08–09/10/2026)
+"Đủ trạng thái (SHBG, BD8, BD10)" là tên mới của "đủ cả 3 mốc" (đủ XN bưu gửi, XN túi, XND BD10). Chỉ đổi tên hiển thị/tài liệu và tên trường API
+(`du_trang_thai`); không đổi cách tính (= tổ hợp `111` của #33).
+
+### 44. "Không XNĐ BD10" (PO, 08–09/10/2026)
+"Không XNĐ BD10" = số bưu gửi (SHBG) mà cột `Ngay_gio_XND_BD10` trống, theo quy tắc "mốc có" của #33 (một SHBG tính là có mốc nếu bất kỳ dòng nào của
+nó trong khoảng lọc có giá trị). Đếm số SHBG khác nhau, không đếm dòng. Khối `tong_hop` của `/quality-mocs`: `du_trang_thai`, `co_xn_tui`, `co_xnd_bd10`,
+`khong_xnd_bd10`, `co_xn_bg` (số và %, mẫu số = sản lượng đến); kiểm: `co_xnd_bd10 + khong_xnd_bd10 = sản lượng`.
+
+### 45. Điểm cần điều hành và ngưỡng (PO, 08–09/10/2026)
+Hệ thống tự tính từ MỘT đối tượng cấu hình `DASHBOARD_THRESHOLDS` (ADMIN chỉnh được ở ticket sau — cần bảng cấu hình; ticket 3e không làm giao diện/lưu cấu hình):
+- Sản lượng hôm nay lệch so với "bình thường": từ 15% là `trong_ngay`, từ 25% là `xu_ly_ngay`; lệch âm → `san_luong_thap`, dương → `san_luong_cao`.
+- Hàng nặng (khối lượng > `heavy_g`, mặc định 2.500 g, #37): từ 7% sản lượng của BCVH → `hang_nang`, mức `trong_ngay`. **[Đã sửa định nghĩa ở #48 — nay so với tỷ lệ bình thường, tính bằng điểm %.]**
+- Hàng đến sau 15:00: từ 35% sản lượng của BCVH tính tới `as_of` → `den_muon`, mức `trong_ngay`; `as_of` trước 15:00 thì không đánh giá (null).
+- Xác nhận chậm: trung vị khoảng XN túi → XN bưu gửi (phút) của các bưu gửi đến hôm nay có đủ hai mốc ≥ 75 phút → `xac_nhan_cham`, mức `trong_ngay`.
+  Ngưỡng và định nghĩa này là TẠM — PO xem lại sau khi chạy dữ liệu thật ~2 tuần; phải dễ đổi.
+- Điểm cần điều hành dành cho lãnh đạo (MANAGER + ADMIN), KHÁC cảnh báo dữ liệu ADMIN-only của #34 (thiếu đợt, ngoại lệ, mốc BD10 sớm, file bị từ chối) — không trộn.
+**Cách đã chọn**: mọi so sánh dùng "≥" (đúng ngưỡng là có điểm). `as_of` ≥ 15:00 mới đánh giá "đến muộn"; "đến sau 15:00" = thời điểm đến ≥ 15:00:00 của ngày xét.
+Khoảng XN túi → XN bưu gửi của một SHBG = (giờ XN bưu gửi sớm nhất) − (giờ XN túi sớm nhất) trên các dòng của SHBG trong khoảng 00:00 → `as_of` của ngày xét; chỉ
+tính SHBG có cả hai mốc (quy tắc "mốc có" của #33); không loại khoảng âm (mẫu: 14/11.372 SHBG có khoảng âm); trung vị chẵn = trung bình hai giá trị giữa.
+Ban đầu không đặt sản lượng tối thiểu cho điểm lệch; đã bổ sung ở #48.
+Sắp xếp `issues`: mức (`xu_ly_ngay` trước) → `do_lech` giảm dần → mã BCVH. `do_lech` = giá trị vượt / ngưỡng `trong_ngay` (lệch% / 15; tỷ lệ% / ngưỡng%; phút / 75) — để so được các loại với nhau.
+
+### 46. Quyền Dashboard (PO, 08–09/10/2026)
+MANAGER + ADMIN xem; STAFF 403; không token 401 (như các API "Hàng đến" khác). Phân quyền TTVH/GĐVH làm ở SANLUONG-3c.
+
+### 47. Thiết kế Dashboard điều hành (SANLUONG-3e, Claude Code tự chọn)
+- **Không có logic đếm thứ hai**: `server/lib/dashboardQuery.js` gọi `buildCountedCte()` (3b) cho từng cửa sổ [ngày 00:00, mốc]; mỗi ngày là một khoảng riêng
+  (quy tắc 3b áp riêng từng khoảng — bưu gửi đến lại đếm 1 lần ở mỗi ngày nó có mặt). Chỉ thêm tuỳ chọn `withMocTimes` (cột `bag_at`, `item_at` vào `s`) và hàm
+  `parseHeavyG` dùng chung; các endpoint 3b/3d không đổi.
+- **Cửa sổ giờ**: `to = as_of:00` (gồm cả 2 đầu, giống tham số `to=YYYY-MM-DD HH:MM` của 3b); `as_of = 23:59` = hết ngày. Mọi ngày so sánh (hôm qua, 4 ngày
+  cùng thứ) dùng cùng `HH:MM` của `as_of`.
+- **Đếm theo BCVH**: một lần đếm cho cả 6 BCVH (bộ lọc `receiver_code` = 6 mã), nhóm theo BC nhận của dòng đại diện → tổng 6 BCVH = đúng số SHBG khác nhau của 6 BCVH;
+  một SHBG hiếm hoi có mặt ở 2 BCVH trong cùng cửa sổ chỉ tính 1 lần, ở BCVH có lần đến sớm nhất.
+- **`date` mặc định** = `file_date` lớn nhất của file `OK` thuộc 6 BCVH; **`as_of` mặc định** = `file_time` lớn nhất của các file đó trong `date`, cắt giây (09:30:12 → 09:30;
+  trả `as_of_nguon` = `file_nap_moi_nhat` | `tham_so` | `cuoi_ngay` khi `date` không có file → 23:59). `ngay_cap_nhat` = `imported_at` lớn nhất của file `OK` (UTC, ISO `...Z`).
+  Chưa có file nào: 200, `date: null`, 6 BCVH số 0, `issues` rỗng.
+- **`/trend`**: 8 ngày (`date − 7` … `date`), mỗi ngày một cửa sổ (ngày xét tới `as_of`, ngày khác cả ngày); `theo_gio` 06–17: `hom_nay` null cho giờ sau `as_of`; giờ chứa `as_of`
+  (`chua_het_gio`) so sánh tới `as_of` ở cả hôm nay lẫn các tuần; giờ sau đó `tb_4_tuan` là cả giờ (để vẽ đường "bình thường").
+- **`/wards-surge`**: theo cặp (BCVH, phường/xã Huế — nhóm `HOME` của 3b); bình thường = tổng số trên các tuần có file của BCVH đó / `so_tuan` (tuần vắng phường/xã đó = 0);
+  chỉ phường/xã tăng (> bình thường), hôm nay ≥ 30 và bình thường ≥ 20 (hằng số `WARD_SURGE`, so sánh gồm biên); xếp theo % tăng, hoà → hôm nay lớn hơn; tối đa 5.
+- **`/center`**: `date` (mặc định như trên), `from`/`to` (mặc định 7 ngày kết thúc ở `date`, gồm cả ngày `to`; chỉ có `to` → `from` = `to` − 6 ngày), `heavy_g`. Một khoảng
+  duy nhất (không phải theo ngày). Đường thư xếp hạng theo (BCVH, tên đường thư); bưu gửi chưa có tên gom thành MỘT nhóm chung của Trung tâm (không gắn BCVH). `duong_thu` =
+  { `top` (5), `con_lai` (đường thư có tên ngoài top), `chua_co_ten` (+ `trong_top`) }: top + còn lại + (chưa có tên nếu `trong_top = false`) = `san_luong`. Dịch vụ lấy nguyên kết quả `byService`
+  của 3d. Chất lượng = `qualityMocs` của 3b (7 tổ hợp + `tong_hop`). Hai tên đường thư gần giống vẫn là hai đường riêng (không tự gộp).
+- **Hiệu năng** (1.000.008 dòng giả, 3 BCVH × 38 ngày, 2026-10-09): `/overview` ~0,65 s; `/trend` 1,1–1,2 s (11 cửa sổ); `/wards-surge` ~0,58 s; `/center` 7 ngày ~0,98 s,
+  30 ngày ~4,9 s. `/center` gom đường thư + dịch vụ + tổ hợp mốc vào MỘT lần chạy CTE (bản hẹp vật chất hoá) — gọi 3 hàm riêng mất 1,9–2,1 s. Khoảng dài vẫn cần bảng tổng hợp (#35).
+- **Tham số**: khoá lạ → 400; `heavy_g` chỉ ở `/overview` và `/center`. API không sinh câu chữ tiếng Việt (chỉ mã `loai`, `muc`, `don_vi`); giao diện tự ghép câu.
+
+### 48. Sửa định nghĩa điểm "hàng nặng" + sản lượng tối thiểu (PO, 09/10/2026; sửa #45 sau khi xem số liệu mẫu)
+PO sửa định nghĩa (không phải lựa chọn của Claude Code):
+1. Điểm `hang_nang` = (tỷ lệ hàng nặng hôm nay) − (tỷ lệ hàng nặng bình thường) ≥ **7 điểm %**, thay cho "tỷ lệ hàng nặng ≥ 7% sản lượng". "Bình thường" = các ngày cùng thứ
+   (tối đa 4, cùng khung giờ 00:00 → `as_of`, như #42). `so_tuan = 0` thì không phát sinh điểm này. Ngưỡng 7 vẫn nằm trong `DASHBOARD_THRESHOLDS` (khoá `hang_nang.trong_ngay_diem_pct`).
+2. Thêm `DASHBOARD_THRESHOLDS.san_luong_toi_thieu.tb_4_tuan` (mặc định **50 SHBG**, TẠM): BCVH có sản lượng bình thường (`tb_4_tuan`) dưới mức này thì không phát sinh điểm
+   lệch sản lượng (`san_luong_thap`/`san_luong_cao`) và `hang_nang`. Trường `nguong` của `/overview` có echo ngưỡng này như các ngưỡng khác.
+**Cách đã chọn (Claude Code)**: tỷ lệ bình thường = **gộp** hàng nặng của các tuần có / sản lượng của các tuần đó (trọng số theo sản lượng, không lấy trung bình cộng các tỷ lệ
+từng ngày). So sánh bằng phép nhân số nguyên `(a·d − c·b)·100 ≥ 7·b·d` (a/b hôm nay, c/d bình thường), "≥" gồm biên. Mức tối thiểu so `tổng tuần ≥ 50 × so_tuan` (tb đúng 50 vẫn được xét; 49,75 thì không).
+Điểm `hang_nang` trong `issues` nay có `gia_tri` = chênh lệch (điểm %), `so_sanh` = ngưỡng (7), `don_vi = 'diem_pct'`, kèm `ty_le_hom_nay`, `ty_le_binh_thuong`, `so_luong`, `so_tuan`, `it_du_lieu`.
+Dòng BCVH trong `/overview` thêm `hang_nang.ty_le_binh_thuong` (null khi `so_tuan = 0`); dòng tổng gộp trên các BCVH có tuần.
 
 ## Drift phát hiện
 _(chưa có)_

@@ -260,7 +260,7 @@ test('quality-mocs: đủ 7 tổ hợp, tổng = sản lượng; mốc "có" xé
   assert.deepEqual(by, { 111: 0, 110: 1, 101: 9, '011': 1, 100: 3, '010': 1, '001': 1 });
   assert.equal(m.khong_co_moc, 1, 'T6');
   const wide = Object.fromEntries((await mgr(`/api/arrivals/quality-mocs?${WIDE}`)).body.to_hop.map((c) => [c.key, c.so_buu_gui]));
-  assert.equal(wide['111'], 1, 'T12 đủ 3 mốc');
+  assert.equal(wide['111'], 1, 'T12 đủ trạng thái (SHBG, BD8, BD10)');
 });
 
 test('cảnh báo chỉ ADMIN: /summary có canh_bao cho ADMIN, không có cho MANAGER; /exceptions có ly_do', async () => {

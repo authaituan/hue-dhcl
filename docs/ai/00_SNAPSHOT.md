@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3d).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3e).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -24,6 +24,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Nạp DB ban đầu từ hệ thống cũ (`scripts/import-seed.js`: tài khoản + mạng lưới) | Có |
 | Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
 | API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — MANAGER + ADMIN | Có (chưa giao diện/SFTP/export) |
+| API Dashboard điều hành `/api/arrivals/dashboard/overview|trend|wards-surge|center` (6 BCVH, điểm cần điều hành, xu hướng, phường/xã tăng, tổng hợp Trung tâm) — MANAGER + ADMIN | Có (chưa giao diện; ngưỡng là hằng số) |
 
 ## 4. Quy tắc nghiệp vụ chính
 - `STAFF` chỉ đọc (chỉ thấy Dashboard); vai trò khác = quản lý; `ADMIN` cấu hình Dashboard.
@@ -36,12 +37,14 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
   "Chưa xác định tỉnh", "Chưa xác định phường/xã" (vẫn tính vào tổng); không dùng BĐX ở màn hình này; cảnh báo chỉ ADMIN;
   file trùng tên khác nội dung → CONFLICT; mỗi ngày cần 2 file (`04_DECISIONS.md` #11–#21, #23, #25–#26, #28–#35).
 - Hàng đến theo đường thư / dịch vụ: gom trên dòng đại diện; hàng nặng = khối lượng > 2.500 g (chỉ số phụ, nằm trong sản lượng) — #36–#40.
+- Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); "bình thường" = TB ≤ 4 ngày cùng thứ, cùng khoảng 00:00 → `as_of`; "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; điểm cần điều hành (lãnh đạo) từ ngưỡng `DASHBOARD_THRESHOLDS` (TẠM, chờ dữ liệu thật; hàng nặng so với bình thường theo điểm %, bỏ qua BCVH có bình thường < 50 SHBG — #48) — khác cảnh báo dữ liệu ADMIN-only — #41–#47.
 
 ## 5. Kiểm thử
-`npm test`: 9 file, 153 ca — 152 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
+`npm test`: 10 file, 174 ca — 173 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
 
 ## 6. Rủi ro / việc treo
 - DB mới trống: PO nạp tài khoản + mạng lưới từ DB hệ thống cũ bằng `scripts/import-seed.js` (`06_DEPLOYMENT.md` mục 5).
   Triển khai sạch không có DB cũ: chưa có cơ chế tạo ADMIN đầu tiên (`05_BACKLOG.md` mục 1).
 - `NetworkListView.jsx` ~1.380 dòng, cần tách nhỏ (ticket riêng).
+- Dashboard: chỉ BCVH 533140 có dữ liệu (5 BCVH còn lại trả 0 / `co_du_lieu: false` đến khi nối SFTP); ngưỡng điểm cần điều hành và định nghĩa "xác nhận chậm" là TẠM (`05_BACKLOG.md` 6g). `/trend` ~1,1–1,2 s và `/center` 7 ngày ~1 s trên 1 triệu dòng (ngưỡng 1,5 s; `/center` 30 ngày ~4,9 s).
 - API Hàng đến: khoảng 1 năm mất 3,7–7,8 s trên 1 triệu dòng (1 tháng < 0,5 s) — cần bảng phụ nếu xem dài hạn (`05_BACKLOG.md` mục 5).

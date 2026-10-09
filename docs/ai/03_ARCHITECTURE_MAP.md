@@ -16,13 +16,14 @@ server/
   lib/dashboardDefaults.js  # bộ ô mặc định + seed/reset
   lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
   lib/arrivalsQuery.js  # "Hàng đến": NƠI DUY NHẤT cài quy tắc đếm sản lượng (buildCountedCte) + kiểm tham số + các truy vấn API
+  lib/dashboardQuery.js # Dashboard điều hành: 6 BCVH (DASHBOARD_BCVH), ngưỡng (DASHBOARD_THRESHOLDS), overview/trend/wards-surge/center — gọi lại buildCountedCte
   routes/auth.js        # đăng nhập (+ rate-limit)
   routes/users.js       # quản lý tài khoản + tìm kiếm người phụ trách
   routes/network.js     # quản lý mạng lưới (danh sách / import / export / sửa / xoá bưu cục)
   routes/organization.js    # danh sách BĐX, bưu cục (chỉ đọc, cho dropdown)
   routes/dashboard.js       # số đếm tổng quan
   routes/dashboardWidgets.js # Dashboard động: CRUD ô, dữ liệu, xem trước
-  routes/arrivals.js    # API "Hàng đến" (chỉ GET, MANAGER + ADMIN)
+  routes/arrivals.js    # API "Hàng đến" + Dashboard điều hành (chỉ GET, MANAGER + ADMIN)
 src/
   App.jsx               # khung app: đăng nhập / Sidebar / Header / 3 màn hình
   utils/api.js          # apiFetch/apiFetchJson, lưu token, sự kiện hết phiên
@@ -65,15 +66,21 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/by-service` — theo dịch vụ (mã + tên): sản lượng, tỷ trọng, khối lượng TB, hàng nặng + tỷ lệ; nhóm riêng "Chưa có tên dịch vụ" (`heavy_g`) | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/by-time?granularity=day\|hour` — đủ mốc trong khoảng (`hour` ≤ 7 ngày) | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/by-ward` — theo phường/xã nơi phát, giảm dần, tỷ trọng; nhóm Phường/xã tỉnh khác, Chưa xác định tỉnh, Chưa xác định phường/xã | quản lý | `routes/arrivals.js` |
-| `GET /api/arrivals/quality-mocs` — 7 tổ hợp mốc BCVH + tỷ lệ có từng mốc + bưu gửi không có mốc | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/quality-mocs` — 7 tổ hợp mốc BCVH + `tong_hop` (đủ trạng thái, có XN túi / XND BD10 / XN bưu gửi, không XNĐ BD10) + tỷ lệ có từng mốc + bưu gửi không có mốc | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/lookup?tracking_no=` — các dòng của 1 SHBG, mốc dùng làm thời điểm đến | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/items` — bưu gửi đã đếm (1 dòng/SHBG), `page_size` ≤ 200 (kiểm tra) | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/dashboard/overview?date=&as_of=&heavy_g=` — 6 BCVH hôm nay: sản lượng, hôm qua, bình thường (≤4 ngày cùng thứ) + `so_tuan`/`it_du_lieu`, lệch %, hàng nặng, đến sau 15h, trung vị XN túi→XN bưu gửi; dòng tổng; `issues` (điểm cần điều hành); `nguong` | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/dashboard/trend?date=&as_of=` — 7 ngày trước + ngày xét; `theo_gio` 06–17 so với trung bình cùng giờ | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/dashboard/wards-surge?date=&as_of=` — ≤ 5 phường/xã Huế tăng nhiều nhất so với bình thường | quản lý | `routes/arrivals.js` |
+| `GET /api/arrivals/dashboard/center?date=&from=&to=&heavy_g=` — Trung tâm (mặc định 7 ngày): top 5 đường thư + còn lại, dịch vụ, chất lượng khai thác | quản lý | `routes/arrivals.js` |
 | `GET /api/arrivals/exceptions` — ≤ 50 bưu gửi ngoại lệ (BD10 sớm, không mốc, đến lại) | ADMIN | `routes/arrivals.js` |
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất
 trong khoảng (`04_DECISIONS.md` #28–#35). Hàng nặng: khối lượng dòng đại diện > `heavy_g` (mặc định 2.500 g, 500–30.000) — #36–#40.
+
+Dashboard điều hành (`/api/arrivals/dashboard/*`): `date` (`YYYY-MM-DD`, mặc định ngày file mới nhất), `as_of` (`HH:MM`, mặc định giờ file nạp mới nhất của `date`); mọi so sánh dùng cùng khoảng 00:00 → `as_of` — `04_DECISIONS.md` #41–#47. "Điểm cần điều hành" (lãnh đạo) khác cảnh báo dữ liệu ADMIN-only.
 
 Phân quyền: `STAFF` = chỉ đọc; vai trò khác = quản lý; `ADMIN` thêm quyền cấu hình Dashboard.
 

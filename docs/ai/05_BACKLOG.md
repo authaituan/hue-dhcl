@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-08.
+> Cập nhật lần cuối: 2026-10-09.
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -18,6 +18,10 @@
 6b. ✅ SANLUONG-3d — API "Hàng đến theo đường thư và dịch vụ" + hàng nặng (`/by-route`, `/by-service`, hàng nặng trong `/summary`) (09/10/2026).
 6c. ADMIN chỉnh ngưỡng hàng nặng trên giao diện — cần bảng cấu hình (hiện là hằng số + tham số `heavy_g`, #40).
 6d. Khối "chốt 11h/17h" và "độ trễ giữa các mốc" — ticket riêng sau khi PO chốt khung giờ.
+6e. ✅ SANLUONG-3e — API Dashboard điều hành (`/api/arrivals/dashboard/overview|trend|wards-surge|center`) + `tong_hop` của `/quality-mocs` (09/10/2026).
+6f. ADMIN chỉnh ngưỡng `DASHBOARD_THRESHOLDS` (và danh sách 6 BCVH) trên giao diện — cần bảng cấu hình (hiện là hằng số trong `server/lib/dashboardQuery.js`, #45).
+6g. Xem lại ngưỡng và định nghĩa "xác nhận chậm" (hiện trung vị khoảng XN túi → XN bưu gửi ≥ 75 phút) sau khi chạy dữ liệu thật ~2 tuần; xem lại sản lượng tối thiểu 50 SHBG và ngưỡng 7 điểm % hàng nặng (#48, đều TẠM).
+6h. Nối SFTP cho 5 BCVH còn lại (535470, 536250, 537015, 537220, 535790) — gộp vào SANLUONG-5; đến khi đó các BCVH này trả 0 / `co_du_lieu: false`.
 7. SANLUONG-3c — phân quyền TTVH/GĐVH + gán GĐVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
 8. Module danh mục trạng thái + file mẫu import trạng thái.
 9. Module tính tỷ lệ phát.
