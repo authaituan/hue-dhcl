@@ -17,6 +17,7 @@ server/
   lib/dashboardDefaults.js  # bộ ô mặc định + seed/reset
   lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
   lib/arrivalsQuery.js  # "Hàng đến": NƠI DUY NHẤT cài quy tắc đếm sản lượng (buildCountedCte) + kiểm tham số + các truy vấn API
+  lib/arrivalsExport.js # xuất Excel dữ liệu thô "Hàng đến" của 1 BCVH (9 cột chuỗi, ghi luồng theo lô), phạm vi theo vai trò
   lib/userBcvh.js       # bảng user_bcvh (gán GDVH ↔ BCVH): ensureUserBcvhSchema, getAssignedBcvh, replaceAssignedBcvh
   lib/adminGuard.js     # chặn hạ/khoá ADMIN hoạt động cuối cùng
   lib/dashboardQuery.js # Dashboard điều hành: 6 BCVH (DASHBOARD_BCVH), ngưỡng (DASHBOARD_THRESHOLDS), overview/trend/wards-surge/center — gọi lại buildCountedCte
@@ -79,12 +80,16 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/dashboard/trend?date=&as_of=` — 7 ngày trước + ngày xét; `theo_gio` 06–17 so với trung bình cùng giờ | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/dashboard/wards-surge?date=&as_of=` — ≤ 5 phường/xã Huế tăng nhiều nhất so với bình thường | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/dashboard/center?date=&from=&to=&heavy_g=` — Trung tâm (mặc định 7 ngày): top 5 đường thư + còn lại, dịch vụ, chất lượng khai thác | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
+| `GET /api/arrivals/export-scope` — các BCVH người gọi được xuất: `{ bcvh: [{ ma, ten }] }` (ADMIN/TTVH 6; GDVH các BCVH được giao, có thể rỗng) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
+| `GET /api/arrivals/export?receiver_code=&from=&to=[&date_basis=]` — file `.xlsx` (`HangDen_<mã>_<from>_<to>.xlsx`) dữ liệu thô của MỘT BCVH, 9 cột chuỗi; `from`/`to` bắt buộc, ≤ 92 ngày, ≤ 1.000.000 dòng; GDVH chỉ BCVH được giao (403 nếu khác) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/arrivalsExport.js` |
 | `GET /api/arrivals/exceptions` — ≤ 50 bưu gửi ngoại lệ (BD10 sớm, không mốc, đến lại) | ADMIN | `routes/arrivals.js` |
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất
 trong khoảng (`04_DECISIONS.md` #28–#35). Hàng nặng: khối lượng dòng đại diện > `heavy_g` (mặc định 2.500 g, 500–30.000) — #36–#40.
+
+Xuất file (`/api/arrivals/export`, `04_DECISIONS.md` #55–#58): KHÔNG theo quy tắc đếm sản lượng — là dòng thô trong `arrival_items`. Tham số: `receiver_code` (đúng 1 mã trong 6 BCVH), `from`/`to` (`YYYY-MM-DD`, ≤ 92 ngày), `date_basis` (như trên, mặc định `arrival`). 9 cột theo thứ tự: `BC_nhan_BG`←`receiver_code`, `Ten_duong_thu`←`route_name`, `SHBG`←`tracking_no`, `So_hieu_BD8`←`bd8_no`, `So_hieu_BD10`←`bd10_no`, `Thoi_gian_XN_BG`←`item_confirmed_at`, `Thoi_gian_XN_tui`←`bag_confirmed_at`, `Ngay_gio_XND_BD10`←`bd10_confirmed_at`, `Dich_vu_code`←`service_code`. Mọi ô là chuỗi; giờ ghi `dd/MM/yyyy HH:mm:ss`. Mỗi lần xuất ghi `arrivals_export` vào `security.log`.
 
 Dashboard điều hành (`/api/arrivals/dashboard/*`): `date` (`YYYY-MM-DD`, mặc định ngày file mới nhất), `as_of` (`HH:MM`, mặc định giờ file nạp mới nhất của `date`); mọi so sánh dùng cùng khoảng 00:00 → `as_of` — `04_DECISIONS.md` #41–#47. "Điểm cần điều hành" (lãnh đạo) khác cảnh báo dữ liệu ADMIN-only.
 
@@ -103,12 +108,13 @@ Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`. `se
 | `GET /api/network`, `/network/export-data` | ✔ | ✔ | ✔ | 403 |
 | `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 |
 | `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 |
+| `/api/arrivals/export-scope`, `/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 |
 | `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 |
 | `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | ✔ |
 | ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 |
 | `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | ✔ |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
-(`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) cho ticket xuất file 3c-3.
+(`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
 Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DEPLOYMENT.md` mục 7).
 
 ## 4. Giao diện

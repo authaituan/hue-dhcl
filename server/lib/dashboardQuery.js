@@ -521,5 +521,5 @@ function center(db, query) {
 
 module.exports = {
   DASHBOARD_BCVH, DASHBOARD_THRESHOLDS, BASELINE_WEEKS, TREND_PREV_DAYS, TREND_HOURS, WARD_SURGE, CENTER_TOP_ROUTES, CENTER_DEFAULT_DAYS,
-  overview, trend, wardsSurge, center, classifyDeviation, reachesShare, reachesPointGap, evaluateBcvh, median
+  bcvhNames, overview, trend, wardsSurge, center, classifyDeviation, reachesShare, reachesPointGap, evaluateBcvh, median
 };

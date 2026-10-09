@@ -4,13 +4,14 @@ const { authRequired, requireRoles, requireAdmin } = require('../auth');
 const { ROLES, VIEWER_ROLES } = require('../roles');
 const q = require('../lib/arrivalsQuery');
 const dash = require('../lib/dashboardQuery');
+const exp = require('../lib/arrivalsExport');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 
 const router = express.Router();
 
 // ==========================================
 // DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: ADMIN, TTVH, GDVH (STAFF 403, không token 401) — 04_DECISIONS.md #49.
-// GDVH xem đủ 6 BCVH như TTVH; giới hạn theo BCVH được giao chỉ áp ở xuất file (3c-3, #52).
+// GDVH xem đủ 6 BCVH như TTVH; giới hạn theo BCVH được giao chỉ áp ở xuất file (/export, /export-scope — #52, #57).
 // Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với TTVH/GDVH;
 // /summary bỏ trường `canh_bao` với vai trò khác ADMIN (docs/ai/04_DECISIONS.md #34).
 // Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardQuery.js).
@@ -56,6 +57,50 @@ router.get('/arrivals/dashboard/overview', handle((req) => dash.overview(db, req
 router.get('/arrivals/dashboard/trend', handle((req) => dash.trend(db, req.query), 'dashboard-trend'));
 router.get('/arrivals/dashboard/wards-surge', handle((req) => dash.wardsSurge(db, req.query), 'dashboard-wards-surge'));
 router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.query), 'dashboard-center'));
+
+// Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
+router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));
+
+router.get('/arrivals/export', async (req, res) => {
+  let ctx; let total;
+  try {
+    const code = exp.parseReceiverCode(req.query);
+    if (!exp.allowedBcvhCodes(db, req.user).includes(code)) {
+      return res.status(403).json({ error: 'Bạn không được phép xuất dữ liệu của BCVH này (tài khoản GDVH chỉ xuất được BCVH được giao)' });
+    }
+    ctx = exp.parseExportParams(req.query);
+    total = exp.countRows(db, ctx);
+    const max = exp.maxRows();
+    if (total > max) {
+      return res.status(400).json({ error: `Khoảng ngày đã chọn có ${exp.formatCount(total)} dòng, vượt giới hạn ${exp.formatCount(max)} dòng một file. Hãy thu hẹp khoảng ngày` });
+    }
+  } catch (err) {
+    if (err instanceof q.QueryParamError) return res.status(400).json({ error: err.message });
+    console.error('Arrivals export error:', err);
+    return res.status(500).json({ error: 'Lỗi hệ thống khi xuất dữ liệu Hàng đến' });
+  }
+
+  // Nhật ký: ai, BCVH nào, khoảng ngày, số dòng. KHÔNG ghi dữ liệu bưu gửi.
+  const audit = (rows, status) => req.app.locals.security.log({
+    event: 'arrivals_export', ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
+    receiver_code: ctx.code, from: ctx.f.fromDate, to: ctx.f.toDate, date_basis: ctx.f.dateBasis, rows, status
+  });
+  let clientGone = false;
+  res.on('close', () => { if (!res.writableFinished) clientGone = true; });
+  res.status(200);
+  res.setHeader('Content-Type', exp.XLSX_MIME);
+  res.setHeader('Content-Disposition', `attachment; filename="${exp.exportFileName(ctx)}"`);
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    const result = await exp.writeExport(db, ctx, res, () => clientGone);
+    audit(result.rows, result.aborted ? 'aborted' : 'ok');
+  } catch (err) {
+    // Đã gửi header: không thể đổi sang JSON lỗi -> cắt kết nối để file dở không bị coi là hợp lệ.
+    console.error('Arrivals export error:', err);
+    audit(null, 'error');
+    res.destroy();
+  }
+});
 
 router.get('/arrivals/exceptions', requireAdmin, handle((req) => q.exceptions(db, filters(req)), 'exceptions'));
 router.get('/arrivals/import-status', requireAdmin, handle((req) => {

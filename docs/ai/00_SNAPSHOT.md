@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-2).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-3).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -18,17 +18,18 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 |---|---|
 | Đăng nhập (mã HRM + mật khẩu), đổi mật khẩu, rate-limit | Có |
 | Quản lý người dùng (tạo, sửa tên/quyền, đặt lại mật khẩu, khoá/mở khoá) — chỉ ADMIN; 4 vai trò ADMIN/TTVH/GDVH/STAFF (`server/roles.js`) | Có |
-| Gán GDVH ↔ BCVH (`user_bcvh`, `GET/PUT /api/users/:id/bcvh`, `bcvh_codes` trong danh sách) | Có (API; chưa giao diện; chưa dùng — xuất file ở 3c-3) |
+| Gán GDVH ↔ BCVH (`user_bcvh`, `GET/PUT /api/users/:id/bcvh`, `bcvh_codes` trong danh sách) | Có (API; chưa giao diện); dùng để giới hạn xuất file của GDVH |
 | Quản lý mạng lưới — danh sách, lọc, thêm/sửa/xoá bưu cục, người phụ trách, import/export Excel | Có |
 | Dashboard động (3 ô CHART mặc định trên dữ liệu bưu cục; ADMIN chỉnh sửa) | Có |
 | Lọc IP truy cập, header bảo mật, trang 404 | Có |
 | Nạp DB ban đầu từ hệ thống cũ (`scripts/import-seed.js`: tài khoản + mạng lưới) | Có |
 | Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
-| API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — ADMIN + TTVH + GDVH | Có (chưa giao diện/SFTP/export) |
+| API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — ADMIN + TTVH + GDVH | Có (chưa giao diện/SFTP) |
 | API Dashboard điều hành `/api/arrivals/dashboard/overview|trend|wards-surge|center` (6 BCVH, điểm cần điều hành, xu hướng, phường/xã tăng, tổng hợp Trung tâm) — ADMIN + TTVH + GDVH | Có (chưa giao diện; ngưỡng là hằng số) |
+| Xuất Excel dữ liệu thô "Hàng đến" của MỘT BCVH: `GET /api/arrivals/export-scope`, `/export` (9 cột chuỗi, ghi luồng; ADMIN/TTVH mọi BCVH, GDVH BCVH được giao) — #55–#58 | Có (chưa giao diện nút xuất) |
 
 ## 4. Quy tắc nghiệp vụ chính
-- 4 vai trò (`04_DECISIONS.md` #49–#54, ma trận ở `03_ARCHITECTURE_MAP.md` mục 3): `ADMIN` toàn quyền (tài khoản, gán BCVH, mạng lưới ghi, cấu hình Dashboard, cảnh báo dữ liệu); `TTVH` và `GDVH` xem mạng lưới + toàn bộ dữ liệu "Hàng đến"/Dashboard điều hành của 6 BCVH (GDVH chỉ bị giới hạn khi XUẤT FILE, ở 3c-3); `STAFF` chỉ thấy Dashboard.
+- 4 vai trò (`04_DECISIONS.md` #49–#54, ma trận ở `03_ARCHITECTURE_MAP.md` mục 3): `ADMIN` toàn quyền (tài khoản, gán BCVH, mạng lưới ghi, cấu hình Dashboard, cảnh báo dữ liệu); `TTVH` và `GDVH` xem mạng lưới + toàn bộ dữ liệu "Hàng đến"/Dashboard điều hành của 6 BCVH (GDVH chỉ bị giới hạn khi XUẤT FILE: BCVH được giao); `STAFF` chỉ thấy Dashboard.
 - Quyền tra DB mỗi request (đổi vai trò / khoá có hiệu lực ngay, token cũ vẫn dùng); role ngoài danh sách (vd `MANAGER` chưa chuyển đổi) → 403; luôn còn ≥ 1 ADMIN hoạt động.
 - Chỉ Quản lý mạng lưới được tạo Tỉnh/BĐX/Bưu cục (import theo `maMbc`; thiếu `maMbc` → chặn cả lô).
 - Xoá bưu cục là xoá cứng; còn người dùng tham chiếu (`users.post_office_id`) → 400.
@@ -42,7 +43,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); "bình thường" = TB ≤ 4 ngày cùng thứ, cùng khoảng 00:00 → `as_of`; "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; điểm cần điều hành (lãnh đạo) từ ngưỡng `DASHBOARD_THRESHOLDS` (TẠM, chờ dữ liệu thật; hàng nặng so với bình thường theo điểm %, bỏ qua BCVH có bình thường < 50 SHBG — #48) — khác cảnh báo dữ liệu ADMIN-only — #41–#47.
 
 ## 5. Kiểm thử
-`npm test`: 12 file, 202 ca — 201 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
+`npm test`: 13 file, 218 ca — 217 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
 
 ## 6. Rủi ro / việc treo
 - **DB thật còn tài khoản `MANAGER`?** Chạy `scripts/migrate-roles.js` (dry-run → sao lưu → `--apply`, `06_DEPLOYMENT.md` mục 7) trước khi dùng bản này, nếu không các tài khoản đó nhận 403. Menu "Quản lý người dùng" vẫn hiện cho TTVH/GDVH nhưng API trả 403 (dọn ở ticket giao diện, backlog 7b).
@@ -50,4 +51,5 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
   Triển khai sạch không có DB cũ: chưa có cơ chế tạo ADMIN đầu tiên (`05_BACKLOG.md` mục 1).
 - `NetworkListView.jsx` ~1.380 dòng, cần tách nhỏ (ticket riêng).
 - Dashboard: chỉ BCVH 533140 có dữ liệu (5 BCVH còn lại trả 0 / `co_du_lieu: false` đến khi nối SFTP); ngưỡng điểm cần điều hành và định nghĩa "xác nhận chậm" là TẠM (`05_BACKLOG.md` 6g). `/trend` ~1,1–1,2 s và `/center` 7 ngày ~1 s trên 1 triệu dòng (ngưỡng 1,5 s; `/center` 30 ngày ~4,9 s).
+- Xuất Excel: 1 tháng 1 BCVH (~335 nghìn dòng giả) ~3,4 s; tối đa ~1 triệu dòng (92 ngày) ~9,8 s; RSS đỉnh ~270–300 MB (nền ~70 MB) và KHÔNG tăng theo số dòng. Chưa mở thử bằng Excel thật (PO kiểm). Giới hạn 92 ngày / 1.000.000 dòng / định dạng giờ `dd/MM/yyyy HH:mm:ss` là mặc định CTO chọn (#56).
 - API Hàng đến: khoảng 1 năm mất 3,7–7,8 s trên 1 triệu dòng (1 tháng < 0,5 s) — cần bảng phụ nếu xem dài hạn (`05_BACKLOG.md` mục 5).
