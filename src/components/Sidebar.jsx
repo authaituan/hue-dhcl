@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 
+const ROLE_LABELS = { ADMIN: 'ADMIN (quản trị)', TTVH: 'TTVH', GDVH: 'GDVH', STAFF: 'STAFF (chỉ xem)' };
+
 export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout }) {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
@@ -72,7 +74,7 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
                 {authUser?.full_name || authUser?.hrm_code || 'Người dùng'}
               </div>
               <div className="text-[11px] text-[var(--color-subtext)] font-medium mt-0.5 truncate">
-                {authUser?.role === 'STAFF' ? 'Nhân viên (chỉ xem)' : 'Quản lý'}
+                {ROLE_LABELS[authUser?.role] || authUser?.role || ''}
               </div>
             </div>
           </div>

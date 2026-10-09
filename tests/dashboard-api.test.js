@@ -18,7 +18,8 @@ const dash = require('../server/lib/dashboardQuery');
 const PORT = 5913;
 const USERS = {
   admin: { hrm: 'DB_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
-  manager: { hrm: 'DB_MGR', pass: 'Manager@123', role: 'MANAGER' },
+  ttvh: { hrm: 'DB_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
+  gdvh: { hrm: 'DB_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
   staff: { hrm: 'DB_STAFF', pass: 'Staff@123', role: 'STAFF' }
 };
 const tokens = {};
@@ -218,7 +219,7 @@ async function api(p, who) {
   try { body = await res.json(); } catch (e) { /* không có body */ }
   return { status: res.status, body };
 }
-const mgr = async (p) => { const r = await api(p, 'manager'); assert.equal(r.status, 200, `${p}: ${JSON.stringify(r.body)}`); return r.body; };
+const mgr = async (p) => { const r = await api(p, 'ttvh'); assert.equal(r.status, 200, `${p}: ${JSON.stringify(r.body)}`); return r.body; };
 const BASE = '/api/arrivals/dashboard';
 const ov = (qs = '') => mgr(`${BASE}/overview?${qs}`);
 const rowOf = (body, ma) => body.bcvh.find((b) => b.ma === ma);
@@ -256,12 +257,13 @@ after(async () => {
 // ------------------------------------------
 // Quyền + tham số
 // ------------------------------------------
-test('quyền: không token 401, STAFF 403, MANAGER và ADMIN 200 (4 endpoint)', async () => {
+test('quyền: không token 401, STAFF 403, ADMIN/TTVH/GDVH 200 (4 endpoint)', async () => {
   for (const e of ['overview', 'trend', 'wards-surge', 'center']) {
     const p = `${BASE}/${e}?date=${F1}`;
     assert.equal((await api(p)).status, 401, e);
     assert.equal((await api(p, 'staff')).status, 403, e);
-    assert.equal((await api(p, 'manager')).status, 200, e);
+    assert.equal((await api(p, 'ttvh')).status, 200, e);
+    assert.equal((await api(p, 'gdvh')).status, 200, e);
     assert.equal((await api(p, 'admin')).status, 200, e);
   }
 });
@@ -275,12 +277,12 @@ test('tham số sai -> 400; khoá lạ -> 400; heavy_g chỉ ở /overview và /
     'center?from=2024-01-01&to=2026-10-01', 'center?heavy_g=40000'
   ];
   for (const e of bad) {
-    const r = await api(`${BASE}/${e}`, 'manager');
+    const r = await api(`${BASE}/${e}`, 'ttvh');
     assert.equal(r.status, 400, e);
     assert.ok(r.body.error, e);
   }
   for (const e of ['overview?heavy_g=3000', 'center?heavy_g=3000', 'center?date=2026-10-08', 'center?from=2026-10-02&to=2026-10-08 10:00']) {
-    assert.equal((await api(`${BASE}/${e}`, 'manager')).status, 200, e);
+    assert.equal((await api(`${BASE}/${e}`, 'ttvh')).status, 200, e);
   }
 });
 

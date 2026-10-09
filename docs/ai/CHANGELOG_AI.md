@@ -4,6 +4,16 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-09] - 4 vai trò ADMIN/TTVH/GDVH/STAFF, quản lý tài khoản chỉ ADMIN, gán GDVH ↔ BCVH (SANLUONG-3c-2)
+
+- `server/roles.js` (mới): `ROLES`, `VALID_ROLES`, `VIEWER_ROLES`, `isValidRole`. `server/auth.js`: `authRequired` tra DB (`role`, `deactivated_at`) ở MỌI request (khoá/không còn → 401, role ngoài danh sách → 403, `req.user.role` từ DB; `db.js` nạp lười để fixtures không mở nhầm DB thật); `requireRoles(...)` thay `requireManager`/`isManager` (đã xoá); `requireAdmin` là lớp bọc.
+- Routes: `users.js` chỉ ADMIN (trừ `/me/password`), `role` bắt buộc hợp lệ (400), chặn hạ/khoá ADMIN cuối cùng (`server/lib/adminGuard.js`), `bcvh_codes` trong `GET /users`, `GET/PUT /users/:id/bcvh`; `network.js` đọc ADMIN/TTVH/GDVH, ghi/nhập/xoá ADMIN; `arrivals.js` ADMIN/TTVH/GDVH (`canh_bao`, `/exceptions`, `/import-status` vẫn ADMIN); `dashboardWidgets.js` dùng hằng số vai trò.
+- `server/db.js` + `server/lib/userBcvh.js` (mới): bảng `user_bcvh` (idempotent), `getAssignedBcvh(userId)` cho 3c-3. Đổi GDVH sang vai trò khác xoá các dòng gán (cùng transaction).
+- `scripts/migrate-roles.js` (mới): dry-run mặc định; `--apply` sao lưu + MANAGER→TTVH trong một transaction; role lạ → dừng mã 2; idempotent. PO tự chạy trên DB thật (`06_DEPLOYMENT.md` mục 7).
+- Giao diện (tối thiểu): `ROLE_OPTIONS` ở `AddUserModal.jsx`/`UserAdminView.jsx` = STAFF, TTVH, GDVH, ADMIN; nhãn vai trò ở `Sidebar.jsx`; thông báo 403 chung ở `api.js`. Không làm giao diện gán BCVH (backlog 7b).
+- Tests: `tests/roles.test.js` (mới, 21 ca: ma trận route × 4 vai trò, vai trò cũ/lạ, chống leo thang, hiệu lực ngay, ADMIN cuối cùng, `user_bcvh`), `tests/migrate-roles.test.js` (mới, 7 ca); 35 ca cũ ở `arrivals-api`/`dashboard-api`/`dashboard-widgets` đổi tài khoản `MANAGER`→`TTVH` (+ GDVH vào ca quyền); `fixtures.js` thêm `loginAs`, `ROLES`. `npm test` 202 ca: 201 pass, 1 skip có chủ đích; `npm run build` ok.
+- Docs: quyết định #49–#54, ma trận quyền + `user_bcvh` + `roles.js` trong bản đồ kiến trúc, hướng dẫn chuyển đổi (`06_DEPLOYMENT.md` mục 7), backlog 7a–7e.
+
 ## [2026-10-09] - Sửa nhỏ SANLUONG-3e: hàng nặng theo điểm % + sản lượng tối thiểu
 
 - `server/lib/dashboardQuery.js`: điểm `hang_nang` = tỷ lệ hôm nay − tỷ lệ bình thường (gộp ≤ 4 ngày cùng thứ) ≥ 7 điểm %, `so_tuan = 0` không phát sinh; thêm `DASHBOARD_THRESHOLDS.san_luong_toi_thieu` (50 SHBG, TẠM) chặn điểm lệch sản lượng và hàng nặng khi `tb_4_tuan` < 50; echo trong `nguong`; khoá ngưỡng đổi thành `hang_nang.trong_ngay_diem_pct`; `hang_nang.ty_le_binh_thuong` trong `/overview`.

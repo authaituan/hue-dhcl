@@ -66,7 +66,7 @@ export function isTokenExpired(token) {
 // request ghi nào bị backend từ chối vì token hết hạn/không hợp lệ (401).
 export const AUTH_EXPIRED_EVENT = 'dhcl:auth-expired';
 
-const FORBIDDEN_MESSAGE = 'Tài khoản của bạn không có quyền thực hiện thao tác này (yêu cầu quyền quản lý, tài khoản STAFF chỉ được xem).';
+const FORBIDDEN_MESSAGE = 'Tài khoản của bạn không có quyền thực hiện thao tác này (vai trò hiện tại không được phép).';
 const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ, vui lòng đăng nhập lại.';
 const GENERIC_ERROR_MESSAGE = 'Có lỗi xảy ra, vui lòng thử lại.';
 

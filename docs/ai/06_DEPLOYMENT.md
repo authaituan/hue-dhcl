@@ -90,3 +90,15 @@ Hệ quả: không có mục `ports`; chỉ chạy trên Linux/NAS.
 
 **Xử lý sự cố**: `security.log` ghi toàn IP `172.x` hoặc mọi người nhận 404 → kiểm tra compose còn `network_mode: host`, không có `ports`;
 `docker compose build` lỗi DNS → kiểm tra `build.network: host`.
+
+## 7. Chuyển đổi vai trò MANAGER → TTVH (ticket SANLUONG-3c-2, PO tự chạy trên DB thật)
+Từ bản 3c-2 server chỉ nhận 4 vai trò `ADMIN`, `TTVH`, `GDVH`, `STAFF`. Tài khoản còn `MANAGER` trong DB bị từ chối (403) cho đến khi chuyển đổi.
+Thứ tự (app đang **tắt**; bản deploy mới chạy sau bước 4):
+1. **Chạy thử** (không ghi gì): `node scripts/migrate-roles.js` — in số tài khoản theo từng giá trị `role` và số sẽ đổi (không in tên/mã HRM/hash).
+   Có giá trị `role` lạ (ngoài 5 giá trị trên) thì script dừng, mã thoát 2 — báo lại để quyết, chưa đổi gì.
+2. **Sao lưu** thư mục `data/` (ngoài bản sao lưu tự động của bước 3).
+3. **Áp dụng**: `node scripts/migrate-roles.js --apply` — sao lưu file DB cạnh nó (`hue-dhcl.db.<ngày-giờ>.bak`) rồi đổi `MANAGER`→`TTVH` trong một transaction. Chạy lại không làm gì.
+   DB ở chỗ khác: thêm `--db <đường-dẫn>` (hoặc biến môi trường `ARRIVALS_DB`).
+4. Khởi động app mới (tạo bảng `user_bcvh` tự động), chạy lại `npm test`, đăng nhập thử bằng ADMIN, mở Quản lý người dùng kiểm tra vai trò.
+5. Gán BCVH cho GDVH qua API `PUT /api/users/:id/bcvh` (giao diện sẽ có ở ticket riêng).
+Token đang dùng không cần đăng nhập lại: quyền theo vai trò trong DB ở từng request.

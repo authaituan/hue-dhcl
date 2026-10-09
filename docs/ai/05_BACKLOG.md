@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-09.
+> Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-2).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -22,13 +22,18 @@
 6f. ADMIN chỉnh ngưỡng `DASHBOARD_THRESHOLDS` (và danh sách 6 BCVH) trên giao diện — cần bảng cấu hình (hiện là hằng số trong `server/lib/dashboardQuery.js`, #45).
 6g. Xem lại ngưỡng và định nghĩa "xác nhận chậm" (hiện trung vị khoảng XN túi → XN bưu gửi ≥ 75 phút) sau khi chạy dữ liệu thật ~2 tuần; xem lại sản lượng tối thiểu 50 SHBG và ngưỡng 7 điểm % hàng nặng (#48, đều TẠM).
 6h. Nối SFTP cho 5 BCVH còn lại (535470, 536250, 537015, 537220, 535790) — gộp vào SANLUONG-5; đến khi đó các BCVH này trả 0 / `co_du_lieu: false`.
-7. SANLUONG-3c — phân quyền TTVH/GĐVH + gán GĐVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
+7. SANLUONG-3c — phân quyền TTVH/GDVH + gán GDVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
+7a. ✅ SANLUONG-3c-2 — 4 vai trò ADMIN/TTVH/GDVH/STAFF, quản lý tài khoản chỉ ADMIN, bảng `user_bcvh` + API gán, `scripts/migrate-roles.js` (09/10/2026). **PO còn phải**: chạy chuyển đổi vai trò trên DB thật (`06_DEPLOYMENT.md` mục 7).
+7b. Giao diện gán BCVH cho GDVH (ticket Antigravity riêng): ô chọn BCVH trong Quản lý người dùng dùng `bcvh_codes` + `PUT /api/users/:id/bcvh`; dọn menu cho TTVH/GDVH (hiện vẫn thấy "Quản lý người dùng" nhưng API trả 403; `isStaff` vẫn là `role === 'STAFF'`). 3c-2 chỉ sửa tối thiểu giao diện (`ROLE_OPTIONS`, nhãn vai trò).
+7c. SANLUONG-3c-3 — xuất file: TTVH/ADMIN mọi BCVH, GDVH chỉ BCVH được giao (`getAssignedBcvh`); thêm `exceljs`, `csv-parse` vào `THIRD_PARTY_NOTICES.md` khi làm.
+7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
+7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.
 9. Module tính tỷ lệ phát.
 10. Hạn xử lý 11h/17h; trường hợp file chiều ra ~16:30 chỉ còn ~30 phút trước hạn 17h.
 11. Bảng so sánh giữa các BCVH cho TTVH.
 12. Bưu gửi không có mốc nào (62 trên mẫu) hiển thị thành dòng riêng trên màn hình (nếu PO muốn).
-13. SANLUONG-4 — giao diện "Dữ liệu sản lượng đến" (MANAGER + ADMIN).
+13. SANLUONG-4 — giao diện "Dữ liệu sản lượng đến" (ADMIN + TTVH + GDVH).
 14. SANLUONG-5 — đồng bộ SFTP (danh sách "thư mục + mã BCVH", thăm dò định kỳ, nạp toàn bộ lịch sử).
 15. Hiển thị chất lượng dữ liệu: phân bố `arrival_evidence_count`, dòng chưa xác định ngày đến, ngày thiếu đợt, khoảng trống thời gian.
 16. Dashboard lấy nguồn mới (thêm nguồn "Hàng đến" vào whitelist).
