@@ -4,6 +4,21 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-09] - Sửa nhỏ SANLUONG-3e: hàng nặng theo điểm % + sản lượng tối thiểu
+
+- `server/lib/dashboardQuery.js`: điểm `hang_nang` = tỷ lệ hôm nay − tỷ lệ bình thường (gộp ≤ 4 ngày cùng thứ) ≥ 7 điểm %, `so_tuan = 0` không phát sinh; thêm `DASHBOARD_THRESHOLDS.san_luong_toi_thieu` (50 SHBG, TẠM) chặn điểm lệch sản lượng và hàng nặng khi `tb_4_tuan` < 50; echo trong `nguong`; khoá ngưỡng đổi thành `hang_nang.trong_ngay_diem_pct`; `hang_nang.ty_le_binh_thuong` trong `/overview`.
+- `tests/dashboard-api.test.js`: +1 ca (21 ca): họ dữ liệu F4, biên 6,9/7 điểm %, `so_tuan = 0`, tb 49/50. Docs: quyết định #48 (sửa định nghĩa của PO).
+
+## [2026-10-09] - API Dashboard điều hành (6 BCVH) + chỉ số chất lượng khai thác bổ sung (SANLUONG-3e)
+
+- `server/lib/dashboardQuery.js` (mới): `DASHBOARD_BCVH` (6 BCVH), `DASHBOARD_THRESHOLDS`, `overview` (6 BCVH + tổng + `issues`), `trend`, `wardsSurge`, `center`. Không có logic đếm thứ hai: gọi `buildCountedCte()` cho từng cửa sổ 00:00 → `as_of`.
+- `server/lib/arrivalsQuery.js`: `tong_hop` trong `/quality-mocs` (`du_trang_thai`, `co_xn_tui`, `co_xnd_bd10`, `khong_xnd_bd10`, `co_xn_bg`); tuỳ chọn `withMocTimes`; tách `parseHeavyG`, `shapeByRoute/Service/QualityMocs` (hành vi 3b/3d không đổi).
+- `server/routes/arrivals.js`: `GET /api/arrivals/dashboard/overview|trend|wards-surge|center` (MANAGER + ADMIN).
+- `tests/dashboard-api.test.js` (mới, 20 ca, CSV giả + tính lại độc lập); `package.json` thêm file vào `npm test`. `npm test` 173 ca: 172 pass, 1 skip có chủ đích; `npm run build` ok.
+- 9 file mẫu (DB tạm): 08/10 09:30 — 1.940 SHBG (hôm qua cùng giờ 2.173); chỉ phát sinh điểm `hang_nang` (20,62% ≥ 7%); `/center` 7 ngày 12.783 SHBG; `tong_hop` khớp 7 tổ hợp của 3b.
+- Hiệu năng (1.000.008 dòng giả, 3 BCVH × 38 ngày): `/overview` ~0,65 s; `/trend` 1,1–1,2 s; `/wards-surge` ~0,58 s; `/center` 7 ngày ~0,98 s (30 ngày ~4,9 s).
+- Docs: quyết định #41–#47, bản đồ kiến trúc, backlog 6e–6h, đổi "đủ cả 3 mốc" → "đủ trạng thái (SHBG, BD8, BD10)".
+
 ## [2026-10-09] - API "Hàng đến theo đường thư và dịch vụ" + hàng nặng (SANLUONG-3d)
 
 - `server/lib/arrivalsQuery.js`: thêm `byRoute`, `byService` (tái dùng lõi `buildCountedCte` của 3b, thêm `route_name` vào dòng đại diện), tham số `heavy_g` (500–30000, mặc định hằng số 2.500 g), `hang_nang` / `ty_le_hang_nang` / `nguong_hang_nang_g` trong `/summary`.
