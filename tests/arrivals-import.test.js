@@ -13,7 +13,7 @@ const Database = require('better-sqlite3');
 
 const ROOT = path.join(__dirname, '..');
 const lib = require(path.join(ROOT, 'server', 'lib', 'arrivalsImport.js'));
-const { ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches, setWardMapping, refreshWardMap, wardKey, parseUsDateTime, parseDateTimeCell, EXPECTED_HEADER } = lib;
+const { ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches, setWardMapping, refreshWardMap, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, EXPECTED_HEADER } = lib;
 
 let workDir;
 let seq = 0;
@@ -125,6 +125,40 @@ test('nạp file định dạng ISO + chữ NULL ở 4 cột thời gian (lẫn 
   assert.match(bad.error, /Dòng 3/);
   assert.match(bad.error, /Ngay_gio_XND_BD10/);
   assert.ok(!bad.error.includes('07:45') && !bad.error.includes('ZZ3'), 'không lộ giá trị / số hiệu');
+});
+
+test('normalizeCell: chữ NULL (hoa/thường, khoảng trắng) = rỗng; giá trị khác giữ nguyên chuỗi gốc', () => {
+  for (const v of ['NULL', 'null', 'Null', ' NULL ', '\tnull\r', '']) assert.equal(normalizeCell(v), '', JSON.stringify(v));
+  assert.equal(normalizeCell(null), '');
+  assert.equal(normalizeCell(undefined), '');
+  for (const v of ['NULLABLE', 'NULL_X', 'N/A', 'null null', ' Đường thư NULL ', '0', ' abc ']) assert.equal(normalizeCell(v), v, JSON.stringify(v));
+});
+
+test('chữ NULL ở MỌI cột = ô rỗng: lưu rỗng (không lưu chữ NULL); dòng chỉ có mốc + SHBG/BC nhận vẫn nạp; SHBG rỗng / khối lượng rỗng xử lý như trước', async () => {
+  const { db } = newDb();
+  const allNull = { Ma_BC_dong: 'NULL', Ten_duong_thu: 'null', So_hieu_BD10: ' NULL ', So_hieu_BD8: 'Null', Dich_vu_code: 'NULL', Ten_dich_vu: 'NULL', Ghi_chu: 'nuLL',
+    Ten_Xa_Phuong: 'NULL', Ten_Tinh_Thanh: 'NULL', Khoi_luong_thuc_te: 'NULL' };
+  const rows = [
+    row({ SHBG: 'ZZ300000011VN', ...allNull, 'Thời gian XN túi': '2026-10-04 07:00:00.717', 'Thời gian XN BG': 'NULL' }), // giống 4 dòng bất thường: Ma_BC_dong + dịch vụ + tên dịch vụ đều NULL
+    row({ SHBG: 'ZZ300000012VN', Ten_duong_thu: 'NULL_X', Ghi_chu: 'N/A', Ten_dich_vu: ' Dịch vụ NULL ', So_hieu_BD10: 'NULLABLE' }), // KHÔNG phải đúng chữ NULL -> giữ nguyên
+    row({ SHBG: '', So_hieu_BD10: 'BD10-S', So_hieu_BD8: 'S-1' }), // SHBG rỗng: importer trước nay KHÔNG từ chối (lưu rỗng)
+    row({ SHBG: 'ZZ300000014VN', Khoi_luong_thuc_te: '' }) // khối lượng rỗng -> NULL
+  ];
+  const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', rows));
+  assert.equal(r.status, 'OK', r.error);
+  const got = Object.fromEntries(db.prepare('SELECT * FROM arrival_items').all().map((x) => [x.tracking_no, x]));
+  const a = got.ZZ300000011VN;
+  assert.deepEqual([a.sender_code, a.route_name, a.bd10_no, a.bd8_no, a.service_code, a.service_name, a.note, a.ward_name, a.province_name, a.ward_key],
+    ['', '', '', '', '', '', '', '', '', ''], 'không lưu chữ NULL');
+  assert.equal(a.weight_g, null);
+  assert.equal(a.bag_confirmed_at, '2026-10-04 07:00:00');
+  assert.equal(a.arrival_at_basis, 'bag');
+  const b = got.ZZ300000012VN;
+  assert.deepEqual([b.route_name, b.note, b.service_name, b.bd10_no], ['NULL_X', 'N/A', ' Dịch vụ NULL ', 'NULLABLE'], 'chuỗi khác giữ nguyên');
+  assert.equal(got[''].bd10_no, 'BD10-S', 'SHBG rỗng: nạp như trước (không bị từ chối)');
+  assert.equal(got.ZZ300000014VN.weight_g, null);
+  assert.equal(count(db, "SELECT COUNT(*) n FROM arrival_items WHERE 'NULL' IN (route_name, bd10_no, bd8_no, service_code, service_name, note, ward_name, province_name, sender_code, receiver_code, tracking_no)"), 0);
+  assert.equal(count(db, "SELECT COUNT(*) n FROM ward_bdx_map WHERE ward_key = 'null'"), 0, 'phường/xã NULL không vào ánh xạ');
 });
 
 test('wardKey: bỏ dấu, gộp Đ/Ð/đ, gộp gạch ngang và khoảng trắng', () => {

@@ -4,6 +4,14 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Chữ NULL là ô rỗng ở mọi cột của file CSV hàng đến (SANLUONG-3k)
+
+- `server/lib/arrivalsImport.js`: `normalizeCell()` — chữ `NULL` (không phân biệt hoa/thường, bỏ khoảng trắng) = ô rỗng ở MỌI cột, áp ở bước đọc ô trước mọi kiểm tra/lưu; `scripts/split-arrivals-csv.js` dùng chung hàm (đọc ngày / mã BCVH), vẫn ghi file con giữ nguyên chuỗi gốc. Không đổi R2, chưa nhận, nhóm nguồn hay chỉ số nào.
+- Khảo sát: không cột nào bị REJECTED vì rỗng (cột chữ lưu `''`, khối lượng rỗng → NULL); 4 dòng `Ma_BC_dong` + `Dich_vu_code` + `Ten_dich_vu` cùng `NULL` vẫn nạp; `SHBG` rỗng không bị từ chối (ghi vào #66, backlog 7h2).
+- Tests: `arrivals-import` (+2 ca: `normalizeCell`, NULL ở mọi cột), `arrivals-reload` (+1 ca: tách + nạp, nhóm `khong_bd10`, đường thư / dịch vụ / tỉnh / phường rỗng). `npm test` 243 ca: 242 pass, 1 skip có chủ đích; `npm run build` ok.
+- Docs: quyết định #66 (đánh dấu #65 mục NULL cột khác đã được thay), backlog 7h1 đóng + 7h2, `00_SNAPSHOT.md`, `06_DEPLOYMENT.md` mục 9.
+
+
 ## [2026-10-10] - Importer và script tách nhận ngày giờ ISO và chữ NULL (SANLUONG-3j)
 
 - `server/lib/arrivalsImport.js`: `parseDateTimeCell()` — MỘT hàm cho importer và `scripts/split-arrivals-csv.js` (trước đó cả hai đã dùng chung `parseUsDateTime`, nay gọi hàm mới): rỗng / `NULL` (không phân biệt hoa thường, bỏ khoảng trắng) = rỗng; `YYYY-MM-DD HH:mm:ss` / dạng `T`, phần giây lẻ 1–7 chữ số bị bỏ (không đổi múi giờ); dạng Mỹ cũ giữ nguyên; chuỗi khác → REJECTED nêu số dòng + tên cột (không in giá trị). Thông báo lỗi nêu cả hai định dạng hợp lệ.

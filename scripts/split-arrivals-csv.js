@@ -17,7 +17,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { resolveHeader, readCsvRecords, COLUMNS, parseDateTimeCell, deriveArrival } = require('../server/lib/arrivalsImport');
+const { resolveHeader, readCsvRecords, COLUMNS, parseDateTimeCell, normalizeCell, deriveArrival } = require('../server/lib/arrivalsImport');
 
 const USAGE = 'Cách dùng: node scripts/split-arrivals-csv.js <file.csv> --out <thư-mục-ngoài-repo> [--unit <mã BCVH>] [--time HHMMSS] [--dry-run]';
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -57,7 +57,7 @@ async function splitCsv(inputPath, outDir, { unit = null, time = '235959', dryRu
   if (!records.length) throw new Error('File không có dòng tiêu đề');
   const header = records[0];
   const { index } = resolveHeader(header); // cùng quy tắc đọc tên cột với importer
-  const at = (rec, field) => (index[FIELD_INDEX[field]] >= 0 ? String(rec[index[FIELD_INDEX[field]]] ?? '') : '');
+  const at = (rec, field) => (index[FIELD_INDEX[field]] >= 0 ? normalizeCell(rec[index[FIELD_INDEX[field]]]) : '');
 
   const groups = new Map(); // `${unit}|${day}` -> records
   const pending = []; // dòng không có ngày nào
