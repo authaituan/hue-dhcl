@@ -666,9 +666,10 @@ test('/quality-mocs: tong_hop (du_trang_thai, co_xn_tui, co_xnd_bd10, khong_xnd_
   assert.equal(th.co_xn_bg.so_buu_gui, by['111'] + by['101'] + by['011'] + by['001']);
   assert.equal(th.khong_xnd_bd10.so_buu_gui, by['101'] + by['100'] + by['001']);
   assert.equal(th.co_xnd_bd10.so_buu_gui + th.khong_xnd_bd10.so_buu_gui, m.san_luong);
-  for (const k of Object.keys(th)) assert.equal(th[k].ty_le, Math.round((th[k].so_buu_gui / m.san_luong) * 10000) / 100, k);
+  const FIVE = ['du_trang_thai', 'co_xn_tui', 'co_xnd_bd10', 'khong_xnd_bd10', 'co_xn_bg'];
+  for (const k of FIVE) assert.equal(th[k].ty_le, Math.round((th[k].so_buu_gui / m.san_luong) * 10000) / 100, k);
   assert.ok(th.du_trang_thai.so_buu_gui > 0, 'dữ liệu giả có bưu gửi đủ 3 mốc? (túi + BD10 + bưu gửi)');
   // Khoảng rỗng: mọi số 0, không chia cho 0.
   const empty = (await mgr('/api/arrivals/quality-mocs?from=2025-01-01&to=2025-01-02')).tong_hop;
-  assert.deepEqual(Object.values(empty).map((x) => [x.so_buu_gui, x.ty_le]), Array(5).fill([0, 0]));
+  assert.deepEqual(FIVE.map((k) => [empty[k].so_buu_gui, empty[k].ty_le]), Array(5).fill([0, 0]));
 });

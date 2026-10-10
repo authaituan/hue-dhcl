@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-3).
+> Cập nhật lần cuối: 2026-10-10 (SANLUONG-3g).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -28,6 +28,12 @@
 7c. ✅ SANLUONG-3c-3 — API xuất Excel dữ liệu thô "Hàng đến" của một BCVH (`/api/arrivals/export-scope`, `/export`), 9 cột chuỗi, ghi luồng; `exceljs`/`csv-parse` đã vào `THIRD_PARTY_NOTICES.md` (09/10/2026). **PO còn phải**: mở thử 1 file xuất bằng Excel thật; duyệt các mặc định của #56 (92 ngày, 1.000.000 dòng, định dạng giờ).
 7c1. Nút "Xuất Excel" trên giao diện (ticket Antigravity): gọi `GET /api/arrivals/export-scope` để lấy danh sách BCVH, chọn BCVH + khoảng ngày (≤ 92 ngày) + tiêu chí ngày, tải bằng `apiFetch` (cần token → dùng blob, không dùng thẻ `<a>`); hiện thông điệp 400/403 của server.
 7c2. Xuất theo bộ lọc (phường/xã, đường thư…), định dạng khác (CSV), nhiều BCVH một file, giới hạn số lần xuất đồng thời — chỉ làm nếu PO cần (#58).
+7f. ✅ SANLUONG-3g (backend) — R2 (#59), `chua_nhan_tai_bcvh` + `/not-received` (#60), chất lượng khai thác theo nguồn BD10 (#61) (10/10/2026). **PO còn phải**: sao lưu rồi chạy `scripts/rederive-arrival.js --apply` trên DB thật (`06_DEPLOYMENT.md` mục 8).
+7f1. Giao diện (ticket Antigravity): thẻ "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (mô tả "Chưa tính vào sản lượng đến. Số liệu sẽ cập nhật khi có giao nhận tại BCVH. Cũ nhất: N ngày."), danh sách + nút xuất (`/not-received`, `/not-received/export`); thẻ "đủ trạng thái theo nguồn" (`tong_hop.theo_nguon`); ghi chú tiêu chí `bd10` từ `/meta`; bỏ phụ thuộc `canh_bao.chua_xac_dinh_ngay_den` (lỗi thời).
+7f2. Đưa "chưa nhận tại BCVH" thành mục điều hành của Dashboard điều hành (`/dashboard/overview` / `issues`) — cần PO chốt ngưỡng.
+7f3. Kiểm tra nhóm tiền tố 531120 có 495 bưu gửi (13,6%) trống XNĐ BD10, và các nhóm tiền tố 533140 (97 bưu gửi, 100% trống), 535470 (55, 41,8% trống): trống do script hay do quy tắc nghiệp vụ? Nhóm `khong_bd10` (738) hiện coi đủ khi có XN bưu gửi.
+7f4. Nếu PO muốn thêm cột ngày lập BD10 (`BC37Date`) vào script xuất CSV nguồn — cần cập nhật script xuất và importer.
+7f5. GDVH: chỉ số "chưa nhận" bị giới hạn theo BCVH được giao nhưng sản lượng vẫn đủ 6 BCVH (#52, #60) — PO xem lại có thống nhất không.
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.

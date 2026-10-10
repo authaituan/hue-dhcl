@@ -4,6 +4,16 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Quy tắc ngày đến R2, "chưa nhận tại BCVH", chất lượng khai thác theo nguồn BD10 (SANLUONG-3g)
+
+- `server/lib/arrivalsImport.js`: `deriveArrival()` (R2: túi → bưu gửi → BD10, không dùng `bd10_ttkt_confirmed_at`), dùng chung với importer và script tính lại. `scripts/rederive-arrival.js` (mới): chạy thử mặc định, `--apply` ghi trong một transaction, idempotent, nhắc sao lưu; `06_DEPLOYMENT.md` mục 8.
+- `server/lib/arrivalsQuery.js`: `TTKT_BD10_PREFIX = '530100'`; truy vấn dùng chung "chưa nhận tại BCVH" (`notReceivedStats`, `notReceivedList`, `scopedFilters` — GDVH chỉ BCVH được giao); `tong_hop.theo_nguon` + `du_trang_thai_theo_nguon` trong `quality-mocs` (nhóm gắn vào khoá dòng đại diện, GROUP BY một khoá nguyên); `/exceptions` có `ly_do`, phân trang, lý do `CHUA_NHAN_TAI_BCVH`; `/meta` có ghi chú + tỷ lệ cho tiêu chí `bd10`. `server/lib/dashboardQuery.js`: `/center` thêm `chua_nhan_tai_bcvh` (theo phạm vi) và `theo_nguon`.
+- `server/routes/arrivals.js`: `chua_nhan_tai_bcvh` trong `/summary` (mọi vai trò, ngoài `canh_bao`); `GET /api/arrivals/not-received`; `GET /api/arrivals/not-received/export` (dùng chung `exportHandler` với `/export`); `server/lib/arrivalsExport.js`: `writeNotReceivedExport`.
+- Tests: `tests/arrivals-source.test.js` (mới, 13 ca); sửa `arrivals-api` (fixture T19 mốc BD10 sớm, SL_DAY4 = 17), `arrivals-import` (R2: +2 ca), `dashboard-api`. `npm test` 231 ca: 230 pass, 1 skip có chủ đích; `npm run build` ok.
+- Bản chép DB thật (13.102 dòng): `rederive` đổi 110 dòng, sản lượng 02→08/10 = 12.783 trước và sau (03→09/10 12.783; 01/09→31/10 12.786); chưa nhận tại BCVH 62 (cũ nhất 4 ngày); theo nguồn `ttkt` 8.242 / `khac` 3.803 / `khong_bd10` 738, đủ theo nguồn 90,66%. Hiệu năng (DB giả 993.600 dòng): `summary` ±3%, `quality-mocs` +16–19%.
+- Docs: quyết định #59–#62, bản đồ kiến trúc, backlog 7f–7f5, `06_DEPLOYMENT.md` mục 8.
+
+
 ## [2026-10-09] - Giao diện màn hình "Dữ liệu sản lượng đến" (SANLUONG-4a)
 
 - `src/components/arrivals/*` (mới): Dựng UI dựa trên mô tả ticket, gồm:

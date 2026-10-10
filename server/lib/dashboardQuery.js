@@ -455,27 +455,32 @@ function centerFilters(db, query) {
 // nên chỉ vật chất hoá bản hẹp `c` (8 cột cần dùng). Cách đếm không đổi: `c` chỉ chọn cột từ `s`.
 const ROUTE_BY_BCVH_KEY = "CASE WHEN TRIM(route_name) = '' THEN '' ELSE receiver_code || char(31) || route_name END";
 function centerAggregates(db, f) {
-  const { sql, params } = aq.buildCountedCte(db, f);
+  const { sql, params } = aq.buildCountedCte(db, f, { withSource: true });
   const agg = (key, ma, ten) => `SELECT ${key} AS g, ${ma} AS ma, ${ten} AS ten, 0 AS gio, COUNT(*) AS n,
       COALESCE(SUM(weight_g > @heavy), 0) AS nang, COALESCE(SUM(weight_g), 0) AS kl FROM c GROUP BY g`;
   const rows = db.prepare(`WITH ${sql},
-    c AS MATERIALIZED (SELECT receiver_code, route_name, service_code, service_name, weight_g, m_bag, m_bd10, m_item FROM s)
+    c AS MATERIALIZED (SELECT receiver_code, route_name, service_code, service_name, weight_g, m_bag, m_bd10, m_item,
+      ${aq.SOURCE_CODE_SQL} AS code FROM s)
     SELECT 'route' AS k, * FROM (${agg(ROUTE_BY_BCVH_KEY, 'MIN(receiver_code)', 'MIN(route_name)')})
     UNION ALL SELECT 'svc', * FROM (${agg(aq.SERVICE_KEY_SQL, 'MIN(service_code)', 'MIN(service_name)')})
-    UNION ALL SELECT 'moc', m_bag || m_bd10 || m_item, NULL, NULL, 0, COUNT(*), 0, 0 FROM c GROUP BY m_bag || m_bd10 || m_item`)
+    UNION ALL SELECT 'moc', code, NULL, NULL, 0, COUNT(*), 0, 0 FROM c GROUP BY code`)
     .all({ ...params, heavy: f.heavyG });
   const of = (k) => rows.filter((r) => r.k === k);
-  return { route: of('route'), svc: of('svc'), moc: of('moc').map((r) => ({ key: r.g, n: r.n })) };
+  // 'moc' gom theo mã gói (tổ hợp mốc, nguồn BD10, đủ-theo-nguồn): giải mã thành bảng 7 tổ hợp + theo_nguon.
+  const src = aq.decodeSourceRows(of('moc').map((r) => ({ code: r.g, n: r.n })));
+  return { route: of('route'), svc: of('svc'), moc: src };
 }
 
-function center(db, query) {
+// scopeCodes: null = mọi BCVH; mảng = chỉ các BCVH này (GDVH: BCVH được giao) — áp cho `chua_nhan_tai_bcvh`.
+function center(db, query, { scopeCodes = null } = {}) {
   const { ctx, f } = centerFilters(db, query);
   if (!f) {
-    return { date: null, from: null, to: null, ngay_cap_nhat: ctx.updatedAt, san_luong: 0, duong_thu: null, dich_vu: null, chat_luong: null };
+    return { date: null, from: null, to: null, ngay_cap_nhat: ctx.updatedAt, san_luong: 0, duong_thu: null, dich_vu: null, chat_luong: null,
+      chua_nhan_tai_bcvh: { tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] } };
   }
   const names = bcvhNames(db);
   const agg = centerAggregates(db, f);
-  const total = aq.shapeQualityMocs(db, f, agg.moc); // bảng 7 tổ hợp + tong_hop
+  const total = aq.shapeQualityMocs(db, f, aq.sumBy(agg.moc, 'key'), agg.moc); // bảng 7 tổ hợp + tong_hop (+ theo_nguon)
 
   // Đường thư theo (BCVH, tên). Bưu gửi không có tên gom thành MỘT nhóm chung cho cả Trung tâm (không gắn BCVH).
   const groups = aq.foldGroups(agg.route);
@@ -515,7 +520,8 @@ function center(db, query) {
     },
     chat_luong: {
       san_luong: total.san_luong, tong_hop: total.tong_hop, to_hop: total.to_hop, ty_le_co_moc: total.ty_le_co_moc, khong_co_moc: total.khong_co_moc
-    }
+    },
+    chua_nhan_tai_bcvh: aq.notReceivedStats(db, f, scopeCodes)
   };
 }
 

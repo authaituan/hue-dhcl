@@ -35,8 +35,9 @@ const COLUMNS = [
 const EXPECTED_HEADER = COLUMNS.map(([h]) => h);
 const TIME_FIELDS = ['bag_confirmed_at', 'item_confirmed_at', 'bd10_confirmed_at', 'bd10_ttkt_confirmed_at'];
 const TEXT_FIELDS = COLUMNS.map(([, f]) => f).filter((f) => !TIME_FIELDS.includes(f) && f !== 'weight_g');
-// Thứ tự ưu tiên khi các mốc bằng nhau: túi -> BD10 -> bưu gửi.
-const ARRIVAL_SOURCES = [['bag', 'bag_confirmed_at'], ['bd10', 'bd10_confirmed_at'], ['item', 'item_confirmed_at']];
+// Quy tắc ngày đến R2 (04_DECISIONS.md #59): arrival_at = mốc ĐẦU TIÊN KHÔNG TRỐNG theo thứ tự XN túi -> XN bưu gửi -> XNĐ BD10
+// (không còn "mốc sớm nhất"). KHÔNG dùng bd10_ttkt_confirmed_at. Ba mốc đều trống -> NULL.
+const ARRIVAL_SOURCES = [['bag', 'bag_confirmed_at'], ['item', 'item_confirmed_at'], ['bd10', 'bd10_confirmed_at']];
 
 const RANGE_DAYS_BEFORE = 3;
 const RANGE_DAYS_AFTER = 1;
@@ -194,6 +195,23 @@ function checkHeader(header) {
   if (problems.length) throw new ArrivalFileError(`Sai tiêu đề (${got.length} cột): ${problems.slice(0, 5).join('; ')}`);
 }
 
+/** Tính arrival_at / arrival_at_basis / arrival_date / arrival_evidence_count của MỘT dòng theo R2 (dùng chung với scripts/rederive-arrival.js). */
+function deriveArrival(item) {
+  const marks = ARRIVAL_SOURCES.filter(([, f]) => item[f]);
+  item.arrival_evidence_count = marks.length;
+  if (marks.length) {
+    const [basis, field] = marks[0];
+    item.arrival_at = item[field];
+    item.arrival_at_basis = basis;
+    item.arrival_date = item.arrival_at.slice(0, 10);
+  } else {
+    item.arrival_at = null;
+    item.arrival_at_basis = null;
+    item.arrival_date = null;
+  }
+  return item;
+}
+
 // 1 bản ghi CSV -> 1 dòng arrival_items (chưa có import_file_id). rowNo = số dòng trong file (tiêu đề = 1).
 function toItem(rec, rowNo) {
   const item = {};
@@ -212,19 +230,7 @@ function toItem(rec, rowNo) {
       item[field] = String(raw); // giữ nguyên chuỗi gốc, mã/số hiệu luôn là CHỮ
     }
   });
-  const marks = ARRIVAL_SOURCES.filter(([, f]) => item[f]);
-  item.arrival_evidence_count = marks.length;
-  if (marks.length) {
-    let best = marks[0];
-    for (const mk of marks) if (item[mk[1]] < item[best[1]]) best = mk;
-    item.arrival_at = item[best[1]];
-    item.arrival_at_basis = best[0];
-    item.arrival_date = item.arrival_at.slice(0, 10);
-  } else {
-    item.arrival_at = null;
-    item.arrival_at_basis = null;
-    item.arrival_date = null;
-  }
+  deriveArrival(item);
   item.bag_date = item.bag_confirmed_at ? item.bag_confirmed_at.slice(0, 10) : null;
   item.bd10_date = item.bd10_confirmed_at ? item.bd10_confirmed_at.slice(0, 10) : null;
   item.item_date = item.item_confirmed_at ? item.item_confirmed_at.slice(0, 10) : null;
@@ -433,6 +439,6 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
-  ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches,
+  ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, importArrivalDirectory, getMissingBatches,
   refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseFileName
 };

@@ -102,3 +102,12 @@ Thứ tự (app đang **tắt**; bản deploy mới chạy sau bước 4):
 4. Khởi động app mới (tạo bảng `user_bcvh` tự động), chạy lại `npm test`, đăng nhập thử bằng ADMIN, mở Quản lý người dùng kiểm tra vai trò.
 5. Gán BCVH cho GDVH qua API `PUT /api/users/:id/bcvh` (giao diện sẽ có ở ticket riêng).
 Token đang dùng không cần đăng nhập lại: quyền theo vai trò trong DB ở từng request.
+
+## 8. Tính lại ngày đến theo quy tắc R2 (ticket SANLUONG-3g, PO tự chạy trên DB thật — `04_DECISIONS.md` #59)
+Dữ liệu "Hàng đến" đã nạp trước bản 3g có `arrival_at` theo quy tắc cũ (mốc sớm nhất). Sau khi triển khai bản 3g:
+1. **Tắt app** (hoặc chắc chắn không có tiến trình nạp), **sao lưu** `data/hue-dhcl.db` cùng `-wal`, `-shm`.
+2. **Chạy thử** (không ghi): `node scripts/rederive-arrival.js` — in số dòng sẽ đổi (ngày sớm lên / muộn đi / cùng ngày, mốc căn cứ cũ → mới, các cặp ngày). DB ở chỗ khác: `--db <đường-dẫn>` (hoặc `ARRIVALS_DB`).
+3. **Áp dụng**: `node scripts/rederive-arrival.js --apply` — một transaction, chạy lại được (lần sau: 0 dòng thay đổi).
+4. Khởi động app, mở màn hình "Sản lượng đến" kiểm tra tổng sản lượng và số "chưa nhận tại BCVH".
+Dữ liệu nạp mới sau bản 3g đã theo R2 sẵn, không cần chạy lại script.
+

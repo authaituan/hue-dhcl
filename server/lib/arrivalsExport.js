@@ -11,6 +11,7 @@ const aq = require('./arrivalsQuery');
 const { DASHBOARD_BCVH, bcvhNames } = require('./dashboardQuery');
 const { getAssignedBcvh } = require('./userBcvh');
 const { ROLES } = require('../roles');
+const XLSX_PREFIX_NR = 'ChuaNhan';
 
 // Tiêu đề trong file (PO chốt 09/10/2026) -> cột trong arrival_items, theo đúng thứ tự cột của file xuất.
 const EXPORT_COLUMNS = Object.freeze([
@@ -222,8 +223,49 @@ async function writeExport(db, ctx, out, shouldStop = () => false) {
   return { rows, aborted: false };
 }
 
+// ------------------------------------------
+// Xuất danh sách "đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" của MỘT BCVH (cùng cơ chế, cùng quyền, cùng giới hạn với /export).
+// Danh sách nhỏ (chục–trăm dòng) nên dùng API dòng của ExcelJS; vẫn ghi luồng, mọi ô là chuỗi.
+// ------------------------------------------
+const NR_COLUMNS = Object.freeze([
+  { header: 'SHBG', field: 'tracking_no', width: 20 },
+  { header: 'So_hieu_BD8', field: 'bd8_no', width: 24 },
+  { header: 'So_hieu_BD10', field: 'bd10_no', width: 24 },
+  { header: 'Ten_duong_thu', field: 'route_name', width: 34 },
+  { header: 'Thoi_gian_lap_BD10', field: 'thoi_diem_lap_bd10', width: 21, time: true },
+  { header: 'Tuoi_ngay', field: 'tuoi_ngay', width: 11 }
+]);
+const NR_PAGE = 2000;
+
+const nrFilters = (ctx, page) => ({ ...ctx.f, page, pageSize: NR_PAGE });
+function countNotReceived(db, ctx) {
+  return aq.notReceivedList(db, { ...ctx.f, page: 1, pageSize: 1 }).pagination.total;
+}
+const notReceivedFileName = (ctx) => `${XLSX_PREFIX_NR}_${ctx.code}_${ctx.f.fromDate}_${ctx.f.toDate}.xlsx`;
+
+async function writeNotReceivedExport(db, ctx, out, shouldStop = () => false) {
+  const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
+  const ws = wb.addWorksheet('ChuaNhan', { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = NR_COLUMNS.map((c) => ({ key: c.field, width: c.width, style: { numFmt: '@' } }));
+  const head = ws.addRow(NR_COLUMNS.map((c) => c.header));
+  head.eachCell((cell) => { cell.font = { bold: true }; cell.numFmt = '@'; });
+  head.commit();
+  let rows = 0;
+  for (let page = 1; ; page++) {
+    if (shouldStop()) { try { wb.zip.abort(); } catch (e) { /* đang đóng */ } return { rows, aborted: true }; }
+    const { items } = aq.notReceivedList(db, nrFilters(ctx, page));
+    if (!items.length) break;
+    for (const r of items) { ws.addRow(NR_COLUMNS.map((c) => cellText(r[c.field], c.time))).commit(); rows++; }
+    if (items.length < NR_PAGE) break;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  ws.commit();
+  await wb.commit();
+  return { rows, aborted: false };
+}
+
 module.exports = {
   EXPORT_COLUMNS, EXPORT_MAX_DAYS, EXPORT_MAX_ROWS_DEFAULT, BATCH_SIZE, SHEET_NAME, XLSX_MIME,
   maxRows, formatCount, allowedBcvhCodes, exportScope, parseReceiverCode, parseExportParams,
-  countRows, formatTime, cellText, exportFileName, writeExport
+  countRows, formatTime, cellText, exportFileName, writeExport, NR_COLUMNS, countNotReceived, notReceivedFileName, writeNotReceivedExport
 };
