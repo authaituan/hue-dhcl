@@ -4,6 +4,12 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Khảo sát dữ liệu thật ở mức BD10: "BD10 đến không XNĐ" (SANLUONG-4a4, chỉ đọc)
+
+- `scripts/survey-bd10.js` (mới): mở DB `readonly`, từ chối cờ ghi (`--apply`, `--write`, `--vacuum`…); khung BD10 theo ngày của MIN(`arrival_at`) các dòng; chỉ in số đếm / tỉ lệ / bảng (chỉ lộ tiền tố BD10 6 số). Bảng: quy mô + tiền tố, mốc trong từng BD10 (XN túi + BG; XNĐ đồng nhất?), "BD10 đến không XNĐ" cách A / B / C, từng ngày, hàng nặng (BD8 = SHBG), bất thường theo tiền tố, tuổi, chất lượng dữ liệu liên quan. `tests/survey-bd10.test.js` (2 ca, DB tạm, dữ liệu giả; kiểm DB không đổi). Không đổi chỉ số nào của app. `npm test` 245 ca: 244 pass, 1 skip có chủ đích; `npm run build` ok.
+- Kết quả chính trên bản chép DB dev (BCVH 533140, 32.880 dòng, khung 01→09/10; số tổng hợp): 235 BD10 trong khung (median 26 dòng/BD10, max 1.046); XNĐ trong một BD10 hoặc có ở MỌI dòng cùng một giá trị hoặc không có ở dòng nào (0 BD10 loại ii/iii); cách A: 68/218 BD10 đến không XNĐ (31,2%; 530100: 18/112 = 16,1%; khác: 50/106 = 47,2%); BD10 tiền tố 533140 (= mã BCVH nhận, 52 BD10, 1.766 SHBG) 100% không XNĐ — loại ra thì "khác 530100" còn 3/59 (5,1%), tổng 21/171 (12,3%). Chi tiết quyết định chờ PO (backlog 7i).
+
+
 ## [2026-10-10] - Chữ NULL là ô rỗng ở mọi cột của file CSV hàng đến (SANLUONG-3k)
 
 - `server/lib/arrivalsImport.js`: `normalizeCell()` — chữ `NULL` (không phân biệt hoa/thường, bỏ khoảng trắng) = ô rỗng ở MỌI cột, áp ở bước đọc ô trước mọi kiểm tra/lưu; `scripts/split-arrivals-csv.js` dùng chung hàm (đọc ngày / mã BCVH), vẫn ghi file con giữ nguyên chuỗi gốc. Không đổi R2, chưa nhận, nhóm nguồn hay chỉ số nào.
