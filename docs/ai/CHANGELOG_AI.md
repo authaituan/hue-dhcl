@@ -4,6 +4,25 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-09] - Giao diện màn hình "Dữ liệu sản lượng đến" (SANLUONG-4a)
+
+- `src/components/arrivals/*` (mới): Dựng UI dựa trên mô tả ticket, gồm:
+  1. `ArrivalsFilters`: Bộ lọc (ngày, tiêu chí, phường/xã, BCVH multi-select).
+  2. `ArrivalsOverview`: Thẻ chỉ số tổng, Bảng so sánh (tự động fetch nhiều `receiver_code`), biểu đồ ngày/giờ (Recharts), bảng phường/xã. Biểu đồ theo giờ chỉ gọi khi khoảng ≤ 7 ngày, mỗi khối tự xử lý lỗi.
+  3. `ArrivalsRoutesServices`: Đường thư và dịch vụ, định dạng giờ trả về.
+  4. `ArrivalsQuality`: Chất lượng khai thác, 7 tổ hợp mốc. Chứa phần hiển thị riêng cho `ADMIN` (cảnh báo bất thường, trạng thái nạp file).
+  5. `ArrivalsLookup`: Tra cứu bưu gửi, xử lý cảnh báo đến lại. Chứa phần hiển thị riêng cho `ADMIN` (ngoại lệ).
+  6. `ArrivalsExport`: Xử lý nút Tải dữ liệu, có kiểm tra `exportScope`. Nút xuất file chỉ gửi ngày thuần.
+  7. `CustomDatePicker.jsx` (mới): Hộp lịch tiếng Việt tự viết, không thư viện.
+  8. `dateUtils.js` (mới): Chuyển đổi ngày; bộ lọc chỉ chọn ngày, hiển thị dd/MM/yyyy.
+- Quyền hiển thị (`App.jsx`, `Sidebar.jsx`): Chặn `STAFF` khỏi màn hình Arrivals. Sửa lại các chỗ kiểm tra minh bạch nhóm quyền. Việc đổi tên menu thành “Sản lượng đến”.
+- Giao diện: Đồng bộ màu với site (.btn-primary, .card-soft).
+- Không thêm thư viện mới (dùng recharts đã có; package.json/package-lock.json không đổi).
+- Đã chạy `npm run build` thành công.
+- UI chưa có test tự động; PO đã kiểm bằng tay trên dữ liệu mẫu.
+
+---
+
 ## [2026-10-09] - Xuất Excel dữ liệu thô "Hàng đến" của một BCVH (SANLUONG-3c-3)
 
 - `server/lib/arrivalsExport.js` (mới): tham số (`receiver_code` ∈ 6 BCVH, `from`/`to` `YYYY-MM-DD` ≤ 92 ngày, `date_basis`), phạm vi theo vai trò (`allowedBcvhCodes`/`exportScope`, GDVH qua `getAssignedBcvh`), đếm trước (ngưỡng 1.000.000 dòng, `ARRIVALS_EXPORT_MAX_ROWS` ghi đè), `writeExport` ghi `.xlsx` theo luồng: tiêu đề qua API ExcelJS, dòng dữ liệu ghi thẳng XML (API dòng/ô của ExcelJS ~30 µs/dòng), duyệt từng ngày rồi `id` (một lần seek mỗi lô 2.000 dòng), có chờ khi bộ đệm nén/gửi > 2 MB (luồng sheet của ExcelJS không tự báo áp lực ngược → đọc trạng thái luồng ống dẫn). Đúng 9 cột chuỗi (`numFmt '@'`, `t="str"`), ô rỗng để trống, giờ `dd/MM/yyyy HH:mm:ss`; bỏ ký tự điều khiển XML, cắt ô > 32.767 ký tự.
