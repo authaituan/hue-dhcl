@@ -245,11 +245,15 @@ function deriveArrival(item) {
   return item;
 }
 
+// Ô của file CSV: chữ NULL (không phân biệt hoa/thường, bỏ khoảng trắng hai đầu) = ô RỖNG, ở MỌI cột (script xuất ghi NULL cho ô không có giá trị — #65/#66).
+// MỘT hàm dùng chung cho importer và scripts/split-arrivals-csv.js. Giá trị khác giữ nguyên chuỗi gốc.
+const normalizeCell = (raw) => (/^null$/i.test(String(raw ?? '').trim()) ? '' : String(raw ?? ''));
+
 // 1 bản ghi CSV -> 1 dòng arrival_items (chưa có import_file_id). rowNo = số dòng trong file (tiêu đề = 1).
 function toItem(rec, rowNo, columnIndex) {
   const item = {};
   COLUMNS.forEach(([header, field], i) => {
-    const raw = columnIndex[i] >= 0 ? (rec[columnIndex[i]] ?? '') : '';
+    const raw = columnIndex[i] >= 0 ? normalizeCell(rec[columnIndex[i]]) : '';
     if (TIME_FIELDS.includes(field)) {
       const p = parseDateTimeCell(raw);
       if (!p.ok) throw new ArrivalFileError(`Dòng ${rowNo}: cột "${header}" sai định dạng ngày giờ (cần YYYY-MM-DD HH:mm:ss[.fff] hoặc M/D/YYYY h:mm:ss AM/PM)`);
@@ -473,5 +477,5 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
   ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, importArrivalDirectory, getMissingBatches,
-  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
+  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
 };

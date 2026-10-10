@@ -329,3 +329,49 @@ test('3j: CSV xuất kiểu mới (ISO có mili giây / dạng T, chữ NULL) ->
   writeRows(bad, brow);
   await assert.rejects(() => splitCsv(bad, path.join(workDir, 'split3j-bad')), (e) => /Dòng 3/.test(e.message) && !e.message.includes('09:00') && !e.message.includes('ZZ3D'));
 });
+
+test('3k: NULL ở mọi cột -> nhóm nguồn khong_bd10 đếm đúng, đường thư / dịch vụ rỗng vào nhóm "chưa có tên", tỉnh / phường rỗng vào nhóm chưa xác định; tách + nạp ra OK', async () => {
+  resetArrivals(ctx.db, { apply: true });
+  const day = dayOf(9);
+  const T = (hms) => `${day} ${hms}.250`;
+  const nul = { Ma_BC_dong: 'NULL', Ten_duong_thu: 'NULL', So_hieu_BD10: 'NULL', Dich_vu_code: 'NULL', Ten_dich_vu: 'NULL', Ghi_chu: 'NULL' };
+  const rows = [
+    // 2 bưu gửi không BD10, đường thư NULL, dịch vụ NULL: một có XN bưu gửi (đủ theo nguồn), một chỉ có túi (thiếu)
+    mkRow({ SHBG: trk(9, 1), ...nul, So_hieu_BD8: 'NULL', Thoi_gian_XN_tui: 'NULL', Thoi_gian_XN_BG: T('08:00:00'), Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: 'NULL', Ten_Xa_Phuong: 'NULL', Ten_Tinh_Thanh: 'NULL' }),
+    mkRow({ SHBG: trk(9, 2), ...nul, So_hieu_BD8: 'B92', Thoi_gian_XN_tui: T('09:00:00'), Thoi_gian_XN_BG: 'NULL', Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: 'NULL', Ten_Tinh_Thanh: 'NULL' }),
+    // 1 bưu gửi nhóm TTKT đủ (túi + bưu gửi), có tên đường thư, tỉnh nhà
+    mkRow({ SHBG: trk(9, 3), So_hieu_BD10: bd10(TTKT, 9, 3), So_hieu_BD8: 'B93', Thoi_gian_XN_tui: T('10:00:00'), Thoi_gian_XN_BG: T('10:10:00'), Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: T('01:00:00') })
+  ];
+  const input = path.join(workDir, 'input3k', 'xuat-null.csv');
+  fs.mkdirSync(path.dirname(input), { recursive: true });
+  fs.writeFileSync(input, [HEADER.map(q).join(','), ...rows.map((r) => HEADER.map((h) => q(r[h] ?? '')).join(','))].join('\r\n') + '\r\n');
+
+  const out = path.join(workDir, 'split3k');
+  const sp = await splitCsv(input, out, { unit: BC });
+  assert.deepEqual(sp.files.map((f) => [f.day, f.rows]), [[day, 3]]);
+  assert.equal(sp.unplaced, 0);
+  assert.equal(fs.readFileSync(path.join(out, fs.readdirSync(out)[0]), 'utf8').match(/"NULL"/g).length > 10, true, 'file con giữ nguyên chữ NULL gốc');
+  const res = await importArrivalDirectory(ctx.db, out);
+  assert.deepEqual(res.map((x) => x.status), ['OK'], res[0] && res[0].error);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM arrival_items WHERE 'NULL' IN (route_name, bd10_no, bd8_no, service_code, service_name, note, ward_name, province_name, sender_code)").get().n, 0);
+
+  const Q = `from=${day}&to=${day}&receiver_code=${BC}`;
+  const m = (await api(`/api/arrivals/quality-mocs?${Q}`)).body;
+  assert.equal(m.san_luong, 3);
+  const by = Object.fromEntries(m.tong_hop.theo_nguon.map((g) => [g.nhom, g]));
+  assert.deepEqual([by.khong_bd10.so_buu_gui, by.khong_bd10.du_theo_nguon, by.khong_bd10.thieu], [2, 1, 1], 'BD10 NULL = rỗng -> nhóm khong_bd10 (không rơi vào khac)');
+  assert.deepEqual([by.khac.so_buu_gui, by.ttkt.so_buu_gui, by.ttkt.du_theo_nguon], [0, 1, 1]);
+  const r = (await api(`/api/arrivals/by-route?${Q}`)).body;
+  assert.ok(!JSON.stringify(r).includes('"NULL"'), 'không có đường thư tên NULL');
+  assert.equal(r.chua_co_ten.san_luong, 2, 'đường thư NULL = rỗng -> nhóm "chưa có tên"');
+  const sv = (await api(`/api/arrivals/by-service?${Q}`)).body;
+  assert.equal(sv.chua_co_ten.san_luong, 2, 'dịch vụ NULL = rỗng -> nhóm "chưa có tên dịch vụ"');
+  const w = (await api(`/api/arrivals/by-ward?${Q}`)).body;
+  const g = Object.fromEntries(w.nhom_phan_loai.map((x) => [x.nhom, x.san_luong]));
+  assert.deepEqual(g, { OUT_PROVINCE: 0, NO_PROVINCE: 1, NO_WARD: 1 }, 'tỉnh NULL -> chưa xác định tỉnh (không tính tỉnh khác); phường NULL -> chưa xác định phường/xã');
+  // BC_nhan_BG = NULL: script tách báo lỗi rõ
+  const badIn = path.join(workDir, 'input3k', 'bad.csv');
+  const bad = { ...rows[0], BC_nhan_BG: 'NULL' };
+  fs.writeFileSync(badIn, [HEADER.map(q).join(','), HEADER.map((h) => q(bad[h] ?? '')).join(',')].join('\r\n') + '\r\n');
+  await assert.rejects(() => splitCsv(badIn, path.join(workDir, 'split3k-bad')), /không xác định được mã BCVH/);
+});
