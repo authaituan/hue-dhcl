@@ -5,6 +5,7 @@ const { ROLES, VIEWER_ROLES } = require('../roles');
 const q = require('../lib/arrivalsQuery');
 const dash = require('../lib/dashboardQuery');
 const exp = require('../lib/arrivalsExport');
+const bd10 = require('../lib/bd10Query');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 
 const router = express.Router();
@@ -44,7 +45,18 @@ router.get('/arrivals/meta', handle((req) => {
 // GDVH chỉ thấy BCVH được giao ở chỉ số "chưa nhận tại BCVH" (null = không giới hạn); sản lượng và các số khác vẫn đủ 6 BCVH (#52).
 const scopeCodes = (req) => (req.user.role === ROLES.GDVH ? exp.allowedBcvhCodes(db, req.user) : null);
 
-router.get('/arrivals/summary', handle((req) => q.summary(db, filters(req, ['heavy_g']), { isAdmin: isAdmin(req), scopeCodes: scopeCodes(req) }), 'summary'));
+// Khoá `bd10_den_khong_xnd` (#67): chỉ số CÔNG KHAI cho mọi vai trò xem "Sản lượng đến" (không sau cờ ADMIN), theo phạm vi BCVH như chua_nhan_tai_bcvh.
+router.get('/arrivals/summary', handle((req) => {
+  const f = filters(req, ['heavy_g']);
+  const out = q.summary(db, f, { isAdmin: isAdmin(req), scopeCodes: scopeCodes(req) });
+  out.bd10_den_khong_xnd = bd10.stats(db, f, scopeCodes(req));
+  return out;
+}, 'summary'));
+// "BD10 đến không XNĐ": danh sách BD10 thuộc tử số (S2 + S3), phân trang, cũ nhất trước. Tham số: from, to, receiver_code (hoặc unit), nhom, tuoi, page, page_size.
+router.get('/arrivals/bd10-khong-xnd', handle((req) => {
+  const { f, nhom, tuoi } = bd10.parseListQuery(req.query);
+  return bd10.list(db, f, { nhom, tuoi }, scopeCodes(req));
+}, 'bd10-khong-xnd'));
 // "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH": danh sách chi tiết (phân trang, cũ nhất trước) — mọi vai trò xem được "Sản lượng đến", theo phạm vi BCVH.
 router.get('/arrivals/not-received', handle((req) => q.notReceivedList(db,
   q.parseFilters(req.query, { allowed: ['from', 'to', 'receiver_code', 'page', 'page_size'] }), scopeCodes(req)), 'not-received'));
@@ -68,15 +80,16 @@ router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.que
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));
 
 // Xuất file dùng chung cho /export (dữ liệu thô) và /not-received/export (danh sách chưa nhận tại BCVH): cùng quyền, cùng giới hạn, cùng nhật ký.
-function exportHandler({ kind, count, fileName, write }) {
+function exportHandler({ kind, count, fileName, write, prepare = (req) => ({ query: req.query, extra: {} }) }) {
   return async (req, res) => {
     let ctx; let total;
     try {
-      const code = exp.parseReceiverCode(req.query);
+      const { query, extra } = prepare(req);
+      const code = exp.parseReceiverCode(query);
       if (!exp.allowedBcvhCodes(db, req.user).includes(code)) {
         return res.status(403).json({ error: 'Bạn không được phép xuất dữ liệu của BCVH này (tài khoản GDVH chỉ xuất được BCVH được giao)' });
       }
-      ctx = exp.parseExportParams(req.query);
+      ctx = { ...exp.parseExportParams(query), ...extra };
       total = count(db, ctx);
       const max = exp.maxRows();
       if (total > max) {
@@ -111,6 +124,10 @@ function exportHandler({ kind, count, fileName, write }) {
   };
 }
 router.get('/arrivals/export', exportHandler({ kind: 'raw', count: exp.countRows, fileName: exp.exportFileName, write: exp.writeExport }));
+router.get('/arrivals/bd10-khong-xnd/export', exportHandler({
+  kind: 'bd10_khong_xnd', count: exp.countBd10, fileName: exp.bd10FileName, write: exp.writeBd10Export,
+  prepare: (req) => { const { base, nhom, tuoi } = bd10.splitQuery(req.query); return { query: base, extra: { nhom, tuoi } }; }
+}));
 router.get('/arrivals/not-received/export', exportHandler({ kind: 'not_received', count: exp.countNotReceived, fileName: exp.notReceivedFileName, write: exp.writeNotReceivedExport }));
 
 router.get('/arrivals/exceptions', requireAdmin, handle((req) => q.exceptions(db, filters(req, ['ly_do', 'page', 'page_size'])), 'exceptions'));

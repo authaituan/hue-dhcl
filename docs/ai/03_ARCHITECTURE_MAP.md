@@ -18,6 +18,7 @@ server/
   lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
   lib/arrivalsQuery.js  # "Hàng đến": NƠI DUY NHẤT cài quy tắc đếm sản lượng (buildCountedCte) + kiểm tham số + các truy vấn API
   lib/arrivalsExport.js # xuất Excel dữ liệu thô "Hàng đến" của 1 BCVH (9 cột chuỗi, ghi luồng theo lô), phạm vi theo vai trò
+  lib/bd10Query.js      # chỉ số "BD10 đến không XNĐ" (đơn vị BD10 tính lúc truy vấn): stats, list, splitQuery — #67
   lib/userBcvh.js       # bảng user_bcvh (gán GDVH ↔ BCVH): ensureUserBcvhSchema, getAssignedBcvh, replaceAssignedBcvh
   lib/adminGuard.js     # chặn hạ/khoá ADMIN hoạt động cuối cùng
   lib/dashboardQuery.js # Dashboard điều hành: 6 BCVH (DASHBOARD_BCVH), ngưỡng (DASHBOARD_THRESHOLDS), overview/trend/wards-surge/center — gọi lại buildCountedCte
@@ -73,12 +74,14 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/dashboard/widgets`, `GET /api/dashboard/widgets-data` | đã đăng nhập | `routes/dashboardWidgets.js` |
 | `GET widgets-meta`, `POST widgets-preview`, `POST/PUT/DELETE widgets`, `PUT widgets-order`, `POST widgets-reset` | ADMIN | `routes/dashboardWidgets.js` |
 | `GET /api/arrivals/meta` — mã BC nhận (tên, loại hình), phường/xã có dữ liệu, khoảng thời gian, tiêu chí ngày | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
-| `GET /api/arrivals/summary` — sản lượng, khối lượng, túi/kiện, hàng nặng + tỷ lệ (`heavy_g`), địa bàn phát; `chua_nhan_tai_bcvh` (đã lập BD10 về BCVH, chưa có XN nhận — mọi vai trò, GDVH chỉ BCVH được giao, #60); `canh_bao` chỉ ADMIN (`chua_xac_dinh_ngay_den` LỖI THỜI, `khong_moc_khong_ttkt`) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
+| `GET /api/arrivals/summary` — sản lượng, khối lượng, túi/kiện, hàng nặng + tỷ lệ (`heavy_g`), địa bàn phát; `chua_nhan_tai_bcvh` (đã lập BD10 về BCVH, chưa có XN nhận — mọi vai trò, GDVH chỉ BCVH được giao, #60); `bd10_den_khong_xnd` (BD10 đến không XNĐ: tổng / tỉ lệ, theo nhóm 530100 / khác, tuổi, trạng thái S1–S3, ngoài khung — CÔNG KHAI mọi vai trò, cùng phạm vi, #67); `canh_bao` chỉ ADMIN (`chua_xac_dinh_ngay_den` LỖI THỜI, `khong_moc_khong_ttkt`) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/by-route` — theo đường thư: sản lượng, tỷ trọng, giờ nhiều nhất, hàng nặng + tỷ lệ; nhóm riêng "Chưa có tên đường thư" (`heavy_g`) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/by-service` — theo dịch vụ (mã + tên): sản lượng, tỷ trọng, khối lượng TB, hàng nặng + tỷ lệ; nhóm riêng "Chưa có tên dịch vụ" (`heavy_g`) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/by-time?granularity=day\|hour` — đủ mốc trong khoảng (`hour` ≤ 7 ngày) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/by-ward` — theo phường/xã nơi phát, giảm dần, tỷ trọng; nhóm Phường/xã tỉnh khác, Chưa xác định tỉnh, Chưa xác định phường/xã | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
 | `GET /api/arrivals/quality-mocs` — 7 tổ hợp mốc BCVH + `tong_hop` (đủ trạng thái, có XN túi / XND BD10 / XN bưu gửi, không XNĐ BD10) + tỷ lệ có từng mốc + bưu gửi không có mốc; `tong_hop.theo_nguon` (3 nhóm `ttkt`/`khac`/`khong_bd10`: số bưu gửi, đủ theo nguồn, thiếu, tỷ lệ) + `tong_hop.du_trang_thai_theo_nguon` (#61) | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
+| `GET /api/arrivals/bd10-khong-xnd?from=&to=&receiver_code=\|unit=&nhom=&tuoi=&page=&page_size=` — danh sách BD10 đến không XNĐ (S2 + S3), cũ nhất trước: số hiệu BD10, bưu cục lập, ngày, tuổi, số bưu gửi, số BD8, có XN túi / BG, trạng thái; GDVH chỉ BCVH được giao (#67) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/bd10Query.js` |
+| `GET /api/arrivals/bd10-khong-xnd/export?receiver_code=\|unit=&from=&to=[&nhom=&tuoi=]` — xlsx danh sách trên của MỘT BCVH (cùng quyền / giới hạn / nhật ký với `/export`) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/arrivalsExport.js` |
 | `GET /api/arrivals/not-received` — danh sách "đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (SHBG, BD8, BD10, đường thư, thời điểm lập BD10, tuổi), phân trang, cũ nhất trước; GDVH chỉ BCVH được giao | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js` |
 | `GET /api/arrivals/not-received/export?receiver_code=&from=&to=` — xlsx danh sách trên của MỘT BCVH (cùng quyền/giới hạn/nhật ký với `/export`) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/arrivalsExport.js` |
 | `GET /api/arrivals/lookup?tracking_no=` — các dòng của 1 SHBG, mốc dùng làm thời điểm đến | ADMIN, TTVH, GDVH | `routes/arrivals.js` |
@@ -116,7 +119,7 @@ Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`. `se
 | `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 |
 | `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 |
 | `/api/arrivals/export-scope`, `/export`, `/not-received/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 |
-| `/api/arrivals/not-received`, `chua_nhan_tai_bcvh` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | chỉ BCVH được giao (chưa giao → 0) | 403 |
+| `/api/arrivals/not-received`, `/bd10-khong-xnd` (+ `/export`), `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | chỉ BCVH được giao (chưa giao → 0) | 403 |
 | `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` (cảnh báo dữ liệu; KHÔNG gồm `chua_nhan_tai_bcvh`) | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 |
 | `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | ✔ |
 | ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 |

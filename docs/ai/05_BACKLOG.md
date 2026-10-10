@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-10 (SANLUONG-4a5).
+> Cập nhật lần cuối: 2026-10-10 (SANLUONG-4a6).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -42,6 +42,11 @@
 7h1. ✅ Đã đóng bởi SANLUONG-3k: chữ `NULL` = ô rỗng ở MỌI cột (#66).
 7h2. (Chưa cần) Chặn / báo `SHBG` rỗng và `BC_nhan_BG` rỗng khi nạp — hiện lưu rỗng, không từ chối (file thật chưa có); làm nếu nguồn xuất có thể sinh ra.
 7i. SANLUONG-4a4 — đã khảo sát BD10 (`scripts/survey-bd10.js`, chỉ đọc). **PO chốt định nghĩa "BD10 đến không XNĐ"** (đếm theo BD10 hay SHBG; "đến" = ≥1 hay mọi dòng đủ XN túi + BG; có loại BD10 do chính BCVH lập, tiền tố = mã BCVH nhận, không) rồi mới code chỉ số thay quy tắc #61. Không đổi chỉ số trong ticket khảo sát. 4a5 (`scripts/survey-bd10-den.js`) khảo sát lại theo mã BD10 [bưu cục lập 6][bưu cục nhận 6]: PO còn phải chốt quy tắc ngày X hay Y và có tính S3 (chỉ túi hoặc chỉ BG) vào tử số không.
+7j. ✅ SANLUONG-4a6 (backend) — chỉ số "BD10 đến không XNĐ" (`bd10_den_khong_xnd` trong `/summary`, `/dashboard/center`; `/bd10-khong-xnd` + `/export`) — #67.
+7j1. Chỉ số riêng cho bưu gửi KHÔNG thuộc BD10 (BD10 rỗng, ~2.000 SHBG trên mẫu; chủ yếu chỉ có XN bưu gửi): hiện nằm ngoài chỉ số BD10.
+7j2. Giao diện (PO duyệt canvas trước, ticket Antigravity): thẻ "BD10 đến không XNĐ" (tổng / 530100 / khác, tuổi, ngoài khung), danh sách + nút xuất; chuyển khỏi khối "đủ trạng thái theo nguồn" (#61).
+7j3. Xoá mã #61 (`tong_hop.theo_nguon`, `du_trang_thai_theo_nguon`, `SOURCE_*` trong `arrivalsQuery.js` / `dashboardQuery.js`) SAU khi giao diện thay bằng #67.
+7j4. Nếu cần nhanh hơn trên dữ liệu lớn: chỉ số chạy một lần quét toàn bảng (~1,8 s / 1 triệu dòng) — cân nhắc bảng tổng hợp theo BD10 khi triển khai nhiều BCVH.
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.
