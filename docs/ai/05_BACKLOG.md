@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-10 (SANLUONG-3g).
+> Cập nhật lần cuối: 2026-10-10 (SANLUONG-3i).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -34,6 +34,10 @@
 7f3. Kiểm tra nhóm tiền tố 531120 có 495 bưu gửi (13,6%) trống XNĐ BD10, và các nhóm tiền tố 533140 (97 bưu gửi, 100% trống), 535470 (55, 41,8% trống): trống do script hay do quy tắc nghiệp vụ? Nhóm `khong_bd10` (738) hiện coi đủ khi có XN bưu gửi.
 7f4. Nếu PO muốn thêm cột ngày lập BD10 (`BC37Date`) vào script xuất CSV nguồn — cần cập nhật script xuất và importer.
 7f5. GDVH: chỉ số "chưa nhận" bị giới hạn theo BCVH được giao nhưng sản lượng vẫn đủ 6 BCVH (#52, #60) — PO xem lại có thống nhất không.
+7g. ✅ SANLUONG-3i — `reset-arrivals.js`, `split-arrivals-csv.js`, importer đọc cột theo tên (#63, #64). **PO còn phải**: nạp lại dữ liệu dev theo `06_DEPLOYMENT.md` mục 9.
+7g1. Chế độ nạp đè trong importer (thay dữ liệu của một BCVH / khoảng ngày mà không xoá cả bảng, giữ lịch sử) — cho triển khai thật khi script xuất đổi nội dung; hiện chỉ có xoá toàn bộ (dev).
+7g2. Xem lại quy tắc "đủ trạng thái theo nguồn" (#61) và `TTKT_BD10_PREFIX` sau khi phân tích dữ liệu mới (XNĐ BD10 nay có giá trị cả với tiền tố `530100`).
+7g3. Nếu muốn dữ liệu tách theo ngày giống nạp thật (2 file/ngày): thêm tuỳ chọn tách theo mốc giờ trong `split-arrivals-csv.js` (hiện 1 file/ngày, giờ 235959).
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.

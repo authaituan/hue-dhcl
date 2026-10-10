@@ -185,14 +185,30 @@ function readCsvRecords(filePath) {
   });
 }
 
-function checkHeader(header) {
-  const got = header.map((h) => String(h).normalize('NFC').trim());
+// Tên cột so khớp theo TÊN (không theo vị trí): bỏ dấu, không phân biệt hoa/thường, bỏ khoảng trắng/gạch dưới
+// -> "Thời gian XN túi" = "Thoi_gian_XN_tui" = "thoi gian xn tui". Cột lạ (không thuộc 16 cột chuẩn) bị bỏ qua.
+const colKey = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase().replace(/[^a-z0-9]/g, '');
+// Cột bắt buộc: đủ để tính ngày đến, nhóm nguồn BD10, địa bàn. Còn lại (mã BC đóng, khối lượng, tên dịch vụ, ghi chú) có thể vắng -> rỗng.
+const OPTIONAL_FIELDS = new Set(['sender_code', 'weight_g', 'service_name', 'note']);
+
+/** Ánh xạ tiêu đề CSV -> chỉ số cột của từng trường (theo thứ tự COLUMNS; -1 = vắng, chỉ với cột tuỳ chọn). Sai -> ArrivalFileError. */
+function resolveHeader(header) {
+  const keyToIdx = new Map();
   const problems = [];
-  const n = Math.max(got.length, EXPECTED_HEADER.length);
-  for (let i = 0; i < n; i++) {
-    if (got[i] !== EXPECTED_HEADER[i]) problems.push(`cột ${i + 1}: cần "${EXPECTED_HEADER[i] ?? '(không có)'}", thấy "${got[i] ?? '(thiếu)'}"`);
-  }
-  if (problems.length) throw new ArrivalFileError(`Sai tiêu đề (${got.length} cột): ${problems.slice(0, 5).join('; ')}`);
+  header.forEach((h, i) => {
+    const k = colKey(h);
+    if (!k) return;
+    if (keyToIdx.has(k)) problems.push(`cột trùng tên: "${String(h).trim()}"`);
+    else keyToIdx.set(k, i);
+  });
+  const index = COLUMNS.map(([h, field]) => {
+    const i = keyToIdx.get(colKey(h));
+    if (i === undefined && !OPTIONAL_FIELDS.has(field)) problems.push(`thiếu cột "${h}"`);
+    return i === undefined ? -1 : i;
+  });
+  if (problems.length) throw new ArrivalFileError(`Sai tiêu đề (${header.length} cột): ${problems.slice(0, 5).join('; ')}`);
+  const used = new Set(index);
+  return { index, extraColumns: header.filter((h, i) => !used.has(i) && String(h).trim() !== '').length };
 }
 
 /** Tính arrival_at / arrival_at_basis / arrival_date / arrival_evidence_count của MỘT dòng theo R2 (dùng chung với scripts/rederive-arrival.js). */
@@ -213,10 +229,10 @@ function deriveArrival(item) {
 }
 
 // 1 bản ghi CSV -> 1 dòng arrival_items (chưa có import_file_id). rowNo = số dòng trong file (tiêu đề = 1).
-function toItem(rec, rowNo) {
+function toItem(rec, rowNo, columnIndex) {
   const item = {};
   COLUMNS.forEach(([header, field], i) => {
-    const raw = rec[i] ?? '';
+    const raw = columnIndex[i] >= 0 ? (rec[columnIndex[i]] ?? '') : '';
     if (TIME_FIELDS.includes(field)) {
       const p = parseUsDateTime(raw);
       if (!p.ok) throw new ArrivalFileError(`Dòng ${rowNo}: cột "${header}" sai định dạng ngày giờ (cần M/D/YYYY h:mm:ss AM/PM)`);
@@ -352,8 +368,8 @@ async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
   try {
     const records = await readCsvRecords(filePath);
     if (!records.length) throw new ArrivalFileError('File không có dòng tiêu đề');
-    checkHeader(records[0]);
-    const items = records.slice(1).map((r, i) => toItem(r, i + 2));
+    const { index: columnIndex, extraColumns } = resolveHeader(records[0]);
+    const items = records.slice(1).map((r, i) => toItem(r, i + 2, columnIndex));
 
     // Kiểm tra hợp lý: arrival_at trong [file_date - 3 ngày, file_date + 1 ngày].
     const lo = addDays(parsed.fileDate, -RANGE_DAYS_BEFORE);
@@ -383,7 +399,7 @@ async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
       return { status, inserted, ignored, wardsAdded };
     })();
 
-    return { fileName, unitCode: parsed.unitCode, rowCount: items.length, warning, stats: summarize(items), ...result };
+    return { fileName, unitCode: parsed.unitCode, rowCount: items.length, warning, extraColumns, stats: summarize(items), ...result };
   } catch (err) {
     const error = err instanceof ArrivalFileError ? err.message : `Lỗi hệ thống: ${err.code || err.name || 'ERROR'}`;
     recordFile(db, meta, { status: 'REJECTED', error });
@@ -440,5 +456,5 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
   ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, importArrivalDirectory, getMissingBatches,
-  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseFileName
+  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
 };
