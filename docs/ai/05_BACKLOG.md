@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-10 (SANLUONG-3i).
+> Cập nhật lần cuối: 2026-10-10 (SANLUONG-3j).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -38,6 +38,8 @@
 7g1. Chế độ nạp đè trong importer (thay dữ liệu của một BCVH / khoảng ngày mà không xoá cả bảng, giữ lịch sử) — cho triển khai thật khi script xuất đổi nội dung; hiện chỉ có xoá toàn bộ (dev).
 7g2. Xem lại quy tắc "đủ trạng thái theo nguồn" (#61) và `TTKT_BD10_PREFIX` sau khi phân tích dữ liệu mới (XNĐ BD10 nay có giá trị cả với tiền tố `530100`).
 7g3. Nếu muốn dữ liệu tách theo ngày giống nạp thật (2 file/ngày): thêm tuỳ chọn tách theo mốc giờ trong `split-arrivals-csv.js` (hiện 1 file/ngày, giờ 235959).
+7h. ✅ SANLUONG-3j — importer và script tách nhận ngày giờ ISO (có mili giây / dạng T) và chữ `NULL` ở 4 cột thời gian (#65).
+7h1. PO xem file thật: nếu chữ `NULL` còn xuất hiện ở cột KHÁC (`So_hieu_BD10`, `So_hieu_BD8`, `Ten_duong_thu`, `Khoi_luong_thuc_te`, `Ten_Xa_Phuong`…) thì quyết định coi `NULL` = rỗng ở cột nào (hiện lưu chữ `NULL`; `Khoi_luong_thuc_te` = `NULL` làm REJECTED cả file) — #65.
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.

@@ -13,7 +13,7 @@ const Database = require('better-sqlite3');
 
 const ROOT = path.join(__dirname, '..');
 const lib = require(path.join(ROOT, 'server', 'lib', 'arrivalsImport.js'));
-const { ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches, setWardMapping, refreshWardMap, wardKey, parseUsDateTime, EXPECTED_HEADER } = lib;
+const { ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches, setWardMapping, refreshWardMap, wardKey, parseUsDateTime, parseDateTimeCell, EXPECTED_HEADER } = lib;
 
 let workDir;
 let seq = 0;
@@ -78,6 +78,53 @@ test('parseUsDateTime: M/D/YYYY kiểu Mỹ (4/10 không đảo thành 10/4), 12
   for (const bad of ['13/1/2026 1:00:00 AM', '2/30/2026 1:00:00 AM', '2026-10-04 08:00:00', '10/4/2026 13:00:00 PM', '10/4/2026 8:00 AM']) {
     assert.equal(parseUsDateTime(bad).ok, false, bad);
   }
+});
+
+test('parseDateTimeCell: ISO có/không mili giây và dạng T (bỏ phần lẻ, không đổi múi giờ), dạng Mỹ cũ, rỗng / NULL = rỗng, giá trị sai bị từ chối', () => {
+  const ok = (v, value) => assert.deepEqual(parseDateTimeCell(v), { ok: true, value }, JSON.stringify(v));
+  ok('2026-10-10 10:45:03.717', '2026-10-10 10:45:03');
+  ok('2026-10-10 10:45:03', '2026-10-10 10:45:03');
+  ok('2026-10-10T10:45:03', '2026-10-10 10:45:03');
+  ok('2026-10-10T10:45:03.5', '2026-10-10 10:45:03');
+  ok('2026-10-10 00:00:00.0000000', '2026-10-10 00:00:00');
+  ok('2026-10-10 23:59:59.999', '2026-10-10 23:59:59'); // không làm tròn lên ngày sau
+  ok('  2026-10-10 10:45:03.717  ', '2026-10-10 10:45:03');
+  ok('10/4/2026 8:29:46 AM', '2026-10-04 08:29:46'); // định dạng cũ giữ nguyên
+  ok('12/31/2026 12:00:00 AM', '2026-12-31 00:00:00');
+  for (const empty of ['', ' ', 'NULL', 'null', 'Null', '  NULL  ', null, undefined]) ok(empty, null);
+  for (const bad of ['2026-10-10', '2026-10-10 10:45', '2026-13-01 00:00:00', '2026-02-30 00:00:00', '2026-10-10 24:00:00', '2026-10-10 10:60:00',
+    '2026-10-10 10:45:03.12345678', '2026-10-10 10:45:03Z', '2026/10/10 10:45:03', 'NULLL', 'N/A', '0', '13/1/2026 1:00:00 AM']) {
+    assert.equal(parseDateTimeCell(bad).ok, false, bad);
+  }
+  assert.equal(parseUsDateTime('NULL').ok, false, 'hàm Mỹ cũ không đổi');
+});
+
+test('nạp file định dạng ISO + chữ NULL ở 4 cột thời gian (lẫn dạng Mỹ cũ): đọc đúng, NULL = rỗng, giá trị sai -> REJECTED nêu số dòng + tên cột, không lộ giá trị', async () => {
+  const { db } = newDb();
+  const rows = [
+    row({ SHBG: 'ZZ300000001VN', 'Thời gian XN túi': '2026-10-04 07:00:00.717', 'Thời gian XN BG': 'NULL', Ngay_gio_XND_BD10: 'null', Ngay_gio_XND_BD10_tai_TTKT: '  NULL ' }),
+    row({ SHBG: 'ZZ300000002VN', 'Thời gian XN túi': 'NULL', 'Thời gian XN BG': '2026-10-04T09:00:00', Ngay_gio_XND_BD10: '2026-10-04 06:30:00.5', Ngay_gio_XND_BD10_tai_TTKT: '2026-10-03 22:00:00.100' }),
+    row({ SHBG: 'ZZ300000003VN', 'Thời gian XN túi': '10/4/2026 8:00:00 AM', 'Thời gian XN BG': '', Ngay_gio_XND_BD10: '', Ngay_gio_XND_BD10_tai_TTKT: 'NULL' }),
+    row({ SHBG: 'ZZ300000004VN', 'Thời gian XN túi': 'NULL', 'Thời gian XN BG': 'NULL', Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: '2026-10-04 01:00:00.000' })
+  ];
+  const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', rows));
+  assert.equal(r.status, 'OK', r.error);
+  const got = Object.fromEntries(db.prepare('SELECT * FROM arrival_items').all().map((x) => [x.tracking_no, x]));
+  assert.deepEqual([got.ZZ300000001VN.bag_confirmed_at, got.ZZ300000001VN.item_confirmed_at, got.ZZ300000001VN.bd10_confirmed_at, got.ZZ300000001VN.bd10_ttkt_confirmed_at],
+    ['2026-10-04 07:00:00', null, null, null]);
+  assert.deepEqual([got.ZZ300000001VN.arrival_at, got.ZZ300000001VN.arrival_at_basis], ['2026-10-04 07:00:00', 'bag']);
+  assert.deepEqual([got.ZZ300000002VN.item_confirmed_at, got.ZZ300000002VN.bd10_confirmed_at, got.ZZ300000002VN.bd10_ttkt_confirmed_at],
+    ['2026-10-04 09:00:00', '2026-10-04 06:30:00', '2026-10-03 22:00:00']);
+  assert.deepEqual([got.ZZ300000002VN.arrival_at, got.ZZ300000002VN.arrival_at_basis, got.ZZ300000002VN.item_date], ['2026-10-04 09:00:00', 'item', '2026-10-04'], 'R2: bưu gửi thắng BD10');
+  assert.deepEqual([got.ZZ300000003VN.arrival_at, got.ZZ300000003VN.arrival_at_basis], ['2026-10-04 08:00:00', 'bag'], 'dạng Mỹ cũ vẫn đọc');
+  assert.deepEqual([got.ZZ300000004VN.arrival_at, got.ZZ300000004VN.arrival_date, got.ZZ300000004VN.bd10_ttkt_confirmed_at, got.ZZ300000004VN.arrival_evidence_count],
+    [null, null, '2026-10-04 01:00:00', 0], 'chỉ có mốc lập BD10: chưa có ngày đến');
+
+  const bad = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_150011.csv', [row(), row({ SHBG: 'ZZ300000009VN', Ngay_gio_XND_BD10: '2026-10-04 07:45' })]));
+  assert.equal(bad.status, 'REJECTED');
+  assert.match(bad.error, /Dòng 3/);
+  assert.match(bad.error, /Ngay_gio_XND_BD10/);
+  assert.ok(!bad.error.includes('07:45') && !bad.error.includes('ZZ3'), 'không lộ giá trị / số hiệu');
 });
 
 test('wardKey: bỏ dấu, gộp Đ/Ð/đ, gộp gạch ngang và khoảng trắng', () => {
@@ -243,11 +290,11 @@ test('tên cột đọc theo TÊN: cột thừa bị bỏ qua, đổi chỗ cộ
 
 test('1 dòng ngày giờ sai định dạng -> REJECTED cả file, thông báo không chứa nội dung dòng', async () => {
   const { db } = newDb();
-  const rows = [row(), row(), row({ 'Thời gian XN BG': '2026-10-04 08:00:00' })];
+  const rows = [row(), row(), row({ 'Thời gian XN BG': '04-10-2026 08:00:00' })];
   const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', rows));
   assert.equal(r.status, 'REJECTED');
   assert.match(r.error, /Dòng 4/);
-  assert.ok(!r.error.includes('2026-10-04 08:00:00') && !r.error.includes('ZZ'), 'không lộ nội dung dòng');
+  assert.ok(!r.error.includes('04-10-2026') && !r.error.includes('ZZ'), 'không lộ nội dung dòng');
   assert.equal(count(db, 'SELECT COUNT(*) n FROM arrival_items'), 0);
 
   const w = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_150011.csv', [row({ Khoi_luong_thuc_te: '1,5' })]));

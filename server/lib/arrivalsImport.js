@@ -154,6 +154,23 @@ function parseUsDateTime(v) {
   return { ok: true, value: `${y}-${pad2(mo)}-${pad2(d)} ${pad2(hh)}:${pad2(mi)}:${pad2(se)}` };
 }
 
+// Ô thời gian của file CSV (MỘT hàm dùng chung cho importer và scripts/split-arrivals-csv.js — #65). Nhận:
+//   - rỗng, hoặc chữ NULL (không phân biệt hoa/thường, bỏ khoảng trắng hai đầu) -> { ok: true, value: null }
+//   - "YYYY-MM-DD HH:mm:ss" hoặc "YYYY-MM-DDTHH:mm:ss", kèm phần giây lẻ ".f" … ".fffffff" (bị bỏ, KHÔNG đổi múi giờ: giá trị đã là giờ địa phương)
+//   - "M/D/YYYY h:mm:ss AM|PM" (kiểu Mỹ, định dạng cũ)
+// Chuỗi khác -> { ok: false }. Kết quả luôn "YYYY-MM-DD HH:MM:SS".
+const ISO_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d{1,7})?$/;
+function parseDateTimeCell(v) {
+  const s = String(v ?? '').trim();
+  if (!s || /^null$/i.test(s)) return { ok: true, value: null };
+  const m = ISO_TIME_RE.exec(s);
+  if (!m) return parseUsDateTime(s);
+  const [y, mo, d, h, mi, se] = m.slice(1).map(Number);
+  if (mo < 1 || mo > 12 || h > 23 || mi > 59 || se > 59) return { ok: false };
+  if (d < 1 || d > new Date(Date.UTC(y, mo, 0)).getUTCDate()) return { ok: false };
+  return { ok: true, value: `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}` };
+}
+
 function addDays(isoDate, n) {
   const [y, m, d] = isoDate.split('-').map(Number);
   const t = new Date(Date.UTC(y, m - 1, d + n));
@@ -234,8 +251,8 @@ function toItem(rec, rowNo, columnIndex) {
   COLUMNS.forEach(([header, field], i) => {
     const raw = columnIndex[i] >= 0 ? (rec[columnIndex[i]] ?? '') : '';
     if (TIME_FIELDS.includes(field)) {
-      const p = parseUsDateTime(raw);
-      if (!p.ok) throw new ArrivalFileError(`Dòng ${rowNo}: cột "${header}" sai định dạng ngày giờ (cần M/D/YYYY h:mm:ss AM/PM)`);
+      const p = parseDateTimeCell(raw);
+      if (!p.ok) throw new ArrivalFileError(`Dòng ${rowNo}: cột "${header}" sai định dạng ngày giờ (cần YYYY-MM-DD HH:mm:ss[.fff] hoặc M/D/YYYY h:mm:ss AM/PM)`);
       item[field] = p.value;
     } else if (field === 'weight_g') {
       const s = String(raw).trim();
@@ -456,5 +473,5 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
   ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, importArrivalDirectory, getMissingBatches,
-  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
+  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
 };
