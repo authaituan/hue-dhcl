@@ -263,7 +263,7 @@ test('split-arrivals-csv: từ chối thư mục đầu ra trong repo / không r
   // ngày giờ sai định dạng -> nêu số dòng, không lộ nội dung
   const bad = path.join(workDir, 'input2', 'bad.csv');
   const rows = multiDayRows();
-  rows[3].Thoi_gian_XN_tui = '2026-10-04 08:00:00';
+  rows[3].Thoi_gian_XN_tui = '04-10-2026 08:00:00';
   fs.writeFileSync(bad, [HEADER.map(q).join(','), ...rows.map((r) => HEADER.map((h) => q(r[h] ?? '')).join(','))].join('\r\n'));
   await assert.rejects(() => splitCsv(bad, path.join(workDir, 'o2')), (e) => /Dòng 5/.test(e.message) && !e.message.includes('ZZ3D'));
   // thiếu cột bắt buộc
@@ -279,4 +279,53 @@ test('split-arrivals-csv: từ chối thư mục đầu ra trong repo / không r
   assert.ok(!/ZZ3D/.test(cli.stdout), 'không in số hiệu');
   assert.equal(spawnSync(process.execPath, [path.join(SCRIPTS, 'split-arrivals-csv.js'), input], { encoding: 'utf8' }).status, 1, 'thiếu --out');
   assert.equal(spawnSync(process.execPath, [path.join(SCRIPTS, 'split-arrivals-csv.js'), input, '--out', path.join(__dirname, '..', '_khong_duoc_tao_ra')], { encoding: 'utf8' }).status, 1);
+});
+
+test('3j: CSV xuất kiểu mới (ISO có mili giây / dạng T, chữ NULL) -> tách đúng ngày kể cả ngày 10/10 sau khung 01–09/10, giữ nguyên chuỗi gốc, nạp các file con ra OK', async () => {
+  resetArrivals(ctx.db, { apply: true });
+  const iso = (day, hms, ms = '.717') => `${day} ${hms}${ms}`;
+  const rows = [];
+  for (let d = 8; d <= 10; d++) {
+    const day = dayOf(d);
+    rows.push(mkRow({ SHBG: trk(d, 1), So_hieu_BD10: bd10(OTHER, d, 1), So_hieu_BD8: `B${d}1`, Thoi_gian_XN_tui: iso(day, '08:00:00'), Thoi_gian_XN_BG: 'NULL', Ngay_gio_XND_BD10: 'null', Ngay_gio_XND_BD10_tai_TTKT: ' NULL ' }));
+    rows.push(mkRow({ SHBG: trk(d, 2), So_hieu_BD10: bd10(TTKT, d, 2), So_hieu_BD8: `B${d}2`, Thoi_gian_XN_tui: 'NULL', Thoi_gian_XN_BG: `${day}T09:00:00`, Ngay_gio_XND_BD10: iso(day, '07:00:00', '.5'), Ngay_gio_XND_BD10_tai_TTKT: iso(prevDay(d), '22:00:00', '') }));
+    rows.push(mkRow({ SHBG: trk(d, 3), So_hieu_BD10: bd10(TTKT, d, 3), So_hieu_BD8: `B${d}3`, Thoi_gian_XN_tui: 'NULL', Thoi_gian_XN_BG: 'NULL', Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: iso(day, '02:00:00') }));
+  }
+  rows.push(mkRow({ SHBG: trk(10, 9), So_hieu_BD10: bd10(TTKT, 10, 9), So_hieu_BD8: 'B109', Thoi_gian_XN_tui: 'NULL', Thoi_gian_XN_BG: 'NULL', Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: 'NULL' }));
+  const input = path.join(workDir, 'input3j', 'xuat-iso.csv');
+  fs.mkdirSync(path.dirname(input), { recursive: true });
+  const writeRows = (file, list) => fs.writeFileSync(file, [HEADER.map(q).join(','), ...list.map((r) => HEADER.map((h) => q(r[h] ?? '')).join(','))].join('\r\n') + '\r\n');
+  writeRows(input, rows);
+
+  const out = path.join(workDir, 'split3j');
+  const r = await splitCsv(input, out);
+  assert.deepEqual(r.files.map((f) => [f.day, f.rows]), [['2026-10-08', 3], ['2026-10-09', 3], ['2026-10-10', 4]], 'ngày 10/10 có file riêng, không dồn vào 09/10; dòng không mốc xếp ngày cuối');
+  assert.deepEqual(r.files.map((f) => f.name), ['HangDen_533140_20261008_235959.csv', 'HangDen_533140_20261009_235959.csv', 'HangDen_533140_20261010_235959.csv']);
+  assert.equal(r.total, 10);
+  assert.equal(r.unplaced, 1);
+  assert.equal(r.ttktDated, 3);
+  // giữ nguyên chuỗi gốc từng ô (không chuẩn hoá): mili giây, dạng T, NULL / null / " NULL "
+  const txt = fs.readFileSync(path.join(out, 'HangDen_533140_20261010_235959.csv'), 'utf8');
+  for (const keep of ['"2026-10-10 08:00:00.717"', '"2026-10-10T09:00:00"', '"2026-10-10 07:00:00.5"', '"2026-10-09 22:00:00"', '"NULL"', '"null"', '" NULL "']) {
+    assert.ok(txt.includes(keep), `giữ nguyên ${keep}`);
+  }
+
+  const results = await importArrivalDirectory(ctx.db, out);
+  assert.deepEqual(results.map((x) => x.status), ['OK', 'OK', 'OK']);
+  assert.ok(results.every((x) => !x.warning), 'không cảnh báo ngoài khoảng (ngày đến = ngày file)');
+  const one = ctx.db.prepare('SELECT bag_confirmed_at, item_confirmed_at, bd10_confirmed_at, bd10_ttkt_confirmed_at, arrival_at, arrival_at_basis FROM arrival_items WHERE tracking_no = ?').get(trk(10, 1));
+  assert.deepEqual({ ...one }, { bag_confirmed_at: '2026-10-10 08:00:00', item_confirmed_at: null, bd10_confirmed_at: null, bd10_ttkt_confirmed_at: null, arrival_at: '2026-10-10 08:00:00', arrival_at_basis: 'bag' });
+  const S = (a, b) => `from=${dayOf(a)}&to=${dayOf(b)}&receiver_code=${BC}`;
+  const s = (await api(`/api/arrivals/summary?${S(8, 10)}`)).body;
+  assert.equal(s.san_luong, 6, '2 bưu gửi có mốc mỗi ngày × 3 ngày (gồm 10/10)');
+  assert.equal(s.chua_nhan_tai_bcvh.tong, 3);
+  assert.deepEqual(s.chua_nhan_tai_bcvh.theo_ngay_lap.map((x) => [x.ngay, x.tuoi]), [['2026-10-08', 2], ['2026-10-09', 1], ['2026-10-10', 0]]);
+  assert.equal(s.canh_bao.khong_moc_khong_ttkt, 1);
+
+  // giá trị sai: split nêu số dòng, không lộ giá trị
+  const bad = path.join(workDir, 'input3j', 'bad.csv');
+  const brow = rows.map((x) => ({ ...x }));
+  brow[1].Thoi_gian_XN_BG = '2026-10-08 09:00';
+  writeRows(bad, brow);
+  await assert.rejects(() => splitCsv(bad, path.join(workDir, 'split3j-bad')), (e) => /Dòng 3/.test(e.message) && !e.message.includes('09:00') && !e.message.includes('ZZ3D'));
 });

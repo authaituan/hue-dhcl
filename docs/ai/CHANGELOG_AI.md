@@ -4,6 +4,14 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Importer và script tách nhận ngày giờ ISO và chữ NULL (SANLUONG-3j)
+
+- `server/lib/arrivalsImport.js`: `parseDateTimeCell()` — MỘT hàm cho importer và `scripts/split-arrivals-csv.js` (trước đó cả hai đã dùng chung `parseUsDateTime`, nay gọi hàm mới): rỗng / `NULL` (không phân biệt hoa thường, bỏ khoảng trắng) = rỗng; `YYYY-MM-DD HH:mm:ss` / dạng `T`, phần giây lẻ 1–7 chữ số bị bỏ (không đổi múi giờ); dạng Mỹ cũ giữ nguyên; chuỗi khác → REJECTED nêu số dòng + tên cột (không in giá trị). Thông báo lỗi nêu cả hai định dạng hợp lệ.
+- Script tách: giữ nguyên chuỗi gốc của từng ô; ngày 10/10 (sau khung 01–09/10) có file riêng. Không đổi R2, chưa nhận, ngưỡng hợp lý hay chỉ số nào.
+- Tests: `arrivals-import` (+2 ca: bảng định dạng, nạp file ISO + NULL lẫn dạng cũ), `arrivals-reload` (+1 ca: tách CSV ISO có NULL qua ngày 10/10, nạp ra OK, chỉ số đúng); 2 ca cũ dùng ISO làm "giá trị sai" đổi sang `dd-mm-yyyy`. `npm test` 240 ca: 239 pass, 1 skip có chủ đích; `npm run build` ok.
+- Docs: quyết định #65 (kèm danh sách chỗ chữ `NULL` ở cột khác vẫn là dữ liệu thật — chờ PO), `06_DEPLOYMENT.md` mục 9, backlog 7h–7h1.
+
+
 ## [2026-10-10] - Xoá dữ liệu sản lượng đến (dev) và nạp lại từ một file CSV nhiều ngày (SANLUONG-3i)
 
 - `scripts/reset-arrivals.js` (mới): xoá `arrival_items` + `arrival_import_files` (danh sách trắng) và đặt lại bộ đếm id; chạy thử mặc định, `--apply` một transaction, lặp lại an toàn; không đụng `users`, `user_bcvh`, danh mục, `ward_bdx_map`, `dashboard_widgets`.

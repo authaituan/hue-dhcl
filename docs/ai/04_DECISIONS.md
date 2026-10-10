@@ -461,5 +461,16 @@ Phương án khác đã cân nhắc: (b) tuỳ chọn nạp với ngày file c�
 Chỉ xoá bảng `arrival_items` và `arrival_import_files` (danh sách trắng cố định, không suy luận từ tên) và đặt lại bộ đếm id của `arrival_import_files`. KHÔNG đụng `users`, `user_bcvh`, `post_offices`, `commune_post_offices`, `province_post_offices`, `ward_bdx_map` (kể cả gán tay), `dashboard_widgets` và mọi bảng khác. Chạy thử mặc định; `--apply` trong một transaction; lặp lại an toàn; sau khi xoá, mọi file nạp lại như chưa từng nạp. Chỉ dùng cho dev: xoá cả lịch sử nạp (mã băm, trạng thái) nên không hoàn tác được — PO sao lưu DB (+ `-wal`, `-shm`) và tắt app trước (`06_DEPLOYMENT.md` mục 9).
 
 
+### 65. Định dạng ngày giờ và chữ NULL của script xuất CSV mới (PO xác nhận trên dòng thật, 10/10/2026 — SANLUONG-3j)
+Script xuất CSV đã sửa trả file khác định dạng cũ ở hai điểm: (1) ngày giờ dạng ISO có mili giây, ví dụ `2026-10-10 10:45:03.717` (định dạng cũ `M/D/YYYY h:mm:ss AM/PM` vẫn đọc được); (2) ô không có giá trị là chữ `NULL` (thấy ở `Thời gian XN túi`, `Thời gian XN BG`), không phải ô rỗng.
+**Cách đọc** — MỘT hàm dùng chung `parseDateTimeCell()` (`server/lib/arrivalsImport.js`; importer và `scripts/split-arrivals-csv.js` cùng gọi, không nhân đôi logic) cho BỐN cột thời gian (`Thời gian XN túi`, `Thời gian XN BG`, `Ngay_gio_XND_BD10`, `Ngay_gio_XND_BD10_tai_TTKT`):
+- rỗng hoặc chữ `NULL` (không phân biệt hoa/thường, bỏ khoảng trắng hai đầu) → rỗng;
+- `YYYY-MM-DD HH:mm:ss` hoặc `YYYY-MM-DDTHH:mm:ss`, kèm phần giây lẻ 1–7 chữ số (bị bỏ, không làm tròn); KHÔNG đổi múi giờ (giá trị đã là giờ địa phương, đọc nguyên);
+- `M/D/YYYY h:mm:ss AM|PM` (cũ, hành vi không đổi; `parseUsDateTime` giữ nguyên);
+- chuỗi khác (vd thiếu giây `2026-10-10 10:45`, chỉ có ngày, ngày không tồn tại) → REJECTED nêu số dòng + tên cột, không in giá trị.
+Script tách ghi file con GIỮ NGUYÊN chuỗi gốc từng ô (kể cả mili giây, `T`, `NULL`); importer đọc lại bằng cùng hàm. Không đổi R2 (#59), "chưa nhận" (#60), ngưỡng hợp lý [ngày file −3, +1] hay chỉ số nào. Dòng có ngày đến 10/10 (sau khung 01–09/10) được tách thành file `..._20261010_235959.csv` riêng như mọi ngày khác.
+**Chữ `NULL` ở các cột KHÁC không tự đổi** (chờ PO quyết) — importer coi đó là dữ liệu thật: `So_hieu_BD10` = `NULL` → lưu chữ `NULL`, rơi vào nhóm `khac` thay vì `khong_bd10` (#61); `So_hieu_BD8`, `SHBG`, `Ten_duong_thu`, `Dich_vu_code`, `Ten_dich_vu`, `Ghi_chu` → lưu chữ `NULL` (đường thư `NULL` không được tính là "chưa có tên"); `Ten_Tinh_Thanh` = `NULL` → bị tính vào "Phường/xã tỉnh khác"; `Ten_Xa_Phuong` = `NULL` → phường/xã tên "null" (không khớp danh mục); `Khoi_luong_thuc_te` = `NULL` → REJECTED cả file ("không phải số nguyên"). Script tách đòi `BC_nhan_BG` là số nên `NULL` ở đó báo lỗi rõ. Nếu file thật có `NULL` ở các cột này, cần quyết định riêng (backlog 7h1).
+
+
 ## Drift phát hiện
 _(chưa có)_

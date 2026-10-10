@@ -17,7 +17,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { resolveHeader, readCsvRecords, COLUMNS, parseUsDateTime, deriveArrival } = require('../server/lib/arrivalsImport');
+const { resolveHeader, readCsvRecords, COLUMNS, parseDateTimeCell, deriveArrival } = require('../server/lib/arrivalsImport');
 
 const USAGE = 'Cách dùng: node scripts/split-arrivals-csv.js <file.csv> --out <thư-mục-ngoài-repo> [--unit <mã BCVH>] [--time HHMMSS] [--dry-run]';
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -65,8 +65,8 @@ async function splitCsv(inputPath, outDir, { unit = null, time = '235959', dryRu
   records.slice(1).forEach((rec, i) => {
     const t = {};
     for (const f of ['bag_confirmed_at', 'item_confirmed_at', 'bd10_confirmed_at', 'bd10_ttkt_confirmed_at']) {
-      const p = parseUsDateTime(at(rec, f));
-      if (!p.ok) throw new Error(`Dòng ${i + 2}: cột thời gian sai định dạng (cần M/D/YYYY h:mm:ss AM/PM)`);
+      const p = parseDateTimeCell(at(rec, f));
+      if (!p.ok) throw new Error(`Dòng ${i + 2}: cột thời gian sai định dạng (cần YYYY-MM-DD HH:mm:ss[.fff] hoặc M/D/YYYY h:mm:ss AM/PM)`);
       t[f] = p.value;
     }
     deriveArrival(t);
