@@ -37,6 +37,7 @@ scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thố
 scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
 scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
 scripts/rederive-arrival.js  # tính lại arrival_at/basis/date theo R2 cho dữ liệu đã nạp (chạy thử mặc định, --apply ghi 1 transaction; #59)
+scripts/survey-bd10.js      # khảo sát CHỈ ĐỌC ở mức BD10 (BD10 đến không XNĐ; mở DB readonly, từ chối cờ ghi; chỉ in số đếm) — SANLUONG-4a4
 scripts/reset-arrivals.js    # xoá dữ liệu sản lượng đến (dev): arrival_items + arrival_import_files; chạy thử mặc định, --apply (#64)
 scripts/split-arrivals-csv.js  # tách MỘT file CSV nhiều ngày thành HangDen_<mã>_<yyyymmdd>_235959.csv theo ngày đến (ra thư mục ngoài repo; #63)
 scripts/migrate-roles.js    # chuyển MANAGER → TTVH một lần (dry-run mặc định, --apply sao lưu + đổi; 06_DEPLOYMENT.md mục 7)
