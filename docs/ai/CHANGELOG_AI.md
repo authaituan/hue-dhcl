@@ -4,6 +4,12 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Khảo sát lại "BD10 đến không XNĐ" theo định nghĩa mới của PO (SANLUONG-4a5, chỉ đọc)
+
+- `scripts/survey-bd10-den.js` (mới): mở DB `readonly`, từ chối cờ ghi; mã BD10 = [6 ký tự bưu cục lập][6 ký tự bưu cục nhận][phần còn lại]; BD10 đến = ký tự 7–12 = mã BCVH và 6 ký tự đầu ≠ mã BCVH; trạng thái S1 (có XNĐ) / S2 (không XNĐ, ≥1 dòng đủ túi + BG) / S3 (không XNĐ, có túi hoặc BG, không dòng nào đủ cả hai) / S4 (không XN nào); N = S2+S3, D = S1..S4; ngày theo quy tắc X (XNĐ trước) và Y (XN túi/BG trước). Chỉ in số đếm và mã bưu cục 6 số. `tests/survey-bd10-den.test.js` (3 ca, DB tạm, dữ liệu giả). Không đổi chỉ số / API nào. `npm test` 248 ca: 247 pass, 1 skip có chủ đích; `npm run build` ok.
+- Kết quả chính trên bản chép DB dev (BCVH 533140; số tổng hợp): 188 BD10 đến (126 từ 530100, 62 từ bưu cục khác), 58 BD10 lập đi (tiền tố 533140), 1 nhóm BD10 rỗng (2.024 SHBG), không mã bất thường; XNĐ đồng nhất trong BD10 đến; N/D toàn dữ liệu = 22/188 (11,7%; 530100: 19/126 = 15,1%; khác: 3/62 = 4,8%), tử số hẹp S2 = 21/188; trong khung 01→09/10 quy tắc X 22/163 (13,5%), quy tắc Y 22/185 (11,9%); đối chiếu 4a4 (trừ tiền tố 533140): 183 BD10 trùng, mới thêm 5 (2 trước khung, 2 không có `arrival_at`, 1 sau khung). Quyết định chờ PO (backlog 7i).
+
+
 ## [2026-10-10] - Khảo sát dữ liệu thật ở mức BD10: "BD10 đến không XNĐ" (SANLUONG-4a4, chỉ đọc)
 
 - `scripts/survey-bd10.js` (mới): mở DB `readonly`, từ chối cờ ghi (`--apply`, `--write`, `--vacuum`…); khung BD10 theo ngày của MIN(`arrival_at`) các dòng; chỉ in số đếm / tỉ lệ / bảng (chỉ lộ tiền tố BD10 6 số). Bảng: quy mô + tiền tố, mốc trong từng BD10 (XN túi + BG; XNĐ đồng nhất?), "BD10 đến không XNĐ" cách A / B / C, từng ngày, hàng nặng (BD8 = SHBG), bất thường theo tiền tố, tuổi, chất lượng dữ liệu liên quan. `tests/survey-bd10.test.js` (2 ca, DB tạm, dữ liệu giả; kiểm DB không đổi). Không đổi chỉ số nào của app. `npm test` 245 ca: 244 pass, 1 skip có chủ đích; `npm run build` ok.
