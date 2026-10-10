@@ -11,6 +11,7 @@ const aq = require('./arrivalsQuery');
 const { DASHBOARD_BCVH, bcvhNames } = require('./dashboardQuery');
 const { getAssignedBcvh } = require('./userBcvh');
 const { ROLES } = require('../roles');
+const bd10 = require('./bd10Query');
 const XLSX_PREFIX_NR = 'ChuaNhan';
 
 // Tiêu đề trong file (PO chốt 09/10/2026) -> cột trong arrival_items, theo đúng thứ tự cột của file xuất.
@@ -243,19 +244,20 @@ function countNotReceived(db, ctx) {
 }
 const notReceivedFileName = (ctx) => `${XLSX_PREFIX_NR}_${ctx.code}_${ctx.f.fromDate}_${ctx.f.toDate}.xlsx`;
 
-async function writeNotReceivedExport(db, ctx, out, shouldStop = () => false) {
+// Ghi file danh sách theo trang (mọi ô là chuỗi). fetchPage(page) -> mảng bản ghi (rỗng / ngắn hơn NR_PAGE = hết).
+async function writeListExport(out, shouldStop, { sheet, columns, fetchPage }) {
   const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
-  const ws = wb.addWorksheet('ChuaNhan', { views: [{ state: 'frozen', ySplit: 1 }] });
-  ws.columns = NR_COLUMNS.map((c) => ({ key: c.field, width: c.width, style: { numFmt: '@' } }));
-  const head = ws.addRow(NR_COLUMNS.map((c) => c.header));
+  const ws = wb.addWorksheet(sheet, { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = columns.map((c) => ({ key: c.field, width: c.width, style: { numFmt: '@' } }));
+  const head = ws.addRow(columns.map((c) => c.header));
   head.eachCell((cell) => { cell.font = { bold: true }; cell.numFmt = '@'; });
   head.commit();
   let rows = 0;
   for (let page = 1; ; page++) {
     if (shouldStop()) { try { wb.zip.abort(); } catch (e) { /* đang đóng */ } return { rows, aborted: true }; }
-    const { items } = aq.notReceivedList(db, nrFilters(ctx, page));
+    const items = fetchPage(page);
     if (!items.length) break;
-    for (const r of items) { ws.addRow(NR_COLUMNS.map((c) => cellText(r[c.field], c.time))).commit(); rows++; }
+    for (const r of items) { ws.addRow(columns.map((c) => cellText(r[c.field], c.time))).commit(); rows++; }
     if (items.length < NR_PAGE) break;
     await new Promise((resolve) => setImmediate(resolve));
   }
@@ -264,8 +266,36 @@ async function writeNotReceivedExport(db, ctx, out, shouldStop = () => false) {
   return { rows, aborted: false };
 }
 
+const writeNotReceivedExport = (db, ctx, out, shouldStop = () => false) => writeListExport(out, shouldStop, {
+  sheet: 'ChuaNhan', columns: NR_COLUMNS, fetchPage: (page) => aq.notReceivedList(db, nrFilters(ctx, page)).items
+});
+
+// ------------------------------------------
+// Xuất danh sách "BD10 đến không XNĐ" (S2 + S3) của MỘT BCVH, cùng bộ lọc với GET /bd10-khong-xnd (từ ngày, đến ngày, nhom, tuoi).
+// ------------------------------------------
+const BD10_COLUMNS = Object.freeze([
+  { header: 'So_hieu_BD10', field: 'so_hieu_bd10', width: 26 },
+  { header: 'Buu_cuc_lap', field: 'lap6', width: 14 },
+  { header: 'Nhom', field: 'nhom', width: 9 },
+  { header: 'Thoi_gian_gan_ngay', field: 'thoi_diem', width: 21, time: true },
+  { header: 'Tuoi_ngay', field: 'tuoi', width: 11 },
+  { header: 'So_buu_gui', field: 'so_buu_gui', width: 12 },
+  { header: 'So_BD8', field: 'so_bd8', width: 9 },
+  { header: 'Co_XN_tui', field: 'co_xn_tui', width: 11 },
+  { header: 'Co_XN_BG', field: 'co_xn_bg', width: 10 },
+  { header: 'Trang_thai', field: 'trang_thai', width: 11 }
+]);
+const bd10Opts = (ctx) => ({ nhom: ctx.nhom || null, tuoi: ctx.tuoi || null });
+const bd10Row = (r) => ({ ...r, co_xn_tui: r.co_xn_tui ? 'Co' : 'Khong', co_xn_bg: r.co_xn_bg ? 'Co' : 'Khong' });
+const countBd10 = (db, ctx) => bd10.list(db, { ...ctx.f, page: 1, pageSize: 1 }, bd10Opts(ctx)).pagination.total;
+const bd10FileName = (ctx) => `BD10KhongXND_${ctx.code}_${ctx.f.fromDate}_${ctx.f.toDate}.xlsx`;
+const writeBd10Export = (db, ctx, out, shouldStop = () => false) => writeListExport(out, shouldStop, {
+  sheet: 'BD10KhongXND', columns: BD10_COLUMNS, fetchPage: (page) => bd10.list(db, { ...ctx.f, page, pageSize: NR_PAGE }, bd10Opts(ctx)).items.map(bd10Row)
+});
+
 module.exports = {
   EXPORT_COLUMNS, EXPORT_MAX_DAYS, EXPORT_MAX_ROWS_DEFAULT, BATCH_SIZE, SHEET_NAME, XLSX_MIME,
   maxRows, formatCount, allowedBcvhCodes, exportScope, parseReceiverCode, parseExportParams,
-  countRows, formatTime, cellText, exportFileName, writeExport, NR_COLUMNS, countNotReceived, notReceivedFileName, writeNotReceivedExport
+  countRows, formatTime, cellText, exportFileName, writeExport, NR_COLUMNS, countNotReceived, notReceivedFileName, writeNotReceivedExport,
+  BD10_COLUMNS, countBd10, bd10FileName, writeBd10Export
 };

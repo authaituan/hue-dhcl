@@ -6,6 +6,7 @@
 // ==========================================
 'use strict';
 const aq = require('./arrivalsQuery');
+const bd10 = require('./bd10Query');
 const { QueryParamError, DATE_RE, validYmd, addDays, pct2 } = aq;
 
 // 6 BCVH của Trung tâm (PO 08–09/10/2026, #41). Tên lấy từ post_offices theo mã nếu khớp; không khớp dùng tên dưới đây.
@@ -476,7 +477,7 @@ function center(db, query, { scopeCodes = null } = {}) {
   const { ctx, f } = centerFilters(db, query);
   if (!f) {
     return { date: null, from: null, to: null, ngay_cap_nhat: ctx.updatedAt, san_luong: 0, duong_thu: null, dich_vu: null, chat_luong: null,
-      chua_nhan_tai_bcvh: { tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] } };
+      chua_nhan_tai_bcvh: { tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] }, bd10_den_khong_xnd: null };
   }
   const names = bcvhNames(db);
   const agg = centerAggregates(db, f);
@@ -521,7 +522,8 @@ function center(db, query, { scopeCodes = null } = {}) {
     chat_luong: {
       san_luong: total.san_luong, tong_hop: total.tong_hop, to_hop: total.to_hop, ty_le_co_moc: total.ty_le_co_moc, khong_co_moc: total.khong_co_moc
     },
-    chua_nhan_tai_bcvh: aq.notReceivedStats(db, f, scopeCodes)
+    chua_nhan_tai_bcvh: aq.notReceivedStats(db, f, scopeCodes),
+    bd10_den_khong_xnd: bd10.stats(db, f, scopeCodes) // chỉ số BD10 (#67), cùng phạm vi BCVH với chua_nhan_tai_bcvh
   };
 }
 

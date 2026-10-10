@@ -4,6 +4,15 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - API chỉ số "BD10 đến không XNĐ" + danh sách + xuất Excel (SANLUONG-4a6)
+
+- `server/lib/bd10Query.js` (mới): chỉ số ở mức BD10 tính lúc truy vấn (nhóm theo `bd10_no`, một lần quét): BD10 đến = ký tự 7–12 = mã BCVH nhận, 6 ký tự đầu ≠ mã BCVH; S1–S4; N = S2+S3; D = S1+S2+S3 có ngày trong khung; ngày quy tắc X; tuổi dùng `latestFileDate`/`dayAge`/`ageBucket` của `chua_nhan_tai_bcvh`; phạm vi theo vai trò qua `scopedFilters`. Không thêm bảng / cột / chỉ mục.
+- `server/routes/arrivals.js`: khoá `bd10_den_khong_xnd` trong `/summary` (CÔNG KHAI, không sau cờ ADMIN) và `/dashboard/center`; `GET /api/arrivals/bd10-khong-xnd` (from, to, receiver_code | unit, nhom, tuoi, page, page_size); `GET /api/arrivals/bd10-khong-xnd/export` (dùng chung `exportHandler`, thêm `prepare`); `server/lib/arrivalsExport.js`: `writeListExport` dùng chung cho danh sách "chưa nhận" và BD10. Mọi khoá cũ giữ nguyên (#61 đánh dấu SẼ ĐƯỢC THAY, chưa xoá).
+- `tests/bd10-api.test.js` (mới, 9 ca): S1–S4, quy tắc ngày X, BD10 trải nhiều ngày, loại BD10 lập đi / rỗng / `NULL` / mã ngắn / mã nhận khác, nhóm 530100 và khác, khung (trước / trong / sau), `ty_le` null khi D = 0, ghi nhận XNĐ khác nhau, phân quyền (ADMIN / TTVH / GDVH đều nhận khoá; GDVH theo `user_bcvh`; STAFF 403), danh sách + lọc + phân trang + `unit`, xuất xlsx, chỉ số cũ không đổi. `npm test` 257 ca: 256 pass, 1 skip có chủ đích; `npm run build` ok.
+- Bản chép DB dev (BCVH 533140, khung 01→09/10): D 163 / N 22 (13,5%); 530100 104/19 (18,3%); khác 59/3 (5,1%); ngoài khung 18 trước, 5 sau, 2 không mốc — khớp 4a5. Hiệu năng: ~1,8 s / 1 triệu dòng (chỉ mục phủ thử không nhanh hơn).
+- Docs: quyết định #67, #61 đánh dấu sẽ được thay, bản đồ kiến trúc, backlog 7j–7j4, `00_SNAPSHOT.md`.
+
+
 ## [2026-10-10] - Khảo sát lại "BD10 đến không XNĐ" theo định nghĩa mới của PO (SANLUONG-4a5, chỉ đọc)
 
 - `scripts/survey-bd10-den.js` (mới): mở DB `readonly`, từ chối cờ ghi; mã BD10 = [6 ký tự bưu cục lập][6 ký tự bưu cục nhận][phần còn lại]; BD10 đến = ký tự 7–12 = mã BCVH và 6 ký tự đầu ≠ mã BCVH; trạng thái S1 (có XNĐ) / S2 (không XNĐ, ≥1 dòng đủ túi + BG) / S3 (không XNĐ, có túi hoặc BG, không dòng nào đủ cả hai) / S4 (không XN nào); N = S2+S3, D = S1..S4; ngày theo quy tắc X (XNĐ trước) và Y (XN túi/BG trước). Chỉ in số đếm và mã bưu cục 6 số. `tests/survey-bd10-den.test.js` (3 ca, DB tạm, dữ liệu giả). Không đổi chỉ số / API nào. `npm test` 248 ca: 247 pass, 1 skip có chủ đích; `npm run build` ok.
