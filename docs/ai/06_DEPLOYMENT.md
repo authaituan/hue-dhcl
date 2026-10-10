@@ -111,3 +111,18 @@ Dữ liệu "Hàng đến" đã nạp trước bản 3g có `arrival_at` theo qu
 4. Khởi động app, mở màn hình "Sản lượng đến" kiểm tra tổng sản lượng và số "chưa nhận tại BCVH".
 Dữ liệu nạp mới sau bản 3g đã theo R2 sẵn, không cần chạy lại script.
 
+## 9. Xoá dữ liệu sản lượng đến và nạp lại từ MỘT file CSV phủ nhiều ngày (ticket SANLUONG-3i, dev — PO tự chạy)
+Dùng khi script xuất CSV đổi nội dung và muốn nạp lại từ đầu. **Chỉ dùng cho dữ liệu dev**: xoá cả lịch sử nạp. Không đưa file CSV thật vào repo.
+**Chỗ đặt file**: thư mục ngoài repo `D:\Dev\_ref\`, ví dụ `D:\Dev\_ref\xuat-533140-0110-0910.csv` (tên tuỳ ý, đuôi `.csv`; cột lạ / tên cột có dấu hoặc không dấu đều được). Thư mục tách ra: `D:\Dev\_ref\tach-0110-0910` (phải chưa có hoặc rỗng, ngoài repo).
+**Không nạp thẳng** file gốc nhiều ngày (kể cả khi tên đã có dạng `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv`) và không chạy `import-arrivals.js` trên cả thư mục `D:\Dev\_ref\`: ngày trong tên file chỉ là một ngày nên file bị từ chối (hoặc lệch các chỉ số) — luôn nạp từ thư mục tách ra ở bước 6.
+Chạy từ thư mục `D:\Dev\hue-dhcl`, theo thứ tự:
+1. **Tắt app** (đóng cửa sổ `npm run dev` / dừng server).
+2. **Sao lưu** (PowerShell): `New-Item -ItemType Directory D:\Dev\_ref\backup-truoc-nap-lai -Force; Copy-Item data\hue-dhcl.db* D:\Dev\_ref\backup-truoc-nap-lai\` (sao đủ `hue-dhcl.db`, `-wal`, `-shm`).
+3. **Chạy thử xoá** (không ghi): `node scripts/reset-arrivals.js` — in số dòng sẽ xoá của `arrival_items`, `arrival_import_files` và danh sách bảng giữ nguyên.
+4. **Xoá**: `node scripts/reset-arrivals.js --apply`.
+5. **Chạy thử tách file**: `node scripts/split-arrivals-csv.js "D:\Dev\_ref\xuat-533140-0110-0910.csv" --out "D:\Dev\_ref\tach-0110-0910" --dry-run` — in tên file sẽ tạo và số dòng mỗi ngày (kiểm tra: tổng dòng khớp file gốc, 9 file cho 01–09/10).
+6. **Tách file**: cùng lệnh nhưng bỏ `--dry-run`. Tạo `HangDen_<mã BCVH>_<yyyymmdd>_235959.csv` mỗi ngày (mã BCVH lấy từ cột `BC_nhan_BG`; nếu muốn ép: `--unit 533140`).
+7. **Nạp**: `node scripts/import-arrivals.js "D:\Dev\_ref\tach-0110-0910"` — mọi file phải `OK`, cột "Ghi chú" không có cảnh báo ngoài khoảng ngày. Dữ liệu nạp mới đã theo quy tắc ngày đến R2 (không cần `rederive-arrival.js`).
+8. **Mở app**, đăng nhập, mở "Sản lượng đến" kiểm tra khoảng 01–09/10 (sản lượng, "chưa nhận tại BCVH", chất lượng theo nguồn). `node scripts/import-arrivals.js --check-days` sẽ báo mỗi ngày "thiếu đợt" (chỉ có 1 file/ngày thay vì 2) — bình thường với dữ liệu tách.
+Nếu lỡ nạp sai: dừng app, chép lại 3 file đã sao lưu ở bước 2 đè lên `data\`, hoặc chạy lại từ bước 3.
+

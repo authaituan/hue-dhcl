@@ -4,6 +4,15 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Xoá dữ liệu sản lượng đến (dev) và nạp lại từ một file CSV nhiều ngày (SANLUONG-3i)
+
+- `scripts/reset-arrivals.js` (mới): xoá `arrival_items` + `arrival_import_files` (danh sách trắng) và đặt lại bộ đếm id; chạy thử mặc định, `--apply` một transaction, lặp lại an toàn; không đụng `users`, `user_bcvh`, danh mục, `ward_bdx_map`, `dashboard_widgets`.
+- `scripts/split-arrivals-csv.js` (mới): tách MỘT file CSV nhiều ngày thành `HangDen_<mã>_<yyyymmdd>_235959.csv` theo ngày đến (R2; chưa nhận → ngày lập BD10; không mốc → ngày cuối); thư mục ra bắt buộc ngoài repo và rỗng; không in số hiệu. Lý do chọn tách file thay vì sửa importer: mọi chỉ số lọc theo `file_date` (chưa nhận, ngoại lệ, Dashboard, kiểm tra hợp lý [ngày file −3, +1]) giữ nguyên (#63).
+- `server/lib/arrivalsImport.js`: `resolveHeader()` — đọc cột theo TÊN (không dấu, không phân biệt hoa/thường), cột lạ bỏ qua (`extraColumns`), đổi chỗ cột được, cột tuỳ chọn (`Ma_BC_dong`, `Khoi_luong_thuc_te`, `Ten_dich_vu`, `Ghi_chu`) vắng → rỗng; thiếu cột bắt buộc / cột trùng tên → REJECTED. Nạp hằng ngày với file chuẩn không đổi.
+- Tests: `tests/arrivals-reload.test.js` (mới, 5 ca); `arrivals-import` (thay ca "sai tiêu đề", +1 ca cột thừa / bí danh / vắng cột tuỳ chọn); `arrivals-api` (ca import-status đổi cột làm hỏng tiêu đề sang SHBG). `npm test` 237 ca: 236 pass, 1 skip có chủ đích; `npm run build` ok.
+- Docs: quyết định #63–#64 (ghi rõ script xuất đã đổi ngữ nghĩa XNĐ BD10 cho tiền tố 530100, #61 sẽ được xem lại), `06_DEPLOYMENT.md` mục 9 (từng lệnh), bản đồ kiến trúc, backlog 7g–7g3.
+
+
 ## [2026-10-10] - Quy tắc ngày đến R2, "chưa nhận tại BCVH", chất lượng khai thác theo nguồn BD10 (SANLUONG-3g)
 
 - `server/lib/arrivalsImport.js`: `deriveArrival()` (R2: túi → bưu gửi → BD10, không dùng `bd10_ttkt_confirmed_at`), dùng chung với importer và script tính lại. `scripts/rederive-arrival.js` (mới): chạy thử mặc định, `--apply` ghi trong một transaction, idempotent, nhắc sao lưu; `06_DEPLOYMENT.md` mục 8.

@@ -191,18 +191,54 @@ test('file rỗng: 0 byte, chỉ BOM, chỉ tiêu đề -> EMPTY, hợp lệ, 0 
   assert.equal(count(db, "SELECT COUNT(*) n FROM arrival_import_files WHERE status = 'EMPTY'"), 3);
 });
 
-test('sai tiêu đề -> REJECTED, nêu cột lệch, không nạp dòng nào', async () => {
+test('sai tiêu đề (thiếu cột bắt buộc / trùng tên) -> REJECTED, nêu cột lệch, không nạp dòng nào', async () => {
   const { db } = newDb();
   const header = [...EXPECTED_HEADER];
-  [header[5], header[6]] = [header[6], header[5]];
+  header[5] = 'Cột lạ'; // mất "Thời gian XN túi"
   const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', [row()], { header }));
   assert.equal(r.status, 'REJECTED');
-  assert.match(r.error, /cột 6/);
+  assert.match(r.error, /thiếu cột "Thời gian XN túi"/);
   assert.equal(count(db, 'SELECT COUNT(*) n FROM arrival_items'), 0);
   assert.equal(db.prepare('SELECT status FROM arrival_import_files').get().status, 'REJECTED');
 
   const fewer = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_150011.csv', [row()], { header: EXPECTED_HEADER.slice(0, 15) }));
   assert.equal(fewer.status, 'REJECTED');
+  assert.match(fewer.error, /thiếu cột "Ten_Tinh_Thanh"/);
+
+  const dup = [...EXPECTED_HEADER, 'thoi_gian_xn_tui']; // trùng tên (sau khi bỏ dấu / hoa thường)
+  const d = await importArrivalFile(db, writeCsv('HangDen_990099_20261005_093012.csv', [row()], { header: dup }));
+  assert.equal(d.status, 'REJECTED');
+  assert.match(d.error, /cột trùng tên/);
+});
+
+test('tên cột đọc theo TÊN: cột thừa bị bỏ qua, đổi chỗ cột được, bí danh không dấu, cột tuỳ chọn vắng -> rỗng; dữ liệu giống file chuẩn', async () => {
+  const base = row({ Khoi_luong_thuc_te: '777', Ghi_chu: 'ghi chú', Ten_dich_vu: 'Dịch vụ X', Ma_BC_dong: '990001' });
+  const { db: dbRef } = newDb();
+  await importArrivalFile(dbRef, writeCsv('HangDen_990099_20261004_093012.csv', [base]));
+  const ref = dbRef.prepare('SELECT * FROM arrival_items').get();
+
+  // (1) cột thừa + đổi chỗ + bí danh không dấu cho hai cột XN
+  const alias = EXPECTED_HEADER.map((h) => ({ 'Thời gian XN túi': 'Thoi_gian_XN_tui', 'Thời gian XN BG': 'THOI GIAN XN BG' }[h] || h));
+  const header = ['Cot_Thua_1', ...alias.slice(8), ...alias.slice(0, 8), 'Cot_Thua_2'];
+  const rowAlias = { ...base, Thoi_gian_XN_tui: base['Thời gian XN túi'], 'THOI GIAN XN BG': base['Thời gian XN BG'], Cot_Thua_1: 'x', Cot_Thua_2: 'y' };
+  const { db } = newDb();
+  const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', [rowAlias], { header }));
+  assert.equal(r.status, 'OK', r.error);
+  assert.equal(r.extraColumns, 2);
+  const got = db.prepare('SELECT * FROM arrival_items').get();
+  for (const c of ['receiver_code', 'route_name', 'tracking_no', 'bd10_no', 'bd8_no', 'bag_confirmed_at', 'item_confirmed_at', 'bd10_confirmed_at', 'bd10_ttkt_confirmed_at',
+    'weight_g', 'service_code', 'service_name', 'note', 'ward_name', 'province_name', 'arrival_at', 'arrival_at_basis', 'arrival_date', 'ward_key']) {
+    assert.equal(got[c], ref[c], c);
+  }
+
+  // (2) thiếu các cột tuỳ chọn (mã BC đóng, khối lượng, tên dịch vụ, ghi chú) -> rỗng / NULL
+  const optional = new Set(['Ma_BC_dong', 'Khoi_luong_thuc_te', 'Ten_dich_vu', 'Ghi_chu']);
+  const { db: db2 } = newDb();
+  const r2 = await importArrivalFile(db2, writeCsv('HangDen_990099_20261004_093012.csv', [base], { header: EXPECTED_HEADER.filter((h) => !optional.has(h)) }));
+  assert.equal(r2.status, 'OK', r2.error);
+  const g2 = db2.prepare('SELECT * FROM arrival_items').get();
+  assert.deepEqual([g2.sender_code, g2.weight_g, g2.service_name, g2.note], ['', null, '', '']);
+  assert.equal(g2.tracking_no, ref.tracking_no);
 });
 
 test('1 dòng ngày giờ sai định dạng -> REJECTED cả file, thông báo không chứa nội dung dòng', async () => {

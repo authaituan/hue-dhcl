@@ -363,7 +363,7 @@ test('/meta và /import-status (ADMIN)', async () => {
   assert.deepEqual(m.date_bases.map((d) => d.key), ['arrival', 'bag', 'bd10', 'item']);
 
   const bad = [...EXPECTED_HEADER];
-  bad[0] = 'Cot_La';
+  bad[3] = 'Cot_La'; // mất cột bắt buộc SHBG (cột 1 Ma_BC_dong nay là tuỳ chọn)
   await importArrivalFile(ctx.db, writeCsv('HangDen_990099_20261004_150011.csv', [row({ Ghi_chu: 'NOI_DUNG_DONG' })], bad));
   await importArrivalFile(ctx.db, writeCsv('HangDen_990088_20261004_093012.csv', [row({ SHBG: T(99), BC_nhan_BG: '990088' })]));
   const s = (await adm('/api/arrivals/import-status')).body;
