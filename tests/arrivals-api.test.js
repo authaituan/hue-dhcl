@@ -67,7 +67,7 @@ const FILE_04 = [
   row({ SHBG: T(10), Ten_Xa_Phuong: 'Phường Bình', Ten_Tinh_Thanh: 'Tỉnh Thừa Thử' }),
   // T11: XND BD10 07:00 + XN bưu gửi (không túi) -> tổ hợp 011, đến 07:00
   row({ SHBG: T(11), 'Thời gian XN túi': '', Ngay_gio_XND_BD10: '10/4/2026 7:00:00 AM' }),
-  // T12: XND BD10 sớm (02/10) -> đến 02/10, cảnh báo mốc BD10 sớm; tổ hợp 111
+  // T12: XND BD10 sớm (02/10) NHƯNG có XN túi 04/10 -> R2: đến 04/10 (BD10 không thắng túi); tổ hợp 111
   row({ SHBG: T(12), Ngay_gio_XND_BD10: '10/2/2026 8:00:00 AM' }),
   // T13: chỉ XN bưu gửi (001); T14: túi + BD10 (110); T15: chỉ BD10 (010)
   row({ SHBG: T(13), 'Thời gian XN túi': '' }),
@@ -77,11 +77,13 @@ const FILE_04 = [
   row({ SHBG: T(16), ...NO_ITEM }),
   row({ SHBG: T(16), 'Thời gian XN túi': '', 'Thời gian XN BG': '10/4/2026 8:30:00 AM' }),
   // T17: số hiệu BD10 19 chữ số
-  row({ SHBG: T(17), So_hieu_BD10: BD10_19 })
+  row({ SHBG: T(17), So_hieu_BD10: BD10_19 }),
+  // T19: chỉ có XND BD10 và nó sớm (02/10) -> R2 buộc phải dùng mốc này: đến 02/10, cảnh báo mốc BD10 sớm
+  row({ SHBG: T(19), 'Thời gian XN túi': '', 'Thời gian XN BG': '', Ngay_gio_XND_BD10: '10/2/2026 8:00:00 AM' })
 ];
 const FILE_05 = [row({ SHBG: T(2), 'Thời gian XN túi': '10/5/2026 7:00:00 AM', 'Thời gian XN BG': '10/5/2026 7:10:00 AM', Ten_Xa_Phuong: 'Phường Bình' })];
 const FILE_04_OTHER = [row({ SHBG: T(18), BC_nhan_BG: '990088' })];
-const SL_DAY4 = 16; // ngày 04/10: T1–T5, T7–T11, T13–T18 (T6 không mốc, T12 đến 02/10)
+const SL_DAY4 = 17; // ngày 04/10: T1–T5, T7–T18 (T6 không mốc BCVH; T19 đến 02/10)
 
 // SANLUONG-3d — đường thư / dịch vụ / hàng nặng: dữ liệu riêng ngày 10/10 (không ảnh hưởng các ca 04/10).
 // Mặc định: chỉ mốc XN túi (thời điểm đến = giờ túi), đường thư X, dịch vụ C.
@@ -194,7 +196,7 @@ test('lần đến sớm nhất trong khoảng; đến lại cùng khoảng khô
   assert.deepEqual([(await t2(DAY4)).thoi_diem, (await t2(DAY4)).ward_name], ['2026-10-04 08:00:00', 'Phường An']);
   const d5 = await t2('from=2026-10-05&to=2026-10-05');
   assert.deepEqual([d5.thoi_diem, d5.ward_name], ['2026-10-05 07:00:00', 'Phường Bình'], 'khoảng chỉ có lần đến thứ 2');
-  assert.equal(await sl(WIDE), SL_DAY4 + 1, '02–05/10: thêm T12; T2 vẫn chỉ 1');
+  assert.equal(await sl(WIDE), SL_DAY4 + 1, '02–05/10: thêm T19 (đến 02/10); T2 vẫn chỉ 1');
   assert.equal((await t2(WIDE)).thoi_diem, '2026-10-04 08:00:00');
   assert.equal(await sl('from=2026-10-05&to=2026-10-05'), 1);
   const days = (await mgr(`/api/arrivals/by-time?${WIDE}`)).body.items;
@@ -216,7 +218,7 @@ test('by-time: granularity=hour đủ 24 mốc, tổng = sản lượng; giới 
   assert.equal(h.items.length, 24);
   assert.equal(h.items[0].moc, '2026-10-04 00:00');
   assert.equal(h.items.reduce((a, x) => a + x.san_luong, 0), SL_DAY4);
-  assert.equal(h.items.find((x) => x.moc === '2026-10-04 07:00').san_luong, 3, 'T11 07:00, T14 07:50, T15 07:40');
+  assert.equal(h.items.find((x) => x.moc === '2026-10-04 07:00').san_luong, 1, 'R2: chỉ T15 (chỉ có BD10 07:40); T11 → XN bưu gửi 08:10, T14 → XN túi 08:00');
   const part = (await mgr('/api/arrivals/by-time?from=2026-10-04 07:30&to=2026-10-04 09:10&granularity=hour')).body.items;
   assert.deepEqual(part.map((x) => x.moc), ['2026-10-04 07:00', '2026-10-04 08:00', '2026-10-04 09:00']);
   assert.equal((await mgr('/api/arrivals/by-time?from=2026-10-01&to=2026-10-07&granularity=hour')).status, 200);
@@ -230,7 +232,7 @@ test('date_basis: arrival / bag / bd10 / item dùng cột thời gian của tiê
   const bag = (await counted(`${DAY4}&date_basis=bag`)).map((i) => i.tracking_no);
   assert.ok(bag.includes(T(12)) && !bag.includes(T(11)) && !bag.includes(T(13)), 'bag: T12 có túi 04/10; T11/T13 không có túi');
   const bd10 = (await counted(`${WIDE}&date_basis=bd10`)).map((i) => i.tracking_no).sort();
-  assert.deepEqual(bd10, [T(11), T(12), T(14), T(15)].sort());
+  assert.deepEqual(bd10, [T(11), T(12), T(14), T(15), T(19)].sort());
   const item = (await counted(`${DAY4}&date_basis=item`)).map((i) => i.tracking_no);
   assert.ok(!item.includes(T(3)) && item.includes(T(13)), 'item: T3 không có XN bưu gửi');
   const t16 = (await counted(`${DAY4}&date_basis=item`)).find((i) => i.tracking_no === T(16));
@@ -260,7 +262,7 @@ test('quality-mocs: đủ 7 tổ hợp, tổng = sản lượng; mốc "có" xé
   assert.equal(m.to_hop.reduce((a, c) => a + c.so_buu_gui, 0), m.san_luong);
   assert.equal(m.san_luong, SL_DAY4);
   const by = Object.fromEntries(m.to_hop.map((c) => [c.key, c.so_buu_gui]));
-  assert.deepEqual(by, { 111: 0, 110: 1, 101: 9, '011': 1, 100: 3, '010': 1, '001': 1 });
+  assert.deepEqual(by, { 111: 1, 110: 1, 101: 9, '011': 1, 100: 3, '010': 1, '001': 1 });
   assert.equal(m.khong_co_moc, 1, 'T6');
   const wide = Object.fromEntries((await mgr(`/api/arrivals/quality-mocs?${WIDE}`)).body.to_hop.map((c) => [c.key, c.so_buu_gui]));
   assert.equal(wide['111'], 1, 'T12 đủ trạng thái (SHBG, BD8, BD10)');
@@ -278,7 +280,7 @@ test('cảnh báo chỉ ADMIN: /summary có canh_bao cho ADMIN, không có cho T
   assert.equal(g.san_luong, a.san_luong, 'GDVH xem đủ dữ liệu như TTVH');
   const ex = (await adm(`/api/arrivals/exceptions?${WIDE}`)).body.items;
   const reasons = Object.fromEntries(ex.map((e) => [e.ly_do, e.tracking_no]));
-  assert.deepEqual(reasons, { MOC_BD10_SOM: T(12), DEN_LAI_TRONG_KHOANG: T(2), KHONG_CO_MOC: T(6) });
+  assert.deepEqual(reasons, { MOC_BD10_SOM: T(19), DEN_LAI_TRONG_KHOANG: T(2), CHUA_NHAN_TAI_BCVH: T(6) });
   assert.ok(ex.every((e) => e.ly_do_text));
 });
 

@@ -3,7 +3,7 @@
 // Chỉ đọc DB. Mọi giá trị người dùng đi qua tham số `@`; tên cột chỉ lấy từ whitelist.
 //
 // Sản lượng đến = số SHBG khác nhau. Mỗi SHBG đếm 1 lần trong khoảng lọc, tại lần đến SỚM NHẤT trong khoảng theo
-// tiêu chí ngày giờ đã chọn; hoà thời điểm -> dòng id nhỏ nhất ("dòng đại diện"). Phường/xã, tỉnh, khối lượng,
+// tiêu chí ngày giờ đã chọn (tiêu chí "Đến BCVH" = arrival_at của dòng, tính theo R2: XN túi -> XN bưu gửi -> XNĐ BD10, #59); hoà thời điểm -> dòng id nhỏ nhất ("dòng đại diện"). Phường/xã, tỉnh, khối lượng,
 // bưu cục nhận lấy từ dòng đại diện. Không xét bd10_no/bd8_no khi đếm. Mọi dòng vẫn được lưu đủ.
 // ==========================================
 'use strict';
@@ -39,6 +39,23 @@ const EXCEPTION_LIMIT = 50;
 const HEAVY_THRESHOLD_G_DEFAULT = 2500;
 const HEAVY_THRESHOLD_G_MIN = 500;
 const HEAVY_THRESHOLD_G_MAX = 30000;
+// Chuyến thư BD10 đi từ TTKT: số hiệu BD10 bắt đầu bằng tiền tố này thì script xuất CSV LUÔN để trống Ngay_gio_XND_BD10 (#60) — MỘT chỗ duy nhất.
+const TTKT_BD10_PREFIX = '530100';
+// "Đủ trạng thái theo nguồn BD10" (#61): ttkt = có XN túi + XN bưu gửi; khac = đủ 3 mốc; khong_bd10 = có XN bưu gửi.
+const SOURCE_GROUPS = [
+  { nhom: 'ttkt', ten: 'Chuyến thư từ TTKT', du: 'XN túi + XN bưu gửi' },
+  { nhom: 'khac', ten: 'Chuyến thư từ bưu cục khác', du: 'XN túi + XN bưu gửi + XNĐ BD10' },
+  { nhom: 'khong_bd10', ten: 'Không có số hiệu BD10 (hàng không qua chuyến thư)', du: 'XN bưu gửi' }
+];
+// Gói (tổ hợp mốc 0–7, pk 0–5) vào MỘT số nguyên để GROUP BY một khoá (nhanh hơn nhóm nhiều khoá); giải mã bằng decodeSourceRows().
+const SOURCE_CODE_SQL = '(m_bag * 24 + m_bd10 * 12 + m_item * 6 + pk)';
+function decodeSourceRows(rows) {
+  return rows.map((r) => {
+    const kk = Math.floor(r.code / 6);
+    const pk = r.code % 6;
+    return { key: `${(kk >> 2) & 1}${(kk >> 1) & 1}${kk & 1}`, nguon: SOURCE_GROUPS[Math.floor(pk / 2)].nhom, du: pk % 2 === 1, n: r.n };
+  });
+}
 const NO_ROUTE_LABEL = 'Chưa có tên đường thư';
 const NO_SERVICE_LABEL = 'Chưa có tên dịch vụ';
 
@@ -171,6 +188,13 @@ function parseFilters(query, { allowed, requireRange = true } = {}) {
     }
     f.granularity = g;
   }
+  if (allowedSet.has('ly_do')) {
+    const r = one('ly_do');
+    if (r !== undefined && r !== '') {
+      if (!Object.prototype.hasOwnProperty.call(REASON_TEXT, r)) throw new QueryParamError(`Tham số "ly_do" không hợp lệ. Chọn một trong: ${Object.keys(REASON_TEXT).join(', ')}`);
+      f.reason = r;
+    }
+  }
   if (allowedSet.has('page')) {
     const p = one('page'); const s = one('page_size');
     f.page = p === undefined || p === '' ? 1 : Number(p);
@@ -192,7 +216,11 @@ function parseFilters(query, { allowed, requireRange = true } = {}) {
 // materialize=true khi câu lệnh đọc lại `s` nhiều lần (/summary); còn lại để SQLite gộp thẳng vào truy vấn.
 // withMocTimes=true: thêm bag_at / item_at vào `s` = giờ XN túi / XN bưu gửi SỚM NHẤT trên các dòng của bưu gửi trong khoảng
 // (chỉ thêm cột, không đổi cách đếm; Dashboard dùng để tính khoảng XN túi -> XN bưu gửi).
-function buildCountedCte(db, f, { materialize = false, withMocTimes = false } = {}) {
+// withSource=true: thêm vào `s` cột pk = nhóm nguồn BD10 + "đủ theo nguồn" của dòng đại diện, gói thành một số 0–5: pk = 2 * nhóm + đủ
+// (nhóm 0 = TTKT: đủ = có XN túi + XN bưu gửi; 1 = khác: đủ 3 mốc; 2 = không BD10: có XN bưu gửi) — tính từng dòng ở `r` rồi theo dòng đại diện. Chỉ thêm cột, không đổi cách đếm.
+// Đặc điểm của dòng đại diện được gắn vào ĐUÔI khoá MIN(t || id || ...) (khoá đã duy nhất theo t, id nên đuôi không ảnh hưởng thứ tự)
+// để không phải đọc thêm cột của arrival_items ở `s` (đọc thêm làm chậm ~60%).
+function buildCountedCte(db, f, { materialize = false, withMocTimes = false, withSource = false } = {}) {
   const b = DATE_BASES[f.dateBasis]; // whitelist
   prepareHomeFunction(db);
   const params = { from: f.from, to: f.to, dfrom: f.fromDate, dto: f.toDate };
@@ -210,26 +238,32 @@ function buildCountedCte(db, f, { materialize = false, withMocTimes = false } = 
   const sql = `
     r AS MATERIALIZED (
       SELECT id, tracking_no, import_file_id, bd8_no, arrival_evidence_count,
-        ${b.time} AS t${withMocTimes ? ', bag_confirmed_at AS bag_at, item_confirmed_at AS item_at' : ''},
+        ${b.time} AS t${withMocTimes ? ', bag_confirmed_at AS bag_at, item_confirmed_at AS item_at' : ''}${withSource ? `,
+        char(65 + CASE
+          WHEN bd10_no = '' THEN 4 + (item_confirmed_at IS NOT NULL)
+          WHEN substr(bd10_no, 1, ${TTKT_BD10_PREFIX.length}) = @ttkt_prefix THEN (bag_confirmed_at IS NOT NULL) * (item_confirmed_at IS NOT NULL)
+          ELSE 2 + (bag_confirmed_at IS NOT NULL) * (item_confirmed_at IS NOT NULL) * (bd10_confirmed_at IS NOT NULL) END) AS pk` : ''},
         (bag_confirmed_at IS NOT NULL) AS m_bag, (bd10_confirmed_at IS NOT NULL) AS m_bd10, (item_confirmed_at IS NOT NULL) AS m_item
       FROM arrival_items WHERE ${where.join(' AND ')}
     ),
     firsts AS (
-      SELECT tracking_no, MIN(t || printf('%012d', id)) AS k, COUNT(DISTINCT import_file_id) AS file_count,
+      SELECT tracking_no, MIN(t || printf('%012d', id)${withSource ? ' || pk' : ''}) AS k, COUNT(DISTINCT import_file_id) AS file_count,
         MAX(m_bag) AS m_bag, MAX(m_bd10) AS m_bd10, MAX(m_item) AS m_item${withMocTimes ? ', MIN(bag_at) AS bag_at, MIN(item_at) AS item_at' : ''}
       FROM r GROUP BY tracking_no
     ),
     s AS ${materialize ? 'MATERIALIZED' : 'NOT MATERIALIZED'} (
-      SELECT x.tracking_no, x.file_count, x.m_bag, x.m_bd10, x.m_item${withMocTimes ? ', x.bag_at, x.item_at' : ''},
+      SELECT x.tracking_no, x.file_count, x.m_bag, x.m_bd10, x.m_item${withMocTimes ? ', x.bag_at, x.item_at' : ''}${withSource
+        ? ', unicode(substr(x.k, 32, 1)) - 65 AS pk' : ''},
         substr(x.k, 1, 19) AS t, a.id, a.import_file_id, a.receiver_code, a.ward_name, a.ward_key, a.province_name,
         a.weight_g, a.bd10_no, a.bd8_no, a.route_name, a.service_code, a.service_name, a.arrival_at, a.arrival_at_basis, a.arrival_date,
         CASE WHEN a.province_name <> '' AND NOT arrivals_is_home(a.province_name) THEN 'OUT_PROVINCE'
              WHEN a.ward_key = '' THEN 'NO_WARD'
              WHEN a.province_name = '' THEN 'NO_PROVINCE'
              ELSE 'HOME' END AS nhom
-      FROM firsts x JOIN arrival_items a ON a.id = CAST(substr(x.k, -12) AS INTEGER)
+      FROM firsts x JOIN arrival_items a ON a.id = CAST(substr(x.k, 20, 12) AS INTEGER)
       ${sWhere.length ? `WHERE ${sWhere.join(' AND ')}` : ''}
     )`;
+  if (withSource) params.ttkt_prefix = TTKT_BD10_PREFIX;
   return { sql, params };
 }
 
@@ -245,11 +279,12 @@ function catalogWardKeys(db) {
 }
 
 // Bưu gửi "chưa xác định ngày đến": SHBG mà MỌI dòng trong các file có ngày file thuộc khoảng (và bưu cục nhận nếu lọc)
-// đều không có mốc nào. Không vào sản lượng; báo riêng.
+// đều không có mốc nào. Không vào sản lượng; báo riêng. Kèm: ttkt_at = thời điểm bên gửi duyệt đóng chuyến SỚM NHẤT
+// (bd10_ttkt_confirmed_at, không rỗng) trên các dòng của bưu gửi — có giá trị = "đã đóng chuyến, chưa nhận tại BCVH" (#60).
 function undatedSql(f) {
   const recv = f.receiverCodes.length ? 'AND a.receiver_code IN (SELECT value FROM json_each(@recv))' : '';
   return `
-    SELECT a.tracking_no, MIN(a.id) AS id, MIN(a.receiver_code) AS receiver_code
+    SELECT a.tracking_no, MIN(a.id) AS id, MIN(a.receiver_code) AS receiver_code, MIN(NULLIF(a.bd10_ttkt_confirmed_at, '')) AS ttkt_at
     FROM arrival_items a JOIN arrival_import_files fl ON fl.id = a.import_file_id
     WHERE a.tracking_no IN (SELECT b.tracking_no FROM arrival_items b JOIN arrival_import_files g ON g.id = b.import_file_id
                             WHERE b.arrival_date IS NULL AND g.file_date BETWEEN @dfrom AND @dto)
@@ -262,12 +297,70 @@ function undatedParams(f) {
   return p;
 }
 
+// ---- "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (#60): MỘT truy vấn dùng chung cho summary, /center, /not-received, /exceptions ----
+// Tuổi (ngày) = ngày của file mới nhất đã nạp (OK) − ngày lập BD10 (bd10_ttkt_confirmed_at, sớm nhất của bưu gửi); nhóm 0-1 / 2 / 3+.
+function latestFileDate(db) {
+  return db.prepare("SELECT MAX(file_date) AS d FROM arrival_import_files WHERE status = 'OK'").get().d;
+}
+const dayAge = (latest, ngay) => (latest ? Math.max(0, Math.round((Date.parse(`${latest}T00:00:00Z`) - Date.parse(`${ngay}T00:00:00Z`)) / 86400000)) : 0);
+const ageBucket = (age) => (age <= 1 ? '0-1' : age === 2 ? '2' : '3+');
+const NOT_RECEIVED_WHERE = 'ttkt_at IS NOT NULL';
+
+const emptyNotReceived = () => ({ tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] });
+
+/** allowed = null (không giới hạn) | mảng mã BCVH được phép (GDVH: BCVH được giao). Trả { f, empty }: empty = không còn BCVH nào được xem. */
+function scopedFilters(f, allowed) {
+  if (!allowed) return { f, empty: false };
+  const codes = f.receiverCodes.length ? f.receiverCodes.filter((c) => allowed.includes(c)) : allowed;
+  return codes.length ? { f: { ...f, receiverCodes: codes }, empty: false } : { f, empty: true };
+}
+
+/** { tong, cu_nhat_ngay, theo_tuoi, theo_ngay_lap: [{ ngay, so_buu_gui, tuoi }] } cũ nhất trước; allowed như scopedFilters. */
+function notReceivedStats(db, f, allowed = null) {
+  const sc = scopedFilters(f, allowed);
+  if (sc.empty) return emptyNotReceived();
+  const latest = latestFileDate(db);
+  const rows = db.prepare(`SELECT substr(ttkt_at, 1, 10) AS ngay, COUNT(*) AS n FROM (${undatedSql(sc.f)}) WHERE ${NOT_RECEIVED_WHERE} GROUP BY ngay ORDER BY ngay`).all(undatedParams(sc.f));
+  const out = emptyNotReceived();
+  for (const r of rows) {
+    const tuoi = dayAge(latest, r.ngay);
+    out.tong += r.n;
+    out.theo_tuoi[ageBucket(tuoi)] += r.n;
+    out.theo_ngay_lap.push({ ngay: r.ngay, so_buu_gui: r.n, tuoi });
+  }
+  out.cu_nhat_ngay = out.theo_ngay_lap.length ? out.theo_ngay_lap[0].tuoi : null;
+  return out;
+}
+
+/** Số bưu gửi không mốc BCVH nào VÀ không có mốc lập BD10 (không thuộc "chưa nhận"; báo riêng cho ADMIN). */
+function noMocNoTtkt(db, f) {
+  return db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(f)}) WHERE ttkt_at IS NULL`).get(undatedParams(f)).n;
+}
+
+/** Danh sách chi tiết, phân trang, cũ nhất trước. */
+function notReceivedList(db, f, allowed = null) {
+  const sc = scopedFilters(f, allowed);
+  const page = { page: f.page, page_size: f.pageSize };
+  if (sc.empty) return { items: [], pagination: { total: 0, ...page, total_pages: 0 }, meta: { from: f.from, to: f.to } };
+  const latest = latestFileDate(db);
+  const params = undatedParams(sc.f);
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(sc.f)}) WHERE ${NOT_RECEIVED_WHERE}`).get(params).n;
+  const rows = db.prepare(`SELECT u.tracking_no, u.receiver_code, a.bd8_no, a.bd10_no, a.route_name, u.ttkt_at AS thoi_diem_lap_bd10
+    FROM (${undatedSql(sc.f)}) u JOIN arrival_items a ON a.id = u.id WHERE u.${NOT_RECEIVED_WHERE}
+    ORDER BY u.ttkt_at, u.tracking_no LIMIT @lim OFFSET @off`).all({ ...params, lim: f.pageSize, off: (f.page - 1) * f.pageSize });
+  return {
+    items: rows.map((r) => ({ ...r, tuoi_ngay: dayAge(latest, r.thoi_diem_lap_bd10.slice(0, 10)) })),
+    pagination: { total, ...page, total_pages: Math.ceil(total / f.pageSize) },
+    meta: { from: f.from, to: f.to }
+  };
+}
+
 const BD10_EARLY = `(s.arrival_at_basis = 'bd10' AND s.arrival_date < (SELECT file_date FROM arrival_import_files WHERE id = s.import_file_id))`;
 
 // ------------------------------------------
 // API
 // ------------------------------------------
-function summary(db, f, { isAdmin }) {
+function summary(db, f, { isAdmin, scopeCodes = null }) {
   // 1 câu lệnh: s được vật chất hoá 1 lần (MATERIALIZED), mọi chỉ số đọc lại từ s / r.
   const admin = isAdmin ? `,
       (SELECT COALESCE(SUM(${BD10_EARLY}), 0) FROM s) AS bd10_early,
@@ -292,15 +385,18 @@ function summary(db, f, { isAdmin }) {
     dia_ban_phat: { co: JSON.parse(t.wards).filter((k) => catalog.has(k)).length, tong: catalog.size },
     meta: metaFor(f)
   };
+  // Mọi vai trò xem được "Sản lượng đến" (#60); GDVH chỉ thấy BCVH được giao (scopeCodes). Không đặt trong canh_bao (ADMIN-only).
+  out.chua_nhan_tai_bcvh = notReceivedStats(db, f, scopeCodes);
   if (isAdmin) {
     const p = undatedParams(f);
-    const undated = db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(f)})`).get(p).n;
     const undatedRows = db.prepare(`SELECT COUNT(*) AS n FROM arrival_items a JOIN arrival_import_files fl ON fl.id = a.import_file_id
       WHERE a.arrival_date IS NULL AND fl.file_date BETWEEN @dfrom AND @dto
       ${f.receiverCodes.length ? 'AND a.receiver_code IN (SELECT value FROM json_each(@recv))' : ''}`).get(p).n;
     const ev = JSON.parse(t.ev);
+    const kmk = noMocNoTtkt(db, f);
     out.canh_bao = {
-      chua_xac_dinh_ngay_den: undated,
+      chua_xac_dinh_ngay_den: out.chua_nhan_tai_bcvh.tong + kmk, // LỖI THỜI (#60): = chua_nhan_tai_bcvh.tong + khong_moc_khong_ttkt; giữ để giao diện cũ không vỡ
+      khong_moc_khong_ttkt: kmk,
       moc_bd10_som: t.bd10_early,
       den_lai_trong_khoang: t.den_lai,
       so_moc_theo_dong: { 3: ev['3'], 2: ev['2'], 1: ev['1'], 0: undatedRows },
@@ -436,11 +532,35 @@ function byWard(db, f) {
   return { san_luong: total, items, nhom_phan_loai: nhom, meta: metaFor(f) };
 }
 
+// Một lần chạy CTE: nhóm theo (tổ hợp mốc, nguồn BD10, đủ-theo-nguồn) rồi cộng trong JS.
 function qualityMocs(db, f) {
-  return shapeQualityMocs(db, f, run(db, f, 'SELECT m_bag || m_bd10 || m_item AS key, COUNT(*) AS n FROM s GROUP BY key'));
+  const rows = decodeSourceRows(run(db, f, `SELECT ${SOURCE_CODE_SQL} AS code, COUNT(*) AS n FROM s GROUP BY code`, {}, { withSource: true }));
+  return shapeQualityMocs(db, f, sumBy(rows, 'key'), rows);
 }
 
-function shapeQualityMocs(db, f, rows) {
+function sumBy(rows, key) {
+  const m = new Map();
+  for (const r of rows) m.set(r[key], (m.get(r[key]) || 0) + r.n);
+  return [...m.entries()].map(([k, n]) => ({ key: k, n }));
+}
+
+// srcRows: [{ nguon, du, n }] (nhiều dòng/nhóm) -> tong_hop.theo_nguon + du_trang_thai_theo_nguon.
+function shapeSource(total, srcRows) {
+  const pct = (n, t) => (t ? Math.round((n / t) * 10000) / 100 : 0);
+  const theo = SOURCE_GROUPS.map((g) => {
+    const rs = srcRows.filter((r) => r.nguon === g.nhom);
+    const n = rs.reduce((a, r) => a + r.n, 0);
+    const du = rs.filter((r) => r.du).reduce((a, r) => a + r.n, 0);
+    return { nhom: g.nhom, ten: g.ten, dieu_kien_du: g.du, so_buu_gui: n, du_theo_nguon: du, thieu: n - du, ty_le_du: pct(du, n) };
+  });
+  const duTong = theo.reduce((a, g) => a + g.du_theo_nguon, 0);
+  return {
+    theo_nguon: theo,
+    du_trang_thai_theo_nguon: { so_buu_gui: duTong, ty_le: pct(duTong, total) }
+  };
+}
+
+function shapeQualityMocs(db, f, rows, srcRows = null) {
   const map = new Map(rows.map((r) => [r.key, r.n]));
   const total = rows.reduce((a, r) => a + r.n, 0);
   const pct = (n) => (total ? Math.round((n / total) * 10000) / 100 : 0);
@@ -452,7 +572,8 @@ function shapeQualityMocs(db, f, rows) {
     co_xn_tui: stat(has('bag')),
     co_xnd_bd10: stat(has('bd10')),
     khong_xnd_bd10: stat(total - has('bd10')),
-    co_xn_bg: stat(has('item'))
+    co_xn_bg: stat(has('item')),
+    ...(srcRows ? shapeSource(total, srcRows) : {})
   };
   return {
     san_luong: total,
@@ -460,7 +581,8 @@ function shapeQualityMocs(db, f, rows) {
     to_hop: MOC_COMBOS.map((c) => ({ ...c, so_buu_gui: map.get(c.key) || 0, ty_le: pct(map.get(c.key) || 0) })),
     ty_le_co_moc: { bag: pct(has('bag')), bd10: pct(has('bd10')), item: pct(has('item')) },
     khong_co_moc: db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(f)})`).get(undatedParams(f)).n,
-    ghi_chu: 'Mốc "có" = ít nhất một dòng của bưu gửi (trong khoảng lọc) có giá trị. Bưu gửi không có mốc nào (khong_co_moc) không vào sản lượng.',
+    ghi_chu: 'Mốc "có" = ít nhất một dòng của bưu gửi (trong khoảng lọc) có giá trị. Bưu gửi không có mốc nào (khong_co_moc) không vào sản lượng. '
+      + 'Chuyến thư từ TTKT (BD10 bắt đầu 530100) luôn không có XNĐ BD10 (nguồn dữ liệu, không phải thiếu xác nhận): xem tong_hop.theo_nguon (nhóm theo BD10 của dòng đại diện).',
     meta: metaFor(f)
   };
 }
@@ -497,30 +619,86 @@ function lookup(db, query) {
       ...r,
       moc_dung_lam_thoi_diem_den: r.arrival_at_basis ? BASIS_LABEL[r.arrival_at_basis] : 'Không có mốc nào (chưa xác định ngày đến)'
     })),
-    ghi_chu: 'Thời điểm đến của mỗi dòng = mốc sớm nhất trong 3 mốc BCVH; sản lượng đếm bưu gửi tại lần đến sớm nhất trong khoảng lọc.'
+    ghi_chu: 'Thời điểm đến của mỗi dòng = mốc đầu tiên không trống theo thứ tự XN túi → XN bưu gửi → XNĐ BD10 (R2); sản lượng đếm bưu gửi tại lần đến sớm nhất trong khoảng lọc.'
   };
 }
 
 const REASON_TEXT = {
   MOC_BD10_SOM: 'Mốc XND BD10 sớm hơn ngày file chứa nó',
   DEN_LAI_TRONG_KHOANG: 'Bưu gửi có mặt ở nhiều file trong khoảng (đến lại)',
-  KHONG_CO_MOC: 'Không có mốc nào (chưa xác định ngày đến)'
+  CHUA_NHAN_TAI_BCVH: 'Đã đóng chuyến thư gửi về BCVH, chưa có XN nhận tại BCVH',
+  KHONG_CO_MOC: 'Không có mốc nào kể cả mốc đóng chuyến (chưa xác định ngày đến)'
 };
+const REASON_ORDER = ['MOC_BD10_SOM', 'DEN_LAI_TRONG_KHOANG', 'CHUA_NHAN_TAI_BCVH', 'KHONG_CO_MOC'];
 
-function exceptions(db, f) {
-  const early = run(db, f, `SELECT tracking_no, t AS thoi_diem, receiver_code, 'MOC_BD10_SOM' AS ly_do FROM s WHERE ${BD10_EARLY} ORDER BY t LIMIT ${EXCEPTION_LIMIT}`);
-  const again = run(db, f, `SELECT tracking_no, t AS thoi_diem, receiver_code, 'DEN_LAI_TRONG_KHOANG' AS ly_do FROM s WHERE file_count > 1 ORDER BY t LIMIT ${EXCEPTION_LIMIT}`);
-  const undated = db.prepare(`SELECT tracking_no, NULL AS thoi_diem, receiver_code, 'KHONG_CO_MOC' AS ly_do FROM (${undatedSql(f)}) ORDER BY id LIMIT ${EXCEPTION_LIMIT}`)
-    .all(undatedParams(f));
+// Mỗi lý do: { count(): số bưu gửi, rows(n): n dòng đầu }.
+function exceptionSources(db, f) {
+  const latest = latestFileDate(db);
+  let memo = null; // số "mốc BD10 sớm" và "đến lại" trong MỘT lần chạy CTE
+  const counts = () => memo || (memo = run(db, f, `SELECT COALESCE(SUM(${BD10_EARLY}), 0) AS e, COALESCE(SUM(file_count > 1), 0) AS a FROM s`)[0]);
+  // CHUA_NHAN dùng cùng truy vấn với notReceivedStats / notReceivedList (undatedSql + ttkt_at); KHONG_CO_MOC = còn lại (không có cả mốc lập BD10).
+  const undated = (reason, where) => ({
+    count: () => db.prepare(`SELECT COUNT(*) AS n FROM (${undatedSql(f)}) WHERE ${where}`).get(undatedParams(f)).n,
+    rows: (n) => db.prepare(`SELECT u.tracking_no, NULL AS thoi_diem, u.receiver_code, '${reason}' AS ly_do,
+        a.bd8_no, a.bd10_no, a.route_name, u.ttkt_at AS thoi_diem_dong_chuyen
+      FROM (${undatedSql(f)}) u JOIN arrival_items a ON a.id = u.id WHERE u.${where} ORDER BY u.id LIMIT ${n}`).all(undatedParams(f))
+      .map((r) => (r.thoi_diem_dong_chuyen ? { ...r, tuoi_ngay: dayAge(latest, r.thoi_diem_dong_chuyen.slice(0, 10)) } : r))
+  });
   return {
-    items: [...early, ...again, ...undated].slice(0, EXCEPTION_LIMIT).map((r) => ({ ...r, ly_do_text: REASON_TEXT[r.ly_do] })),
-    gioi_han: EXCEPTION_LIMIT,
+    MOC_BD10_SOM: {
+      count: () => counts().e,
+      rows: (n) => run(db, f, `SELECT tracking_no, t AS thoi_diem, receiver_code, 'MOC_BD10_SOM' AS ly_do FROM s WHERE ${BD10_EARLY} ORDER BY t LIMIT ${n}`)
+    },
+    DEN_LAI_TRONG_KHOANG: {
+      count: () => counts().a,
+      rows: (n) => run(db, f, `SELECT tracking_no, t AS thoi_diem, receiver_code, 'DEN_LAI_TRONG_KHOANG' AS ly_do FROM s WHERE file_count > 1 ORDER BY t LIMIT ${n}`)
+    },
+    CHUA_NHAN_TAI_BCVH: undated('CHUA_NHAN_TAI_BCVH', NOT_RECEIVED_WHERE),
+    KHONG_CO_MOC: undated('KHONG_CO_MOC', 'ttkt_at IS NULL')
+  };
+}
+
+// Danh sách ngoại lệ (ADMIN), phân trang (mặc định 50/trang), lọc theo `ly_do`. Thứ tự: MOC_BD10_SOM, DEN_LAI, CHUA_NHAN, KHONG_CO_MOC.
+function exceptions(db, f) {
+  const src = exceptionSources(db, f);
+  const reasons = f.reason ? [f.reason] : REASON_ORDER;
+  const counts = Object.fromEntries(REASON_ORDER.map((k) => [k, src[k].count()]));
+  const total = reasons.reduce((a, k) => a + counts[k], 0);
+  const offset = (f.page - 1) * f.pageSize;
+  let items = [];
+  let skip = offset;
+  for (const k of reasons) {
+    if (items.length >= f.pageSize) break;
+    if (skip >= counts[k]) { skip -= counts[k]; continue; }
+    const need = skip + (f.pageSize - items.length);
+    items = items.concat(src[k].rows(Math.min(need, counts[k])).slice(skip));
+    skip = 0;
+  }
+  return {
+    items: items.slice(0, f.pageSize).map((r) => ({ ...r, ly_do_text: REASON_TEXT[r.ly_do] })),
+    gioi_han: f.pageSize,
+    pagination: { total, page: f.page, page_size: f.pageSize, total_pages: Math.ceil(total / f.pageSize) },
+    theo_ly_do: counts,
     meta: metaFor(f)
   };
 }
 
 function metaFor(f) {
   return { from: f.from, to: f.to, date_basis: f.dateBasis, tieu_chi: DATE_BASES[f.dateBasis].label };
+}
+
+// Tỷ lệ DÒNG (≈ bưu gửi) không có XNĐ BD10 / thuộc chuyến thư từ TTKT — cho ghi chú tiêu chí `bd10`. Nhớ theo (số dòng, id lớn nhất) để không quét lại.
+const bd10ShareMemo = new WeakMap();
+function bd10Share(db) {
+  const st = db.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(id), 0) AS mx FROM arrival_items').get();
+  const hit = bd10ShareMemo.get(db);
+  if (hit && hit.n === st.n && hit.mx === st.mx) return hit.value;
+  const r = db.prepare(`SELECT COALESCE(SUM(bd10_confirmed_at IS NULL), 0) AS khong, COALESCE(SUM(substr(bd10_no, 1, ${TTKT_BD10_PREFIX.length}) = @p), 0) AS ttkt
+    FROM arrival_items`).get({ p: TTKT_BD10_PREFIX });
+  const pct = (x) => (st.n ? Math.round((x / st.n) * 10000) / 100 : 0);
+  const value = { don_vi: 'dong', ty_le_bi_loai: pct(r.khong), ty_le_ttkt: pct(r.ttkt) };
+  bd10ShareMemo.set(db, { n: st.n, mx: st.mx, value });
+  return value;
 }
 
 function meta(db) {
@@ -539,7 +717,9 @@ function meta(db) {
     receivers,
     wards,
     date_range: range,
-    date_bases: Object.entries(DATE_BASES).map(([key, v]) => ({ key, label: v.label })),
+    date_bases: Object.entries(DATE_BASES).map(([key, v]) => (key === 'bd10'
+      ? { key, label: v.label, ghi_chu: 'Không gồm bưu gửi trên chuyến thư từ TTKT', ...bd10Share(db) }
+      : { key, label: v.label })),
     nhom_phan_loai: Object.entries(SPECIAL_GROUPS).map(([key, label]) => ({ key, label })),
     limits: { max_range_days: MAX_RANGE_DAYS, max_hour_range_days: MAX_HOUR_RANGE_DAYS, max_page_size: MAX_PAGE_SIZE }
   };
@@ -560,6 +740,7 @@ module.exports = {
   HEAVY_THRESHOLD_G_DEFAULT, HEAVY_THRESHOLD_G_MIN, HEAVY_THRESHOLD_G_MAX, NO_ROUTE_LABEL, NO_SERVICE_LABEL,
   parseFilters, buildCountedCte, summary, byTime, byWard, byRoute, byService, qualityMocs, items, lookup, exceptions, meta, importStatus,
   homeProvinceKeys, isHomeProvince, catalogWardKeys,
+  scopedFilters, notReceivedStats, notReceivedList, TTKT_BD10_PREFIX, SOURCE_GROUPS, SOURCE_CODE_SQL, decodeSourceRows, sumBy, REASON_ORDER,
   parseHeavyG, groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff,
   ROUTE_KEY_SQL, SERVICE_KEY_SQL, shapeByService, shapeQualityMocs
 };

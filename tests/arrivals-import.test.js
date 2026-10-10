@@ -88,24 +88,28 @@ test('wardKey: bỏ dấu, gộp Đ/Ð/đ, gộp gạch ngang và khoảng trắ
   assert.equal(wardKey(''), '');
 });
 
-test('nạp đúng: arrival_at = mốc sớm nhất của 3 mốc (kể cả khi thiếu mốc), số hiệu 19 chữ số giữ nguyên, khối lượng rỗng -> NULL', async () => {
+test('nạp đúng (R2): arrival_at = mốc đầu tiên không trống theo túi → bưu gửi → BD10 (kể cả khi thiếu mốc), số hiệu 19 chữ số giữ nguyên, khối lượng rỗng -> NULL', async () => {
   const { db } = newDb();
   const rows = [
-    row({ SHBG: 'ZZ100000001VN', 'Thời gian XN túi': '10/4/2026 7:00:00 AM' }), // túi sớm nhất
-    row({ SHBG: 'ZZ100000002VN', 'Thời gian XN túi': '', Ngay_gio_XND_BD10: '10/4/2026 6:00:00 AM' }), // thiếu túi, BD10 sớm nhất
+    row({ SHBG: 'ZZ100000001VN', 'Thời gian XN túi': '10/4/2026 7:00:00 AM' }), // có túi -> dùng túi
+    row({ SHBG: 'ZZ100000002VN', 'Thời gian XN túi': '', Ngay_gio_XND_BD10: '10/4/2026 6:00:00 AM' }), // thiếu túi, có XN BG (mặc định 8:10) -> XN BG, dù BD10 sớm hơn
     row({ SHBG: 'ZZ100000003VN', 'Thời gian XN túi': '', Ngay_gio_XND_BD10: '', 'Thời gian XN BG': '10/4/2026 9:00:00 AM' }), // chỉ còn XN BG
     row({ SHBG: 'ZZ100000004VN', 'Thời gian XN túi': '', Ngay_gio_XND_BD10: '', 'Thời gian XN BG': '', Khoi_luong_thuc_te: '' }), // không mốc nào
-    row({ SHBG: 'ZZ100000005VN', 'Thời gian XN BG': '10/4/2026 7:30:00 AM', 'Thời gian XN túi': '10/4/2026 7:30:00 AM', Ngay_gio_XND_BD10: '10/4/2026 7:31:00 AM' }) // bằng nhau -> ưu tiên túi
+    row({ SHBG: 'ZZ100000005VN', 'Thời gian XN BG': '10/4/2026 7:30:00 AM', 'Thời gian XN túi': '10/4/2026 7:30:00 AM', Ngay_gio_XND_BD10: '10/4/2026 7:31:00 AM' }), // bằng nhau -> túi
+    row({ SHBG: 'ZZ100000006VN', 'Thời gian XN túi': '10/4/2026 9:00:00 AM', 'Thời gian XN BG': '10/4/2026 8:00:00 AM', Ngay_gio_XND_BD10: '10/4/2026 6:00:00 AM' }), // BD10 và XN BG sớm hơn túi nhưng túi thắng
+    row({ SHBG: 'ZZ100000007VN', 'Thời gian XN túi': '', 'Thời gian XN BG': '', Ngay_gio_XND_BD10: '10/4/2026 6:30:00 AM', Ngay_gio_XND_BD10_tai_TTKT: '10/4/2026 5:00:00 AM' }) // chỉ BD10; mốc TTKT KHÔNG dùng
   ];
   const r = await importArrivalFile(db, writeCsv('HangDen_990099_20261004_093012.csv', rows));
   assert.equal(r.status, 'OK');
-  assert.equal(r.inserted, 5);
+  assert.equal(r.inserted, 7);
   const got = Object.fromEntries(db.prepare('SELECT * FROM arrival_items').all().map((x) => [x.tracking_no, x]));
   assert.deepEqual([got.ZZ100000001VN.arrival_at, got.ZZ100000001VN.arrival_at_basis, got.ZZ100000001VN.arrival_evidence_count], ['2026-10-04 07:00:00', 'bag', 3]);
-  assert.deepEqual([got.ZZ100000002VN.arrival_at, got.ZZ100000002VN.arrival_at_basis, got.ZZ100000002VN.arrival_evidence_count], ['2026-10-04 06:00:00', 'bd10', 2]);
+  assert.deepEqual([got.ZZ100000002VN.arrival_at, got.ZZ100000002VN.arrival_at_basis, got.ZZ100000002VN.arrival_evidence_count], ['2026-10-04 08:10:00', 'item', 2]);
   assert.deepEqual([got.ZZ100000003VN.arrival_at, got.ZZ100000003VN.arrival_at_basis, got.ZZ100000003VN.arrival_evidence_count], ['2026-10-04 09:00:00', 'item', 1]);
   assert.deepEqual([got.ZZ100000004VN.arrival_at, got.ZZ100000004VN.arrival_date, got.ZZ100000004VN.arrival_at_basis, got.ZZ100000004VN.arrival_evidence_count], [null, null, null, 0]);
   assert.equal(got.ZZ100000005VN.arrival_at_basis, 'bag');
+  assert.deepEqual([got.ZZ100000006VN.arrival_at, got.ZZ100000006VN.arrival_at_basis], ['2026-10-04 09:00:00', 'bag'], 'túi thắng dù muộn hơn BD10 / XN BG');
+  assert.deepEqual([got.ZZ100000007VN.arrival_at, got.ZZ100000007VN.arrival_at_basis, got.ZZ100000007VN.arrival_evidence_count], ['2026-10-04 06:30:00', 'bd10', 1], 'chỉ BD10; bd10_ttkt_confirmed_at không làm ngày đến');
   assert.equal(got.ZZ100000001VN.arrival_date, '2026-10-04', '4/10 không bị đảo');
   assert.equal(got.ZZ100000001VN.bd10_no, '9900019900990000001', 'số hiệu 19 chữ số giữ nguyên dạng CHỮ');
   assert.equal(typeof got.ZZ100000001VN.bd10_no, 'string');

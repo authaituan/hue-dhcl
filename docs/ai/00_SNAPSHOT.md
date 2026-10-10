@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-09 (SANLUONG-3c-3).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-10 (SANLUONG-3g).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -26,6 +26,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
 | API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — ADMIN + TTVH + GDVH | Có (chưa giao diện/SFTP) |
 | API Dashboard điều hành `/api/arrivals/dashboard/overview|trend|wards-surge|center` (6 BCVH, điểm cần điều hành, xu hướng, phường/xã tăng, tổng hợp Trung tâm) — ADMIN + TTVH + GDVH | Có (chưa giao diện; ngưỡng là hằng số) |
+| "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (`chua_nhan_tai_bcvh` trong `/summary`, `/dashboard/center`; `GET /api/arrivals/not-received` + `/not-received/export`; mọi vai trò, GDVH theo BCVH được giao) và chất lượng khai thác theo nguồn BD10 (`tong_hop.theo_nguon`, `TTKT_BD10_PREFIX = '530100'`) — #60, #61 | Có (API; chưa giao diện) |
 | Xuất Excel dữ liệu thô "Hàng đến" của MỘT BCVH: `GET /api/arrivals/export-scope`, `/export` (9 cột chuỗi, ghi luồng; ADMIN/TTVH mọi BCVH, GDVH BCVH được giao) — #55–#58 | Có (chưa giao diện nút xuất) |
 
 ## 4. Quy tắc nghiệp vụ chính
@@ -36,16 +37,17 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Người phụ trách bưu cục = 1 dòng `users` (không FK cứng; kiểm tra tồn tại ở route).
 - Tài khoản bị khoá (`deactivated_at`) không đăng nhập được, không hiện trong gợi ý người phụ trách.
 - Hàng đến: **sản lượng đến = số SHBG khác nhau**, đếm 1 lần tại lần đến sớm nhất trong khoảng lọc (theo tiêu chí ngày giờ; lọc tới phút);
-  thời gian đến BCVH = mốc sớm nhất của XN túi / XND BD10 / XN BG; bưu cục = BC nhận; bảng phường/xã nơi phát có nhóm "Phường/xã tỉnh khác",
+  thời gian đến BCVH (R2, #59) = mốc đầu tiên không trống theo XN túi → XN bưu gửi → XNĐ BD10 (không dùng `bd10_ttkt_confirmed_at`); bưu cục = BC nhận; bảng phường/xã nơi phát có nhóm "Phường/xã tỉnh khác",
   "Chưa xác định tỉnh", "Chưa xác định phường/xã" (vẫn tính vào tổng); không dùng BĐX ở màn hình này; cảnh báo chỉ ADMIN;
   file trùng tên khác nội dung → CONFLICT; mỗi ngày cần 2 file (`04_DECISIONS.md` #11–#21, #23, #25–#26, #28–#35).
 - Hàng đến theo đường thư / dịch vụ: gom trên dòng đại diện; hàng nặng = khối lượng > 2.500 g (chỉ số phụ, nằm trong sản lượng) — #36–#40.
 - Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); "bình thường" = TB ≤ 4 ngày cùng thứ, cùng khoảng 00:00 → `as_of`; "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; điểm cần điều hành (lãnh đạo) từ ngưỡng `DASHBOARD_THRESHOLDS` (TẠM, chờ dữ liệu thật; hàng nặng so với bình thường theo điểm %, bỏ qua BCVH có bình thường < 50 SHBG — #48) — khác cảnh báo dữ liệu ADMIN-only — #41–#47.
 
 ## 5. Kiểm thử
-`npm test`: 13 file, 218 ca — 217 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-09.
+`npm test`: 14 file, 231 ca — 230 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-10.
 
 ## 6. Rủi ro / việc treo
+- **DB thật còn ngày đến theo quy tắc cũ** (mốc sớm nhất): sao lưu rồi chạy `scripts/rederive-arrival.js` (chạy thử → `--apply`, `06_DEPLOYMENT.md` mục 8). Trên bản chép: đổi 110/13.102 dòng, sản lượng 02→08/10 giữ 12.783. Dữ liệu nạp mới đã theo R2.
 - **DB thật còn tài khoản `MANAGER`?** Chạy `scripts/migrate-roles.js` (dry-run → sao lưu → `--apply`, `06_DEPLOYMENT.md` mục 7) trước khi dùng bản này, nếu không các tài khoản đó nhận 403. Menu "Quản lý người dùng" vẫn hiện cho TTVH/GDVH nhưng API trả 403 (dọn ở ticket giao diện, backlog 7b).
 - DB mới trống: PO nạp tài khoản + mạng lưới từ DB hệ thống cũ bằng `scripts/import-seed.js` (`06_DEPLOYMENT.md` mục 5).
   Triển khai sạch không có DB cũ: chưa có cơ chế tạo ADMIN đầu tiên (`05_BACKLOG.md` mục 1).

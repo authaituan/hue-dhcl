@@ -415,5 +415,39 @@ Chi tiết kỹ thuật: dòng tiêu đề đi qua API ExcelJS, còn dòng dữ 
 ### 58. Việc ngoài phạm vi 3c-3 (ghi để khỏi quên)
 Nút xuất trên giao diện (ticket Antigravity); xuất theo bộ lọc hoặc định dạng khác nếu PO cần; giới hạn số lần xuất đồng thời (hiện không giới hạn — xuất ~1 triệu dòng chiếm 1 kết nối DB đồng bộ theo từng lô, nhường vòng lặp sự kiện giữa các lô).
 
+### 59. Quy tắc ngày đến R2 (PO, 10/10/2026 — SANLUONG-3g; thay quy tắc "mốc sớm nhất" của #13/#28)
+`arrival_at` của MỘT dòng = mốc **đầu tiên không trống** theo thứ tự **XN túi → XN bưu gửi → XNĐ BD10** (`arrival_at_basis` = `bag` | `item` | `bd10`). Ba mốc đều trống → NULL (chưa có ngày đến). KHÔNG dùng `bd10_ttkt_confirmed_at` làm ngày đến. Lý do nghiệp vụ: XN túi là lúc túi được xác nhận tại BCVH; XNĐ BD10 sớm bất thường không được thắng túi.
+Cách đếm KHÔNG đổi: mỗi bưu gửi (SHBG) đếm một lần tại dòng có `arrival_at` sớm nhất TRONG khoảng lọc (`buildCountedCte`). Cài ở `deriveArrival()` (`server/lib/arrivalsImport.js`, dùng chung với importer và `scripts/rederive-arrival.js`).
+Dữ liệu đã nạp tính lại bằng `scripts/rederive-arrival.js` (chạy thử mặc định; `--apply` ghi trong một transaction, chạy lặp lại được; PO sao lưu DB trước — `06_DEPLOYMENT.md` mục 8). Trên bản chép DB thật (13.102 dòng): đổi 110 dòng (7 đổi ngày muộn đi, 103 cùng ngày chỉ đổi giờ/mốc căn cứ: bd10→bag 94, item→bag 14, bd10→item 2); sản lượng 02→08/10 vẫn **12.783**, 03→09/10 **12.783**, 01/09→31/10 **12.786**; `moc_bd10_som` 3 → 0. Số dòng đổi ngày (cũ → mới): 30/09→05/10: 2; 02/10→04/10: 1; 01/10→05/10: 1; 02/10→06/10: 1; 04/10→07/10: 1; 04/10→08/10: 1.
+
+### 60. Bưu gửi "đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (PO, 10/10/2026 — SANLUONG-3g; thay "62 bưu gửi chưa xác định ngày đến")
+Phương án A: các bưu gửi này KHÔNG tính vào sản lượng đến; báo riêng cho **mọi tài khoản xem được "Sản lượng đến"** (ADMIN, TTVH, GDVH; STAFF không có menu) — không còn là cảnh báo ADMIN-only. Khi một file sau bổ sung mốc BCVH cho bưu gửi, nó tự rời nhóm và vào sản lượng theo ngày thật.
+- Định nghĩa: không có mốc túi/bưu gửi/BD10 ở BẤT KỲ dòng nào trong các file có ngày file thuộc khoảng lọc, và có `bd10_ttkt_confirmed_at` không trống (theo `tracking_no`). `bd10_ttkt_confirmed_at` là thời điểm bên gửi duyệt đóng chuyến thư, KHÔNG phải lúc hàng đến BCVH. Một truy vấn dùng chung (`undatedSql` + `ttkt_at IS NOT NULL` trong `server/lib/arrivalsQuery.js`) cho summary, `/dashboard/center`, `/not-received`, `/exceptions`.
+- API: `GET /api/arrivals/summary` và `GET /api/arrivals/dashboard/center` có `chua_nhan_tai_bcvh = { tong, cu_nhat_ngay, theo_tuoi: { '0-1', '2', '3+' }, theo_ngay_lap: [{ ngay, so_buu_gui, tuoi }] }` (cũ nhất trước). `GET /api/arrivals/not-received` (phân trang như `/items`, cũ nhất trước): SHBG, BD8, BD10, đường thư, `thoi_diem_lap_bd10`, `tuoi_ngay`. `GET /api/arrivals/not-received/export?receiver_code=&from=&to=`: xlsx cùng cơ chế, quyền, giới hạn, nhật ký với `/export` (GDVH chỉ BCVH được giao; mọi ô là chuỗi). `/exceptions` (ADMIN) giữ lý do `CHUA_NHAN_TAI_BCVH`.
+- **Phạm vi BCVH theo vai trò**: GDVH chỉ thấy BCVH được phân công (`user_bcvh`) ở chỉ số này (giao với bộ lọc `receiver_code`; chưa được giao BCVH nào → 0, KHÔNG rơi về tất cả). ADMIN/TTVH theo bộ lọc. Lưu ý: sản lượng và các số khác của GDVH vẫn đủ 6 BCVH như #52 — chỉ riêng chỉ số này bị giới hạn theo yêu cầu của PO; PO xem lại nếu muốn thống nhất.
+- `canh_bao.chua_xac_dinh_ngay_den` (ADMIN) **LỖI THỜI** — giữ để giao diện đang chạy không vỡ; = `chua_nhan_tai_bcvh.tong` + `canh_bao.khong_moc_khong_ttkt` (bưu gửi không mốc BCVH nào và cũng không có mốc lập BD10; kỳ vọng 0). Giao diện mới dùng `chua_nhan_tai_bcvh`.
+- Tuổi = số ngày giữa ngày `bd10_ttkt_confirmed_at` và ngày của file mới nhất đã nạp (status OK, toàn DB — không phụ thuộc khoảng lọc); bưu gửi nhiều dòng lấy mốc lập BD10 **sớm nhất** (CTO chọn). Nhóm tuổi `0-1` / `2` / `3+`.
+- Trên bản chép DB thật (02→08/10): 62 bưu gửi; ngày lập 04/10: 6 (tuổi 4), 06/10: 3 (tuổi 2), 07/10: 12 (tuổi 1), 08/10: 41 (tuổi 0); `0-1`: 53, `2`: 3, `3+`: 6; cũ nhất 4 ngày; `khong_moc_khong_ttkt` = 0.
+
+### 61. Chất lượng khai thác theo nguồn BD10 — "đủ trạng thái theo nguồn" (CTO đề xuất, PO đồng ý 10/10/2026)
+Quy tắc script xuất CSV của PO: `Ngay_gio_XND_BD10` luôn rỗng khi số hiệu BD10 bắt đầu `530100` (chuyến thư đi từ TTKT) — nên "Không XNĐ BD10 ≈ 75%" và "Đủ trạng thái ≈ 25%" phản ánh nguồn BD10 chứ không phải thiếu xác nhận. Hằng số **`TTKT_BD10_PREFIX = '530100'`** ở `server/lib/arrivalsQuery.js` (MỘT chỗ duy nhất; xuất ra module để module khác dùng).
+Nhóm theo BD10 của **dòng đại diện** (dòng có `arrival_at` sớm nhất trong khoảng theo R2; hoà → `id` nhỏ nhất — chính là dòng mà sản lượng đếm); đủ theo nguồn xét trên CHÍNH dòng đó:
+
+| Nhóm | Điều kiện nhóm | Đủ theo nguồn |
+|---|---|---|
+| `ttkt` | BD10 bắt đầu `530100` | có XN túi + XN bưu gửi |
+| `khac` | có BD10, tiền tố khác | đủ 3 mốc (túi + bưu gửi + XNĐ BD10) |
+| `khong_bd10` | không có số hiệu BD10 (hàng không qua chuyến thư) | có XN bưu gửi |
+
+API: `GET /api/arrivals/quality-mocs` → `tong_hop.theo_nguon` (3 phần tử `{ nhom, ten, dieu_kien_du, so_buu_gui, du_theo_nguon, thieu, ty_le_du }`) và `tong_hop.du_trang_thai_theo_nguon = { so_buu_gui, ty_le }`; `GET /api/arrivals/dashboard/center` → `chat_luong.tong_hop` có cùng hai trường. Tổng ba nhóm = sản lượng đến. MỌI trường cũ (`du_trang_thai` = đủ 3 mốc, `khong_xnd_bd10`, `co_xnd_bd10`, `to_hop`, `ty_le_co_moc`) giữ nguyên ý nghĩa (cờ "có mốc" xét mọi dòng trong khoảng). `/meta`: `date_bases[bd10]` có `ghi_chu: "Không gồm bưu gửi trên chuyến thư từ TTKT"`, `ty_le_bi_loai` (% DÒNG không có XNĐ BD10 — đúng phần bị `date_basis=bd10` loại), `ty_le_ttkt` (% dòng BD10 tiền tố TTKT), `don_vi: 'dong'` (đếm theo dòng ≈ bưu gửi, để `/meta` không phải quét DISTINCT; nhớ theo (số dòng, id lớn nhất)). Hành vi `date_basis=bd10` không đổi.
+**Bưu gửi nhiều tiền tố BD10**: trên mẫu 131 bưu gửi (khoảng 02→08/10; 133 toàn bộ) có các dòng với hơn một tiền tố 6 chữ số (kể cả "rỗng"). Nhóm theo dòng đại diện nên mỗi bưu gửi thuộc đúng MỘT nhóm; tiền tố của các dòng khác không ảnh hưởng. Số này chỉ để tham khảo (không có trong API vì tốn thêm khi tính).
+Số trên bản chép DB thật (02→08/10, sau R2): `ttkt` 8.242 (đủ 7.665 = 93,0%), `khac` 3.803 (đủ 3.186 = 83,8%), `khong_bd10` 738 (đủ 738 = 100%); đủ theo nguồn tổng **11.589 = 90,66%** (so với "≈ 84,9%" kỳ vọng: số kỳ vọng tính khi nhóm `khong_bd10` chưa có quy tắc và coi bằng 0; hai nhóm còn lại khớp 7.665 và 3.186). Đủ 3 mốc theo cách cũ: 3.193 (24,98%).
+
+### 62. Chi tiết do CTO chọn trong 3g (PO có thể đổi sau)
+(a) `/exceptions` (ADMIN) có thêm tham số `ly_do` (lọc một lý do) và `page`/`page_size` (mặc định 50), trả `pagination` và `theo_ly_do` (đếm theo lý do); thứ tự lý do: `MOC_BD10_SOM`, `DEN_LAI_TRONG_KHOANG`, `CHUA_NHAN_TAI_BCVH`, `KHONG_CO_MOC` (= không mốc BCVH và không có mốc lập BD10). Không tham số → 50 dòng đầu như trước. `MOC_BD10_SOM` nay chỉ còn bưu gửi chỉ có XNĐ BD10 mà mốc sớm hơn ngày file (R2 không để BD10 thắng túi/bưu gửi).
+(b) Hiệu năng (DB giả 993.600 dòng một BCVH, so xen kẽ trước/sau, lấy nhỏ nhất): `summary` ±3% (7/30/92 ngày), `by-time` ±3%, `quality-mocs` +16–19% (1 tháng 1.243 → 1.452 ms); `/center` 7 ngày ~0,5 s, 30 ngày ~2,7 s. Mức tăng của `quality-mocs` đến từ việc gắn nhóm nguồn vào khoá của dòng đại diện (không đọc thêm cột); trên bản chép DB thật (13.102 dòng) +7–10 ms.
+(c) Không đổi schema. Tiền tố TTKT và nhóm nguồn tính khi truy vấn, không lưu cột.
+
+
 ## Drift phát hiện
 _(chưa có)_
