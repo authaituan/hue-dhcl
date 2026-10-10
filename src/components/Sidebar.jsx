@@ -4,7 +4,9 @@ import {
   Network,
   UserCog,
   Lock,
-  LogOut
+  LogOut,
+  Package,
+  Activity
 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 
@@ -17,8 +19,16 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
 
-  if (authUser?.role !== 'STAFF') {
+  const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
+  const isAdmin = authUser?.role === 'ADMIN';
+
+  if (isViewer) {
+    navItems.push({ id: 'arrivals', label: 'Sản lượng đến', icon: Package, title: 'Dữ liệu sản lượng đến' });
+    navItems.push({ id: 'processing', label: 'Xử lý và tỷ lệ phát', icon: Activity, disabled: true });
     navItems.push({ id: 'network', label: 'Quản lý mạng lưới', icon: Network });
+  }
+
+  if (isAdmin) {
     navItems.push({ id: 'useradmin', label: 'Quản lý người dùng', icon: UserCog });
   }
 
@@ -45,15 +55,26 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
               <div key={item.id} className="flex flex-col">
                 <button
                   id={`nav-${item.id}`}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`nav-item w-full flex items-center justify-between ${isActive ? 'active' : ''}`}
+                  onClick={() => !item.disabled && setActiveTab(item.id)}
+                  className={`nav-item w-full flex items-center justify-between ${isActive ? 'active' : ''} ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={item.disabled}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="icon-sm shrink-0">
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="text-[14px] whitespace-nowrap text-left truncate">{item.label}</span>
+                    <span 
+                      className="text-[14px] whitespace-nowrap text-left truncate"
+                      title={item.title}
+                    >
+                      {item.label}
+                    </span>
                   </div>
+                  {item.disabled && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+                      Sắp có
+                    </span>
+                  )}
                 </button>
               </div>
             );

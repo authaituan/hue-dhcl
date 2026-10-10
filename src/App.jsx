@@ -5,6 +5,7 @@ import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
 import NetworkListView from './components/NetworkListView';
 import UserAdminView from './components/UserAdminView';
+import ArrivalsView from './components/arrivals/ArrivalsView';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT } from './utils/api';
 
 // Đọc token đã lưu (nếu có) ngay lúc khởi tạo state, để tránh nháy màn hình
@@ -22,9 +23,9 @@ function getInitialAuthUser() {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [authUser, setAuthUser] = useState(getInitialAuthUser);
-  // STAFF chỉ đọc: backend chặn GET /api/network* và /api/users* (requireManager)
-  // nên STAFF chỉ thấy Dashboard.
-  const isStaff = authUser?.role === 'STAFF';
+  
+  const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
+  const isAdmin = authUser?.role === 'ADMIN';
 
   // Bất kỳ request ghi nào (qua src/utils/api.js) nhận 401 từ backend sẽ tự
   // xoá token + phát event này -> quay về LoginView, không để lộ lỗi JSON thô.
@@ -70,14 +71,18 @@ export default function App() {
 
             <main className="flex-1">
               {activeTab === 'dashboard' && (
-                <DashboardView isAdmin={authUser?.role === 'ADMIN'} />
+                <DashboardView isAdmin={isAdmin} />
               )}
 
-              {activeTab === 'network' && !isStaff && (
+              {activeTab === 'arrivals' && isViewer && (
+                <ArrivalsView authUser={authUser} />
+              )}
+
+              {activeTab === 'network' && isViewer && (
                 <NetworkListView />
               )}
 
-              {activeTab === 'useradmin' && !isStaff && (
+              {activeTab === 'useradmin' && isAdmin && (
                 <UserAdminView authUser={authUser} />
               )}
             </main>
