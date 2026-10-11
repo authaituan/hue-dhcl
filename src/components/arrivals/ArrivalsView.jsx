@@ -7,6 +7,8 @@ import ArrivalsRoutesServices from './ArrivalsRoutesServices';
 import ArrivalsQuality from './ArrivalsQuality';
 import ArrivalsLookup from './ArrivalsLookup';
 import ArrivalsExport from './ArrivalsExport';
+import { ArrivalsNotReceivedBanner, ArrivalsNotReceivedDetail } from './ArrivalsNotReceived';
+import { ArrivalsBd10NotConfirmedBanner, ArrivalsBd10NotConfirmedDetail } from './ArrivalsBd10NotConfirmed';
 import { formatToApiDate } from './dateUtils';
 
 const DASHBOARD_BCVH = [
@@ -45,7 +47,6 @@ export default function ArrivalsView({ authUser }) {
     return {
       from: formatToApiDate(from, false),
       to: formatToApiDate(to, true),
-      date_basis: 'arrival',
       receiver_code: [], // sẽ cập nhật lại khi meta load
       ward_key: ''
     };
@@ -64,6 +65,8 @@ export default function ArrivalsView({ authUser }) {
   }, [exportScope, authUser?.role]);
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [showNotReceivedDetail, setShowNotReceivedDetail] = useState(false);
+  const [showBd10Detail, setShowBd10Detail] = useState(false);
   
   const [data, setData] = useState({
     summary: null,
@@ -87,7 +90,6 @@ export default function ArrivalsView({ authUser }) {
     const q = new URLSearchParams();
     q.set('from', currentFilters.from);
     q.set('to', currentFilters.to);
-    q.set('date_basis', currentFilters.date_basis);
     if (currentFilters.ward_key) q.set('ward_key', currentFilters.ward_key);
     currentFilters.receiver_code.forEach(c => q.append('receiver_code', c));
 
@@ -201,45 +203,60 @@ export default function ArrivalsView({ authUser }) {
         </div>
       )}
 
-      {isAdmin && (data.summary?.canh_bao || data.importStatus?.missing_batches?.length > 0) && (
+      {isAdmin && (data.importStatus?.missing_batches?.length > 0) && (
         <div className="rounded-xl bg-[#fff4d6] border border-[#f0d58a] text-[#5c3f00] p-3 px-4 flex flex-wrap gap-x-4 gap-y-2 items-center text-[14px]">
           <strong>Cảnh báo (chỉ ADMIN thấy):</strong>
-          {data.importStatus?.missing_batches?.length > 0 ? (
-            <span>Có {data.importStatus.missing_batches.length} ngày thiếu đợt nạp file SFTP.</span>
-          ) : (
-            <span>Các BCVH đang chọn không có ngày thiếu đợt.</span>
-          )}
-          {data.summary?.canh_bao?.chua_xac_dinh_ngay_den > 0 && (
-            <span>{data.summary.canh_bao.chua_xac_dinh_ngay_den.toLocaleString('vi-VN')} bưu gửi chưa xác định ngày đến, không nằm trong khoảng lọc.</span>
-          )}
+          <span>Có {data.importStatus.missing_batches.length} ngày thiếu đợt nạp file SFTP.</span>
         </div>
       )}
-
-      <div className="border-b border-[#d5dce6] pb-3">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === tab.id
-                  ? 'border-orange-500 text-orange-500'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
 
       <div className="min-h-[400px]">
         {loading ? (
           <div className="flex items-center justify-center h-64 text-[var(--color-subtext)]">
             <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
           </div>
+        ) : showNotReceivedDetail ? (
+          <ArrivalsNotReceivedDetail 
+            data={data} 
+            filters={filters} 
+            onBack={() => setShowNotReceivedDetail(false)} 
+          />
+        ) : showBd10Detail ? (
+          <ArrivalsBd10NotConfirmedDetail 
+            data={data} 
+            filters={filters} 
+            onBack={() => setShowBd10Detail(false)} 
+          />
         ) : (
           <>
+            <ArrivalsNotReceivedBanner 
+              data={data.summary} 
+              onShowDetail={() => setShowNotReceivedDetail(true)} 
+            />
+
+            <ArrivalsBd10NotConfirmedBanner 
+              data={data.summary} 
+              onShowDetail={() => setShowBd10Detail(true)} 
+            />
+
+            <div className="border-b border-[#d5dce6] pb-3 mt-6">
+              <nav className="-mb-px flex space-x-8">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-orange-500 text-orange-500'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
             {activeTab === 'overview' && (
               <ArrivalsOverview 
                 data={data} 

@@ -41,12 +41,7 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
     onApply(local);
   };
 
-  const dateBases = meta?.date_bases || [
-    { key: 'arrival', label: 'Đến BCVH (mốc sớm nhất)' },
-    { key: 'bag', label: 'Xác nhận túi' },
-    { key: 'bd10', label: 'Xác nhận BD10' },
-    { key: 'item', label: 'Xác nhận bưu gửi' }
-  ];
+
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -85,36 +80,24 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
       <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
         {/* Dates */}
         <div className="flex-[2_1_340px] flex flex-col gap-1">
-          <label className="text-[12px] font-semibold text-[#5b6777]">Từ ngày giờ, đến ngày giờ</label>
+          <label className="text-[12px] font-semibold text-[#5b6777]">Từ ngày, đến ngày</label>
           <div className="flex items-center gap-2">
             <CustomDatePicker 
               value={fromDate} 
               onChange={setFromDate} 
-              placeholder="dd/MM/yyyy HH:mm"
+              placeholder="dd/MM/yyyy"
             />
             <span className="text-[#5b6777]">đến</span>
             <CustomDatePicker 
               value={toDate} 
               onChange={setToDate} 
-              placeholder="dd/MM/yyyy HH:mm"
+              placeholder="dd/MM/yyyy"
             />
           </div>
           {dateError && <span className="text-red-500 text-[12px] mt-1">{dateError}</span>}
         </div>
 
-        {/* Date Basis */}
-        <div className="flex-[1_1_200px] flex flex-col gap-1">
-          <label className="text-[12px] font-semibold text-[#5b6777]">Tiêu chí ngày giờ</label>
-          <select
-            className="h-[44px] px-2.5 border border-[#c5cfdc] rounded-lg bg-white text-[14px]"
-            value={local.date_basis}
-            onChange={e => setLocal({ ...local, date_basis: e.target.value })}
-          >
-            {dateBases.map(b => (
-              <option key={b.key} value={b.key}>{b.label}</option>
-            ))}
-          </select>
-        </div>
+
 
         {/* Ward */}
         <div className="flex-[1_1_200px] flex flex-col gap-1">
