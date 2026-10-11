@@ -186,15 +186,20 @@ function parseTrangThaiQuery(query) {
   return f;
 }
 
-const counter = () => ({ tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null });
+// Mỗi ô: số BD10 (tong, da_xnd, chua_xnd, ty_le_chua_xnd) + số bưu gửi (#71): SHBG KHÁC NHAU thuộc các BD10 của ô —
+// bg_da_xnd (BD10 S1), bg_chua_xnd (BD10 S2 + S3), bg_tong (BD10 S1 + S2 + S3; một SHBG ở cả hai nhóm đếm 1), ty_le_chua_xnd_bg = bg_chua_xnd / bg_tong.
+const counter = () => ({ tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null, bg_tong: 0, bg_da_xnd: 0, bg_chua_xnd: 0, ty_le_chua_xnd_bg: null });
 const addTo = (c, st, n) => { c.tong += n; if (st === 'S1') c.da_xnd += n; else c.chua_xnd += n; };
-const finish = (c) => { c.ty_le_chua_xnd = ratio(c.chua_xnd, c.tong); return c; };
+const finish = (c) => { c.ty_le_chua_xnd = ratio(c.chua_xnd, c.tong); c.ty_le_chua_xnd_bg = ratio(c.bg_chua_xnd, c.bg_tong); return c; };
+const BG_KEY = { da: 'bg_da_xnd', chua: 'bg_chua_xnd', tong: 'bg_tong' };
+// Gán số bưu gửi (từ bgCounts) vào ô c.
+const setBg = (c, m) => { if (m) for (const [k, n] of Object.entries(m)) c[BG_KEY[k]] = n; return c; };
 
-/** Một lần quét: số BD10 theo (bưu cục lập, trạng thái, ngày quy tắc X); tách sẵn ngoai_khung. Trả { rows (trong khung), ngoai_khung }. */
+/** Một lần quét: số BD10 theo (bưu cục lập, trạng thái, ngày quy tắc X); tách sẵn ngoai_khung. Trả { rows (trong khung), ngoai_khung, sc }. */
 function statusRows(db, f, allowed) {
   const ngoai_khung = { truoc_khung: 0, sau_khung: 0, khong_co_moc: 0 };
   const sc = aq.scopedFilters(f, allowed);
-  if (sc.empty) return { rows: [], ngoai_khung };
+  if (sc.empty) return { rows: [], ngoai_khung, sc };
   const all = db.prepare(`SELECT substr(bd10_no, 1, 6) AS lap, st, substr(ts, 1, 10) AS d, COUNT(*) AS n
     FROM (${perBd10Sql(sc.f)}) GROUP BY lap, st, d`).all(params(sc.f));
   const rows = [];
@@ -204,17 +209,47 @@ function statusRows(db, f, allowed) {
     else if (r.d > f.toDate) ngoai_khung.sau_khung += r.n;
     else rows.push(r);
   }
-  return { rows, ngoai_khung };
+  return { rows, ngoai_khung, sc };
+}
+
+/** Số SHBG khác nhau theo ô, cùng tập BD10 / trạng thái / ngày quy tắc X với statusRows (perBd10Sql), chỉ BD10 trong khung (S4 không tính).
+ *  by = 'd' (theo ngày) | 'lap' (theo bưu cục lập). Trả { cells: Map<khoá ô, { da, chua, tong }>, all: { da, chua, tong } }.
+ *  Điều kiện BD10 đến chỉ phụ thuộc (bd10_no, receiver_code) nên mọi dòng khớp khoá của BD10 trong `b` đều thuộc phạm vi.
+ *  CROSS JOIN: quét arrival_items MỘT lần, tra `b` qua chỉ mục tự động (để mặc định SQLite quét lại dòng của BCVH cho từng BD10 — chậm ~7 lần).
+ *  Đếm khác nhau bằng Set trong JS (nhanh hơn ~2,5 lần so với COUNT(DISTINCT) theo nhiều nhóm trong SQL). */
+function bgCounts(db, sc, by) {
+  const out = { cells: new Map(), all: null };
+  if (sc.empty) return out;
+  const f = sc.f;
+  const recv = f.receiverCodes.length ? 'WHERE a.receiver_code IN (SELECT value FROM json_each(@recv))' : '';
+  const g = by === 'lap' ? 'lap' : 'd';
+  const rows = db.prepare(`WITH b AS MATERIALIZED (
+      SELECT bd10_no, receiver_code, substr(bd10_no, 1, 6) AS lap, CASE WHEN st = 'S1' THEN 'da' ELSE 'chua' END AS cls, substr(ts, 1, 10) AS d
+      FROM (${perBd10Sql(f)}) WHERE st <> 'S4' AND substr(ts, 1, 10) BETWEEN @dfrom AND @dto)
+    SELECT b.${g}, b.cls, a.tracking_no FROM arrival_items a CROSS JOIN b ON a.bd10_no = b.bd10_no AND a.receiver_code = b.receiver_code ${recv}`).raw().all(params(f));
+  const sets = () => ({ da: new Set(), chua: new Set(), tong: new Set() });
+  const cells = new Map();
+  const all = sets();
+  for (const [key, cls, tn] of rows) {
+    if (!cells.has(key)) cells.set(key, sets());
+    const c = cells.get(key);
+    c[cls].add(tn); c.tong.add(tn);
+    all[cls].add(tn); all.tong.add(tn);
+  }
+  const sizes = (x) => ({ da: x.da.size, chua: x.chua.size, tong: x.tong.size });
+  for (const [k, v] of cells) out.cells.set(k, sizes(v));
+  out.all = sizes(all);
+  return out;
 }
 
 /** MỌI ngày trong khung (ngày không có BD10 vẫn có phần tử, số 0), tổng cả khung, ngoai_khung,
  *  ngay_du_lieu_moi_nhat = file OK mới nhất của các BCVH đang chọn trong phạm vi (không chọn = mọi BCVH; không có file / không còn BCVH nào -> null; #70). */
 function trangThaiTheoNgay(db, f, allowed = null) {
-  const { rows, ngoai_khung } = statusRows(db, f, allowed);
-  const sc = aq.scopedFilters(f, allowed);
+  const { rows, ngoai_khung, sc } = statusRows(db, f, allowed);
+  const bg = bgCounts(db, sc, 'd');
   const days = new Map();
-  for (let d = f.fromDate; d <= f.toDate; d = aq.addDays(d, 1)) days.set(d, { ngay: d, ...counter() });
-  const tong = counter();
+  for (let d = f.fromDate; d <= f.toDate; d = aq.addDays(d, 1)) days.set(d, setBg({ ngay: d, ...counter() }, bg.cells.get(d)));
+  const tong = setBg(counter(), bg.all);
   for (const r of rows) { addTo(days.get(r.d), r.st, r.n); addTo(tong, r.st, r.n); }
   return {
     khung: { from: f.fromDate, to: f.toDate, quy_tac_ngay: 'X' },
@@ -225,13 +260,14 @@ function trangThaiTheoNgay(db, f, allowed = null) {
   };
 }
 
-/** Theo bưu cục lập (6 ký tự đầu BD10), sắp chua_xnd giảm dần rồi tong giảm dần (hoà: mã tăng dần); tên từ danh mục post_offices (không có -> null). */
+/** Theo bưu cục lập (6 ký tự đầu BD10), sắp (theo số BD10) chua_xnd giảm dần rồi tong giảm dần (hoà: mã tăng dần); tên từ danh mục post_offices (không có -> null). */
 function trangThaiTheoBuuCucLap(db, f, allowed = null) {
-  const { rows, ngoai_khung } = statusRows(db, f, allowed);
+  const { rows, ngoai_khung, sc } = statusRows(db, f, allowed);
+  const bg = bgCounts(db, sc, 'lap');
   const by = new Map();
-  const tong = counter();
+  const tong = setBg(counter(), bg.all);
   for (const r of rows) {
-    if (!by.has(r.lap)) by.set(r.lap, { ma_buu_cuc: r.lap, ten_buu_cuc: null, ...counter() });
+    if (!by.has(r.lap)) by.set(r.lap, setBg({ ma_buu_cuc: r.lap, ten_buu_cuc: null, ...counter() }, bg.cells.get(r.lap)));
     addTo(by.get(r.lap), r.st, r.n);
     addTo(tong, r.st, r.n);
   }

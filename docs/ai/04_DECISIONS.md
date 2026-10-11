@@ -514,6 +514,13 @@ Chỉ số MỚI duy nhất ở mức BD10; KHÔNG đổi sản lượng, chưa 
 - **Chốt các điểm của 4a9**: (2) bưu gửi bị loại khỏi "chưa nhận" (BD10 lập đi / rỗng, 10 trên mẫu) KHÔNG cần nhóm riêng; (3) hai API `/bd10-trang-thai/*` giữ giới hạn 92 ngày và chỉ nhận ngày, như `/export`; (4) BD10 mã ngắn (< 12 ký tự, không rỗng) giữ như hiện tại — tính vào "loại khác" của "chưa nhận" (backlog 7j5).
 - **Đối chiếu bản chép DB dev** (chỉ BCVH 533140 có file, mới nhất 10/10): mọi số giữ nguyên so với 4a9 — "chưa nhận" 320 (`0-1` 249, `2` 5, `3+` 66, cũ nhất 8 ngày); BD10 đến không XNĐ 22/163 (`0-1` 0, `2` 2, `3+` 20; lọc `tuoi` 0 / 2 / 20); `/dashboard/center`, `/exceptions` cùng số; `ngay_du_lieu_moi_nhat` 533140 = 10/10, BCVH chưa có file = null.
 
+### 71. "Trạng thái BD10 đến": thêm số bưu gửi theo ô (PO chốt hướng đếm bưu gửi, 11/10/2026 — SANLUONG-4a9c; chỉ THÊM khoá vào #69)
+- Ở `GET /api/arrivals/bd10-trang-thai/theo-ngay` (mỗi phần tử `theo_ngay[]` và `tong`) và `/theo-buu-cuc-lap` (mỗi phần tử `theo_buu_cuc_lap[]` và `tong`) thêm: `bg_tong`, `bg_da_xnd`, `bg_chua_xnd`, `ty_le_chua_xnd_bg`. Khoá cũ (số BD10), thứ tự sắp (theo số BD10), `ngoai_khung` không đổi.
+- **Định nghĩa**: số SHBG KHÁC NHAU có dòng thuộc các BD10 của ô — cùng tập BD10 đến, trạng thái và ngày quy tắc X với số BD10 (#67, #69; dùng chung `perBd10Sql`). `bg_da_xnd`: thuộc BD10 S1; `bg_chua_xnd`: thuộc BD10 S2 + S3; `bg_tong`: thuộc BD10 S1, S2 hoặc S3 (S4 không tính) — một SHBG ở cả hai nhóm đếm 1. `ty_le_chua_xnd_bg = bg_chua_xnd / bg_tong` (4 chữ số; `null` khi `bg_tong` = 0). `tong` cả khung đếm khác nhau trên cả khung, KHÔNG cộng các ô.
+- **Hệ quả đã biết, giữ nguyên** (không gộp): một SHBG có dòng ở nhiều BD10 khác ngày / khác trạng thái / khác bưu cục lập xuất hiện ở nhiều ô, nên `bg_da_xnd + bg_chua_xnd` có thể > `bg_tong` và tổng các ô có thể > `tong` cả khung.
+- **Cài đặt**: `bgCounts()` trong `server/lib/bd10Query.js` — một câu lệnh: BD10 trong khung (`b`, từ `perBd10Sql`) `CROSS JOIN` dòng `arrival_items` theo (`bd10_no`, `receiver_code`) — quét bảng một lần, tra `b` qua chỉ mục tự động; đếm khác nhau bằng `Set` trong JS. Phạm vi BCVH như số BD10 (`scopedFilters`).
+- **Đối chiếu bản chép DB dev** (BCVH 533140, 01→09/10): BD10 163 / chưa XNĐ 22 (13,5%); bưu gửi `bg_tong` 28.049, `bg_da_xnd` 21.957, `bg_chua_xnd` 6.113, tỉ lệ theo bưu gửi 21,79%. 42 SHBG có mặt ở hơn một ô ngày × trạng thái (33 khác ngày, 21 khác trạng thái); `bg_da_xnd + bg_chua_xnd` = 28.070 (> 28.049 thêm 21); tổng `bg_tong` 9 ngày = 28.082 (thêm 33). Thời gian: ~100–115 ms một lần gọi (phần số BD10 ~30 ms).
+
 
 ## Drift phát hiện
 _(chưa có)_

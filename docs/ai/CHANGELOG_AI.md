@@ -4,6 +4,14 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-11] - API «Trạng thái BD10 đến»: thêm số bưu gửi (SANLUONG-4a9c)
+
+- `server/lib/bd10Query.js`: `bgCounts()` — số SHBG khác nhau theo ô (cùng tập BD10 / trạng thái / ngày quy tắc X với số BD10, dùng chung `perBd10Sql`); `/bd10-trang-thai/theo-ngay` và `/theo-buu-cuc-lap` thêm `bg_tong`, `bg_da_xnd`, `bg_chua_xnd`, `ty_le_chua_xnd_bg` ở từng ô và `tong` (cả khung đếm khác nhau, không cộng ô). Khoá cũ, thứ tự sắp, `ngoai_khung` không đổi. Truy vấn: `CROSS JOIN` để quét bảng một lần (~1,4 s → ~0,2 s) và đếm bằng `Set` trong JS (→ ~0,1 s) trên bản chép DB dev.
+- `tests/bd10-trang-thai.test.js`: +3 ca (#71: ngày trống = 0, SHBG lặp trong một BD10, SHBG ở hai BD10 cùng / khác trạng thái, `bg_tong` cả khung ≤ tổng các ngày, tỉ lệ null, lập đi / rỗng bị loại, phạm vi GDVH, khoá cũ giữ giá trị); các ca cũ so khoá BD10 qua `old()` (giá trị không đổi). `npm test` 271 ca: 270 pass, 1 skip có chủ đích.
+- Bản chép DB dev (533140, 01→09/10): bưu gửi 28.049 (đã XNĐ 21.957, chưa XNĐ 6.113, 21,79%); 42 SHBG ở hơn một ô. Docs: quyết định #71, bản đồ kiến trúc, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-11] - Giao diện tab «Trạng thái BD10 đến» (SANLUONG-4b)
 
 - `src/components/arrivals/ArrivalsBd10Status.jsx` (mới): Tab «Trạng thái BD10 đến» theo thiết kế canvas bảng số 6:
