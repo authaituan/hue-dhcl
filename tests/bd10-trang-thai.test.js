@@ -3,6 +3,7 @@
 //  - #68 (đổi #60): "chưa nhận tại BCVH" loại bưu gửi mà BD10 của dòng đại diện là BD10 rỗng hoặc BD10 LẬP ĐI — áp ở /summary,
 //    /not-received, /dashboard/center, /exceptions (cùng một truy vấn).
 //  - #69: GET /api/arrivals/bd10-trang-thai/theo-ngay và /theo-buu-cuc-lap.
+//  - #71: số bưu gửi (SHBG khác nhau) theo ô ở hai API /bd10-trang-thai/*.
 //  - #70: ngày dữ liệu mới nhất và "đã chờ" tính theo ngày file OK mới nhất CỦA TỪNG BCVH (M: 09/10, M2: 05/10, M3: chưa có file).
 // Server thật trên DB tạm; CSV / số hiệu GIẢ.
 // ==========================================
@@ -95,7 +96,14 @@ const ROWS = [
   // NR6: hai dòng; dòng đại diện là BD10 đến -> tính
   r(E, { ttkt: '02 06:00:00', fd: '04', sh: shbg(906) }), r(OUT, { ttkt: '02 06:00:00', fd: '04', sh: shbg(906) }),
   // NR7: bưu gửi chưa nhận của M2 (BD10 đến K), lập BD10 03/10, nằm trong file M2 ngày 05/10
-  r(K, { ttkt: '03 06:00:00', fd: '05', sh: shbg(907), rc: M2 })
+  r(K, { ttkt: '03 06:00:00', fd: '05', sh: shbg(907), rc: M2 }),
+  // ---- #71 số bưu gửi: thêm dòng vào BD10 đã có, KHÔNG đổi trạng thái / ngày của BD10 nào ----
+  // X1: hai dòng trong CÙNG BD10 A -> đếm 1
+  r(A, { bag: '03 08:00:00', xnd: '03 07:00:00', sh: shbg(951) }), r(A, { bag: '03 08:30:00', xnd: '03 07:00:00', sh: shbg(951) }),
+  // X2: ở B (04/10) và C (06/10), cùng "chưa XNĐ", cùng bưu cục lập 531120 -> 1 trong ô bưu cục lập; có mặt ở hai ngày
+  r(B, { bag: '05 10:00:00', sh: shbg(952) }), r(C, { itm: '06 10:00:00', sh: shbg(952) }),
+  // X3: ở C (chưa XNĐ) và D (đã XNĐ), cùng ngày 06/10 -> có ở cả bg_da_xnd và bg_chua_xnd, bg_tong đếm 1
+  r(C, { itm: '06 11:00:00', sh: shbg(953) }), r(D, { bag: '06 09:00:00', itm: '06 09:05:00', xnd: '06 07:00:00', sh: shbg(953) })
 ];
 const dayOfRow = (row) => {
   const t = [row['Thời gian XN túi'], row['Thời gian XN BG'], row.Ngay_gio_XND_BD10].find((x) => x !== 'NULL');
@@ -128,6 +136,8 @@ const RANGE = 'from=2026-10-02&to=2026-10-08';
 const NGAY = '/api/arrivals/bd10-trang-thai/theo-ngay';
 const LAP = '/api/arrivals/bd10-trang-thai/theo-buu-cuc-lap';
 const zero = { tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null };
+// Chỉ các khoá theo BD10 có từ 4a9 (khoá bưu gửi #71 kiểm ở ca riêng).
+const old = ({ bg_tong, bg_da_xnd, bg_chua_xnd, ty_le_chua_xnd_bg, ...rest }) => rest;
 
 before(async () => {
   workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhcl-bd10-tt-test-'));
@@ -195,7 +205,7 @@ test('theo-ngay: MỌI ngày trong khung (ngày trống = 0), quy tắc X, loạ
   assert.deepEqual(b.khung, { from: '2026-10-02', to: '2026-10-08', quy_tac_ngay: 'X' });
   assert.equal(b.ngay_du_lieu_moi_nhat, '2026-10-09');
   assert.deepEqual(b.theo_ngay.map((d) => d.ngay), ['02', '03', '04', '05', '06', '07', '08'].map((d) => `2026-10-${d}`));
-  const by = Object.fromEntries(b.theo_ngay.map(({ ngay, ...rest }) => [ngay.slice(8), rest]));
+  const by = Object.fromEntries(b.theo_ngay.map(({ ngay, ...rest }) => [ngay.slice(8), old(rest)]));
   assert.deepEqual(by['02'], zero, 'A có XN túi 02/10 nhưng có XNĐ 03/10 -> không thuộc 02/10');
   assert.deepEqual(by['03'], { tong: 1, da_xnd: 1, chua_xnd: 0, ty_le_chua_xnd: 0 }, 'A: ngày XNĐ');
   assert.deepEqual(by['04'], { tong: 1, da_xnd: 0, chua_xnd: 1, ty_le_chua_xnd: 1 }, 'B: không XNĐ -> MIN túi/BG trên mọi dòng = 04/10');
@@ -203,7 +213,7 @@ test('theo-ngay: MỌI ngày trong khung (ngày trống = 0), quy tắc X, loạ
   assert.deepEqual(by['06'], { tong: 2, da_xnd: 1, chua_xnd: 1, ty_le_chua_xnd: 0.5 }, 'C (S3) + D (S1)');
   assert.deepEqual(by['07'], zero);
   assert.deepEqual(by['08'], zero);
-  assert.deepEqual(b.tong, { tong: 4, da_xnd: 2, chua_xnd: 2, ty_le_chua_xnd: 0.5 });
+  assert.deepEqual(old(b.tong), { tong: 4, da_xnd: 2, chua_xnd: 2, ty_le_chua_xnd: 0.5 });
   const sum = (k) => b.theo_ngay.reduce((a, d) => a + d[k], 0);
   assert.deepEqual([sum('tong'), sum('da_xnd'), sum('chua_xnd')], [b.tong.tong, b.tong.da_xnd, b.tong.chua_xnd]);
   assert.deepEqual(b.ngoai_khung, { truoc_khung: 1, sau_khung: 1, khong_co_moc: 1 }, 'F trước, G sau, E (S4) không mốc');
@@ -215,11 +225,11 @@ test('theo-ngay: MỌI ngày trong khung (ngày trống = 0), quy tắc X, loạ
 
 test('theo-ngay: tong = 0 -> ty_le_chua_xnd null; một ngày (from = to); bí danh unit', async () => {
   const e = (await api(`${NGAY}?from=2026-01-01&to=2026-01-02&receiver_code=${M}`, 'admin')).body;
-  assert.deepEqual(e.theo_ngay, [{ ngay: '2026-01-01', ...zero }, { ngay: '2026-01-02', ...zero }]);
-  assert.deepEqual(e.tong, zero);
+  assert.deepEqual(e.theo_ngay.map(old), [{ ngay: '2026-01-01', ...zero }, { ngay: '2026-01-02', ...zero }]);
+  assert.deepEqual(old(e.tong), zero);
   const one = (await api(`${NGAY}?from=2026-10-06&to=2026-10-06&unit=${M}`, 'admin')).body;
   assert.equal(one.theo_ngay.length, 1);
-  assert.deepEqual(one.tong, { tong: 2, da_xnd: 1, chua_xnd: 1, ty_le_chua_xnd: 0.5 });
+  assert.deepEqual(old(one.tong), { tong: 2, da_xnd: 1, chua_xnd: 1, ty_le_chua_xnd: 0.5 });
 });
 
 test('tham số: khung > 92 ngày -> 400 tiếng Việt (92 ngày được); chỉ nhận ngày; khoá lạ -> 400; unit ≠ receiver_code -> 400', async () => {
@@ -242,19 +252,19 @@ test('theo-buu-cuc-lap: đủ từng bưu cục (không gộp 530100 / khác), s
   assert.equal(res.status, 200);
   const b = res.body;
   assert.deepEqual(Object.keys(b), ['khung', 'theo_buu_cuc_lap', 'tong', 'ngoai_khung']);
-  assert.deepEqual(b.theo_buu_cuc_lap, [
+  assert.deepEqual(b.theo_buu_cuc_lap.map(old), [
     { ma_buu_cuc: '531120', ten_buu_cuc: 'Bưu cục Thử Lập', tong: 2, da_xnd: 0, chua_xnd: 2, ty_le_chua_xnd: 1 },
     { ma_buu_cuc: '530100', ten_buu_cuc: 'TTKT Thử', tong: 1, da_xnd: 1, chua_xnd: 0, ty_le_chua_xnd: 0 },
     { ma_buu_cuc: NO_NAME, ten_buu_cuc: null, tong: 1, da_xnd: 1, chua_xnd: 0, ty_le_chua_xnd: 0 }
   ]);
   assert.ok(!b.theo_buu_cuc_lap.some((x) => x.ma_buu_cuc === M), 'BD10 lập đi không có mặt');
-  assert.deepEqual(b.tong, { tong: 4, da_xnd: 2, chua_xnd: 2, ty_le_chua_xnd: 0.5 });
+  assert.deepEqual(old(b.tong), { tong: 4, da_xnd: 2, chua_xnd: 2, ty_le_chua_xnd: 0.5 });
   assert.deepEqual(b.ngoai_khung, { truoc_khung: 1, sau_khung: 1, khong_co_moc: 1 });
   // Một ngày: 06/10 -> C (531120, chưa XNĐ) và D (777777, đã XNĐ)
   const d6 = (await api(`${LAP}?from=2026-10-06&to=2026-10-06&receiver_code=${M}`, 'ttvh')).body.theo_buu_cuc_lap;
   assert.deepEqual(d6.map((x) => [x.ma_buu_cuc, x.chua_xnd, x.tong]), [['531120', 1, 1], [NO_NAME, 0, 1]]);
   const e = (await api(`${LAP}?from=2026-01-01&to=2026-01-01&receiver_code=${M}`, 'ttvh')).body;
-  assert.deepEqual([e.theo_buu_cuc_lap, e.tong], [[], zero]);
+  assert.deepEqual([e.theo_buu_cuc_lap, old(e.tong)], [[], zero]);
 });
 
 // ---------------- Quyền / phạm vi ----------------
@@ -301,7 +311,7 @@ test('#70 theo-ngay: ngay_du_lieu_moi_nhat theo BCVH đang chọn / phạm vi GD
   assert.equal(await d('', 'gdvhM2'), '2026-10-05', 'GDVH: theo BCVH được giao');
   assert.equal(await d('', 'gdvhNone'), null);
   const m3 = (await api(`${NGAY}?${RANGE}&receiver_code=${M3}`, 'ttvh')).body;
-  assert.deepEqual(m3.tong, zero, 'BCVH không có file: không lỗi, không số');
+  assert.deepEqual(old(m3.tong), zero, 'BCVH không có file: không lỗi, không số');
 });
 
 test('#70 chưa nhận: "đã chờ" tới ngày file mới nhất của BCVH nhận (M2: 05/10, không phải 09/10); chọn hai BCVH mỗi mục giữ mốc riêng', async () => {
@@ -346,4 +356,54 @@ test('#70 BD10 đến không XNĐ: theo_tuoi, tuoi của danh sách và bộ l�
   assert.deepEqual((await list('&tuoi=3%2B')).map((i) => i.ngay), ['2026-10-04', '2026-10-06']);
   const c = (await api(`/api/arrivals/dashboard/center?${RANGE}`, 'ttvh')).body.bd10_den_khong_xnd.theo_tuoi;
   assert.deepEqual(c, { '0-1': 1, '2': 1, '3+': 2 }, '/dashboard/center cùng quy tắc');
+});
+
+// ---------------- #71: số bưu gửi theo ô ----------------
+const bgOf = ({ bg_tong, bg_da_xnd, bg_chua_xnd, ty_le_chua_xnd_bg }) => ({ bg_tong, bg_da_xnd, bg_chua_xnd, ty_le_chua_xnd_bg });
+const bg = (t, da, chua, ty) => ({ bg_tong: t, bg_da_xnd: da, bg_chua_xnd: chua, ty_le_chua_xnd_bg: ty });
+const BG0 = bg(0, 0, 0, null);
+
+test('#71 theo-ngay: SHBG khác nhau theo ô; lặp trong một BD10 đếm 1; hai trạng thái cùng ngày -> có ở cả hai, bg_tong đếm 1; tong cả khung distinct', async () => {
+  const b = (await api(`${NGAY}?${RANGE}&receiver_code=${M}`, 'ttvh')).body;
+  assert.deepEqual(Object.keys(b.theo_ngay[0]), ['ngay', 'tong', 'da_xnd', 'chua_xnd', 'ty_le_chua_xnd', 'bg_tong', 'bg_da_xnd', 'bg_chua_xnd', 'ty_le_chua_xnd_bg']);
+  const by = Object.fromEntries(b.theo_ngay.map((d) => [d.ngay.slice(8), bgOf(d)]));
+  assert.deepEqual(by['02'], BG0, 'ngày không dữ liệu: 0, tỉ lệ null');
+  assert.deepEqual(by['03'], bg(2, 2, 0, 0), 'A: SHBG của A + X1 (hai dòng) = 2');
+  assert.deepEqual(by['04'], bg(3, 0, 3, 1), 'B: hai SHBG cũ + X2');
+  assert.deepEqual(by['05'], BG0, 'BD10 lập đi và BD10 rỗng không tính');
+  assert.deepEqual(by['06'], bg(4, 2, 3, 0.75), 'C (SHBG cũ, X2, X3) + D (SHBG cũ, X3): X3 ở cả hai, bg_tong = 4');
+  assert.ok(by['06'].bg_da_xnd + by['06'].bg_chua_xnd > by['06'].bg_tong, 'da + chua có thể > tong');
+  assert.deepEqual(by['07'], BG0);
+  assert.deepEqual(bgOf(b.tong), bg(8, 4, 5, 0.625), 'cả khung: distinct, KHÔNG cộng các ngày');
+  const sumDays = b.theo_ngay.reduce((a, d) => a + d.bg_tong, 0);
+  assert.equal(sumDays, 9, 'X2 có ở hai ngày');
+  assert.ok(b.tong.bg_tong <= sumDays);
+  // khoá cũ giữ giá trị
+  assert.deepEqual(old(b.tong), { tong: 4, da_xnd: 2, chua_xnd: 2, ty_le_chua_xnd: 0.5 });
+  assert.deepEqual(b.ngoai_khung, { truoc_khung: 1, sau_khung: 1, khong_co_moc: 1 });
+  // khung không có dữ liệu: tong 0, tỉ lệ null
+  assert.deepEqual(bgOf((await api(`${NGAY}?from=2026-01-01&to=2026-01-01&receiver_code=${M}`, 'ttvh')).body.tong), BG0);
+});
+
+test('#71 theo-buu-cuc-lap: SHBG ở hai BD10 cùng trạng thái cùng bưu cục lập đếm 1; thứ tự vẫn theo số BD10', async () => {
+  const b = (await api(`${LAP}?${RANGE}&receiver_code=${M}`, 'ttvh')).body;
+  assert.deepEqual(b.theo_buu_cuc_lap.map((x) => [x.ma_buu_cuc, bgOf(x)]), [
+    ['531120', bg(5, 0, 5, 1)], // B (2 SHBG + X2) + C (SHBG cũ, X2, X3): X2 một lần
+    ['530100', bg(2, 2, 0, 0)],
+    [NO_NAME, bg(2, 2, 0, 0)]
+  ]);
+  assert.deepEqual(b.theo_buu_cuc_lap.map(old)[0], { ma_buu_cuc: '531120', ten_buu_cuc: 'Bưu cục Thử Lập', tong: 2, da_xnd: 0, chua_xnd: 2, ty_le_chua_xnd: 1 });
+  assert.deepEqual(bgOf(b.tong), bg(8, 4, 5, 0.625));
+  assert.deepEqual(bgOf((await api(`${LAP}?from=2026-01-01&to=2026-01-01&receiver_code=${M}`, 'ttvh')).body.tong), BG0);
+});
+
+test('#71 phạm vi số bưu gửi như số BD10: GDVH chỉ BCVH được giao; chưa giao -> 0', async () => {
+  for (const p of [NGAY, LAP]) {
+    const t = async (qs, who) => bgOf((await api(`${p}?${RANGE}${qs}`, who)).body.tong);
+    assert.deepEqual(await t('', 'gdvhM2'), bg(4, 0, 4, 1), 'M2: K (SHBG cũ + NR7) + K2 (hai SHBG)');
+    assert.deepEqual(await t(`&receiver_code=${M}`, 'gdvhM2'), BG0);
+    assert.deepEqual(await t('', 'gdvhNone'), BG0);
+    assert.deepEqual(await t('', 'gdvhM'), bg(8, 4, 5, 0.625));
+    assert.deepEqual(await t('', 'admin'), bg(12, 4, 9, 0.75), 'cả hai BCVH');
+  }
 });
