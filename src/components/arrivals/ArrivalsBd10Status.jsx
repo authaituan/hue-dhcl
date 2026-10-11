@@ -199,9 +199,23 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
   const isAllRange = selectedDate === null;
   const currentStats = isAllRange 
     ? byDayData.tong 
-    : (byDayData.theo_ngay.find(d => d.ngay === selectedDate) || { tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null });
+    : (byDayData.theo_ngay.find(d => d.ngay === selectedDate) || { 
+        tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null,
+        bg_tong: 0, bg_da_xnd: 0, bg_chua_xnd: 0, ty_le_chua_xnd_bg: null
+      });
 
-  // So sánh ngày liền trước khi xem một ngày
+  // Tỉ lệ cho dòng phụ thẻ Đã XNĐ
+  const bd10DaRate = currentStats.tong > 0 
+    ? `${(currentStats.da_xnd / currentStats.tong * 100).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+    : null;
+  const bgDaRate = (currentStats.bg_tong > 0 && currentStats.bg_da_xnd !== null && currentStats.bg_da_xnd !== undefined)
+    ? `${(currentStats.bg_da_xnd / currentStats.bg_tong * 100).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+    : '—';
+  const daXndNote = bd10DaRate 
+    ? `${bd10DaRate} tổng BD10 đến (${bgDaRate} bưu gửi)`
+    : '—';
+
+  // So sánh ngày liền trước khi xem một ngày (theo BD10)
   let compResult = null;
   if (!isAllRange) {
     const currentIndex = byDayData.theo_ngay.findIndex(d => d.ngay === selectedDate);
@@ -305,6 +319,9 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
             <div className="text-[38px] font-bold text-[#292524] leading-tight">
               {currentStats.tong.toLocaleString('vi-VN')}
             </div>
+            <div className="text-[15px] font-bold text-[#292524] mt-1">
+              {(currentStats.bg_tong || 0).toLocaleString('vi-VN')} bưu gửi
+            </div>
           </div>
           <div className="text-[12px] text-[#78716c] mt-2">
             {!isAllRange 
@@ -322,11 +339,12 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
             <div className="text-[38px] font-bold text-[#15803d] leading-tight">
               {currentStats.da_xnd.toLocaleString('vi-VN')}
             </div>
+            <div className="text-[15px] font-bold text-[#15803d] mt-1">
+              {(currentStats.bg_da_xnd || 0).toLocaleString('vi-VN')} bưu gửi
+            </div>
           </div>
           <div className="text-[12px] text-[#78716c] mt-2">
-            {currentStats.tong > 0 
-              ? `${(currentStats.da_xnd / currentStats.tong * 100).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% tổng BD10 đến`
-              : '—'}
+            {daXndNote}
           </div>
         </div>
 
@@ -338,6 +356,9 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
             </div>
             <div className="text-[38px] font-bold text-[#9f1239] leading-tight">
               {currentStats.chua_xnd.toLocaleString('vi-VN')}
+            </div>
+            <div className="text-[15px] font-bold text-[#9f1239] mt-1">
+              {(currentStats.bg_chua_xnd || 0).toLocaleString('vi-VN')} bưu gửi
             </div>
           </div>
           <div className="text-[12px] text-[#9f1239] mt-2">
@@ -351,8 +372,16 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
             <div className="text-[12px] font-bold uppercase text-[#57534e] tracking-wider mb-2">
               TỈ LỆ CHƯA XNĐ
             </div>
-            <div className="text-[38px] font-bold text-[#be123c] leading-tight">
-              {pct(currentStats.ty_le_chua_xnd)}
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              <span className="text-[38px] font-bold text-[#be123c] leading-tight">
+                {pct(currentStats.ty_le_chua_xnd)}
+              </span>
+              <span className="text-[13px] font-semibold text-[#be123c]">
+                ({currentStats.chua_xnd.toLocaleString('vi-VN')} / {currentStats.tong.toLocaleString('vi-VN')} BD10)
+              </span>
+            </div>
+            <div className="text-[13px] font-bold text-[#292524] mt-1">
+              Theo bưu gửi: {pct(currentStats.ty_le_chua_xnd_bg)} ({(currentStats.bg_chua_xnd || 0).toLocaleString('vi-VN')} / {(currentStats.bg_tong || 0).toLocaleString('vi-VN')})
             </div>
           </div>
           <div className="text-[12px] text-[#78716c] mt-2">
