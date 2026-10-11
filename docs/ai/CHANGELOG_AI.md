@@ -4,6 +4,14 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-11] - GDVH xem được «chưa nhận» và «BD10 đến» của BCVH đang chọn — phương án A (SANLUONG-4a11)
+
+- `server/routes/arrivals.js`: bỏ hàm `scopeCodes`; `/summary` (`chua_nhan_tai_bcvh`, `bd10_den_khong_xnd`), `/not-received`, `/bd10-khong-xnd`, `/dashboard/center`, `/bd10-trang-thai/theo-ngay`, `/theo-buu-cuc-lap` không còn giới hạn GDVH theo BCVH được giao — mọi vai trò xem theo bộ lọc `receiver_code` / `unit`. Tải / xuất (`/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export`) KHÔNG đổi. Chú thích: `arrivalsQuery.js` (`scopedFilters`, `summary`), `bd10Query.js` (đầu file), `dashboardQuery.js` (`center`). Khoá JSON không đổi.
+- Test: viết lại các ca "GDVH chỉ BCVH được giao / chưa giao = 0" thành "GDVH xem như ADMIN" (`tests/arrivals-source.test.js` 2 ca, `tests/bd10-api.test.js` 3 ca, `tests/bd10-trang-thai.test.js` 3 ca); thêm 1 ca #72 (`tests/bd10-api.test.js`): GDVH chưa được giao xem 6 API xem bằng ADMIN cho cùng BCVH, `export-scope` rỗng, 3 API xuất 403; GDVH đã giao tải được BCVH của mình, BCVH khác 403. `npm test` 272 ca: 271 pass, 1 skip có chủ đích.
+- Docs: quyết định #72 (sửa #52, #60, #67; ghi chú #69, #70), đóng backlog 7f5, bổ sung 7b (màn hình phân BCVH + gợi ý vai trò GDVH ở `AddUserModal.jsx`), `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-11] - API «Trạng thái BD10 đến»: thêm số bưu gửi (SANLUONG-4a9c)
 
 - `server/lib/bd10Query.js`: `bgCounts()` — số SHBG khác nhau theo ô (cùng tập BD10 / trạng thái / ngày quy tắc X với số BD10, dùng chung `perBd10Sql`); `/bd10-trang-thai/theo-ngay` và `/theo-buu-cuc-lap` thêm `bg_tong`, `bg_da_xnd`, `bg_chua_xnd`, `ty_le_chua_xnd_bg` ở từng ô và `tong` (cả khung đếm khác nhau, không cộng ô). Khoá cũ, thứ tự sắp, `ngoai_khung` không đổi. Truy vấn: `CROSS JOIN` để quét bảng một lần (~1,4 s → ~0,2 s) và đếm bằng `Set` trong JS (→ ~0,1 s) trên bản chép DB dev.

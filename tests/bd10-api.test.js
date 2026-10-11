@@ -189,21 +189,21 @@ test('chỉ số CÔNG KHAI: ADMIN, TTVH và GDVH đều nhận khoá bd10_den_k
     assert.deepEqual([all.tong_bd10_den, all.khong_xnd], [9, 6], who);
     assert.deepEqual([(await tong(`${RANGE}&receiver_code=${M2}`, who)).tong_bd10_den, (await tong(`${RANGE}&receiver_code=${M}`, who)).tong_bd10_den], [1, 8]);
   }
-  // GDVH chỉ BCVH được giao
-  assert.deepEqual([(await tong(RANGE, 'gdvhM')).tong_bd10_den, (await tong(RANGE, 'gdvhM')).khong_xnd], [8, 5]);
-  assert.deepEqual([(await tong(RANGE, 'gdvhM2')).tong_bd10_den, (await tong(RANGE, 'gdvhM2')).khong_xnd], [1, 1]);
-  assert.equal((await tong(`${RANGE}&receiver_code=${M}`, 'gdvhM2')).tong_bd10_den, 0, 'lọc BCVH không được giao -> không lộ');
-  assert.equal((await tong(RANGE, 'gdvhNone')).tong_bd10_den, 0, 'chưa được giao -> 0, không rơi về tất cả');
-  assert.equal((await tong(RANGE, 'gdvhNone')).ty_le, null);
+  // GDVH: CÔNG KHAI thật (#72) — số của BCVH đang chọn như ADMIN, kể cả BCVH không được giao / chưa được giao BCVH nào
+  for (const who of ['gdvhM', 'gdvhM2', 'gdvhNone']) {
+    assert.deepEqual([(await tong(RANGE, who)).tong_bd10_den, (await tong(RANGE, who)).khong_xnd], [9, 6], `${who}: không lọc = cả hai BCVH`);
+    assert.deepEqual(await tong(`${RANGE}&receiver_code=${M}`, who), await tong(`${RANGE}&receiver_code=${M}`, 'admin'), `${who}: chọn ${M} = ADMIN`);
+    assert.equal((await tong(`${RANGE}&receiver_code=${M2}`, who)).tong_bd10_den, 1);
+  }
 });
 
-test('/dashboard/center: bd10_den_khong_xnd cùng số với /summary, cùng phạm vi vai trò', async () => {
+test('/dashboard/center: bd10_den_khong_xnd cùng số với /summary, công khai mọi vai trò (#72)', async () => {
   const c = async (who) => (await api(`/api/arrivals/dashboard/center?${RANGE}`, who)).body.bd10_den_khong_xnd;
   const all = await c('ttvh');
   assert.deepEqual([all.tong_bd10_den, all.khong_xnd], [9, 6]);
   const sum = (await api(`/api/arrivals/summary?${RANGE}`, 'ttvh')).body.bd10_den_khong_xnd;
   assert.deepEqual(all, sum);
-  assert.deepEqual([(await c('gdvhM')).tong_bd10_den, (await c('gdvhM2')).tong_bd10_den, (await c('gdvhNone')).tong_bd10_den], [8, 1, 0]);
+  assert.deepEqual([(await c('gdvhM')).tong_bd10_den, (await c('gdvhM2')).tong_bd10_den, (await c('gdvhNone')).tong_bd10_den], [9, 9, 9]);
   assert.equal((await api(`/api/arrivals/dashboard/center?${RANGE}`, 'staff')).status, 403);
 });
 
@@ -261,12 +261,12 @@ test('GET /bd10-khong-xnd: danh sách N (S2 + S3), cũ nhất trước, trườn
   }
 });
 
-test('GET /bd10-khong-xnd: phạm vi GDVH theo user_bcvh, STAFF 403, không token 401; khoảng rỗng', async () => {
+test('GET /bd10-khong-xnd: công khai mọi BCVH (#72), lọc theo unit / receiver_code; STAFF 403, không token 401; khoảng rỗng', async () => {
   const ids = async (qs, who) => (await api(`/api/arrivals/bd10-khong-xnd?${qs}`, who)).body.items.map((i) => i.so_hieu_bd10);
-  assert.deepEqual(await ids(RANGE, 'gdvhM2'), [K]);
-  assert.deepEqual(await ids(`${RANGE}&unit=${M}`, 'gdvhM2'), [], 'BCVH không được giao -> rỗng');
-  assert.equal((await ids(RANGE, 'gdvhM')).length, 5);
-  assert.deepEqual(await ids(RANGE, 'gdvhNone'), []);
+  assert.deepEqual(await ids(`${RANGE}&unit=${M2}`, 'gdvhM'), [K], 'GDVH xem BCVH không được giao');
+  assert.equal((await ids(`${RANGE}&unit=${M}`, 'gdvhM2')).length, 5);
+  assert.equal((await ids(`${RANGE}&unit=${M}`, 'gdvhM')).length, 5);
+  assert.deepEqual(await ids(RANGE, 'gdvhNone'), await ids(RANGE, 'admin'), 'GDVH chưa được giao = ADMIN');
   assert.equal((await ids(RANGE, 'admin')).length, 6, 'không lọc = cả hai BCVH');
   assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}`, 'staff')).status, 403);
   assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}`)).status, 401);
@@ -308,4 +308,40 @@ test('GET /bd10-khong-xnd/export: xlsx cùng bộ lọc, mọi ô là chuỗi, q
   const log = fs.readFileSync(process.env.SECURITY_LOG, 'utf8');
   assert.ok(/"kind":"bd10_khong_xnd"/.test(log));
   assert.ok(!log.includes(C2) && !log.includes(B1));
+});
+
+// ---------------- #72: phương án A — XEM công khai, TẢI / XUẤT vẫn theo BCVH được giao ----------------
+test('#72 GDVH chưa được giao BCVH: mọi API xem chỉ số trả đúng như ADMIN cho cùng BCVH; tải / xuất vẫn 403; GDVH đã giao vẫn tải được BCVH của mình', async () => {
+  const views = [
+    `/api/arrivals/summary?${RANGE}&receiver_code=${M}`,
+    `/api/arrivals/not-received?${RANGE}&receiver_code=${M}`,
+    `/api/arrivals/bd10-khong-xnd?${RANGE}&unit=${M}`,
+    `/api/arrivals/bd10-trang-thai/theo-ngay?${RANGE}&unit=${M}`,
+    `/api/arrivals/bd10-trang-thai/theo-buu-cuc-lap?${RANGE}&unit=${M}`,
+    `/api/arrivals/dashboard/center?${RANGE}`
+  ];
+  for (const p of views) {
+    const [a, g] = [await api(p, 'admin'), await api(p, 'gdvhNone')];
+    assert.equal(g.status, 200, p);
+    if (p.includes('/summary')) {
+      for (const k of ['chua_nhan_tai_bcvh', 'bd10_den_khong_xnd', 'san_luong']) assert.deepEqual(g.body[k], a.body[k], `${p} ${k}`);
+      assert.ok(!('canh_bao' in g.body), 'canh_bao vẫn chỉ ADMIN');
+    } else if (p.includes('/center')) {
+      for (const k of ['chua_nhan_tai_bcvh', 'bd10_den_khong_xnd']) assert.deepEqual(g.body[k], a.body[k], `${p} ${k}`);
+    } else {
+      assert.deepEqual(g.body, a.body, p);
+    }
+  }
+  assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}&unit=${M}`, 'gdvhNone')).body.pagination.total, 5, 'không phải 0');
+  // Tải / xuất: KHÔNG nới
+  assert.deepEqual((await api('/api/arrivals/export-scope', 'gdvhNone')).body.bcvh, []);
+  assert.deepEqual((await api('/api/arrivals/export-scope', 'gdvhM2')).body.bcvh.map((b) => b.ma), [M2]);
+  const dl = async (p, who) => (await fetch(`${ctx.baseUrl}${p}`, { headers: { Authorization: `Bearer ${tokens[who]}` } })).status;
+  for (const p of ['/api/arrivals/export', '/api/arrivals/not-received/export', '/api/arrivals/bd10-khong-xnd/export']) {
+    const q = `?receiver_code=${M}&${RANGE}`;
+    assert.equal(await dl(p + q, 'gdvhNone'), 403, `${p}: GDVH chưa được giao`);
+    assert.equal(await dl(p + q, 'gdvhM2'), 403, `${p}: GDVH tải BCVH không được giao`);
+    assert.equal(await dl(p + q, 'gdvhM'), 200, `${p}: GDVH tải BCVH của mình`);
+    assert.equal(await dl(p + `?receiver_code=${M2}&${RANGE}`, 'gdvhM2'), 200, `${p}: GDVH thứ hai tải BCVH của mình`);
+  }
 });

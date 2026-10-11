@@ -10,7 +10,7 @@
 // Tử số N = S2 + S3 (BD10 đến không XNĐ). Mẫu số D = S1 + S2 + S3 có ngày trong khung. S4 không có mốc nào nên không gán được ngày: trả riêng.
 // Ngày của BD10 (quy tắc X): MIN(XNĐ) nếu có; nếu không có XNĐ thì MIN của XN túi và XN bưu gửi trên mọi dòng (cả hai cột).
 // Tuổi ("đã chờ") của N: số ngày từ ngày gán đến ngày file OK mới nhất CỦA BCVH NHẬN (ký tự 7–12 = receiver_code; #70; cùng hàm với chua_nhan_tai_bcvh); nhóm '0-1' / '2' / '3+'.
-// Phạm vi BCVH theo vai trò: scopedFilters() như chua_nhan_tai_bcvh (GDVH chỉ BCVH được giao; chưa được giao -> 0).
+// Phạm vi BCVH: CÔNG KHAI, mọi vai trò xem số của BCVH đang chọn (#72; routes truyền allowed = null). Tham số allowed / scopedFilters() giữ để có thể giới hạn lại.
 // ==========================================
 'use strict';
 const aq = require('./arrivalsQuery');
