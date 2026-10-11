@@ -1,6 +1,9 @@
 import React from 'react';
 import { Server, FileWarning, CheckCircle2, XCircle, Archive, FileText, PackageCheck } from 'lucide-react';
 
+// PO ẩn 11/10/2026, xem SANLUONG-4c; thẻ cũ tính theo bưu gửi, gồm BD10 lập đi và không có BD10
+const SHOW_LEGACY_KHONG_XND_BD10 = false;
+
 export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }) {
   const q = data.qualityMocs;
   const th = q.tong_hop;
@@ -8,7 +11,7 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
   return (
     <div className="space-y-6 mt-6">
       {/* Thẻ chỉ số tổng hợp */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className={`grid grid-cols-1 ${SHOW_LEGACY_KHONG_XND_BD10 ? 'md:grid-cols-5' : 'sm:grid-cols-2 lg:grid-cols-4'} gap-4`}>
         <div className="card-soft p-4 flex flex-col justify-center bg-emerald-50 border-l-4 border-emerald-500">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -17,14 +20,16 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
           <span className="text-2xl font-bold text-emerald-600 mt-1">{th.du_trang_thai.so_buu_gui.toLocaleString('vi-VN')}</span>
           <span className="text-xs text-emerald-400 mt-0.5">{th.du_trang_thai.ty_le.toLocaleString('vi-VN')}%</span>
         </div>
-        <div className="card-soft p-4 flex flex-col justify-center bg-rose-50 border-l-4 border-rose-500">
-          <div className="flex items-center gap-2 mb-1">
-            <XCircle className="w-4 h-4 text-rose-500" />
-            <span className="text-xs text-rose-600 font-semibold uppercase">Không XNĐ BD10</span>
+        {SHOW_LEGACY_KHONG_XND_BD10 && (
+          <div className="card-soft p-4 flex flex-col justify-center bg-rose-50 border-l-4 border-rose-500">
+            <div className="flex items-center gap-2 mb-1">
+              <XCircle className="w-4 h-4 text-rose-500" />
+              <span className="text-xs text-rose-600 font-semibold uppercase">Không XNĐ BD10</span>
+            </div>
+            <span className="text-2xl font-bold text-rose-600 mt-1">{th.khong_xnd_bd10.so_buu_gui.toLocaleString('vi-VN')}</span>
+            <span className="text-xs text-rose-400 mt-0.5">{th.khong_xnd_bd10.ty_le.toLocaleString('vi-VN')}%</span>
           </div>
-          <span className="text-2xl font-bold text-rose-600 mt-1">{th.khong_xnd_bd10.so_buu_gui.toLocaleString('vi-VN')}</span>
-          <span className="text-xs text-rose-400 mt-0.5">{th.khong_xnd_bd10.ty_le.toLocaleString('vi-VN')}%</span>
-        </div>
+        )}
         <div className="card-soft p-4 flex flex-col justify-center bg-sky-50 border-l-4 border-sky-500">
           <div className="flex items-center gap-2 mb-1">
             <Archive className="w-4 h-4 text-sky-500" />
