@@ -4,6 +4,22 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-11] - Giao diện tab «Trạng thái BD10 đến» (SANLUONG-4b)
+
+- `src/components/arrivals/ArrivalsBd10Status.jsx` (mới): Tab «Trạng thái BD10 đến» theo thiết kế canvas bảng số 6:
+  - Điều kiện hiển thị: Bắt buộc chọn đúng 1 BCVH, khung ngày ≤ 92 ngày, xử lý thông báo khi không có dữ liệu / `ngay_du_lieu_moi_nhat = null`.
+  - Hàng chip: Hiển thị ngày đang xem (ngày dữ liệu mới nhất mặc định / ngày cụ thể) hoặc chữ cả khung; nút bấm xem cả khung; dòng hướng dẫn.
+  - Bốn thẻ KPI: Tổng BD10 đến, Đã XNĐ BD10, Chưa XNĐ BD10 (nền `#fff1f2`, viền `#fb7185`), Tỉ lệ chưa XNĐ (kèm so sánh ngày trước đó trong khung).
+  - Dòng nhắc vàng: Cảnh báo ngày mới nhất BD10 có thể chưa kịp XNĐ.
+  - Khối biểu đồ cột chồng theo ngày: Chiều cao theo tổng BD10, phần dưới đã XNĐ `#86efac`, phần trên chưa XNĐ `#e11d48` kèm số đỏ trên cột; bấm cột để chọn/bỏ chọn ngày; hỗ trợ bàn phím và `aria-label`.
+  - Khối theo bưu cục lập BD10: Bảng 5 cột, số chưa XNĐ dạng viên hồng đậm, dòng Cộng cuối bảng; nút «Xem danh sách BD10 chưa XNĐ →» điều hướng sang màn chi tiết `ArrivalsBd10NotConfirmedDetail`.
+  - Dòng ghi chú ngoài khung ở cuối trang.
+- `src/components/arrivals/ArrivalsView.jsx`: Thêm tab thứ hai `bd10_status` («Trạng thái BD10 đến») ngay sau `overview` («Tổng quan»).
+- `src/components/arrivals/ArrivalsNotReceived.jsx`: Sửa React key cho lưới «Theo ngày lập BD10» thành `${g.ngay}-${g.tuoi}` tránh trùng lặp khi chọn nhiều BCVH lệch ngày dữ liệu.
+- `npm run build` thành công, không dùng từ cấm («tuổi»), không chứa số hiệu thật.
+
+---
+
 ## [2026-10-11] - "Chưa nhận" loại BD10 lập đi / rỗng; API trạng thái BD10 đến theo ngày / theo bưu cục lập; đổi tên cột Excel (SANLUONG-4a9)
 
 - `server/lib/arrivalsQuery.js`: #68 (đổi #60) — "chưa nhận tại BCVH" chỉ giữ bưu gửi mà BD10 của dòng đại diện (id nhỏ nhất) là BD10 đến hoặc loại khác; loại BD10 rỗng và BD10 lập đi. Một chỗ: `notReceivedSql()` + `NOT_RECEIVED_BD10_SQL`, dùng chung cho `notReceivedStats` (`/summary`, `/dashboard/center`), `notReceivedList` (`/not-received`, `/not-received/export`) và `CHUA_NHAN_TAI_BCVH` của `/exceptions`. Khoá API không đổi.

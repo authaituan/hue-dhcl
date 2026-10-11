@@ -218,7 +218,7 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
         <div className="text-sm font-semibold text-gray-700 mb-3">Theo ngày lập BD10</div>
         <div className="flex flex-wrap gap-4 overflow-x-auto pb-2">
           {cn.theo_ngay_lap.map(g => (
-            <div key={g.ngay} className={`min-w-[140px] flex-1 max-w-[200px] border-l-[4px] rounded-r-lg p-3 shadow-sm ${
+            <div key={`${g.ngay}-${g.tuoi}`} className={`min-w-[140px] flex-1 max-w-[200px] border-l-[4px] rounded-r-lg p-3 shadow-sm ${
               g.tuoi >= 3 ? 'bg-[#fff1f2] border-[#e11d48]' : g.tuoi === 2 ? 'bg-[#fff7ed] border-[#f97316]' : 'bg-[#fefce8] border-[#eab308]'
             }`}>
               <div className="flex items-center gap-1 mb-1">
