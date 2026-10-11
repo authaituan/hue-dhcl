@@ -268,22 +268,22 @@ test('theo-buu-cuc-lap: đủ từng bưu cục (không gộp 530100 / khác), s
 });
 
 // ---------------- Quyền / phạm vi ----------------
-test('phạm vi: công khai cho ADMIN/TTVH/GDVH; GDVH chỉ BCVH được giao (chưa giao -> 0); ADMIN/TTVH chọn được BCVH; STAFF 403, không token 401', async () => {
+test('phạm vi: CÔNG KHAI cho ADMIN/TTVH/GDVH, mọi vai trò chọn được BCVH (#72; GDVH kể cả BCVH không được giao / chưa được giao); STAFF 403, không token 401', async () => {
   const tong = async (p, qs, who) => (await api(`${p}?${RANGE}${qs}`, who)).body.tong.tong;
   for (const p of [NGAY, LAP]) {
     assert.equal(await tong(p, `&receiver_code=${M}`, 'admin'), 4);
     assert.equal(await tong(p, `&receiver_code=${M2}`, 'ttvh'), 2, 'K, K2 của M2');
     assert.equal(await tong(p, '', 'ttvh'), 6, 'không lọc: cả hai BCVH');
-    assert.equal(await tong(p, '', 'gdvhM'), 4, 'GDVH được giao M chỉ thấy M');
-    assert.equal(await tong(p, '', 'gdvhM2'), 2);
-    assert.equal(await tong(p, `&receiver_code=${M}`, 'gdvhM2'), 0, 'lọc BCVH không được giao -> không lộ');
-    assert.equal(await tong(p, '', 'gdvhNone'), 0);
+    for (const who of ['gdvhM', 'gdvhM2', 'gdvhNone']) {
+      assert.equal(await tong(p, '', who), 6, `${who}: không lọc = cả hai BCVH`);
+      assert.equal(await tong(p, `&receiver_code=${M}`, who), 4, `${who}: chọn M`);
+      assert.equal(await tong(p, `&receiver_code=${M2}`, who), 2, `${who}: chọn M2`);
+    }
     assert.equal((await api(`${p}?${RANGE}`, 'staff')).status, 403);
     assert.equal((await api(`${p}?${RANGE}`)).status, 401);
   }
-  const none = (await api(`${NGAY}?${RANGE}`, 'gdvhNone')).body;
-  assert.equal(none.theo_ngay.length, 7, 'vẫn đủ ngày, số 0');
-  assert.deepEqual(none.ngoai_khung, { truoc_khung: 0, sau_khung: 0, khong_co_moc: 0 });
+  const none = (await api(`${NGAY}?${RANGE}&receiver_code=${M}`, 'gdvhNone')).body;
+  assert.deepEqual(none, (await api(`${NGAY}?${RANGE}&receiver_code=${M}`, 'admin')).body, 'GDVH chưa được giao = ADMIN');
 });
 
 // ---------------- #70: mốc "đã chờ" và ngày dữ liệu mới nhất theo từng BCVH ----------------
@@ -301,15 +301,15 @@ test('#70 latestFileDate / latestFileDates: theo BCVH, chọn nhiều -> ngày m
   empty.close();
 });
 
-test('#70 theo-ngay: ngay_du_lieu_moi_nhat theo BCVH đang chọn / phạm vi GDVH', async () => {
+test('#70 theo-ngay: ngay_du_lieu_moi_nhat theo BCVH đang chọn (mọi vai trò như nhau, #72)', async () => {
   const d = async (qs, who = 'ttvh') => (await api(`${NGAY}?${RANGE}${qs}`, who)).body.ngay_du_lieu_moi_nhat;
   assert.equal(await d(`&receiver_code=${M}`), '2026-10-09');
   assert.equal(await d(`&receiver_code=${M2}`), '2026-10-05');
   assert.equal(await d(`&receiver_code=${M},${M2}`), '2026-10-09', 'chọn cả hai -> ngày muộn hơn');
   assert.equal(await d(''), '2026-10-09', 'không chọn = mọi BCVH');
   assert.equal(await d(`&unit=${M3}`), null, 'BCVH chưa có file');
-  assert.equal(await d('', 'gdvhM2'), '2026-10-05', 'GDVH: theo BCVH được giao');
-  assert.equal(await d('', 'gdvhNone'), null);
+  assert.equal(await d(`&receiver_code=${M2}`, 'gdvhM'), '2026-10-05', 'GDVH: theo BCVH đang chọn, không theo BCVH được giao');
+  assert.equal(await d('', 'gdvhNone'), '2026-10-09', 'GDVH chưa được giao, không chọn = mọi BCVH');
   const m3 = (await api(`${NGAY}?${RANGE}&receiver_code=${M3}`, 'ttvh')).body;
   assert.deepEqual(old(m3.tong), zero, 'BCVH không có file: không lỗi, không số');
 });
@@ -397,13 +397,13 @@ test('#71 theo-buu-cuc-lap: SHBG ở hai BD10 cùng trạng thái cùng bưu c�
   assert.deepEqual(bgOf((await api(`${LAP}?from=2026-01-01&to=2026-01-01&receiver_code=${M}`, 'ttvh')).body.tong), BG0);
 });
 
-test('#71 phạm vi số bưu gửi như số BD10: GDVH chỉ BCVH được giao; chưa giao -> 0', async () => {
+test('#71 số bưu gửi công khai như số BD10 (#72): mọi vai trò cùng số cho cùng BCVH', async () => {
   for (const p of [NGAY, LAP]) {
     const t = async (qs, who) => bgOf((await api(`${p}?${RANGE}${qs}`, who)).body.tong);
-    assert.deepEqual(await t('', 'gdvhM2'), bg(4, 0, 4, 1), 'M2: K (SHBG cũ + NR7) + K2 (hai SHBG)');
-    assert.deepEqual(await t(`&receiver_code=${M}`, 'gdvhM2'), BG0);
-    assert.deepEqual(await t('', 'gdvhNone'), BG0);
-    assert.deepEqual(await t('', 'gdvhM'), bg(8, 4, 5, 0.625));
-    assert.deepEqual(await t('', 'admin'), bg(12, 4, 9, 0.75), 'cả hai BCVH');
+    for (const who of ['admin', 'gdvhM', 'gdvhM2', 'gdvhNone']) {
+      assert.deepEqual(await t(`&receiver_code=${M2}`, who), bg(4, 0, 4, 1), `${who} M2: K (SHBG cũ + NR7) + K2 (hai SHBG)`);
+      assert.deepEqual(await t(`&receiver_code=${M}`, who), bg(8, 4, 5, 0.625), `${who} M`);
+      assert.deepEqual(await t('', who), bg(12, 4, 9, 0.75), `${who}: cả hai BCVH`);
+    }
   }
 });

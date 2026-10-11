@@ -12,7 +12,8 @@ const router = express.Router();
 
 // ==========================================
 // DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: ADMIN, TTVH, GDVH (STAFF 403, không token 401) — 04_DECISIONS.md #49.
-// GDVH xem đủ 6 BCVH như TTVH; giới hạn theo BCVH được giao chỉ áp ở xuất file (/export, /export-scope — #52, #57).
+// GDVH xem đủ 6 BCVH như TTVH, KỂ CẢ "chưa nhận tại BCVH" và "BD10 đến" (#72); giới hạn theo BCVH được giao chỉ áp ở
+// TẢI / XUẤT file (/export-scope, /export, /not-received/export, /bd10-khong-xnd/export — #52, #57, #72).
 // Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với TTVH/GDVH;
 // /summary bỏ trường `canh_bao` với vai trò khác ADMIN (docs/ai/04_DECISIONS.md #34).
 // Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardQuery.js).
@@ -42,27 +43,25 @@ router.get('/arrivals/meta', handle((req) => {
   return q.meta(db);
 }, 'meta'));
 
-// GDVH chỉ thấy BCVH được giao ở chỉ số "chưa nhận tại BCVH" (null = không giới hạn); sản lượng và các số khác vẫn đủ 6 BCVH (#52).
-const scopeCodes = (req) => (req.user.role === ROLES.GDVH ? exp.allowedBcvhCodes(db, req.user) : null);
-
-// Khoá `bd10_den_khong_xnd` (#67): chỉ số CÔNG KHAI cho mọi vai trò xem "Sản lượng đến" (không sau cờ ADMIN), theo phạm vi BCVH như chua_nhan_tai_bcvh.
+// Khoá `chua_nhan_tai_bcvh` (#60, #68) và `bd10_den_khong_xnd` (#67): CÔNG KHAI cho mọi vai trò xem "Sản lượng đến" — không sau cờ ADMIN,
+// không giới hạn theo BCVH được giao (#72): số của BCVH đang chọn (receiver_code / unit) như sản lượng.
 router.get('/arrivals/summary', handle((req) => {
   const f = filters(req, ['heavy_g']);
-  const out = q.summary(db, f, { isAdmin: isAdmin(req), scopeCodes: scopeCodes(req) });
-  out.bd10_den_khong_xnd = bd10.stats(db, f, scopeCodes(req));
+  const out = q.summary(db, f, { isAdmin: isAdmin(req) });
+  out.bd10_den_khong_xnd = bd10.stats(db, f);
   return out;
 }, 'summary'));
 // "BD10 đến không XNĐ": danh sách BD10 thuộc tử số (S2 + S3), phân trang, cũ nhất trước. Tham số: from, to, receiver_code (hoặc unit), nhom, tuoi, page, page_size.
 router.get('/arrivals/bd10-khong-xnd', handle((req) => {
   const { f, nhom, tuoi } = bd10.parseListQuery(req.query);
-  return bd10.list(db, f, { nhom, tuoi }, scopeCodes(req));
+  return bd10.list(db, f, { nhom, tuoi });
 }, 'bd10-khong-xnd'));
-// "Trạng thái BD10 đến" (SANLUONG-4a9, #69): công khai, theo phạm vi BCVH như trên. Tham số: from, to (chỉ ngày, ≤ 92 ngày), receiver_code (hoặc unit).
-router.get('/arrivals/bd10-trang-thai/theo-ngay', handle((req) => bd10.trangThaiTheoNgay(db, bd10.parseTrangThaiQuery(req.query), scopeCodes(req)), 'bd10-trang-thai-theo-ngay'));
-router.get('/arrivals/bd10-trang-thai/theo-buu-cuc-lap', handle((req) => bd10.trangThaiTheoBuuCucLap(db, bd10.parseTrangThaiQuery(req.query), scopeCodes(req)), 'bd10-trang-thai-theo-buu-cuc-lap'));
-// "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH": danh sách chi tiết (phân trang, cũ nhất trước) — mọi vai trò xem được "Sản lượng đến", theo phạm vi BCVH.
+// "Trạng thái BD10 đến" (SANLUONG-4a9, #69): công khai như trên (#72). Tham số: from, to (chỉ ngày, ≤ 92 ngày), receiver_code (hoặc unit).
+router.get('/arrivals/bd10-trang-thai/theo-ngay', handle((req) => bd10.trangThaiTheoNgay(db, bd10.parseTrangThaiQuery(req.query)), 'bd10-trang-thai-theo-ngay'));
+router.get('/arrivals/bd10-trang-thai/theo-buu-cuc-lap', handle((req) => bd10.trangThaiTheoBuuCucLap(db, bd10.parseTrangThaiQuery(req.query)), 'bd10-trang-thai-theo-buu-cuc-lap'));
+// "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH": danh sách chi tiết (phân trang, cũ nhất trước) — mọi vai trò xem được "Sản lượng đến", mọi BCVH (#72).
 router.get('/arrivals/not-received', handle((req) => q.notReceivedList(db,
-  q.parseFilters(req.query, { allowed: ['from', 'to', 'receiver_code', 'page', 'page_size'] }), scopeCodes(req)), 'not-received'));
+  q.parseFilters(req.query, { allowed: ['from', 'to', 'receiver_code', 'page', 'page_size'] })), 'not-received'));
 // Hàng đến theo đường thư / dịch vụ + hàng nặng (SANLUONG-3d, 04_DECISIONS.md #36–#39).
 router.get('/arrivals/by-route', handle((req) => q.byRoute(db, filters(req, ['heavy_g'])), 'by-route'));
 router.get('/arrivals/by-service', handle((req) => q.byService(db, filters(req, ['heavy_g'])), 'by-service'));
@@ -77,7 +76,7 @@ router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'
 router.get('/arrivals/dashboard/overview', handle((req) => dash.overview(db, req.query), 'dashboard-overview'));
 router.get('/arrivals/dashboard/trend', handle((req) => dash.trend(db, req.query), 'dashboard-trend'));
 router.get('/arrivals/dashboard/wards-surge', handle((req) => dash.wardsSurge(db, req.query), 'dashboard-wards-surge'));
-router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.query, { scopeCodes: scopeCodes(req) }), 'dashboard-center'));
+router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.query), 'dashboard-center'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));

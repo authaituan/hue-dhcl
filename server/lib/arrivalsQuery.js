@@ -322,7 +322,8 @@ function notReceivedSql(f) {
 
 const emptyNotReceived = () => ({ tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] });
 
-/** allowed = null (không giới hạn) | mảng mã BCVH được phép (GDVH: BCVH được giao). Trả { f, empty }: empty = không còn BCVH nào được xem. */
+/** allowed = null (không giới hạn — mọi route xem đều truyền null từ #72) | mảng mã BCVH được phép. Trả { f, empty }: empty = không còn BCVH nào được xem.
+ *  Giữ tham số để có thể giới hạn lại nếu PO đổi quyết định; giới hạn TẢI / XUẤT của GDVH nằm ở arrivalsExport.allowedBcvhCodes. */
 function scopedFilters(f, allowed) {
   if (!allowed) return { f, empty: false };
   const codes = f.receiverCodes.length ? f.receiverCodes.filter((c) => allowed.includes(c)) : allowed;
@@ -405,7 +406,7 @@ function summary(db, f, { isAdmin, scopeCodes = null }) {
     dia_ban_phat: { co: JSON.parse(t.wards).filter((k) => catalog.has(k)).length, tong: catalog.size },
     meta: metaFor(f)
   };
-  // Mọi vai trò xem được "Sản lượng đến" (#60); GDVH chỉ thấy BCVH được giao (scopeCodes). Không đặt trong canh_bao (ADMIN-only).
+  // Mọi vai trò xem được "Sản lượng đến" (#60); số của BCVH đang chọn, không giới hạn theo BCVH được giao (#72; scopeCodes = null). Không đặt trong canh_bao (ADMIN-only).
   out.chua_nhan_tai_bcvh = notReceivedStats(db, f, scopeCodes);
   if (isAdmin) {
     const p = undatedParams(f);

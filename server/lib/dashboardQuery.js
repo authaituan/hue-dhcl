@@ -472,7 +472,7 @@ function centerAggregates(db, f) {
   return { route: of('route'), svc: of('svc'), moc: src };
 }
 
-// scopeCodes: null = mọi BCVH; mảng = chỉ các BCVH này (GDVH: BCVH được giao) — áp cho `chua_nhan_tai_bcvh`.
+// scopeCodes: null = mọi BCVH (route truyền null với mọi vai trò từ #72); mảng = chỉ các BCVH này — áp cho `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd`.
 function center(db, query, { scopeCodes = null } = {}) {
   const { ctx, f } = centerFilters(db, query);
   if (!f) {

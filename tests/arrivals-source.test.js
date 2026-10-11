@@ -330,31 +330,32 @@ test('chua_nhan_tai_bcvh (mọi vai trò xem được): tong, cu_nhat_ngay, theo
   assert.deepEqual(e, { tong: 0, cu_nhat_ngay: null, theo_tuoi: { '0-1': 0, '2': 0, '3+': 0 }, theo_ngay_lap: [] });
 });
 
-test('chua_nhan_tai_bcvh theo vai trò: ADMIN/TTVH theo bộ lọc; GDVH chỉ BCVH được giao (kể cả khi lọc BCVH khác); GDVH chưa được giao = 0', async () => {
+test('chua_nhan_tai_bcvh CÔNG KHAI (#72): mọi vai trò xem số của BCVH đang chọn, GDVH kể cả BCVH không được giao / chưa được giao BCVH nào', async () => {
   const q2 = 'from=2026-10-04&to=2026-10-05'; // không lọc BCVH
   const tong = async (qs, who) => (await api(`/api/arrivals/summary?${qs}`, who)).body.chua_nhan_tai_bcvh.tong;
   assert.equal(await tong(q2, 'admin'), 4, '533140: 3 + 535470: 1');
   assert.equal(await tong(q2, 'ttvh'), 4);
   assert.equal(await tong(`${q2}&receiver_code=${BC2}`, 'ttvh'), 1);
-  assert.equal(await tong(q2, 'gdvhBc'), 3, 'GDVH được giao 533140 chỉ thấy 533140');
-  assert.equal(await tong(q2, 'gdvhBc2'), 1, 'GDVH được giao 535470 chỉ thấy 535470');
-  assert.equal(await tong(`${q2}&receiver_code=${BC}`, 'gdvhBc2'), 0, 'lọc BCVH không được giao -> không lộ');
-  assert.equal(await tong(`${q2}&receiver_code=${BC},${BC2}`, 'gdvhBc2'), 1, 'chỉ giữ các mã được phép');
-  assert.equal(await tong(q2, 'gdvhNone'), 0, 'chưa được giao BCVH nào -> 0 (không rơi về tất cả)');
-  // sản lượng vẫn đủ như cũ (#52): giới hạn chỉ áp cho chỉ số này
+  for (const who of ['gdvhBc', 'gdvhBc2', 'gdvhNone']) {
+    assert.equal(await tong(q2, who), 4, `${who}: không lọc -> đủ các BCVH như ADMIN`);
+    assert.equal(await tong(`${q2}&receiver_code=${BC}`, who), 3, `${who}: chọn 533140 -> đúng số của ADMIN`);
+    assert.equal(await tong(`${q2}&receiver_code=${BC2}`, who), 1);
+  }
+  assert.deepEqual((await api(`/api/arrivals/summary?${q2}&receiver_code=${BC}`, 'gdvhNone')).body.chua_nhan_tai_bcvh,
+    (await api(`/api/arrivals/summary?${q2}&receiver_code=${BC}`, 'admin')).body.chua_nhan_tai_bcvh, 'GDVH chưa được giao = ADMIN, cả object');
   const sl = async (who) => (await api(`/api/arrivals/summary?${q2}`, who)).body.san_luong;
   assert.equal(await sl('gdvhBc2'), await sl('ttvh'));
   // /dashboard/center cùng quy tắc
   const c = async (who) => (await api(`/api/arrivals/dashboard/center?${q2}`, who)).body.chua_nhan_tai_bcvh;
   assert.equal((await c('ttvh')).tong, 4);
-  assert.equal((await c('gdvhBc')).tong, 3);
-  assert.equal((await c('gdvhBc2')).tong, 1);
-  assert.equal((await c('gdvhNone')).tong, 0);
+  assert.equal((await c('gdvhBc')).tong, 4);
+  assert.equal((await c('gdvhBc2')).tong, 4);
+  assert.equal((await c('gdvhNone')).tong, 4);
   assert.deepEqual(Object.keys(await c('ttvh')), ['tong', 'cu_nhat_ngay', 'theo_tuoi', 'theo_ngay_lap']);
   assert.equal((await api(`/api/arrivals/dashboard/center?${q2}`, 'staff')).status, 403);
 });
 
-test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang, theo phạm vi BCVH, STAFF 403 / không token 401', async () => {
+test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang, công khai mọi BCVH (#72), STAFF 403 / không token 401', async () => {
   const l = (await api(`/api/arrivals/not-received?${R_0405}`, 'ttvh')).body;
   assert.deepEqual(l.items.map((i) => i.tracking_no), [id(22), id(21), id(24)], 'N2 (03/10), N1 (04/10), N5 (05/10): cũ nhất trước');
   assert.deepEqual(l.items.map((i) => i.tuoi_ngay), [3, 2, 1]);
@@ -372,9 +373,10 @@ test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang
   // phạm vi
   const all = 'from=2026-10-04&to=2026-10-05';
   assert.equal((await api(`/api/arrivals/not-received?${all}`, 'admin')).body.pagination.total, 4);
-  assert.deepEqual((await api(`/api/arrivals/not-received?${all}`, 'gdvhBc2')).body.items.map((i) => i.tracking_no), [id(31)]);
-  assert.equal((await api(`/api/arrivals/not-received?${all}&receiver_code=${BC}`, 'gdvhBc2')).body.items.length, 0);
-  assert.equal((await api(`/api/arrivals/not-received?${all}`, 'gdvhNone')).body.pagination.total, 0);
+  assert.deepEqual((await api(`/api/arrivals/not-received?${all}&receiver_code=${BC2}`, 'gdvhBc')).body.items.map((i) => i.tracking_no), [id(31)], 'GDVH xem BCVH không được giao');
+  assert.equal((await api(`/api/arrivals/not-received?${all}&receiver_code=${BC}`, 'gdvhBc2')).body.pagination.total, 3);
+  assert.deepEqual((await api(`/api/arrivals/not-received?${all}`, 'gdvhNone')).body,
+    (await api(`/api/arrivals/not-received?${all}`, 'admin')).body, 'GDVH chưa được giao = ADMIN');
   assert.equal((await api(`/api/arrivals/not-received?${all}`, 'staff')).status, 403);
   assert.equal((await api(`/api/arrivals/not-received?${all}`)).status, 401);
   // nguồn dùng chung: khớp số của chỉ số và của /exceptions
