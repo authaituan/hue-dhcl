@@ -47,6 +47,8 @@
 7j2. Giao diện (PO duyệt canvas trước, ticket Antigravity): thẻ "BD10 đến không XNĐ" (tổng / 530100 / khác, tuổi, ngoài khung), danh sách + nút xuất; chuyển khỏi khối "đủ trạng thái theo nguồn" (#61).
 7j3. Xoá mã #61 (`tong_hop.theo_nguon`, `du_trang_thai_theo_nguon`, `SOURCE_*` trong `arrivalsQuery.js` / `dashboardQuery.js`) SAU khi giao diện thay bằng #67.
 7j4. Nếu cần nhanh hơn trên dữ liệu lớn: chỉ số chạy một lần quét toàn bảng (~1,8 s / 1 triệu dòng) — cân nhắc bảng tổng hợp theo BD10 khi triển khai nhiều BCVH.
+7j5. BD10 mã ngắn (< 12 ký tự, không rỗng) đang tính vào "loại khác" của "chưa nhận tại BCVH" (#68, PO giữ ở #70) — chưa gặp trên dữ liệu thật; xem lại nếu xuất hiện.
+7j6. Theo dõi: 46 bưu gửi "chưa nhận" (bản chép DB, 533140, 01→09/10) có các dòng thuộc nhiều loại BD10 khác nhau; hiện phân loại theo BD10 của dòng đại diện (#68).
 7d. Xem lại `/api/organization/*` và `/api/dashboard/stats` (hiện mở cho mọi người đã đăng nhập kể cả STAFF) — #53(e).
 7e. Tạo ADMIN đầu tiên khi triển khai sạch trên NAS (không có DB cũ) — gộp vào ticket triển khai NAS.
 8. Module danh mục trạng thái + file mẫu import trạng thái.

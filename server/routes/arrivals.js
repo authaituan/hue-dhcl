@@ -57,6 +57,9 @@ router.get('/arrivals/bd10-khong-xnd', handle((req) => {
   const { f, nhom, tuoi } = bd10.parseListQuery(req.query);
   return bd10.list(db, f, { nhom, tuoi }, scopeCodes(req));
 }, 'bd10-khong-xnd'));
+// "Trạng thái BD10 đến" (SANLUONG-4a9, #69): công khai, theo phạm vi BCVH như trên. Tham số: from, to (chỉ ngày, ≤ 92 ngày), receiver_code (hoặc unit).
+router.get('/arrivals/bd10-trang-thai/theo-ngay', handle((req) => bd10.trangThaiTheoNgay(db, bd10.parseTrangThaiQuery(req.query), scopeCodes(req)), 'bd10-trang-thai-theo-ngay'));
+router.get('/arrivals/bd10-trang-thai/theo-buu-cuc-lap', handle((req) => bd10.trangThaiTheoBuuCucLap(db, bd10.parseTrangThaiQuery(req.query), scopeCodes(req)), 'bd10-trang-thai-theo-buu-cuc-lap'));
 // "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH": danh sách chi tiết (phân trang, cũ nhất trước) — mọi vai trò xem được "Sản lượng đến", theo phạm vi BCVH.
 router.get('/arrivals/not-received', handle((req) => q.notReceivedList(db,
   q.parseFilters(req.query, { allowed: ['from', 'to', 'receiver_code', 'page', 'page_size'] }), scopeCodes(req)), 'not-received'));

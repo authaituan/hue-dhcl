@@ -391,7 +391,7 @@ test('GET /not-received/export: xlsx (mọi ô chuỗi), quyền như /export (G
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(Buffer.from(await res.arrayBuffer()));
   const ws = wb.worksheets[0];
-  assert.deepEqual(ws.getRow(1).values.slice(1), ['SHBG', 'So_hieu_BD8', 'So_hieu_BD10', 'Ten_duong_thu', 'Thoi_gian_lap_BD10', 'Tuoi_ngay']);
+  assert.deepEqual(ws.getRow(1).values.slice(1), ['SHBG', 'So_hieu_BD8', 'So_hieu_BD10', 'Ten_duong_thu', 'Thoi_gian_lap_BD10', 'Da_cho_ngay']);
   const rows = [];
   ws.eachRow((r, n) => { if (n > 1) rows.push(r.values.slice(1)); });
   assert.deepEqual(rows.map((r) => [r[0], r[4], r[5]]), [[id(22), '03/10/2026 23:00:00', '3'], [id(21), '04/10/2026 01:00:00', '2'], [id(24), '05/10/2026 02:00:00', '1']]);
