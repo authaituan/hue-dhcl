@@ -3,6 +3,7 @@ import { apiFetchJson, apiFetch } from '../../utils/api';
 import { RefreshCw, Download, AlertTriangle } from 'lucide-react';
 import ArrivalsFilters from './ArrivalsFilters';
 import ArrivalsOverview from './ArrivalsOverview';
+import ArrivalsBd10Status from './ArrivalsBd10Status';
 import ArrivalsRoutesServices from './ArrivalsRoutesServices';
 import ArrivalsQuality from './ArrivalsQuality';
 import ArrivalsLookup from './ArrivalsLookup';
@@ -168,6 +169,7 @@ export default function ArrivalsView({ authUser }) {
 
   const tabs = [
     { id: 'overview', label: 'Tổng quan' },
+    { id: 'bd10_status', label: 'Trạng thái BD10 đến' },
     { id: 'routes_services', label: 'Đường thư và dịch vụ' },
     { id: 'quality', label: 'Chất lượng khai thác' },
     { id: 'lookup', label: 'Tra cứu bưu gửi' }
@@ -263,6 +265,13 @@ export default function ArrivalsView({ authUser }) {
                 filters={filters} 
                 bcvhList={DASHBOARD_BCVH}
                 isAdmin={isAdmin}
+              />
+            )}
+            {activeTab === 'bd10_status' && (
+              <ArrivalsBd10Status 
+                filters={filters}
+                onShowDetail={() => setShowBd10Detail(true)}
+                bcvhList={DASHBOARD_BCVH}
               />
             )}
             {activeTab === 'routes_services' && data.byRoute && (
