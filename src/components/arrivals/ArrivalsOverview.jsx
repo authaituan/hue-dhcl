@@ -18,7 +18,6 @@ function BcvhComparisonTable({ filters, bcvhList }) {
         const q = new URLSearchParams();
         q.set('from', filters.from);
         q.set('to', filters.to);
-        q.set('date_basis', filters.date_basis);
         q.set('receiver_code', code);
         if (filters.ward_key) q.set('ward_key', filters.ward_key);
         

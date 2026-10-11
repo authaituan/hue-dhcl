@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
-import { apiFetch } from '../../utils/api';
+import { apiDownloadExcel } from '../../utils/api';
 import { formatDateOnly, parseFromApiDate } from './dateUtils';
 
 export default function ArrivalsExport({ filters, exportScope, bcvhList }) {
@@ -47,41 +47,16 @@ export default function ArrivalsExport({ filters, exportScope, bcvhList }) {
     const q = new URLSearchParams();
     q.set('from', formatDateOnly(dFrom));
     q.set('to', formatDateOnly(dTo));
-    q.set('date_basis', filters.date_basis);
     q.set('receiver_code', code);
 
     try {
-      const res = await apiFetch('/api/arrivals/export?' + q.toString());
-      if (!res.ok) {
-        let msg = 'Lỗi hệ thống khi tải file';
-        try {
-          const errData = await res.json();
-          if (errData.error) msg = errData.error;
-        } catch(e) {}
-        setError(msg);
-        setLoading(false);
-        return;
+      const url = '/api/arrivals/export?' + q.toString();
+      const defaultFilename = `HangDen_${code}_${filters.from.slice(0,10)}_${filters.to.slice(0,10)}.xlsx`;
+      const result = await apiDownloadExcel(url, defaultFilename);
+      
+      if (!result.ok) {
+        setError(result.error || 'Lỗi kết nối khi tải file');
       }
-
-      // Lấy tên file từ header
-      let filename = `HangDen_${code}_${filters.from.slice(0,10)}_${filters.to.slice(0,10)}.xlsx`;
-      const disposition = res.headers.get('Content-Disposition');
-      if (disposition && disposition.indexOf('filename=') !== -1) {
-        const matches = /filename="([^"]+)"/.exec(disposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1];
-        }
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
     } catch(err) {
       setError('Lỗi kết nối khi tải file');
     } finally {

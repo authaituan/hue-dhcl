@@ -42,7 +42,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, minDate
   const pad = (n) => n.toString().padStart(2, '0');
   
   const displayString = value 
-    ? `${pad(value.getDate())}/${pad(value.getMonth() + 1)}/${value.getFullYear()} ${pad(value.getHours())}:${pad(value.getMinutes())}`
+    ? `${pad(value.getDate())}/${pad(value.getMonth() + 1)}/${value.getFullYear()}`
     : '';
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -135,23 +135,7 @@ export default function CustomDatePicker({ value, onChange, placeholder, minDate
             })}
           </div>
 
-          <div className="border-t border-gray-100 pt-3 flex items-center justify-center gap-2">
-            <select 
-              className="px-2 py-1 border border-gray-200 rounded text-sm bg-white"
-              value={selectedHour}
-              onChange={(e) => handleTimeChange('h', e.target.value)}
-            >
-              {Array.from({length: 24}).map((_, i) => <option key={i} value={i}>{pad(i)}</option>)}
-            </select>
-            <span className="text-gray-500 font-medium">:</span>
-            <select 
-              className="px-2 py-1 border border-gray-200 rounded text-sm bg-white"
-              value={selectedMinute}
-              onChange={(e) => handleTimeChange('m', e.target.value)}
-            >
-              {Array.from({length: 60}).map((_, i) => <option key={i} value={i}>{pad(i)}</option>)}
-            </select>
-          </div>
+
         </div>
       )}
     </div>

@@ -113,3 +113,37 @@ export async function apiFetchJson(url, options = {}) {
   }
   return { ok: true, status: res.status, error: null, data };
 }
+
+// Gọi API để tải file blob (Excel) và tự động kích hoạt trình duyệt tải về.
+export async function apiDownloadExcel(url, defaultFilename = 'download.xlsx') {
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    let msg = 'Lỗi hệ thống khi tải file';
+    try {
+      const errData = await res.json();
+      if (errData.error) msg = errData.error;
+    } catch (e) {}
+    return { ok: false, error: msg };
+  }
+
+  let filename = defaultFilename;
+  const disposition = res.headers.get('Content-Disposition');
+  if (disposition && disposition.indexOf('filename=') !== -1) {
+    const matches = /filename="([^"]+)"/.exec(disposition);
+    if (matches != null && matches[1]) {
+      filename = matches[1];
+    }
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+
+  return { ok: true, error: null };
+}

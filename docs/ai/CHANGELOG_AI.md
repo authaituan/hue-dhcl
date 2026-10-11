@@ -4,6 +4,17 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-10] - Giao diện: chỉ số "BD10 đến không XNĐ" (SANLUONG-4a7)
+
+- `src/components/arrivals/ArrivalsBd10NotConfirmed.jsx` (mới): Thêm `ArrivalsBd10NotConfirmedBanner` và `ArrivalsBd10NotConfirmedDetail` để hiển thị BD10 đến chưa có xác nhận đến (S2, S3), có bộ lọc nhóm (`530100` / `khac`), nút xuất Excel (chỉ khi chọn 1 BCVH và tối đa 92 ngày).
+- `src/components/arrivals/ArrivalsView.jsx`: Tích hợp Banner và Detail của BD10 đến không XNĐ (hoạt động giống khối chưa nhận tại BCVH).
+- `src/components/arrivals/ArrivalsQuality.jsx`: Gỡ bỏ khối "Đủ trạng thái theo nguồn" (do quy tắc R2 thay đổi, không còn dùng).
+- Hoàn tất các phần của SANLUONG-3h bị dở dang (đã xóa `date_basis` trên frontend và tích hợp `ArrivalsNotReceived`).
+- Xác nhận: Khi giao diện không gửi `date_basis`, backend mặc định lấy tiêu chí `arrival` (R2: đến BCVH).
+- Đã chạy `npm run build` thành công.
+
+---
+
 ## [2026-10-10] - API chỉ số "BD10 đến không XNĐ" + danh sách + xuất Excel (SANLUONG-4a6)
 
 - `server/lib/bd10Query.js` (mới): chỉ số ở mức BD10 tính lúc truy vấn (nhóm theo `bd10_no`, một lần quét): BD10 đến = ký tự 7–12 = mã BCVH nhận, 6 ký tự đầu ≠ mã BCVH; S1–S4; N = S2+S3; D = S1+S2+S3 có ngày trong khung; ngày quy tắc X; tuổi dùng `latestFileDate`/`dayAge`/`ageBucket` của `chua_nhan_tai_bcvh`; phạm vi theo vai trò qua `scopedFilters`. Không thêm bảng / cột / chỉ mục.
