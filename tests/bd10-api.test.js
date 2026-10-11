@@ -283,7 +283,7 @@ test('GET /bd10-khong-xnd/export: xlsx cùng bộ lọc, mọi ô là chuỗi, q
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(Buffer.from(await res.arrayBuffer()));
   const ws = wb.worksheets[0];
-  assert.deepEqual(ws.getRow(1).values.slice(1), ['So_hieu_BD10', 'Buu_cuc_lap', 'Nhom', 'Thoi_gian_gan_ngay', 'Tuoi_ngay', 'So_buu_gui', 'So_BD8', 'Co_XN_tui', 'Co_XN_BG', 'Trang_thai']);
+  assert.deepEqual(ws.getRow(1).values.slice(1), ['So_hieu_BD10', 'Buu_cuc_lap', 'Nhom', 'Thoi_gian_gan_ngay', 'Da_cho_ngay', 'So_buu_gui', 'So_BD8', 'Co_XN_tui', 'Co_XN_BG', 'Trang_thai']);
   const rows = [];
   ws.eachRow((x, n) => { if (n > 1) rows.push(x.values.slice(1)); });
   assert.deepEqual(rows.map((x) => x[0]), [C2, B1, B2, C1, C3]);

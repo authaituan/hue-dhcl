@@ -9,7 +9,7 @@
 //   S4 không XNĐ và không có XN nào.
 // Tử số N = S2 + S3 (BD10 đến không XNĐ). Mẫu số D = S1 + S2 + S3 có ngày trong khung. S4 không có mốc nào nên không gán được ngày: trả riêng.
 // Ngày của BD10 (quy tắc X): MIN(XNĐ) nếu có; nếu không có XNĐ thì MIN của XN túi và XN bưu gửi trên mọi dòng (cả hai cột).
-// Tuổi của N: số ngày từ ngày gán đến dữ liệu mới nhất đã nạp (cùng hàm với chua_nhan_tai_bcvh); nhóm '0-1' / '2' / '3+'.
+// Tuổi ("đã chờ") của N: số ngày từ ngày gán đến ngày file OK mới nhất CỦA BCVH NHẬN (ký tự 7–12 = receiver_code; #70; cùng hàm với chua_nhan_tai_bcvh); nhóm '0-1' / '2' / '3+'.
 // Phạm vi BCVH theo vai trò: scopedFilters() như chua_nhan_tai_bcvh (GDVH chỉ BCVH được giao; chưa được giao -> 0).
 // ==========================================
 'use strict';
@@ -58,10 +58,10 @@ function stats(db, f, allowed = null) {
   const out = emptyStats(f);
   const sc = aq.scopedFilters(f, allowed);
   if (sc.empty) return out;
-  const latest = aq.latestFileDate(db);
-  const rows = db.prepare(`SELECT CASE WHEN substr(bd10_no, 1, 6) = @ttkt THEN '530100' ELSE 'khac' END AS grp, st, substr(ts, 1, 10) AS d,
+  const byUnit = aq.latestFileDates(db);
+  const rows = db.prepare(`SELECT receiver_code AS rc, CASE WHEN substr(bd10_no, 1, 6) = @ttkt THEN '530100' ELSE 'khac' END AS grp, st, substr(ts, 1, 10) AS d,
       COUNT(*) AS n, COALESCE(SUM(xnd_min <> xnd_max), 0) AS xnd_khac
-    FROM (${perBd10Sql(sc.f)}) GROUP BY grp, st, d`).all(params(sc.f));
+    FROM (${perBd10Sql(sc.f)}) GROUP BY rc, grp, st, d`).all(params(sc.f));
   for (const r of rows) {
     if (r.st === 'S4') { out.ngoai_khung.khong_co_moc += r.n; continue; }
     if (r.d < sc.f.fromDate) { out.ngoai_khung.truoc_khung += r.n; continue; }
@@ -74,7 +74,7 @@ function stats(db, f, allowed = null) {
     if (r.st === 'S2' || r.st === 'S3') {
       out.khong_xnd += r.n;
       g.khong_xnd += r.n;
-      out.theo_tuoi[aq.ageBucket(aq.dayAge(latest, r.d))] += r.n;
+      out.theo_tuoi[aq.ageBucket(aq.ageAt(byUnit, r.rc, r.d))] += r.n;
     }
   }
   out.ty_le = ratio(out.khong_xnd, out.tong_bd10_den);
@@ -83,20 +83,27 @@ function stats(db, f, allowed = null) {
 }
 
 // ---- Tham số của danh sách / xuất file ----
-/** Tách nhom, tuoi khỏi query và đổi bí danh `unit` -> `receiver_code`. Trả { base, nhom, tuoi }. */
-function splitQuery(query) {
-  const base = { ...query };
-  const one = (k) => {
-    const v = base[k];
-    delete base[k];
-    if (Array.isArray(v)) throw new aq.QueryParamError(`Tham số "${k}" chỉ nhận 1 giá trị`);
-    return v === undefined || v === '' ? null : String(v).trim();
-  };
-  const unit = one('unit');
+// Lấy (và xoá) một tham số đơn khỏi base; rỗng -> null.
+function takeOne(base, k) {
+  const v = base[k];
+  delete base[k];
+  if (Array.isArray(v)) throw new aq.QueryParamError(`Tham số "${k}" chỉ nhận 1 giá trị`);
+  return v === undefined || v === '' ? null : String(v).trim();
+}
+// Bí danh `unit` -> `receiver_code` (sửa base tại chỗ).
+function applyUnitAlias(base) {
+  const unit = takeOne(base, 'unit');
   if (unit !== null) {
     if (base.receiver_code !== undefined && String(base.receiver_code).trim() !== unit) throw new aq.QueryParamError('Tham số "unit" và "receiver_code" không khớp (dùng một trong hai)');
     base.receiver_code = unit;
   }
+}
+
+/** Tách nhom, tuoi khỏi query và đổi bí danh `unit` -> `receiver_code`. Trả { base, nhom, tuoi }. */
+function splitQuery(query) {
+  const base = { ...query };
+  const one = (k) => takeOne(base, k);
+  applyUnitAlias(base);
   const nhom = one('nhom');
   const tuoi = one('tuoi');
   if (nhom !== null && !NHOM.includes(nhom)) throw new aq.QueryParamError(`Tham số "nhom" phải là một trong: ${NHOM.join(', ')}`);
@@ -104,7 +111,8 @@ function splitQuery(query) {
   return { base, nhom, tuoi };
 }
 
-const AGE_SQL = 'MAX(0, CAST(ROUND(julianday(@latest) - julianday(substr(ts, 1, 10))) AS INTEGER))';
+// Cùng phép tính với aq.ageAt(): mốc = ngày file OK mới nhất của BCVH nhận, tra trong @latest_by_unit (JSON { mã: ngày } từ aq.latestFileDates); chưa có file -> 0.
+const AGE_SQL = `MAX(0, CAST(ROUND(julianday(COALESCE(json_extract(@latest_by_unit, '$."' || receiver_code || '"'), substr(ts, 1, 10))) - julianday(substr(ts, 1, 10))) AS INTEGER))`;
 function listWhere({ nhom, tuoi }) {
   const w = ["st IN ('S2', 'S3')", 'substr(ts, 1, 10) BETWEEN @dfrom AND @dto'];
   if (nhom === '530100') w.push('substr(bd10_no, 1, 6) = @ttkt');
@@ -121,8 +129,8 @@ function list(db, f, opts = {}, allowed = null) {
   const pg = { page: f.page, page_size: f.pageSize };
   const meta = { from: f.from, to: f.to, quy_tac_ngay: 'X' };
   if (sc.empty) return { items: [], pagination: { total: 0, ...pg, total_pages: 0 }, meta };
-  const latest = aq.latestFileDate(db);
-  const p = { ...params(sc.f), latest: latest || '0000-00-00' };
+  const byUnit = aq.latestFileDates(db);
+  const p = { ...params(sc.f), latest_by_unit: JSON.stringify(Object.fromEntries(byUnit)) };
   const where = listWhere(opts);
   // Một lần quét: tổng số dòng lấy bằng COUNT(*) OVER (); chỉ khi trang vượt quá cuối (không có dòng nào) mới đếm riêng.
   const rows = db.prepare(`SELECT bd10_no, receiver_code, st, ts, has_bag, has_itm, COUNT(*) OVER () AS total FROM (${perBd10Sql(sc.f)}) WHERE ${where}
@@ -140,7 +148,7 @@ function list(db, f, opts = {}, allowed = null) {
       const c = counts.get(`${r.bd10_no}|${r.receiver_code}`) || { shbg: 0, bd8: 0 };
       const ngay = r.ts.slice(0, 10);
       return {
-        so_hieu_bd10: r.bd10_no, lap6: r.bd10_no.slice(0, 6), nhom: group(r.bd10_no), ma_bcvh: r.receiver_code, ngay, thoi_diem: r.ts, tuoi: aq.dayAge(latest, ngay),
+        so_hieu_bd10: r.bd10_no, lap6: r.bd10_no.slice(0, 6), nhom: group(r.bd10_no), ma_bcvh: r.receiver_code, ngay, thoi_diem: r.ts, tuoi: aq.ageAt(byUnit, r.receiver_code, ngay),
         so_buu_gui: c.shbg, so_bd8: c.bd8, co_xn_tui: !!r.has_bag, co_xn_bg: !!r.has_itm, trang_thai: r.st
       };
     }),
@@ -156,4 +164,91 @@ function parseListQuery(query) {
   return { f, nhom, tuoi };
 }
 
-module.exports = { NHOM, TUOI, MAX_PAGE_SIZE, SCOPE_SQL, stats, list, splitQuery, parseListQuery, group };
+// ==========================================
+// "Trạng thái BD10 đến" theo ngày / theo bưu cục lập (SANLUONG-4a9, #69). Cùng tập BD10, trạng thái và quy tắc X với stats():
+// đã XNĐ = S1, chưa XNĐ = S2 + S3, tong = S1 + S2 + S3 có ngày trong khung; S4 và BD10 có ngày ngoài khung trả riêng ở ngoai_khung.
+// ==========================================
+const TRANG_THAI_MAX_DAYS = 92; // cùng giới hạn với xuất file (arrivalsExport EXPORT_MAX_DAYS)
+
+/** from, to (chỉ ngày), receiver_code | unit. Khung > TRANG_THAI_MAX_DAYS ngày -> 400. */
+function parseTrangThaiQuery(query) {
+  const base = { ...query };
+  applyUnitAlias(base);
+  for (const k of ['from', 'to']) {
+    const v = base[k];
+    if (typeof v === 'string' && v.trim() && !aq.DATE_RE.test(v.trim())) throw new aq.QueryParamError(`Tham số "${k}" phải dạng YYYY-MM-DD`);
+  }
+  const f = aq.parseFilters(base, { allowed: ['from', 'to', 'receiver_code'] });
+  const days = aq.dayDiff(f.fromDate, f.toDate) + 1;
+  if (days > TRANG_THAI_MAX_DAYS) {
+    throw new aq.QueryParamError(`Khoảng ngày tối đa ${TRANG_THAI_MAX_DAYS} ngày (đã chọn ${days} ngày). Hãy thu hẹp khoảng ngày`);
+  }
+  return f;
+}
+
+const counter = () => ({ tong: 0, da_xnd: 0, chua_xnd: 0, ty_le_chua_xnd: null });
+const addTo = (c, st, n) => { c.tong += n; if (st === 'S1') c.da_xnd += n; else c.chua_xnd += n; };
+const finish = (c) => { c.ty_le_chua_xnd = ratio(c.chua_xnd, c.tong); return c; };
+
+/** Một lần quét: số BD10 theo (bưu cục lập, trạng thái, ngày quy tắc X); tách sẵn ngoai_khung. Trả { rows (trong khung), ngoai_khung }. */
+function statusRows(db, f, allowed) {
+  const ngoai_khung = { truoc_khung: 0, sau_khung: 0, khong_co_moc: 0 };
+  const sc = aq.scopedFilters(f, allowed);
+  if (sc.empty) return { rows: [], ngoai_khung };
+  const all = db.prepare(`SELECT substr(bd10_no, 1, 6) AS lap, st, substr(ts, 1, 10) AS d, COUNT(*) AS n
+    FROM (${perBd10Sql(sc.f)}) GROUP BY lap, st, d`).all(params(sc.f));
+  const rows = [];
+  for (const r of all) {
+    if (r.st === 'S4') ngoai_khung.khong_co_moc += r.n;
+    else if (r.d < f.fromDate) ngoai_khung.truoc_khung += r.n;
+    else if (r.d > f.toDate) ngoai_khung.sau_khung += r.n;
+    else rows.push(r);
+  }
+  return { rows, ngoai_khung };
+}
+
+/** MỌI ngày trong khung (ngày không có BD10 vẫn có phần tử, số 0), tổng cả khung, ngoai_khung,
+ *  ngay_du_lieu_moi_nhat = file OK mới nhất của các BCVH đang chọn trong phạm vi (không chọn = mọi BCVH; không có file / không còn BCVH nào -> null; #70). */
+function trangThaiTheoNgay(db, f, allowed = null) {
+  const { rows, ngoai_khung } = statusRows(db, f, allowed);
+  const sc = aq.scopedFilters(f, allowed);
+  const days = new Map();
+  for (let d = f.fromDate; d <= f.toDate; d = aq.addDays(d, 1)) days.set(d, { ngay: d, ...counter() });
+  const tong = counter();
+  for (const r of rows) { addTo(days.get(r.d), r.st, r.n); addTo(tong, r.st, r.n); }
+  return {
+    khung: { from: f.fromDate, to: f.toDate, quy_tac_ngay: 'X' },
+    ngay_du_lieu_moi_nhat: sc.empty ? null : aq.latestFileDate(db, sc.f.receiverCodes),
+    theo_ngay: [...days.values()].map(finish),
+    tong: finish(tong),
+    ngoai_khung
+  };
+}
+
+/** Theo bưu cục lập (6 ký tự đầu BD10), sắp chua_xnd giảm dần rồi tong giảm dần (hoà: mã tăng dần); tên từ danh mục post_offices (không có -> null). */
+function trangThaiTheoBuuCucLap(db, f, allowed = null) {
+  const { rows, ngoai_khung } = statusRows(db, f, allowed);
+  const by = new Map();
+  const tong = counter();
+  for (const r of rows) {
+    if (!by.has(r.lap)) by.set(r.lap, { ma_buu_cuc: r.lap, ten_buu_cuc: null, ...counter() });
+    addTo(by.get(r.lap), r.st, r.n);
+    addTo(tong, r.st, r.n);
+  }
+  if (by.size) {
+    const names = db.prepare('SELECT code, name FROM post_offices WHERE code IN (SELECT value FROM json_each(@codes))').all({ codes: JSON.stringify([...by.keys()]) });
+    for (const p of names) if (p.name) by.get(p.code).ten_buu_cuc = p.name;
+  }
+  return {
+    khung: { from: f.fromDate, to: f.toDate, quy_tac_ngay: 'X' },
+    theo_buu_cuc_lap: [...by.values()].map(finish)
+      .sort((a, b) => b.chua_xnd - a.chua_xnd || b.tong - a.tong || a.ma_buu_cuc.localeCompare(b.ma_buu_cuc)),
+    tong: finish(tong),
+    ngoai_khung
+  };
+}
+
+module.exports = {
+  NHOM, TUOI, MAX_PAGE_SIZE, SCOPE_SQL, TRANG_THAI_MAX_DAYS, stats, list, splitQuery, parseListQuery, group,
+  parseTrangThaiQuery, trangThaiTheoNgay, trangThaiTheoBuuCucLap
+};

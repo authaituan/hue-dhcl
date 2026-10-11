@@ -4,6 +4,18 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-11] - "Chưa nhận" loại BD10 lập đi / rỗng; API trạng thái BD10 đến theo ngày / theo bưu cục lập; đổi tên cột Excel (SANLUONG-4a9)
+
+- `server/lib/arrivalsQuery.js`: #68 (đổi #60) — "chưa nhận tại BCVH" chỉ giữ bưu gửi mà BD10 của dòng đại diện (id nhỏ nhất) là BD10 đến hoặc loại khác; loại BD10 rỗng và BD10 lập đi. Một chỗ: `notReceivedSql()` + `NOT_RECEIVED_BD10_SQL`, dùng chung cho `notReceivedStats` (`/summary`, `/dashboard/center`), `notReceivedList` (`/not-received`, `/not-received/export`) và `CHUA_NHAN_TAI_BCVH` của `/exceptions`. Khoá API không đổi.
+- `server/lib/bd10Query.js` + `server/routes/arrivals.js`: #69 — `GET /api/arrivals/bd10-trang-thai/theo-ngay` và `/theo-buu-cuc-lap` (from, to chỉ ngày, ≤ 92 ngày; receiver_code | unit; công khai, phạm vi `scopeCodes`); tên bưu cục lập từ `post_offices`; `ngay_du_lieu_moi_nhat` = `latestFileDate()` (cả DB). Tách `applyUnitAlias` dùng chung với `splitQuery`. Khoá cũ của `bd10_den_khong_xnd` không đổi.
+- `server/lib/arrivalsExport.js`: tiêu đề cột `Tuoi_ngay` → `Da_cho_ngay` ở file xuất "chưa nhận" và "BD10 đến không XNĐ" (trường API `tuoi_ngay` / `tuoi` giữ nguyên; `/export` 9 cột không đổi). Không có mã / script / docs nào đọc cột theo tên; sửa 2 assert tiêu đề trong `tests/arrivals-source.test.js`, `tests/bd10-api.test.js`.
+- `tests/bd10-trang-thai.test.js` (mới, 7 ca): #68 (lập đi / rỗng bị loại, theo dòng đại diện; BD10 đến và loại khác vẫn tính; cùng số ở summary / not-received / exceptions / center / xuất Excel; khung hẹp / rộng theo ngày file); #69 (mọi ngày trong khung, ngày trống = 0, quy tắc X, tổng ngày = tổng khung, ngoài khung, `ty_le_chua_xnd` null khi tong = 0, > 92 ngày → 400, sắp theo bưu cục lập, tên null khi ngoài danh mục, phạm vi GDVH / ADMIN / TTVH, STAFF 403). Thêm tệp này vào script `test` của `package.json`. `npm test` 264 ca: 263 pass, 1 skip có chủ đích.
+- Bản chép DB dev (BCVH 533140, 01→09/10): chưa nhận 330 → 320 (`0-1` 249, `2` 5, `3+` 66 — khớp 4a8; 46 bưu gửi có dòng thuộc nhiều loại BD10); trạng thái BD10 đến 163 / chưa XNĐ 22 (13,5%), 530100 19/104, bưu cục khác 3/59, ngoài khung 18/5/2 — khớp 4a5/4a6.
+- Docs: quyết định #68, #69 (ghi chú đổi ở #60), bản đồ kiến trúc, `00_SNAPSHOT.md`.
+- 4a9b (#70, PO quyết 11/10): ngày dữ liệu mới nhất (`/bd10-trang-thai/theo-ngay`) và mốc "đã chờ" tính theo ngày file OK mới nhất CỦA BCVH NHẬN (`latestFileDates` / `latestFileDate(db, codes)` / `ageAt` trong `arrivalsQuery.js`; áp ở chưa nhận, `/not-received`, `/exceptions`, `/dashboard/center`, BD10 đến không XNĐ + lọc `tuoi`, hai file xuất); `theo_ngay_lap` tách theo (ngày, tuổi) khi nhiều BCVH lệch ngày. +4 ca test (`tests/bd10-trang-thai.test.js`, 11 ca); `npm test` 268 ca: 267 pass, 1 skip. Bản chép DB (533140, file mới nhất 10/10): mọi số giữ nguyên. Backlog 7j5, 7j6.
+
+---
+
 ## [2026-10-10] - Giao diện: chỉ số "BD10 đến không XNĐ" (SANLUONG-4a7)
 
 - `src/components/arrivals/ArrivalsBd10NotConfirmed.jsx` (mới): Thêm `ArrivalsBd10NotConfirmedBanner` và `ArrivalsBd10NotConfirmedDetail` để hiển thị BD10 đến chưa có xác nhận đến (S2, S3), có bộ lọc nhóm (`530100` / `khac`), nút xuất Excel (chỉ khi chọn 1 BCVH và tối đa 92 ngày).

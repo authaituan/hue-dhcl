@@ -234,7 +234,7 @@ const NR_COLUMNS = Object.freeze([
   { header: 'So_hieu_BD10', field: 'bd10_no', width: 24 },
   { header: 'Ten_duong_thu', field: 'route_name', width: 34 },
   { header: 'Thoi_gian_lap_BD10', field: 'thoi_diem_lap_bd10', width: 21, time: true },
-  { header: 'Tuoi_ngay', field: 'tuoi_ngay', width: 11 }
+  { header: 'Da_cho_ngay', field: 'tuoi_ngay', width: 12 }
 ]);
 const NR_PAGE = 2000;
 
@@ -278,7 +278,7 @@ const BD10_COLUMNS = Object.freeze([
   { header: 'Buu_cuc_lap', field: 'lap6', width: 14 },
   { header: 'Nhom', field: 'nhom', width: 9 },
   { header: 'Thoi_gian_gan_ngay', field: 'thoi_diem', width: 21, time: true },
-  { header: 'Tuoi_ngay', field: 'tuoi', width: 11 },
+  { header: 'Da_cho_ngay', field: 'tuoi', width: 12 },
   { header: 'So_buu_gui', field: 'so_buu_gui', width: 12 },
   { header: 'So_BD8', field: 'so_bd8', width: 9 },
   { header: 'Co_XN_tui', field: 'co_xn_tui', width: 11 },
