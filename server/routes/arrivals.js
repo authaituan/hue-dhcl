@@ -6,6 +6,8 @@ const q = require('../lib/arrivalsQuery');
 const dash = require('../lib/dashboardQuery');
 const exp = require('../lib/arrivalsExport');
 const bd10 = require('../lib/bd10Query');
+const den = require('../lib/dashboardDenQuery');
+const { getAssignedBcvh } = require('../lib/userBcvh');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 
 const router = express.Router();
@@ -77,6 +79,12 @@ router.get('/arrivals/dashboard/overview', handle((req) => dash.overview(db, req
 router.get('/arrivals/dashboard/trend', handle((req) => dash.trend(db, req.query), 'dashboard-trend'));
 router.get('/arrivals/dashboard/wards-surge', handle((req) => dash.wardsSurge(db, req.query), 'dashboard-wards-surge'));
 router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.query), 'dashboard-center'));
+// Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF 403.
+// bcvh_goi_y: BCVH được giao của GDVH (giao diện chọn sẵn), rỗng với vai trò khác. Tham số: bcvh (mã | all), date; phuong-xa-tang thêm gioi_han.
+const goiY = (req) => ({ goiY: req.user.role === ROLES.GDVH ? getAssignedBcvh(req.user.id, db) : [] });
+router.get('/arrivals/dashboard/tong-quan-den', handle((req) => den.tongQuanDen(db, req.query, goiY(req)), 'dashboard-tong-quan-den'));
+router.get('/arrivals/dashboard/viec-can-lam', handle((req) => den.viecCanLam(db, req.query, goiY(req)), 'dashboard-viec-can-lam'));
+router.get('/arrivals/dashboard/phuong-xa-tang', handle((req) => den.phuongXaTang(db, req.query, goiY(req)), 'dashboard-phuong-xa-tang'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));

@@ -4,6 +4,15 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-11] - API Dashboard «Cần điều hành ngay hôm nay» — phần đến (DASH-1)
+
+- `server/lib/dashboardDenQuery.js` (mới) + `server/routes/arrivals.js`: `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (tham số `bcvh`, `date`, `gioi_han`; ADMIN / TTVH / GDVH, STAFF 403; `bcvh_goi_y` cho GDVH). Dùng lại `buildCountedCte`, `notReceivedStats`, `bd10.stats`, `latestFileDate`; không đổi API / cách tính có sẵn. Tên `/dashboard/overview` đã có (3e) nên đặt `tong-quan-den`.
+- `server/config/dashboard-thresholds.js` (mới): hằng số mức điều hành TẠM (`HANG_NANG_G` 2000, `GIO_MUON` 15, chưa nhận >= 1 ngày, BD10 10% / 5%, lệch sản lượng 25% / 15%).
+- `tests/dashboard-den.test.js` (mới, 8 ca; thêm vào script `test` của `package.json`): ranh giới 1.999 / 2.000 / 2.001 g và khối lượng 0, 14:59:59 / 15:00:00, lượt vs bưu gửi (nhiều dòng một bưu gửi), so hôm qua / TB cùng giờ và thiếu ngày → null, BD10 lập đi / rỗng bị loại khỏi chưa nhận, ngưỡng 5% / 10% / 15% / 25%, việc cần làm, phường/xã (hôm qua = 0), quyền (GDVH chưa giao = ADMIN, STAFF 403). `npm test` 280 ca: 279 pass, 1 skip có chủ đích.
+- Bản chép DB dev (533140, 08/10): bưu gửi 3.914 / lượt 4.034; BD10 chưa XNĐ 2/23 (8,7%); chưa nhận 5 bưu gửi chờ 2 ngày — khớp API có sẵn; mỗi lần gọi ~40–100 ms. Docs: quyết định #73, bản đồ kiến trúc, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-11] - GDVH xem được «chưa nhận» và «BD10 đến» của BCVH đang chọn — phương án A (SANLUONG-4a11)
 
 - `server/routes/arrivals.js`: bỏ hàm `scopeCodes`; `/summary` (`chua_nhan_tai_bcvh`, `bd10_den_khong_xnd`), `/not-received`, `/bd10-khong-xnd`, `/dashboard/center`, `/bd10-trang-thai/theo-ngay`, `/theo-buu-cuc-lap` không còn giới hạn GDVH theo BCVH được giao — mọi vai trò xem theo bộ lọc `receiver_code` / `unit`. Tải / xuất (`/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export`) KHÔNG đổi. Chú thích: `arrivalsQuery.js` (`scopedFilters`, `summary`), `bd10Query.js` (đầu file), `dashboardQuery.js` (`center`). Khoá JSON không đổi.
