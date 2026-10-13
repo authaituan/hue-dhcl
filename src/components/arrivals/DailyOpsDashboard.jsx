@@ -4,15 +4,10 @@ import {
   ExternalLink, Clock, Package, AlertCircle, ChevronLeft, CheckCircle2
 } from 'lucide-react';
 import { apiFetchJson } from '../../utils/api';
+import { BCVH_LIST } from '../../constants/bcvh';
 
-const DASHBOARD_BCVH = [
-  { ma: '533140', ten: 'BCVH Thuận Hóa' },
-  { ma: '535470', ten: 'BCVH Hương Trà' },
-  { ma: '536250', ten: 'BCVH Hương Thủy' },
-  { ma: '537015', ten: 'BCVH Thuận An' },
-  { ma: '537220', ten: 'BCVH Phú Lộc' },
-  { ma: '535790', ten: 'BCVH A Lưới' }
-];
+// Alias dùng chung từ constants/bcvh.js
+const DASHBOARD_BCVH = BCVH_LIST;
 
 // Hàm định dạng chênh điểm thống nhất toàn site (PO sẽ chốt chuỗi sau)
 export function formatPointDiff(diff) {
