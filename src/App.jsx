@@ -11,7 +11,9 @@ import TiviView from './components/TiviView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
-// Đọc token đã lưu (nếu có) ngay lúc khởi tạo state, để tránh nháy màn hình.
+// Đọc token đã lưu (nếu có) ngay lúc khởi tạo state, để tránh nháy màn hình
+// nội dung chính rồi mới bị đá về LoginView. Token hết hạn (claim "exp")
+// bị coi như chưa đăng nhập ngay từ đầu, không cần đợi request đầu tiên 401.
 function getInitialAuthUser() {
   const token = getToken();
   if (!token || isTokenExpired(token)) {
@@ -30,6 +32,11 @@ function readTvParams() {
   };
 }
 
+// Vai trò được vào chế độ tivi. STAFF mở ?tv=1 thì bỏ qua tham số, vào giao diện thường.
+const TV_ROLES = ['ADMIN', 'TTVH', 'GDVH', 'TIVI'];
+// /api/auth/me lỗi khác 401 hoặc không có phản hồi (mất mạng, backend chưa lên sau mất điện, 5xx): thử lại sau 10 giây.
+const ME_RETRY_MS = 10_000;
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [authUser, setAuthUser] = useState(getInitialAuthUser);
@@ -46,6 +53,7 @@ export default function App() {
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin  = authUser?.role === 'ADMIN';
   const isTiviRole = authUser?.role === 'TIVI';
+  const canTv = TV_ROLES.includes(authUser?.role);
 
   // Phạm vi tivi cho ADMIN/TTVH/GDVH vào qua ?tv=1: lấy từ URL
   const nonTiviScope = (() => {
@@ -67,22 +75,37 @@ export default function App() {
 
   // Gọi GET /api/auth/me để lấy tivi_scope mới nhất mỗi khi vào chế độ tivi với TIVI role.
   // Không đọc từ JWT vì token có thể được tạo trước khi admin gán phạm vi.
+  // Chỉ coi là "chưa gán phạm vi" khi API trả THÀNH CÔNG với tivi_scope = null. Lỗi khác 401 / không có phản hồi:
+  // giữ trạng thái đang kết nối (undefined) và thử lại sau ME_RETRY_MS, lặp tới khi được — tivi chạy 24/24 có thể
+  // bật trước khi backend lên (sau mất điện), không được kẹt ở màn "chưa gán phạm vi".
   useEffect(() => {
-    if (!isTiviRole || !tvMode) return;
-    setTiviScopeFromApi(undefined); // reset về trạng thái đang tải
-    apiFetchJson('/api/auth/me').then((res) => {
-      if (res.ok) {
-        // Lấy tivi_scope từ phản hồi API (null = chưa gán, string = đã gán)
-        setTiviScopeFromApi(res.data?.tivi_scope ?? null);
-      } else if (res.status === 401) {
-        clearToken();
-        setAuthUser(null);
-        setTvMode(false);
-      } else {
-        // Lỗi khác: giữ undefined để hiển thị trạng thái lỗi tạm thời
-        setTiviScopeFromApi(null);
-      }
-    });
+    if (!isTiviRole || !tvMode) return undefined;
+    let cancelled = false;
+    let retryTimer = null;
+    const retry = () => {
+      if (!cancelled) retryTimer = setTimeout(load, ME_RETRY_MS);
+    };
+    function load() {
+      apiFetchJson('/api/auth/me').then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          // Lấy tivi_scope từ phản hồi API (null = chưa gán, string = đã gán)
+          setTiviScopeFromApi(res.data?.tivi_scope ?? null);
+        } else if (res.status === 401) {
+          clearToken();
+          setAuthUser(null);
+          setTvMode(false);
+        } else {
+          retry();
+        }
+      }).catch(retry);
+    }
+    setTiviScopeFromApi(undefined); // reset về trạng thái đang kết nối
+    load();
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
   }, [isTiviRole, tvMode]);
 
   // Phạm vi thực sự truyền vào TiviView
@@ -118,7 +141,8 @@ export default function App() {
     setActiveTab('ops_today');
   }, []);
 
-  // 401 từ bất kỳ request nào → về màn đăng nhập
+  // Bất kỳ request ghi nào (qua src/utils/api.js) nhận 401 từ backend sẽ tự
+  // xoá token + phát event này -> quay về LoginView, không để lộ lỗi JSON thô.
   useEffect(() => {
     function handleAuthExpired() { setAuthUser(null); setTvMode(false); }
     window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
@@ -136,6 +160,9 @@ export default function App() {
     clearToken();
     setAuthUser(null);
     setTvMode(false);
+    // Reset về dashboard: tránh trường hợp đăng nhập lại bằng user khác
+    // (vd STAFF) trong khi đang ở tab "Quản Lý Người Dùng" -> màn hình
+    // trắng vì tab đó bị ẩn theo role nhưng activeTab vẫn giữ giá trị cũ.
     setActiveTab('dashboard');
   };
 
@@ -144,8 +171,8 @@ export default function App() {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // ── Chế độ tivi ──────────────────────────────────────────────────────────
-  if (tvMode) {
+  // ── Chế độ tivi (chỉ ADMIN, TTVH, GDVH, TIVI; STAFF có ?tv=1 vẫn vào giao diện thường) ──
+  if (tvMode && canTv) {
     return (
       <TiviView
         authUser={authUser}
