@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-12 (DASH-3).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-13 (PHAT-1).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -20,6 +20,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Quản lý người dùng (tạo, sửa tên/quyền, đặt lại mật khẩu, khoá/mở khoá) — chỉ ADMIN; 5 vai trò ADMIN/TTVH/GDVH/STAFF/TIVI (`server/roles.js`) | Có |
 | Gán GDVH ↔ BCVH (`user_bcvh`, `GET/PUT /api/users/:id/bcvh`, `bcvh_codes` trong danh sách) | Có (API; chưa giao diện); dùng để giới hạn xuất file của GDVH |
 | Vai trò `TIVI` (màn hình tivi 24/24): chỉ 3 endpoint dashboard «đến» + `/auth/me` (allowlist, từ chối mặc định), phạm vi `all` / một BCVH (`user_tivi_scope`, `tivi_scope` trong API tài khoản), token `JWT_EXPIRY_TIVI` (90 ngày) — #74 | Có (API; chưa giao diện) |
+| Module «Xử lý và tỷ lệ phát» (backend): file mẫu 1 dòng/SHBG, tải lên + kiểm tra từng dòng, biên tập, nhập từng phần, file lỗi, hoàn tác đợt, danh sách đợt, `GET /api/phat/ty-le` (mẫu số khớp `tong-quan-den`, mức cập nhật, khung giờ đến, tồn chờ); `nhap_luc` do máy chủ ghi — `08_PHAT.md`, #75 | Có (API; chưa giao diện — PHAT-2; chưa nối Dashboard / tivi — PHAT-3) |
 | Quản lý mạng lưới — danh sách, lọc, thêm/sửa/xoá bưu cục, người phụ trách, import/export Excel | Có |
 | Dashboard động (3 ô CHART mặc định trên dữ liệu bưu cục; ADMIN chỉnh sửa) | Có |
 | Lọc IP truy cập, header bảo mật, trang 404 | Có |
@@ -48,7 +49,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); "bình thường" = TB ≤ 4 ngày cùng thứ, cùng khoảng 00:00 → `as_of`; "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; điểm cần điều hành (lãnh đạo) từ ngưỡng `DASHBOARD_THRESHOLDS` (TẠM, chờ dữ liệu thật; hàng nặng so với bình thường theo điểm %, bỏ qua BCVH có bình thường < 50 SHBG — #48) — khác cảnh báo dữ liệu ADMIN-only — #41–#47.
 
 ## 5. Kiểm thử
-`npm test`: 21 file, 290 ca — 289 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-11.
+`npm test`: 22 file, 318 ca — 317 pass, 1 skip có chủ đích (test CLI seed bỏ qua khi máy đã có `data/hue-dhcl.db`), 2026-10-11.
 
 ## 6. Rủi ro / việc treo
 - **DB thật còn ngày đến theo quy tắc cũ** (mốc sớm nhất): sao lưu rồi chạy `scripts/rederive-arrival.js` (chạy thử → `--apply`, `06_DEPLOYMENT.md` mục 8). Trên bản chép: đổi 110/13.102 dòng, sản lượng 02→08/10 giữ 12.783. Dữ liệu nạp mới đã theo R2.

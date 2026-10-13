@@ -55,6 +55,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `users` | Tài khoản đăng nhập (khoá theo `hrm_code`), `deactivated_at` = khoá | `post_office_id` → post_offices |
 | `user_bcvh` | Gán GDVH ↔ BCVH (nhiều-nhiều; PK `(user_id, bcvh_code)`; mã thuộc `DASHBOARD_BCVH`). Xoá khi tài khoản rời vai trò GDVH. Chỉ giới hạn xuất file (3c-3) | `user_id` → users |
 | `user_tivi_scope` | Phạm vi tài khoản TIVI: `scope` = `all` hoặc một mã trong 6 BCVH (PK `user_id`; xoá khi rời vai trò TIVI) — #74 | `user_id` → users |
+| `phat_batches`, `phat_status_current`, `phat_status_history`, `phat_drafts`, `phat_draft_rows` | Module «Xử lý và tỷ lệ phát»: đợt nhập, trạng thái phát hiện tại theo (bcvh, shbg), lịch sử, bản kiểm tra + dòng (hết hạn 7 ngày). Chi tiết `08_PHAT.md` — #75 | `user_id` (không FK cứng) |
 | `dashboard_widgets` | Cấu hình ô Dashboard (SYSTEM/CHART), dùng chung mọi người | — |
 | `arrival_import_files` | Nhật ký nạp file "Hàng đến": tên, mã BC nhận, ngày/giờ file, sha256, số dòng, `status` OK/EMPTY/REJECTED/CONFLICT, lỗi/cảnh báo | — |
 | `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
@@ -65,6 +66,10 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 |---|---|---|
 | `POST /api/auth/login` | công khai (rate-limit) | `routes/auth.js` |
 | `GET /api/auth/me` — tài khoản hiện tại `{ id, hrm_code, full_name, role, tivi_scope, token_het_han }` (#74) | mọi vai trò (kể cả TIVI) | `routes/auth.js` |
+| `GET /api/phat/template?bcvh=&from=&to=&scope=chua\|tat-ca` — file `.xlsx` mỗi SHBG một dòng (#75) | nhập: ADMIN, TTVH, GDVH (theo BCVH được gán) | `routes/phat.js`, `lib/phatFile.js` |
+| `POST /api/phat/drafts?bcvh=&ten_file=` (thân = file thô ≤ 10 MB) · `GET /api/phat/drafts/:id` · `GET …/rows?ket_qua=&ma_loi=&q=&canh_bao=&page=&size=` · `PATCH\|DELETE …/rows` · `POST …/fill` · `POST …/assign-list` · `GET …/errors.xlsx[?loai_tru=]` · `POST …/commit` — bản kiểm tra, biên tập, nhập từng phần | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
+| `GET /api/phat/batches?bcvh=&page=&size=` · `POST /api/phat/batches/:id/undo` — danh sách đợt nhập (chỉ BCVH được phép) · hoàn tác (ADMIN, TTVH, chính người nhập; 409 nếu đợt sau đã đổi SHBG) | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
+| `GET /api/phat/ty-le?bcvh=<mã\|all>&ngay=` — mẫu số, 5 nhóm trạng thái, `muc_cap_nhat`, `so_lieu_den_luc` (+ `_bangkok`), `theo_khung_gio_den[6]`, `ton_cho` | ADMIN, TTVH, GDVH (mọi BCVH) | `routes/phat.js`, `lib/phat.js` |
 | `GET/POST /api/users`, `PUT /api/users/:id`, `.../reset-password`, `.../deactivate`, `.../reactivate`, `GET/PUT /api/users/:id/bcvh` (gán BCVH cho GDVH) | ADMIN | `routes/users.js` |
 | `GET /api/users/search?q=` | ADMIN | `routes/users.js` |
 | `PUT /api/users/me/password` | mọi vai trò (đã đăng nhập) | `routes/users.js` |
@@ -133,6 +138,9 @@ Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`, `TIV
 | `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | ✔ | 403 |
 | `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (#73) | ✔ | ✔ | ✔ | 403 | ✔ `bcvh` ép theo phạm vi; chưa có phạm vi → 403 |
 | `GET /api/auth/me` | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `/api/phat/template`, `/phat/drafts*`, `/phat/batches` (nhập, danh sách đợt) | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được gán (chưa gán → 403) | 403 | 403 |
+| `POST /api/phat/batches/:id/undo` | ✔ | ✔ | chỉ đợt do mình nhập, BCVH còn được gán | 403 | 403 |
+| `GET /api/phat/ty-le` | ✔ | ✔ | ✔ mọi BCVH (#72) | 403 | 403 (PHAT-3 sẽ mở qua dashboard) |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
 (`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
 Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DEPLOYMENT.md` mục 7).

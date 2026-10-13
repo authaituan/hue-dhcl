@@ -312,5 +312,7 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
 }
 
 module.exports = {
-  MUC, GIOI_HAN_MAC_DINH, GIOI_HAN_TOI_DA, parseParams, mucSanLuong, mucChuaNhan, mucBd10, tongQuanDen, viecCanLam, phuongXaTang
+  MUC, GIOI_HAN_MAC_DINH, GIOI_HAN_TOI_DA, parseParams, mucSanLuong, mucChuaNhan, mucBd10, tongQuanDen, viecCanLam, phuongXaTang,
+  // Dùng chung cho module «Xử lý và tỷ lệ phát» (PHAT-1): chỉ thêm export, không đổi cách tính.
+  bcvhContext, windowFilter, runCounted
 };
