@@ -1,7 +1,10 @@
 // ==========================================
-// Module «Xử lý và tỷ lệ phát» (PHAT-1, docs/ai/08_PHAT.md, 04_DECISIONS.md #75): file mẫu, bản kiểm tra, biên tập, nhập đợt.
-// Quyền NHẬP: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán trong user_bcvh (chưa gán -> 403); STAFF, TIVI -> 403
+// Module «Xử lý và tỷ lệ phát» (PHAT-1, docs/ai/08_PHAT.md, 04_DECISIONS.md #75): file mẫu, bản kiểm tra, biên tập, nhập đợt,
+// hoàn tác đợt, danh sách đợt, tỷ lệ.
+// Quyền NHẬP (file mẫu, bản kiểm tra, commit): ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán trong user_bcvh (chưa gán -> 403); STAFF, TIVI -> 403
 // (TIVI bị chặn bởi allowlist trong authRequired). Dùng đúng exp.allowedBcvhCodes của 3c-3.
+// Hoàn tác đợt: ADMIN, TTVH, hoặc chính người nhập (và vẫn được phép với BCVH đó). Danh sách đợt: chỉ đợt của BCVH mình được phép.
+// Xem TỶ LỆ: ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF, TIVI 403 (TIVI sẽ được cho phép ở PHAT-3).
 // Mọi thao tác ghi vào nhật ký bảo mật; KHÔNG ghi nội dung dòng dữ liệu (SHBG, ghi chú).
 // ==========================================
 'use strict';
@@ -35,18 +38,22 @@ function wrap(fn, label) {
 }
 
 const nhapGuard = requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH);
+const xemGuard = requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH); // xem tỷ lệ: mọi BCVH (#72), không theo BCVH được giao
 
-/** BCVH phải thuộc 6 BCVH (400) và người gọi được nhập cho BCVH đó (403). */
-function kiemTraBcvh(req, raw) {
+const thieuQuyen = (req, hanhDong) => {
+  const duoc = exp.allowedBcvhCodes(db, req.user);
+  if (req.user.role === ROLES.GDVH && !duoc.length) {
+    return new PhatError(403, `Tài khoản chưa được gán BCVH nào nên chưa ${hanhDong === 'xem' ? 'xem được danh sách đợt nhập' : 'nhập được kết quả phát'}. Liên hệ quản trị viên để được gán BCVH.`);
+  }
+  return new PhatError(403, hanhDong === 'xem' ? 'Bạn chỉ được xem các đợt nhập của BCVH được giao' : 'Bạn chỉ được nhập kết quả phát cho BCVH được giao');
+};
+
+/** BCVH phải thuộc 6 BCVH (400) và người gọi được nhập (hanhDong 'nhap') / xem đợt nhập ('xem') cho BCVH đó (403). */
+function kiemTraBcvh(req, raw, hanhDong = 'nhap') {
   const bcvh = Array.isArray(raw) ? '' : String(raw ?? '').trim();
   if (!bcvh) throw new PhatError(400, 'Thiếu tham số "bcvh" (mã của một trong 6 BCVH)');
   if (!VALID_BCVH_CODES.includes(bcvh)) throw new PhatError(400, `Tham số "bcvh" phải là một trong: ${VALID_BCVH_CODES.join(', ')}`);
-  const duoc = exp.allowedBcvhCodes(db, req.user);
-  if (!duoc.includes(bcvh)) {
-    throw new PhatError(403, req.user.role === ROLES.GDVH && !duoc.length
-      ? 'Tài khoản chưa được gán BCVH nào nên chưa nhập được kết quả phát. Liên hệ quản trị viên để được gán BCVH.'
-      : 'Bạn chỉ được nhập kết quả phát cho BCVH được giao');
-  }
+  if (!exp.allowedBcvhCodes(db, req.user).includes(bcvh)) throw thieuQuyen(req, hanhDong);
   return bcvh;
 }
 
@@ -165,9 +172,17 @@ router.post('/phat/drafts/:id/assign-list', authRequired, nhapGuard, wrap(async 
 
 router.get('/phat/drafts/:id/errors.xlsx', authRequired, nhapGuard, wrap(async (req, res) => {
   const d = layDraft(req);
-  const rows = P.layDongLoi(db, d);
+  for (const k of Object.keys(req.query)) if (k !== 'loai_tru') throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  // loai_tru=KHONG_DOI (hoặc nhiều mã, cách nhau dấu phẩy): bỏ các dòng loại lỗi đó khỏi file (dòng «không đổi» không cần sửa gì).
+  const raw = req.query.loai_tru;
+  if (Array.isArray(raw)) throw new PhatError(400, 'Tham số "loai_tru" chỉ nhận 1 giá trị (nhiều mã cách nhau dấu phẩy)');
+  const loaiTru = raw === undefined || raw === '' ? [] : String(raw).split(',').map((x) => x.trim()).filter(Boolean);
+  const hopLe = Object.values(C.MA_LOI);
+  const sai = loaiTru.find((m) => !hopLe.includes(m));
+  if (sai) throw new PhatError(400, `Tham số "loai_tru" chứa mã không hợp lệ "${sai.slice(0, 40)}". Chỉ nhận: ${hopLe.join(', ')}`);
+  const rows = P.layDongLoi(db, d, { loaiTru });
   const buf = await F.taoFileLoi({ bcvh: d.bcvh, rows });
-  audit(req, 'phat_draft_errors', { bcvh: d.bcvh, draft_id: d.id, rows: rows.length });
+  audit(req, 'phat_draft_errors', { bcvh: d.bcvh, draft_id: d.id, rows: rows.length, loai_tru: loaiTru.join(',') || null });
   res.status(200);
   res.setHeader('Content-Type', F.XLSX_MIME);
   res.setHeader('Content-Disposition', `attachment; filename="PHAT_LOI_${d.bcvh}_${d.tao_luc.slice(0, 10)}.xlsx"`);
@@ -181,5 +196,54 @@ router.post('/phat/drafts/:id/commit', authRequired, nhapGuard, wrap(async (req,
   audit(req, 'phat_commit', { bcvh: d.bcvh, draft_id: d.id, batch_id: kq.batch_id, rows: kq.so_nhap, khong_ghi: kq.so_khong_ghi });
   res.json(kq);
 }, 'draft-commit'));
+
+// ------------------------------------------
+// Việc 4, 5 — danh sách đợt nhập, hoàn tác
+// ------------------------------------------
+router.get('/phat/batches', authRequired, nhapGuard, wrap(async (req, res) => {
+  for (const k of Object.keys(req.query)) if (!['bcvh', 'page', 'size'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  const duoc = exp.allowedBcvhCodes(db, req.user);
+  const raw = Array.isArray(req.query.bcvh) ? '' : String(req.query.bcvh ?? '').trim();
+  let codes;
+  if (!raw || raw === 'all') {
+    if (!duoc.length) throw thieuQuyen(req, 'xem');
+    codes = duoc; // chỉ các BCVH mình được phép
+  } else {
+    codes = [kiemTraBcvh(req, raw, 'xem')];
+  }
+  const page = req.query.page === undefined || req.query.page === '' ? 1 : Number(req.query.page);
+  const size = req.query.size === undefined || req.query.size === '' ? C.GIOI_HAN.TRANG_MAC_DINH : Number(req.query.size);
+  if (!Number.isInteger(page) || page < 1) throw new PhatError(400, 'Tham số "page" phải là số nguyên ≥ 1');
+  if (!Number.isInteger(size) || size < 1 || size > C.GIOI_HAN.TRANG_TOI_DA) throw new PhatError(400, `Tham số "size" phải là số nguyên 1..${C.GIOI_HAN.TRANG_TOI_DA}`);
+  res.json(P.dsDot(db, { codes, page, size, user: req.user }));
+}, 'batches'));
+
+router.post('/phat/batches/:id/undo', authRequired, nhapGuard, wrap(async (req, res) => {
+  const b = P.layDot(db, req.params.id);
+  if (!b) throw new PhatError(404, 'Không tìm thấy đợt nhập');
+  kiemTraBcvh(req, b.bcvh); // vẫn phải được phép với BCVH của đợt (GDVH bị bỏ gán thì không hoàn tác được)
+  const quanLy = req.user.role === ROLES.ADMIN || req.user.role === ROLES.TTVH;
+  if (!quanLy && b.user_id !== req.user.id) throw new PhatError(403, 'Chỉ ADMIN, TTVH hoặc chính người nhập đợt này mới được hoàn tác');
+  const kq = P.hoanTacDot(db, b, req.user);
+  audit(req, 'phat_undo', { bcvh: b.bcvh, batch_id: b.id, rows: kq.so_hoan_tac });
+  res.json(kq);
+}, 'undo'));
+
+// ------------------------------------------
+// Việc 6 — tỷ lệ
+// ------------------------------------------
+router.get('/phat/ty-le', authRequired, xemGuard, wrap(async (req, res) => {
+  for (const k of Object.keys(req.query)) if (!['bcvh', 'ngay'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  const rawB = Array.isArray(req.query.bcvh) ? null : String(req.query.bcvh ?? 'all').trim() || 'all';
+  if (rawB === null || (rawB !== 'all' && !VALID_BCVH_CODES.includes(rawB))) throw new PhatError(400, `Tham số "bcvh" phải là "all" hoặc một trong: ${VALID_BCVH_CODES.join(', ')}`);
+  let ngay = null;
+  if (req.query.ngay !== undefined && req.query.ngay !== '') {
+    const v = Array.isArray(req.query.ngay) ? '' : String(req.query.ngay).trim();
+    const m = aq.DATE_RE.exec(v);
+    if (!m || !aq.validYmd(+m[1], +m[2], +m[3])) throw new PhatError(400, 'Tham số "ngay" phải là ngày hợp lệ dạng YYYY-MM-DD');
+    ngay = v;
+  }
+  res.json(P.tyLeApi(db, { bcvh: rawB, ngay }));
+}, 'ty-le'));
 
 module.exports = router;

@@ -4,7 +4,17 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
-## [2026-10-12] - Vai trò `TIVI`: chỉ xem dashboard «đến», token dài hạn, có phạm vi (DASH-3)
+## [2026-10-13] - Module «Xử lý và tỷ lệ phát»: backend (PHAT-1, chặng 1–2)
+
+- **Chặng 1** (đã commit 9303605): `server/config/phat.js` (hằng số: 5 trạng thái, 6 khung giờ, 4 nhóm chờ, giới hạn, SHBG, bảng chuyển bất thường, mã lỗi), `server/lib/phat.js` (lược đồ `phat_*`, chuẩn hoá, kiểm tra từng dòng, biên tập, nhập đợt), `server/lib/phatFile.js` (đọc xlsx/csv, dựng file mẫu và file lỗi), `server/routes/phat.js`; `server/db.js` tạo bảng + dọn bản kiểm tra hết hạn; `dashboardDenQuery.js` chỉ thêm export `bcvhContext`, `windowFilter`, `runCounted`. API: `GET /phat/template`, `POST /phat/drafts`, `GET /phat/drafts/:id[/rows]`, `PATCH|DELETE /phat/drafts/:id/rows`, `POST …/fill`, `POST …/assign-list`, `GET …/errors.xlsx`, `POST …/commit`.
+- **Chặng 2**: `POST /phat/batches/:id/undo` (hoàn tác đợt; 409 khi đợt sau đã đổi SHBG), `GET /phat/batches` (danh sách đợt, theo BCVH được phép), `GET /phat/ty-le` (mẫu số, 5 nhóm, mức cập nhật, 6 khung giờ đến, tồn chờ, `so_lieu_den_luc`); ba chỉnh của PO (#75): `errors.xlsx?loai_tru=`, tách «lỗi cần sửa» / «không đổi» (cột `phat_batches.so_khong_doi`), cảnh báo «Ghi chú bị cắt» (cột `phat_draft_rows.ghi_chu_bi_cat`), giờ theo `Asia/Bangkok`. DB tạo ở chặng 1 được thêm cột tự động.
+- `tests/phat.test.js` (mới, 28 ca; thêm vào script `test` của `package.json`): hằng số / khung giờ / schema + migration, file mẫu (1 dòng/SHBG, khóa cột, danh sách chọn, `_meta`), kiểm tra từng mã lỗi, biên tập, nhập từng phần, nhập lần sau + lịch sử, kiểm lại lúc commit, file lỗi nhập lại, hoàn tác (409, thứ tự, khôi phục ghi chú/đợt/giờ, quyền), danh sách đợt, tỷ lệ (khớp `tong-quan-den`, ranh giới 2 giờ / 4 giờ), quyền, hết hạn, nhật ký. `npm test` 318 ca: 318 pass, 0 skip (worktree không có `data/hue-dhcl.db`); `npm run build` ok.
+- Bản sao DB dev (533140, 02–03/10; chỉ đếm): file mẫu 7.014 dòng, cả 7.014 SHBG đúng định dạng; mẫu số 4.013 và 3.001 khớp `tong-quan-den`; dựng file ~0,3 s, kiểm tra 7.014 dòng ~0,12 s, nhập ~0,24 s.
+- Docs: `08_PHAT.md` (mới), quyết định #75, `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`, `06_DEPLOYMENT.md` (biến `PHAT_MAX_DONG`).
+
+---
+
+## [2026-10-12] - Vai trò `TIVI`: chỉ xem dashboard «đến», token dài hạn, có phạm vi (DASH-3)## [2026-10-12] - Vai trò `TIVI`: chỉ xem dashboard «đến», token dài hạn, có phạm vi (DASH-3)
 
 - `server/roles.js`: thêm `TIVI` (không thuộc `VIEWER_ROLES`). `server/lib/tivi.js` (mới): allowlist `TIVI_ALLOWED` + `tiviAllows()`, bảng `user_tivi_scope` (`ensureTiviSchema`, gọi từ `server/db.js`), `getTiviScope` / `setTiviScope` / `isValidTiviScope`.
 - `server/auth.js`: token TIVI hạn `JWT_EXPIRY_TIVI` (mặc định 90 ngày; vai trò khác không đổi), claim `tivi` + dấu mật khẩu (HMAC); `authRequired` từ chối token TIVI khi tài khoản đổi vai trò / mật khẩu (401) và chặn mọi request ngoài allowlist của TIVI (403).

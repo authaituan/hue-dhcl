@@ -39,7 +39,8 @@ const GIOI_HAN = Object.freeze({
   MAX_DONG: 20000,
   MAX_BYTES: 10 * 1024 * 1024,
   GIU_BAN_KIEM_TRA_NGAY: 7,
-  MAX_GHI_CHU: 500,
+  MAX_GHI_CHU: 500, // dài hơn thì CẮT và cảnh báo vàng (CANH_BAO_GHI_CHU_CAT), vẫn nhập
+  TON_CHO_LUI_NGAY: 30, // «tồn chờ» chỉ xét SHBG đến trong chừng này ngày trước ngày xét (tránh quét cả lịch sử)
   MAX_SUA_MOT_LAN: 1000, // số phần tử tối đa của PATCH /rows
   TRANG_MAC_DINH: 50,
   TRANG_TOI_DA: 200,
@@ -89,9 +90,13 @@ const MA_LOI = Object.freeze({
 // Một dòng có thể phạm nhiều lỗi; chỉ ghi lỗi ĐẦU TIÊN theo thứ tự này (sửa xong lỗi này mới hiện lỗi sau).
 const THU_TU_LOI = Object.freeze([MA_LOI.SAI_DINH_DANG, MA_LOI.TRUNG_SHBG, MA_LOI.TT_NGOAI_DS, MA_LOI.KHONG_CO_TRONG_DEN, MA_LOI.KHONG_DOI]);
 
+// Múi giờ hiển thị «số liệu tính đến lúc» (giờ nhập lưu UTC có chữ Z). Việt Nam không có giờ mùa hè nên cố định UTC+7.
+const MUI_GIO = 'Asia/Bangkok';
+const CANH_BAO_GHI_CHU_CAT = `Ghi chú bị cắt (tối đa ${GIOI_HAN.MAX_GHI_CHU} ký tự)`;
+
 const TRANG_THAI_DOT = Object.freeze({ DA_NHAP: 'da_nhap', DA_HOAN_TAC: 'da_hoan_tac' });
 
 module.exports = {
   TRANG_THAI, TT_MA, TT_NHAN, TT_CHUA_CO, KHUNG_GIO_DEN, NHOM_CHO, GIOI_HAN, maxDong, SHBG_REGEX, SHBG_DO_DAI,
-  META_SHEET, PHIEN_BAN_COT, DUONG_THU_TRONG, CHUYEN_BAT_THUONG, laChuyenBatThuong, KET_QUA, MA_LOI, THU_TU_LOI, TRANG_THAI_DOT
+  META_SHEET, PHIEN_BAN_COT, DUONG_THU_TRONG, MUI_GIO, CANH_BAO_GHI_CHU_CAT, CHUYEN_BAT_THUONG, laChuyenBatThuong, KET_QUA, MA_LOI, THU_TU_LOI, TRANG_THAI_DOT
 };
