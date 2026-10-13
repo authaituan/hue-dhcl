@@ -11,6 +11,7 @@ import {
   formatPctChange,
   formatTimeOnly,
   formatDateTimeSec,
+  wardChangeChip,
 } from './arrivals/DailyOpsDashboard';
 
 // ─── Hằng số ────────────────────────────────────────────────────────────────
@@ -246,11 +247,12 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
     return () => clearInterval(t);
   }, []);
 
-  // ── Đang chờ /api/auth/me trả tivi_scope (chỉ với TIVI role) ────────────
+  // ── Đang chờ /api/auth/me trả tivi_scope (chỉ với TIVI role). App.jsx tự thử lại mỗi 10 giây khi lỗi / mất mạng. ──
   if (bcvhScope === undefined) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center">
+      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center gap-6">
         <div className="w-16 h-16 border-4 border-gray-700 border-t-emerald-400 rounded-full animate-spin" />
+        <div className="text-2xl text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>Đang kết nối…</div>
       </div>
     );
   }
@@ -564,11 +566,12 @@ function ColViec({ items, currentItem, slideIdx, isAll }) {
 
   return (
     <div style={colStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: '#fff' }}>
+      {/* Tiêu đề một dòng (không xuống dòng giữa chữ); ghi chú ở dòng riêng bên dưới */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
           {isAll ? 'Việc cần làm' : 'Việc của BCVH tôi'}
         </div>
-        <div style={{ fontSize: 18, color: '#6b7280' }}>
+        <div style={{ fontSize: 18, color: '#6b7280', lineHeight: 1.2, marginTop: 6, whiteSpace: 'nowrap' }}>
           đổi thẻ mỗi 5 giây · <span style={{ color: '#f59e0b' }}>Xử lý ngay</span> trước
         </div>
       </div>
@@ -753,6 +756,8 @@ function ColChuaNhanAll({ chuaNhanList }) {
           const trong = Math.max(0, tong - tu1);
           const pTrong = tong > 0 ? (trong / tong) * 100 : 0;
           const pTu1   = tong > 0 ? (tu1 / tong) * 100 : 0;
+          // BCVH chưa có file dữ liệu nào: không hiện số 0 (0 ở đây không có nghĩa "không có bưu gửi chờ").
+          const coDuLieu = row.co_du_lieu !== false;
 
           return (
             <div key={row.ma} style={{ display: 'flex', alignItems: 'center', gap: 16, minHeight: 48 }}>
@@ -760,7 +765,11 @@ function ColChuaNhanAll({ chuaNhanList }) {
                 {row.ten?.replace('BCVH ', '') || row.ma}
               </div>
               <div style={{ flex: 1 }}>
-                {tong === 0 ? (
+                {!coDuLieu ? (
+                  <div style={{ fontSize: 18, color: '#6b7280', padding: '6px 12px' }}>
+                    chưa có dữ liệu
+                  </div>
+                ) : tong === 0 ? (
                   <div style={{ fontSize: 20, color: '#374151', background: '#1f2937', borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
                     0 bưu gửi
                   </div>
@@ -780,7 +789,7 @@ function ColChuaNhanAll({ chuaNhanList }) {
                 )}
               </div>
               <div style={{ width: 64, flexShrink: 0, fontSize: 24, fontWeight: 900, color: tong > 0 ? '#fff' : '#4b5563', textAlign: 'right' }}>
-                {tong}
+                {coDuLieu ? formatViVN(tong) : ''}
               </div>
             </div>
           );
@@ -791,56 +800,77 @@ function ColChuaNhanAll({ chuaNhanList }) {
 }
 
 // ── Cột Phải — Bảng 12: Chưa nhận + Phường/xã ───────────────────────────────
+// Chip phường/xã trên nền tối: cùng quy tắc / chữ với DASH-2b (wardChangeChip), chỉ đổi bảng màu cho tivi.
+const TV_CHIP_STYLE = {
+  moi_co:   { color: '#d1d5db', bg: '#1f2937', border: '#374151' },
+  bang:     { color: '#9ca3af', bg: '#1f2937', border: '#374151' },
+  giam:     { color: '#6ee7b7', bg: '#052e16', border: '#065f46' },
+  tang_cao: { color: '#fca5a5', bg: '#3b0000', border: '#7f1d1d' },
+  tang:     { color: '#fcd34d', bg: '#2d1a00', border: '#78350f' },
+};
+
+// Bố cục cột phải bảng 12 ở sân khấu 1920×1080 (chiều cao hàng B ≈ 681 px):
+// thẻ «Chưa nhận» ≈ 297 px + khe 16 px -> thẻ phường/xã ≈ 368 px; 3 dòng × 64 px + 2 khe × 12 px = 216 px
+// vừa trong phần thân ≈ 289 px (trừ đệm và tiêu đề), không đè dòng «Dữ liệu đến … · Làm mới …».
 function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: 20,
+    gap: 16,
+    minHeight: 0,
+    overflow: 'hidden',
   };
 
   const cn = chuaNhan || {};
-  const tong = cn.buu_gui || 0;
   const tu1  = cn.cho_tu_1_ngay || 0;
+  // «QUA NGÀY»: chỉ đỏ + «Xử lý ngay» khi có bưu gửi; bằng 0 thì màu trung tính, «Không có».
+  const quaNgay = tu1 > 0
+    ? { label: 'QUA NGÀY', val: tu1, note: 'Xử lý ngay', bg: '#3b0000', border: '#7f1d1d', col: '#fca5a5' }
+    : { label: 'QUA NGÀY', val: 0,   note: 'Không có',   bg: '#1f2937', border: '#2d3143', col: '#9ca3af' };
+  const cells = [
+    { label: 'DƯỚI 2 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
+    { label: '2–4 GIỜ',    val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
+    { label: 'TRÊN 4 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
+    quaNgay,
+  ];
 
   return (
     <div style={colStyle}>
       {/* Khối chưa nhận */}
       <div style={{
+        flexShrink: 0,
         background: '#1a1d27',
         border: '1.5px solid #2d3143',
         borderRadius: 20,
-        padding: '24px 28px',
+        padding: '20px 24px',
       }}>
-        <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginBottom: 16 }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
           Chưa nhận tại BCVH, đã chờ bao lâu?
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {[
-            { label: 'DƯỚI 2 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', col: '#6b7280' },
-            { label: '2–4 GIỜ',    val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', col: '#6b7280' },
-            { label: 'TRÊN 4 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', col: '#6b7280' },
-            { label: 'QUA NGÀY',   val: tu1,  note: 'Xử lý ngay',            bg: '#3b0000', col: '#fca5a5' },
-          ].map((cell) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {cells.map((cell) => (
             <div key={cell.label} style={{
               background: cell.bg,
-              border: `1px solid ${cell.col === '#fca5a5' ? '#7f1d1d' : '#2d3143'}`,
+              border: `1px solid ${cell.border}`,
               borderRadius: 12,
-              padding: '16px',
+              padding: '10px 12px',
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, marginBottom: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, lineHeight: 1.2, marginBottom: 6 }}>
                 {cell.label}
               </div>
               {cell.val !== null ? (
-                <div style={{ fontSize: 48, fontWeight: 900, color: cell.col, lineHeight: 1 }}>
+                <div style={{ fontSize: 40, fontWeight: 900, color: cell.col, lineHeight: 1 }}>
                   {formatViVN(cell.val)}
                 </div>
               ) : (
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#4b5563' }}>Sắp có</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#4b5563', lineHeight: '40px' }}>Sắp có</div>
               )}
-              <div style={{ fontSize: 16, color: '#6b7280', marginTop: 6 }}>{cell.note}</div>
+              <div style={{ fontSize: 14, color: cell.label === 'QUA NGÀY' && cell.val > 0 ? '#fca5a5' : '#6b7280', lineHeight: 1.2, marginTop: 4 }}>
+                {cell.note}
+              </div>
             </div>
           ))}
         </div>
@@ -849,65 +879,70 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
       {/* Khối phường/xã */}
       <div style={{
         flex: 1,
+        minHeight: 0,
         background: '#1a1d27',
         border: '1.5px solid #2d3143',
         borderRadius: 20,
-        padding: '24px 28px',
+        padding: '20px 24px',
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
-        <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginBottom: 16 }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
           Phường/xã đến tăng mạnh hôm nay
         </div>
         {pxItems.length === 0 ? (
           <div style={{ color: '#6b7280', fontSize: 20, textAlign: 'center', marginTop: 12 }}>
             Chưa có phường/xã nào tăng đột biến
           </div>
-        ) : pxItems.slice(0, 3).map((px, i) => {
-          const maxV = Math.max(px.hom_kia || 0, px.hom_qua || 0, px.hom_nay || 0, 1);
-          const pct  = px.tang_so_hom_qua_pct;
-          const isNew = pct === null;
-          const isUp  = !isNew && px.tang_so_hom_qua > 0;
-          const chipColor = isNew ? '#6b7280' : isUp && pct >= 20 ? '#ef4444' : isUp ? '#f59e0b' : '#10b981';
-          const chipBg   = isNew ? '#1f2937' : isUp && pct >= 20 ? '#3b0000' : isUp ? '#2d1a00' : '#052e16';
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {pxItems.slice(0, 3).map((px, i) => {
+              const maxV = Math.max(px.hom_kia || 0, px.hom_qua || 0, px.hom_nay || 0, 1);
+              const chip = wardChangeChip(px);
+              const cs = TV_CHIP_STYLE[chip.loai];
 
-          return (
-            <div key={`${px.ward_key}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-              <div style={{ flex: 1, fontSize: 22, fontWeight: 700, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {px.ten || px.ward_key}
-              </div>
-              {/* 3 cột mini */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 48 }}>
-                {[
-                  { v: px.hom_kia, col: '#3b82f6' },
-                  { v: px.hom_qua, col: '#60a5fa' },
-                  { v: px.hom_nay, col: '#ea580c' },
-                ].map((bar, bi) => (
-                  <div key={bi} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', width: 28 }}>
-                    <div style={{ fontSize: 14, color: '#9ca3af', marginBottom: 2 }}>{bar.v ?? '—'}</div>
-                    <div style={{
-                      width: '100%',
-                      height: bar.v !== null ? `${Math.max(8, (bar.v / maxV) * 28)}px` : 4,
-                      background: bar.col,
-                      borderRadius: '3px 3px 0 0',
-                    }} />
+              return (
+                <div key={`${px.ward_key}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 16, height: 64 }}>
+                  {/* Tên phường/xã (dòng trên) + chip tăng/giảm (dòng dưới) */}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#d1d5db', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {px.ten || px.ward_key}
+                    </div>
+                    <div>
+                      <span style={{
+                        display: 'inline-block',
+                        fontSize: 18, fontWeight: 800, lineHeight: 1.2,
+                        color: cs.color, background: cs.bg, border: `1px solid ${cs.border}`,
+                        borderRadius: 999, padding: '2px 12px', whiteSpace: 'nowrap',
+                      }}>
+                        {chip.text}
+                      </span>
+                    </div>
                   </div>
-                ))}
-              </div>
-              {/* Chip tăng trưởng */}
-              <div style={{
-                minWidth: 80, textAlign: 'right',
-                fontSize: 26, fontWeight: 900,
-                color: chipColor,
-              }}>
-                {isNew
-                  ? 'mới có'
-                  : isUp
-                    ? `+${pct.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}%`
-                    : `${pct.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}%`}
-              </div>
-            </div>
-          );
-        })}
+                  {/* 3 cột mini: hôm kia, hôm qua, hôm nay */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 56, flexShrink: 0 }}>
+                    {[
+                      { v: px.hom_kia, col: '#3b82f6' },
+                      { v: px.hom_qua, col: '#60a5fa' },
+                      { v: px.hom_nay, col: '#ea580c' },
+                    ].map((bar, bi) => (
+                      <div key={bi} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', width: 32 }}>
+                        <div style={{ fontSize: 14, color: '#9ca3af', lineHeight: 1.2, marginBottom: 2 }}>{bar.v ?? '—'}</div>
+                        <div style={{
+                          width: '100%',
+                          height: bar.v !== null && bar.v !== undefined ? `${Math.max(6, (bar.v / maxV) * 34)}px` : 4,
+                          background: bar.col,
+                          borderRadius: '3px 3px 0 0',
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

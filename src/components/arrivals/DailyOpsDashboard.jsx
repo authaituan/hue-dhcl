@@ -29,6 +29,20 @@ export function formatPctChange(pct) {
   return `${sign}${pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+// Chip tăng/giảm số bưu gửi của phường/xã so với hôm qua (quy tắc DASH-2b) — dùng chung cho Dashboard và màn tivi.
+// loai: 'moi_co' (không có tỉ lệ so sánh) | 'bang' (bằng 0, không mũi tên) | 'giam' (xanh) | 'tang_cao' (tăng từ 20%, đỏ) | 'tang' (vàng).
+export function wardChangeChip(item) {
+  const tang = item.tang_so_hom_qua ?? 0; // số BG tăng/giảm so hôm qua
+  const pct = item.tang_so_hom_qua_pct;   // null = mới có
+  if (pct === null || pct === undefined) return { loai: 'moi_co', text: 'mới có' };
+  if (tang === 0) return { loai: 'bang', text: '— 0 BG (0%)' };
+  if (tang < 0) return { loai: 'giam', text: `▼ ${tang.toLocaleString('vi-VN')} BG (${formatPctChange(pct)})` };
+  return {
+    loai: pct >= 20 ? 'tang_cao' : 'tang',
+    text: `▲ +${tang.toLocaleString('vi-VN')} BG (+${pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)`
+  };
+}
+
 export function formatTimeOnly(timeStr) {
   if (!timeStr) return '';
   // e.g. "2026-10-20 16:00:00" -> "16:00"
@@ -873,12 +887,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <div className="space-y-3">
             {phuongXa?.items?.map((item, idx) => {
               const maxVal = Math.max(item.hom_kia || 0, item.hom_qua || 0, item.hom_nay || 0, 1);
-              const tang = item.tang_so_hom_qua ?? 0; // số BG tăng/giảm so hôm qua
-              const pct = item.tang_so_hom_qua_pct;   // null = mới có
-              const isIncrease = pct !== null && tang > 0;
-              const isDecrease = pct !== null && tang < 0;
-              const isZero    = pct !== null && tang === 0;
-              const isOver20  = isIncrease && pct >= 20;
+              const chip = wardChangeChip(item);
 
               return (
                 <div 
@@ -928,29 +937,20 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   {/* CHIP TĂNG TRƯỞNG & DÒNG NHỎ SO TB */}
                   <div className="sm:text-right shrink-0">
                     <div>
-                      {pct === null ? (
+                      {chip.loai === 'moi_co' ? (
                         // Chưa có hôm qua để so sánh
                         <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-700 border border-gray-300">
-                          mới có
-                        </span>
-                      ) : isZero ? (
-                        // Bằng 0: không tăng không giảm
-                        <span className="px-2.5 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1 border bg-gray-100 text-gray-500 border-gray-300">
-                          — 0 BG (0%)
-                        </span>
-                      ) : isDecrease ? (
-                        // Giảm: màu xanh, mũi tên xuống
-                        <span className="px-2.5 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1 border bg-emerald-100 text-emerald-800 border-emerald-300">
-                          ▼ {tang.toLocaleString('vi-VN')} BG ({formatPctChange(pct)})
+                          {chip.text}
                         </span>
                       ) : (
-                        // Tăng: đỏ nếu ≥ 20%, vàng nếu < 20%
-                        <span className={`px-2.5 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1 border ${
-                          isOver20
-                            ? 'bg-rose-100 text-rose-700 border-rose-300'
-                            : 'bg-amber-100 text-amber-800 border-amber-300'
-                        }`}>
-                          ▲ +{tang.toLocaleString('vi-VN')} BG (+{pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)
+                        // Bằng 0: xám, không mũi tên; giảm: xanh; tăng: đỏ nếu ≥ 20%, vàng nếu < 20%
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-full inline-flex items-center gap-1 border ${{
+                          bang: 'bg-gray-100 text-gray-500 border-gray-300',
+                          giam: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                          tang_cao: 'bg-rose-100 text-rose-700 border-rose-300',
+                          tang: 'bg-amber-100 text-amber-800 border-amber-300'
+                        }[chip.loai]}`}>
+                          {chip.text}
                         </span>
                       )}
                     </div>
