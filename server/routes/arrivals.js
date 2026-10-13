@@ -3,7 +3,6 @@ const db = require('../db');
 const { authRequired, requireRoles, requireAdmin } = require('../auth');
 const { ROLES, VIEWER_ROLES } = require('../roles');
 const q = require('../lib/arrivalsQuery');
-const dash = require('../lib/dashboardQuery');
 const exp = require('../lib/arrivalsExport');
 const bd10 = require('../lib/bd10Query');
 const den = require('../lib/dashboardDenQuery');
@@ -19,7 +18,7 @@ const router = express.Router();
 // TẢI / XUẤT file (/export-scope, /export, /not-received/export, /bd10-khong-xnd/export — #52, #57, #72).
 // Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với TTVH/GDVH;
 // /summary bỏ trường `canh_bao` với vai trò khác ADMIN (docs/ai/04_DECISIONS.md #34).
-// Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardQuery.js).
+// Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardDenQuery.js).
 // ==========================================
 // TIVI đi qua lớp này nhưng authRequired đã giới hạn TIVI vào allowlist (3 endpoint dashboard «đến», server/lib/tivi.js — #74).
 const viewerGuard = requireRoles(VIEWER_ROLES);
@@ -51,7 +50,7 @@ router.get('/arrivals/meta', handle((req) => {
 // Khoá `chua_nhan_tai_bcvh` (#60, #68) và `bd10_den_khong_xnd` (#67): CÔNG KHAI cho mọi vai trò xem "Sản lượng đến" — không sau cờ ADMIN,
 // không giới hạn theo BCVH được giao (#72): số của BCVH đang chọn (receiver_code / unit) như sản lượng.
 router.get('/arrivals/summary', handle((req) => {
-  const f = filters(req, ['heavy_g']);
+  const f = filters(req);
   const out = q.summary(db, f, { isAdmin: isAdmin(req) });
   out.bd10_den_khong_xnd = bd10.stats(db, f);
   return out;
@@ -67,21 +66,15 @@ router.get('/arrivals/bd10-trang-thai/theo-buu-cuc-lap', handle((req) => bd10.tr
 // "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH": danh sách chi tiết (phân trang, cũ nhất trước) — mọi vai trò xem được "Sản lượng đến", mọi BCVH (#72).
 router.get('/arrivals/not-received', handle((req) => q.notReceivedList(db,
   q.parseFilters(req.query, { allowed: ['from', 'to', 'receiver_code', 'page', 'page_size'] })), 'not-received'));
-// Hàng đến theo đường thư / dịch vụ + hàng nặng (SANLUONG-3d, 04_DECISIONS.md #36–#39).
-router.get('/arrivals/by-route', handle((req) => q.byRoute(db, filters(req, ['heavy_g'])), 'by-route'));
-router.get('/arrivals/by-service', handle((req) => q.byService(db, filters(req, ['heavy_g'])), 'by-service'));
+// Hàng đến theo đường thư / dịch vụ + hàng đi ngoài (SANLUONG-3d, 04_DECISIONS.md #36–#39, #76).
+router.get('/arrivals/by-route', handle((req) => q.byRoute(db, filters(req)), 'by-route'));
+router.get('/arrivals/by-service', handle((req) => q.byService(db, filters(req)), 'by-service'));
 router.get('/arrivals/by-time', handle((req) => q.byTime(db, filters(req, ['granularity'])), 'by-time'));
 router.get('/arrivals/by-ward', handle((req) => q.byWard(db, filters(req)), 'by-ward'));
 router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(req)), 'quality-mocs'));
 router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 
-// Dashboard điều hành (SANLUONG-3e, 04_DECISIONS.md #41–#47): 6 BCVH, điểm cần điều hành, xu hướng, phường/xã tăng, tổng hợp Trung tâm.
-// ADMIN, TTVH, GDVH. Điểm cần điều hành KHÁC cảnh báo dữ liệu ADMIN-only.
-router.get('/arrivals/dashboard/overview', handle((req) => dash.overview(db, req.query), 'dashboard-overview'));
-router.get('/arrivals/dashboard/trend', handle((req) => dash.trend(db, req.query), 'dashboard-trend'));
-router.get('/arrivals/dashboard/wards-surge', handle((req) => dash.wardsSurge(db, req.query), 'dashboard-wards-surge'));
-router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.query), 'dashboard-center'));
 // Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF 403.
 // bcvh_goi_y: BCVH được giao của GDVH (giao diện chọn sẵn), rỗng với vai trò khác. Tham số: bcvh (mã | all), date; phuong-xa-tang thêm gioi_han.
 const goiY = (req) => ({ goiY: req.user.role === ROLES.GDVH ? getAssignedBcvh(req.user.id, db) : [] });

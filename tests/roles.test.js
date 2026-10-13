@@ -96,10 +96,9 @@ const MATRIX = [
   ['GET', '/api/arrivals/quality-mocs?from=2026-10-01&to=2026-10-02', undefined, VIEW],
   ['GET', '/api/arrivals/items?from=2026-10-01&to=2026-10-02', undefined, VIEW],
   ['GET', '/api/arrivals/lookup?tracking_no=GIA123', undefined, VIEW],
-  ['GET', '/api/arrivals/dashboard/overview', undefined, VIEW],
-  ['GET', '/api/arrivals/dashboard/trend', undefined, VIEW],
-  ['GET', '/api/arrivals/dashboard/wards-surge', undefined, VIEW],
-  ['GET', '/api/arrivals/dashboard/center', undefined, VIEW],
+  ['GET', '/api/arrivals/dashboard/tong-quan-den', undefined, VIEW],
+  ['GET', '/api/arrivals/dashboard/viec-can-lam', undefined, VIEW],
+  ['GET', '/api/arrivals/dashboard/phuong-xa-tang', undefined, VIEW],
   // Cảnh báo / ngoại lệ / kết quả nạp: chỉ ADMIN
   ['GET', '/api/arrivals/exceptions?from=2026-10-01&to=2026-10-02', undefined, ADMIN_ONLY],
   ['GET', '/api/arrivals/import-status', undefined, ADMIN_ONLY],
@@ -135,7 +134,7 @@ test('ma trận quyền: route × 4 vai trò (đúng 403 khi không đủ quyề
 
 test('ma trận quyền: các route đọc trả 200 cho vai trò được phép', async () => {
   const reads = [
-    '/api/network', '/api/network/export-data', '/api/arrivals/meta', '/api/arrivals/dashboard/overview', '/api/arrivals/dashboard/center',
+    '/api/network', '/api/network/export-data', '/api/arrivals/meta', '/api/arrivals/dashboard/tong-quan-den', '/api/arrivals/dashboard/viec-can-lam',
     '/api/dashboard/widgets', '/api/organization/communes', '/api/dashboard/stats'
   ];
   for (const path of reads) {

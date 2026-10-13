@@ -1,5 +1,5 @@
 // ==========================================
-// Test SANLUONG-4a6: chỉ số "BD10 đến không XNĐ" — khoá `bd10_den_khong_xnd` trong /summary và /dashboard/center,
+// Test SANLUONG-4a6: chỉ số "BD10 đến không XNĐ" — khoá `bd10_den_khong_xnd` trong /summary,
 // GET /api/arrivals/bd10-khong-xnd (danh sách) và /bd10-khong-xnd/export. Server thật trên DB tạm; CSV / số hiệu GIẢ.
 // ==========================================
 'use strict';
@@ -14,7 +14,6 @@ const { seedUser, loginAs } = require('./helpers/fixtures');
 const { importArrivalFile, EXPECTED_HEADER } = require('../server/lib/arrivalsImport');
 const { replaceAssignedBcvh } = require('../server/lib/userBcvh');
 const aq = require('../server/lib/arrivalsQuery');
-const dash = require('../server/lib/dashboardQuery');
 
 const PORT = 5918;
 const M = '533140'; // BCVH đang xem
@@ -197,28 +196,13 @@ test('chỉ số CÔNG KHAI: ADMIN, TTVH và GDVH đều nhận khoá bd10_den_k
   }
 });
 
-test('/dashboard/center: bd10_den_khong_xnd cùng số với /summary, công khai mọi vai trò (#72)', async () => {
-  const c = async (who) => (await api(`/api/arrivals/dashboard/center?${RANGE}`, who)).body.bd10_den_khong_xnd;
-  const all = await c('ttvh');
-  assert.deepEqual([all.tong_bd10_den, all.khong_xnd], [9, 6]);
-  const sum = (await api(`/api/arrivals/summary?${RANGE}`, 'ttvh')).body.bd10_den_khong_xnd;
-  assert.deepEqual(all, sum);
-  assert.deepEqual([(await c('gdvhM')).tong_bd10_den, (await c('gdvhM2')).tong_bd10_den, (await c('gdvhNone')).tong_bd10_den], [9, 9, 9]);
-  assert.equal((await api(`/api/arrivals/dashboard/center?${RANGE}`, 'staff')).status, 403);
-});
-
-test('các chỉ số CŨ không đổi: /summary (trừ khoá mới), /center, quality-mocs, not-received giống kết quả hàm gốc trên cùng dữ liệu', async () => {
-  const f = aq.parseFilters({ from: '2026-10-02', to: '2026-10-08' }, { allowed: ['from', 'to', 'date_basis', 'receiver_code', 'ward_key', 'heavy_g'] });
+test('các chỉ số CŨ không đổi: /summary (trừ khoá mới), quality-mocs, not-received giống kết quả hàm gốc trên cùng dữ liệu', async () => {
+  const f = aq.parseFilters({ from: '2026-10-02', to: '2026-10-08' }, { allowed: ['from', 'to', 'date_basis', 'receiver_code', 'ward_key'] });
   const base = aq.summary(ctx.db, f, { isAdmin: true, scopeCodes: null });
   const api1 = (await api(`/api/arrivals/summary?${RANGE}`, 'admin')).body;
   const { bd10_den_khong_xnd: bd, ...rest } = api1;
   assert.ok(bd);
   assert.deepEqual(rest, JSON.parse(JSON.stringify(base)));
-  const centerBase = dash.center(ctx.db, { from: '2026-10-02', to: '2026-10-08' });
-  const { bd10_den_khong_xnd: bd2, ...centerRest } = (await api(`/api/arrivals/dashboard/center?${RANGE}`, 'admin')).body;
-  const { bd10_den_khong_xnd: bd3, ...centerBaseRest } = JSON.parse(JSON.stringify(centerBase));
-  assert.ok(bd2 && bd3);
-  assert.deepEqual(centerRest, centerBaseRest);
   const qm = (await api(`/api/arrivals/quality-mocs?${RANGE}`, 'ttvh')).body;
   assert.ok(qm.tong_hop.theo_nguon && qm.tong_hop.du_trang_thai && qm.tong_hop.khong_xnd_bd10, 'quality-mocs còn nguyên các khoá (#61 sẽ được thay sau, chưa xoá)');
   assert.equal((await api(`/api/arrivals/not-received?${RANGE}`, 'ttvh')).status, 200);
@@ -317,8 +301,7 @@ test('#72 GDVH chưa được giao BCVH: mọi API xem chỉ số trả đúng n
     `/api/arrivals/not-received?${RANGE}&receiver_code=${M}`,
     `/api/arrivals/bd10-khong-xnd?${RANGE}&unit=${M}`,
     `/api/arrivals/bd10-trang-thai/theo-ngay?${RANGE}&unit=${M}`,
-    `/api/arrivals/bd10-trang-thai/theo-buu-cuc-lap?${RANGE}&unit=${M}`,
-    `/api/arrivals/dashboard/center?${RANGE}`
+    `/api/arrivals/bd10-trang-thai/theo-buu-cuc-lap?${RANGE}&unit=${M}`
   ];
   for (const p of views) {
     const [a, g] = [await api(p, 'admin'), await api(p, 'gdvhNone')];
@@ -326,8 +309,6 @@ test('#72 GDVH chưa được giao BCVH: mọi API xem chỉ số trả đúng n
     if (p.includes('/summary')) {
       for (const k of ['chua_nhan_tai_bcvh', 'bd10_den_khong_xnd', 'san_luong']) assert.deepEqual(g.body[k], a.body[k], `${p} ${k}`);
       assert.ok(!('canh_bao' in g.body), 'canh_bao vẫn chỉ ADMIN');
-    } else if (p.includes('/center')) {
-      for (const k of ['chua_nhan_tai_bcvh', 'bd10_den_khong_xnd']) assert.deepEqual(g.body[k], a.body[k], `${p} ${k}`);
     } else {
       assert.deepEqual(g.body, a.body, p);
     }

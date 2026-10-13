@@ -12,7 +12,7 @@
 //   BD10 = các dòng cùng So_hieu_BD10 (khác rỗng). Ngày đến của BD10 = ngày của MIN(arrival_at) trên các dòng của nó; BD10 mà mọi dòng đều
 //   không có arrival_at → "không có ngày đến" (đếm riêng, không nằm trong khung ngày).
 //   Dòng "đủ" = có cả XN túi (bag_confirmed_at) và XN BG (item_confirmed_at). XNĐ = bd10_confirmed_at.
-//   Hàng nặng = dòng có So_hieu_BD8 trùng SHBG (BD8 chính là SHBG).
+//   Hàng đi ngoài = dòng có So_hieu_BD8 trùng SHBG (BD8 chính là SHBG).
 //   Nhóm: 530100 (chuyến thư từ TTKT) / khác 530100 (tiền tố 6 số đầu của BD10).
 // Mã thoát: 0 = ổn; 1 = sai cách dùng / lỗi.
 // ==========================================
@@ -58,13 +58,13 @@ const minOf = (xs) => xs.reduce((m, x) => (x && (m === null || x < m) ? x : m), 
 function loadRows(db) {
   return db.prepare(`SELECT id, tracking_no AS trk, bd10_no AS b10, bd8_no AS b8, bag_confirmed_at AS bag, item_confirmed_at AS itm,
     bd10_confirmed_at AS xnd, arrival_at AS arr, arrival_date AS day, weight_g AS wg, ward_name AS ward, province_name AS prov, service_code AS svc, import_file_id AS fid, receiver_code AS rc
-    FROM arrival_items`).all().map((r) => ({ ...r, full: !!(r.bag && r.itm), heavy: r.b8 !== '' && r.b8 === r.trk }));
+    FROM arrival_items`).all().map((r) => ({ ...r, full: !!(r.bag && r.itm), diNgoai: r.b8 !== '' && r.b8 === r.trk }));
 }
 
-function buildBd10(rows, { dropHeavy = false } = {}) {
+function buildBd10(rows, { dropDiNgoai = false } = {}) {
   const map = new Map();
   for (const r of rows) {
-    if (r.b10 === '' || (dropHeavy && r.heavy)) continue;
+    if (r.b10 === '' || (dropDiNgoai && r.diNgoai)) continue;
     if (!map.has(r.b10)) map.set(r.b10, []);
     map.get(r.b10).push(r);
   }
@@ -83,7 +83,7 @@ function buildBd10(rows, { dropHeavy = false } = {}) {
       firstBagItem: minOf(rs.flatMap((r) => [r.bag, r.itm])),
       own: prefix === rs[0].rc, // BD10 do CHÍNH BCVH nhận lập (tiền tố = mã BCVH nhận)
       daySpread: new Set(rs.map((r) => r.day).filter(Boolean)).size,
-      heavyRows: rs.filter((r) => r.heavy).length
+      diNgoaiRows: rs.filter((r) => r.diNgoai).length
     };
   });
 }
@@ -199,7 +199,7 @@ function main() {
     const shbgList = [...shbgMap.entries()].map(([trk, rs]) => {
       const arr = minOf(rs.map((r) => r.arr));
       const rep = rs.filter((r) => r.arr).sort((x, y) => (x.arr < y.arr ? -1 : x.arr > y.arr ? 1 : x.id - y.id))[0] || rs[0];
-      return { trk, rs, day: arr ? arr.slice(0, 10) : null, full: rs.some((r) => r.full), xnd: rs.some((r) => r.xnd), grp: rep.b10 === '' ? 'khong_bd10' : rep.b10.slice(0, 6) === TTKT ? '530100' : 'khac', heavy: rep.heavy };
+      return { trk, rs, day: arr ? arr.slice(0, 10) : null, full: rs.some((r) => r.full), xnd: rs.some((r) => r.xnd), grp: rep.b10 === '' ? 'khong_bd10' : rep.b10.slice(0, 6) === TTKT ? '530100' : 'khac', diNgoai: rep.diNgoai };
     });
     const shbgFrame = shbgList.filter((s) => s.day !== null && s.day >= from && s.day <= to);
     const cRow = (label, list) => {
@@ -239,33 +239,33 @@ function main() {
     }
     table('3d. Từng ngày (ngày đến sớm nhất của BD10 / của SHBG): không XNĐ / đến (tỉ lệ)', ['Ngày', 'Số BD10', 'A tổng', 'A 530100', 'A khác', 'B tổng', 'C (SHBG) tổng'], dayRows);
 
-    // ---- 4. Hàng nặng ----
-    const heavyRows = rows.filter((r) => r.heavy);
+    // ---- 4. Hàng đi ngoài ----
+    const diNgoaiRows = rows.filter((r) => r.diNgoai);
     const w = (r) => (r.wg !== null ? r.wg : -1);
-    const nonHeavyBigWeight = rows.filter((r) => !r.heavy && w(r) > 2500).length;
-    const heavyBig = heavyRows.filter((r) => w(r) > 2500).length;
-    table('4a. Hàng nặng (So_hieu_BD8 = SHBG)', ['Chỉ số', 'Giá trị'], [
-      ['Dòng có BD8 trùng SHBG', heavyRows.length],
-      ['Tỉ lệ trên tổng dòng', pct(heavyRows.length, rows.length)],
-      ['Trong đó dòng có khối lượng > 2.500 g', `${fmt(heavyBig)} (${pct(heavyBig, heavyRows.length)})`],
-      ['Dòng khối lượng > 2.500 g nhưng BD8 khác SHBG', nonHeavyBigWeight],
+    const nonDiNgoaiBigWeight = rows.filter((r) => !r.diNgoai && w(r) > 2500).length;
+    const diNgoaiBig = diNgoaiRows.filter((r) => w(r) > 2500).length;
+    table('4a. Hàng đi ngoài (So_hieu_BD8 = SHBG)', ['Chỉ số', 'Giá trị'], [
+      ['Dòng có BD8 trùng SHBG', diNgoaiRows.length],
+      ['Tỉ lệ trên tổng dòng', pct(diNgoaiRows.length, rows.length)],
+      ['Trong đó dòng có khối lượng > 2.500 g', `${fmt(diNgoaiBig)} (${pct(diNgoaiBig, diNgoaiRows.length)})`],
+      ['Dòng khối lượng > 2.500 g nhưng BD8 khác SHBG', nonDiNgoaiBigWeight],
       ['Dòng không có BD8 (rỗng)', rows.filter((r) => r.b8 === '').length],
-      ['Dòng BD8 trùng SHBG và có BD10', heavyRows.filter((r) => r.b10 !== '').length]
+      ['Dòng BD8 trùng SHBG và có BD10', diNgoaiRows.filter((r) => r.b10 !== '').length]
     ]);
-    const onlyHeavy = frame.filter((b) => b.heavyRows === b.n);
-    const mixed = frame.filter((b) => b.heavyRows > 0 && b.heavyRows < b.n);
-    table('4b. BD10 theo thành phần hàng nặng (khung)', ['Loại BD10', 'Số BD10', 'Số dòng'], [
-      ['Chỉ chứa hàng nặng', onlyHeavy.length, onlyHeavy.reduce((a, b) => a + b.n, 0)],
-      ['Lẫn hàng nặng và hàng thường', mixed.length, mixed.reduce((a, b) => a + b.n, 0)],
-      ['Không có hàng nặng', frame.length - onlyHeavy.length - mixed.length, frame.filter((b) => b.heavyRows === 0).reduce((a, b) => a + b.n, 0)]
+    const onlyDiNgoai = frame.filter((b) => b.diNgoaiRows === b.n);
+    const mixed = frame.filter((b) => b.diNgoaiRows > 0 && b.diNgoaiRows < b.n);
+    table('4b. BD10 theo thành phần hàng đi ngoài (khung)', ['Loại BD10', 'Số BD10', 'Số dòng'], [
+      ['Chỉ chứa hàng đi ngoài', onlyDiNgoai.length, onlyDiNgoai.reduce((a, b) => a + b.n, 0)],
+      ['Lẫn hàng đi ngoài và hàng thường', mixed.length, mixed.reduce((a, b) => a + b.n, 0)],
+      ['Không có hàng đi ngoài', frame.length - onlyDiNgoai.length - mixed.length, frame.filter((b) => b.diNgoaiRows === 0).reduce((a, b) => a + b.n, 0)]
     ]);
-    const noHeavy = buildBd10(rows, { dropHeavy: true }).filter(inFrame);
-    table('4c. Cách A/B sau khi LOẠI các dòng hàng nặng (khung)',
+    const noDiNgoai = buildBd10(rows, { dropDiNgoai: true }).filter(inFrame);
+    table('4c. Cách A/B sau khi LOẠI các dòng hàng đi ngoài (khung)',
       ['Nhóm', 'Tổng BD10', 'A: BD10 đến', 'A: không XNĐ', 'Tỉ lệ A / đến', 'Tỉ lệ A / tổng', 'B: BD10 đến', 'B: không XNĐ', 'Tỉ lệ B / đến', 'Tỉ lệ B / tổng'],
-      [g3('Tổng', noHeavy), g3('530100', noHeavy.filter((b) => b.grp === '530100')), g3('Khác 530100', noHeavy.filter((b) => b.grp === 'khac'))]);
-    const shbgNoHeavy = shbgFrame.filter((s) => !s.heavy);
-    table('4d. Cách C sau khi loại SHBG hàng nặng (khung)', ['Nhóm', 'Tổng SHBG', 'SHBG đến (đủ)', 'C: không XNĐ', 'Tỉ lệ C / đến', 'Tỉ lệ C / tổng'],
-      [cRow('Tổng', shbgNoHeavy), cRow('530100', shbgNoHeavy.filter((s) => s.grp === '530100')), cRow('Khác 530100', shbgNoHeavy.filter((s) => s.grp === 'khac'))]);
+      [g3('Tổng', noDiNgoai), g3('530100', noDiNgoai.filter((b) => b.grp === '530100')), g3('Khác 530100', noDiNgoai.filter((b) => b.grp === 'khac'))]);
+    const shbgNoDiNgoai = shbgFrame.filter((s) => !s.diNgoai);
+    table('4d. Cách C sau khi loại SHBG hàng đi ngoài (khung)', ['Nhóm', 'Tổng SHBG', 'SHBG đến (đủ)', 'C: không XNĐ', 'Tỉ lệ C / đến', 'Tỉ lệ C / tổng'],
+      [cRow('Tổng', shbgNoDiNgoai), cRow('530100', shbgNoDiNgoai.filter((s) => s.grp === '530100')), cRow('Khác 530100', shbgNoDiNgoai.filter((s) => s.grp === 'khac'))]);
 
     // ---- 5. Bất thường theo tiền tố ----
     const prefA = [...byPrefix.entries()].map(([p, list]) => {

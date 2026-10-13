@@ -4,6 +4,16 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-14] - «Hàng đi ngoài» thay «hàng nặng», bỏ «TB 4 tuần», đổi mốc đánh giá: backend + test + tài liệu (DASH-6b, chặng 1)
+
+- `server/lib/arrivalsQuery.js`: `DI_NGOAI_SQL` (SHBG có ≥ 1 dòng BD8 chuẩn hoá = SHBG; BD8 rỗng không tính) thay `heavy_g`/`HEAVY_THRESHOLD_G_*`/`parseHeavyG`; `/summary`, `/by-route`, `/by-service` trả `hang_di_ngoai`, `ty_le_hang_di_ngoai` (bỏ `hang_nang`, `ty_le_hang_nang`, `nguong_hang_nang_g`); `heavy_g` gửi lên → 400. `server/lib/phat.js`, `server/routes/arrivals.js`: bỏ `heavyG`/`heavy_g`.
+- `server/lib/dashboardDenQuery.js`, `server/config/dashboard-thresholds.js`: bỏ `HANG_NANG_G`, `SO_TUAN_SO_SANH`, TB 4 tuần, `so_tuan`, `it_du_lieu`; hai mốc cùng giờ dữ liệu (hôm qua, cùng thứ tuần trước); `danhGiaSanLuong` (sàn `SAN_SO_SANH_TOI_THIEU = 50`, `GIO_BAT_DAU_DANH_GIA = 12`, `chua_du_du_lieu` + lý do `thieu_tuan_truoc|moc_duoi_san|chua_toi_gio`); `hang_di_ngoai` chỉ hiển thị; đổi khoá API theo bảng ánh xạ (`04_DECISIONS.md` #76). Việc 0: mốc «cùng giờ» đã theo giờ dữ liệu, không sửa mã.
+- Xoá API 3e (`/dashboard/overview|trend|wards-surge|center`; `server/lib/dashboardQuery.js` chỉ còn `DASHBOARD_BCVH`, `bcvhNames`) và `tests/dashboard-api.test.js`; ca `/quality-mocs` chuyển sang `tests/quality-mocs.test.js`. `scripts/survey-bd10.js` + test: đổi chữ «hàng nặng» → «hàng đi ngoài» (không đổi logic).
+- Test: `npm test` 23 file, 303 ca, 0 fail (trước 318: −21 ca 3e, sửa ~30 khối ở `arrivals-api`, `dashboard-den`, `bd10-api`, `bd10-trang-thai`, `arrivals-source`, `arrivals-reload`, `roles`, `tivi`, `arrivals-export`, thêm `tests/dashboard-den-danh-gia.test.js` 6 ca (vào script `test`), ca đi ngoài / đánh giá thuần ở `dashboard-den` và `arrivals-api`). Đối chiếu bản sao DB dev (533140, 01–10/10): tỷ lệ đi ngoài theo ngày khớp khảo sát DASH-6a từng ngày; bản sao đã xoá.
+- Docs: quyết định #76 (đánh dấu #37, #38, #42, #45, #48, #73), `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`, `05_BACKLOG.md`. **Giao diện chưa đổi (chặng 2)**: `src/` còn đọc khoá cũ nên màn «Sản lượng đến» và Dashboard/tivi lỗi/trống cho tới khi làm chặng 2 — không triển khai riêng chặng 1.
+
+---
+
 ## [2026-10-13] - Module «Xử lý và tỷ lệ phát»: backend (PHAT-1, chặng 1–2)
 
 - **Chặng 1** (đã commit 9303605): `server/config/phat.js` (hằng số: 5 trạng thái, 6 khung giờ, 4 nhóm chờ, giới hạn, SHBG, bảng chuyển bất thường, mã lỗi), `server/lib/phat.js` (lược đồ `phat_*`, chuẩn hoá, kiểm tra từng dòng, biên tập, nhập đợt), `server/lib/phatFile.js` (đọc xlsx/csv, dựng file mẫu và file lỗi), `server/routes/phat.js`; `server/db.js` tạo bảng + dọn bản kiểm tra hết hạn; `dashboardDenQuery.js` chỉ thêm export `bcvhContext`, `windowFilter`, `runCounted`. API: `GET /phat/template`, `POST /phat/drafts`, `GET /phat/drafts/:id[/rows]`, `PATCH|DELETE /phat/drafts/:id/rows`, `POST …/fill`, `POST …/assign-list`, `GET …/errors.xlsx`, `POST …/commit`.

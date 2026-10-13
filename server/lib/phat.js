@@ -499,7 +499,7 @@ function layDongLoi(db, draft, { loaiTru = [] } = {}) {
 // File mẫu: mỗi SHBG đúng MỘT dòng (SHBG đến trong khoảng ngày theo R2, loại trùng — aq.buildCountedCte như dashboard)
 // ------------------------------------------
 function khungKhoang(bcvh, from, to) {
-  return { dateBasis: 'arrival', receiverCodes: [bcvh], wardKey: null, heavyG: aq.HEAVY_THRESHOLD_G_DEFAULT, from: `${from} 00:00:00`, to: `${to} 23:59:59`, fromDate: from, toDate: to };
+  return { dateBasis: 'arrival', receiverCodes: [bcvh], wardKey: null, from: `${from} 00:00:00`, to: `${to} 23:59:59`, fromDate: from, toDate: to };
 }
 
 const MAU_JOIN = 'FROM s LEFT JOIN phat_status_current p ON p.bcvh = @bcvh AND p.shbg = s.tracking_no';
@@ -566,7 +566,7 @@ function tonCho(db, bcvh, day, byUnit) {
   const ctx = den.bcvhContext(db, bcvh, day, byUnit);
   const asOf = ctx.denLuc || `${day} 00:00:00`;
   const tu = aq.addDays(day, -C.GIOI_HAN.TON_CHO_LUI_NGAY);
-  const f = { dateBasis: 'arrival', receiverCodes: [bcvh], wardKey: null, heavyG: aq.HEAVY_THRESHOLD_G_DEFAULT, from: `${tu} 00:00:00`, to: asOf, fromDate: tu, toDate: day };
+  const f = { dateBasis: 'arrival', receiverCodes: [bcvh], wardKey: null, from: `${tu} 00:00:00`, to: asOf, fromDate: tu, toDate: day };
   const cho = `CAST(strftime('%s', @x_asof) AS INTEGER) - CAST(strftime('%s', s.t) AS INTEGER)`;
   const rows = den.runCounted(db, f, `SELECT CASE WHEN substr(s.t, 1, 10) < @x_day THEN 'QUA_NGAY'
       WHEN ${cho} < @x_n1 THEN 'DUOI_2H' WHEN ${cho} < @x_n2 THEN '2_4H' ELSE 'TREN_4H' END AS g, COUNT(*) AS n

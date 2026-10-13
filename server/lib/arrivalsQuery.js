@@ -33,12 +33,11 @@ const MAX_RANGE_DAYS = 731;
 const MAX_HOUR_RANGE_DAYS = 7;
 const MAX_PAGE_SIZE = 200;
 const EXCEPTION_LIMIT = 50;
-// Hàng nặng = bưu gửi có khối lượng (của dòng đại diện) LỚN HƠN ngưỡng; rỗng/0 không nặng (04_DECISIONS.md #37).
-// Tham số heavy_g cho phép đổi ngưỡng trong khoảng MIN..MAX. ADMIN sửa ngưỡng trên giao diện: ticket sau
-// (cần bảng cấu hình) — ngoài phạm vi SANLUONG-3d.
-const HEAVY_THRESHOLD_G_DEFAULT = 2500;
-const HEAVY_THRESHOLD_G_MIN = 500;
-const HEAVY_THRESHOLD_G_MAX = 30000;
+// Hàng đi ngoài (04_DECISIONS.md #76, thay «hàng nặng» #37/#38): MỘT định nghĩa ở đây, dùng cho /summary, /by-route, /by-service và Dashboard.
+// SHBG «đi ngoài» = có ÍT NHẤT MỘT dòng (trong toàn bộ dữ liệu đã nạp) mà số hiệu BD8 (cắt khoảng trắng, viết hoa) bằng SHBG (cũng chuẩn hoá).
+// BD8 rỗng không tính. Đếm SHBG khác nhau; mẫu số là số SHBG đến (R2) như «Sản lượng đến». Dùng trong câu lệnh có CTE `s` (cột s.tracking_no).
+const DI_NGOAI_SQL = `EXISTS (SELECT 1 FROM arrival_items dn WHERE dn.tracking_no = s.tracking_no AND trim(dn.bd8_no) <> ''
+  AND upper(trim(dn.bd8_no)) = upper(trim(dn.tracking_no)))`;
 // Chuyến thư BD10 đi từ TTKT: số hiệu BD10 bắt đầu bằng tiền tố này thì script xuất CSV LUÔN để trống Ngay_gio_XND_BD10 (#60) — MỘT chỗ duy nhất.
 const TTKT_BD10_PREFIX = '530100';
 // "Đủ trạng thái theo nguồn BD10" (#61): ttkt = có XN túi + XN bưu gửi; khac = đủ 3 mốc; khong_bd10 = có XN bưu gửi.
@@ -129,15 +128,6 @@ function toList(v, name) {
   return arr;
 }
 
-// Ngưỡng hàng nặng (gam) từ tham số `heavy_g`; rỗng/không có -> mặc định. Dùng chung với dashboardQuery.js.
-function parseHeavyG(raw) {
-  if (raw === undefined || raw === '') return HEAVY_THRESHOLD_G_DEFAULT;
-  if (!/^\d+$/.test(raw) || Number(raw) < HEAVY_THRESHOLD_G_MIN || Number(raw) > HEAVY_THRESHOLD_G_MAX) {
-    throw new QueryParamError(`Tham số "heavy_g" phải là số nguyên gam từ ${HEAVY_THRESHOLD_G_MIN} đến ${HEAVY_THRESHOLD_G_MAX}`);
-  }
-  return Number(raw);
-}
-
 /** Chuẩn hoá query string. allowed = khoá được phép (khoá lạ -> 400). requireRange=false: không cần from/to. */
 function parseFilters(query, { allowed, requireRange = true } = {}) {
   const allowedSet = new Set(allowed);
@@ -179,7 +169,6 @@ function parseFilters(query, { allowed, requireRange = true } = {}) {
       f.wardKey = wardKey(w); // nhận cả tên phường/xã gốc
     }
   }
-  f.heavyG = allowedSet.has('heavy_g') ? parseHeavyG(one('heavy_g')) : HEAVY_THRESHOLD_G_DEFAULT;
   if (allowedSet.has('granularity')) {
     const g = one('granularity') || 'day';
     if (g !== 'day' && g !== 'hour') throw new QueryParamError('Tham số "granularity" phải là day hoặc hour');
@@ -392,17 +381,16 @@ function summary(db, f, { isAdmin, scopeCodes = null }) {
   const [t] = run(db, f, `SELECT
       (SELECT COUNT(*) FROM s) AS san_luong,
       (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS khoi_luong_g,
-      (SELECT COUNT(*) FROM s WHERE weight_g > @heavy) AS hang_nang,
+      (SELECT COUNT(*) FROM s WHERE ${DI_NGOAI_SQL}) AS hang_di_ngoai,
       (SELECT COUNT(DISTINCT r.bd8_no) FROM r WHERE r.bd8_no <> '' AND r.tracking_no IN (SELECT tracking_no FROM s)) AS tui_kien,
-      (SELECT json_group_array(DISTINCT ward_key) FROM s WHERE nhom = 'HOME') AS wards${admin}`, { heavy: f.heavyG }, { materialize: true });
+      (SELECT json_group_array(DISTINCT ward_key) FROM s WHERE nhom = 'HOME') AS wards${admin}`, {}, { materialize: true });
   const catalog = catalogWardKeys(db);
   const out = {
     san_luong: t.san_luong,
     khoi_luong_g: t.khoi_luong_g,
     tui_kien: t.tui_kien,
-    hang_nang: t.hang_nang,
-    ty_le_hang_nang: pct2(t.hang_nang, t.san_luong),
-    nguong_hang_nang_g: f.heavyG,
+    hang_di_ngoai: t.hang_di_ngoai,
+    ty_le_hang_di_ngoai: pct2(t.hang_di_ngoai, t.san_luong),
     dia_ban_phat: { co: JSON.parse(t.wards).filter((k) => catalog.has(k)).length, tong: catalog.size },
     meta: metaFor(f)
   };
@@ -437,16 +425,16 @@ function pct2(n, d) {
 function groupWithHours(db, f, keySql, extraCols) {
   return run(db, f, `SELECT ${keySql} AS g, ${extraCols}
       CAST(substr(t, 12, 2) AS INTEGER) AS gio, COUNT(*) AS n,
-      COALESCE(SUM(weight_g > @heavy), 0) AS nang, COALESCE(SUM(weight_g), 0) AS kl
-    FROM s GROUP BY g, gio`, { heavy: f.heavyG });
+      COALESCE(SUM(${DI_NGOAI_SQL}), 0) AS di_ngoai, COALESCE(SUM(weight_g), 0) AS kl
+    FROM s GROUP BY g, gio`);
 }
 
 function foldGroups(rows) {
   const groups = new Map();
   for (const r of rows) {
     let x = groups.get(r.g);
-    if (!x) { x = { g: r.g, ma: r.ma, ten: r.ten, san_luong: 0, hang_nang: 0, kl: 0, gio: new Map() }; groups.set(r.g, x); }
-    x.san_luong += r.n; x.hang_nang += r.nang; x.kl += r.kl;
+    if (!x) { x = { g: r.g, ma: r.ma, ten: r.ten, san_luong: 0, hang_di_ngoai: 0, kl: 0, gio: new Map() }; groups.set(r.g, x); }
+    x.san_luong += r.n; x.hang_di_ngoai += r.di_ngoai; x.kl += r.kl;
     x.gio.set(r.gio, (x.gio.get(r.gio) || 0) + r.n);
   }
   return [...groups.values()];
@@ -476,12 +464,11 @@ function shapeByRoute(f, rows) {
   const total = groups.reduce((a, x) => a + x.san_luong, 0);
   const shape = (x, ten) => ({
     ten, san_luong: x.san_luong, ty_trong: pct2(x.san_luong, total), gio_nhieu_nhat: busiestHour(x.gio),
-    hang_nang: x.hang_nang, ty_le_hang_nang: pct2(x.hang_nang, x.san_luong)
+    hang_di_ngoai: x.hang_di_ngoai, ty_le_hang_di_ngoai: pct2(x.hang_di_ngoai, x.san_luong)
   });
-  const empty = groups.find((x) => x.g === '') || { san_luong: 0, hang_nang: 0, gio: new Map() };
+  const empty = groups.find((x) => x.g === '') || { san_luong: 0, hang_di_ngoai: 0, gio: new Map() };
   return {
     san_luong: total,
-    nguong_hang_nang_g: f.heavyG,
     items: sortGroups(groups.filter((x) => x.g !== '').map((x) => shape(x, x.ten))),
     chua_co_ten: shape(empty, NO_ROUTE_LABEL),
     meta: metaFor(f)
@@ -498,12 +485,11 @@ function shapeByService(f, rows) {
   const shape = (x, ma, ten) => ({
     ma, ten, san_luong: x.san_luong, ty_trong: pct2(x.san_luong, total),
     khoi_luong_tb_g: x.san_luong ? Math.round(x.kl / x.san_luong) : 0,
-    hang_nang: x.hang_nang, ty_le_hang_nang: pct2(x.hang_nang, x.san_luong)
+    hang_di_ngoai: x.hang_di_ngoai, ty_le_hang_di_ngoai: pct2(x.hang_di_ngoai, x.san_luong)
   });
-  const empty = groups.find((x) => x.g === '') || { san_luong: 0, hang_nang: 0, kl: 0 };
+  const empty = groups.find((x) => x.g === '') || { san_luong: 0, hang_di_ngoai: 0, kl: 0 };
   return {
     san_luong: total,
-    nguong_hang_nang_g: f.heavyG,
     items: sortGroups(groups.filter((x) => x.g !== '').map((x) => shape(x, x.ma || null, x.ten || x.ma))),
     chua_co_ten: shape(empty, null, NO_SERVICE_LABEL),
     meta: metaFor(f)
@@ -758,10 +744,10 @@ function importStatus(db, { getMissingBatches }) {
 
 module.exports = {
   DATE_BASES, SPECIAL_GROUPS, MOC_COMBOS, MAX_PAGE_SIZE, MAX_RANGE_DAYS, MAX_HOUR_RANGE_DAYS, QueryParamError,
-  HEAVY_THRESHOLD_G_DEFAULT, HEAVY_THRESHOLD_G_MIN, HEAVY_THRESHOLD_G_MAX, NO_ROUTE_LABEL, NO_SERVICE_LABEL,
+  DI_NGOAI_SQL, NO_ROUTE_LABEL, NO_SERVICE_LABEL,
   parseFilters, buildCountedCte, summary, byTime, byWard, byRoute, byService, qualityMocs, items, lookup, exceptions, meta, importStatus,
   homeProvinceKeys, isHomeProvince, catalogWardKeys,
   latestFileDates, latestFileDate, dayAge, ageAt, ageBucket, scopedFilters, notReceivedStats, notReceivedList, TTKT_BD10_PREFIX, SOURCE_GROUPS, SOURCE_CODE_SQL, decodeSourceRows, sumBy, REASON_ORDER,
-  parseHeavyG, groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff,
+  groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff,
   ROUTE_KEY_SQL, SERVICE_KEY_SQL, shapeByService, shapeQualityMocs
 };

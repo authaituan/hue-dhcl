@@ -42,7 +42,7 @@ before(() => {
   add(bd10('531120', 2), { xnd: '2026-10-02 07:00:00' }); add(bd10('531120', 2), { itm: null, xnd: '2026-10-02 07:00:00' });
   // Z: BD10 do chính BCVH lập (tiền tố 533140): đủ, không XNĐ -> A và B nhưng thuộc "chính BCVH lập"
   add(bd10('533140', 3));
-  // W: 530100, một dòng đủ + một dòng chỉ có túi, không XNĐ -> A, không B; dòng hàng nặng (BD8 = SHBG)
+  // W: 530100, một dòng đủ + một dòng chỉ có túi, không XNĐ -> A, không B; dòng hàng đi ngoài (BD8 = SHBG)
   add(bd10('530100', 4)); add(bd10('530100', 4), { itm: null, b8: 'ZZ4S7VN' });
   // dòng không có BD10 và dòng thiếu phường
   add('', { ward: '' });
@@ -73,7 +73,7 @@ test('survey-bd10: chạy trên DB tạm không ghi gì; đếm A/B/C đúng; t�
   assert.match(out, /\| BD10 do chính BCVH lập \(tiền tố = mã BCVH\) \| 1 \| 1 \| 1 \| 100\.0% \| 100\.0% \| 1 \| 1 \|/);
   // XNĐ đồng nhất trong BD10: không có BD10 nào ≥ 2 giá trị
   assert.match(out, /BD10 có ≥ 2 giá trị XNĐ khác nhau \(i\/ii\/iii\) \| 0 \|/);
-  // Hàng nặng: 1 dòng BD8 trùng SHBG
+  // Hàng đi ngoài: 1 dòng BD8 trùng SHBG
   assert.match(out, /Dòng có BD8 trùng SHBG \| 1 \|/);
   // Dòng không BD10 và thiếu phường
   assert.match(out, /Dòng không có số hiệu BD10 \(khong_bd10\) \| 1 \|/);

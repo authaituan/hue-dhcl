@@ -286,7 +286,7 @@ test('quyền: không token 401; STAFF 403; ADMIN/TTVH mọi BCVH; GDVH chỉ BC
     const scope = (await getJson('/api/arrivals/export-scope', who)).body.bcvh;
     assert.equal(scope.length, 6);
     assert.ok(scope.every((b) => /^\d{6}$/.test(b.ma) && typeof b.ten === 'string' && b.ten));
-    assert.equal(scope.find((b) => b.ma === BC).ten, 'BCVH Thử Một', 'tên lấy từ danh mục như /dashboard/overview');
+    assert.equal(scope.find((b) => b.ma === BC).ten, 'BCVH Thử Một', 'tên lấy từ danh mục như /dashboard/tong-quan-den');
   }
   assert.equal((await get(exportUrl(BC2, RANGE_0405), 'gdvh')).status, 200);
   for (const code of [BC, BC3]) {

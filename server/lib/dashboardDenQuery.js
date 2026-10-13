@@ -2,10 +2,13 @@
 // Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, docs/ai/04_DECISIONS.md #73). Chỉ đọc DB.
 // KHÔNG cài cách đếm mới cho chỉ số đã có: số bưu gửi đi qua aq.buildCountedCte() (SHBG khác nhau, lần đến sớm nhất trong khoảng),
 // "chưa nhận" = aq.notReceivedStats(), "BD10 chưa XNĐ" = bd10.stats(), ngày dữ liệu = aq.latestFileDate() (#70).
-// Mới: "lượt đến" = tổ hợp (SHBG, BD10, BD8) khác nhau (#11), hàng nặng >= 2 kg, sau 15:00, so cùng giờ, mức điều hành.
+// Mới: "lượt đến" = tổ hợp (SHBG, BD10, BD8) khác nhau (#11), hàng đi ngoài (aq.DI_NGOAI_SQL, #76), sau 15:00, so cùng giờ, mức điều hành.
 //
 // "Hôm nay" của MỖI BCVH = ngày file OK mới nhất của BCVH đó (hoặc tham số date); "cùng giờ" = tới den_luc của BCVH
-// (arrival_at lớn nhất trong ngày). So sánh thiếu ngày (không có file OK ngày đó) -> null, không trả 0.
+// (arrival_at lớn nhất trong ngày) — GIỜ DỮ LIỆU, không phải đồng hồ máy chủ — áp cho cả hôm qua và cùng thứ tuần trước.
+// So sánh thiếu ngày (không có file OK ngày đó) -> null, không trả 0.
+// Hai mốc so sánh (DASH-6b, #76): hôm qua (chỉ hiển thị) và cùng thứ tuần trước. Mức sản lượng lệch CHỈ dùng tuần trước, có sàn 50 bưu gửi
+// và giờ bắt đầu đánh giá (danhGiaSanLuong); không đủ điều kiện -> không gắn mức, trả trạng thái chua_du_du_lieu + lý do.
 // ==========================================
 'use strict';
 const aq = require('./arrivalsQuery');
@@ -17,6 +20,9 @@ const { QueryParamError, DATE_RE, validYmd, addDays } = aq;
 const BCVH_CODES = DASHBOARD_BCVH.map((b) => b.ma);
 const MUC = Object.freeze({ XU_LY_NGAY: 'xu_ly_ngay', TRONG_NGAY: 'trong_ngay', BINH_THUONG: 'binh_thuong' });
 const MUC_RANK = { xu_ly_ngay: 0, trong_ngay: 1, binh_thuong: 2 };
+// Trạng thái đánh giá mức sản lượng lệch so tuần trước (danhGiaSanLuong).
+const DANH_GIA = Object.freeze({ DA_DANH_GIA: 'da_danh_gia', CHUA_DU: 'chua_du_du_lieu' });
+const LY_DO = Object.freeze({ THIEU_TUAN_TRUOC: 'thieu_tuan_truoc', MOC_DUOI_SAN: 'moc_duoi_san', CHUA_TOI_GIO: 'chua_toi_gio' });
 const LOAI_RANK = { chua_nhan_tai_bcvh: 0, bd10_chua_xnd: 1 };
 const GIOI_HAN_MAC_DINH = 5;
 const GIOI_HAN_TOI_DA = 50;
@@ -78,7 +84,7 @@ function filesPresent(db, ma, days) {
 
 /** Bộ lọc khoảng 00:00 → cut của một ngày, một BCVH, theo giờ đến BCVH (arrival_at). */
 const windowFilter = (ma, day, cut) => ({
-  dateBasis: 'arrival', receiverCodes: [ma], wardKey: null, heavyG: aq.HEAVY_THRESHOLD_G_DEFAULT,
+  dateBasis: 'arrival', receiverCodes: [ma], wardKey: null,
   from: `${day} 00:00:00`, to: `${day} ${cut}`, fromDate: day, toDate: day
 });
 
@@ -86,20 +92,32 @@ function runCounted(db, f, select, extra = {}) {
   const { sql, params } = aq.buildCountedCte(db, f);
   return db.prepare(`WITH ${sql} ${select}`).all({ ...params, ...extra });
 }
-const countBg = (db, f) => runCounted(db, f, 'SELECT COUNT(*) AS n FROM s')[0].n;
-
-const sameWeekdays = (day) => Array.from({ length: TH.SO_TUAN_SO_SANH }, (_, i) => addDays(day, -7 * (i + 1)));
+/** { bg: số SHBG, dn: số SHBG đi ngoài } trong khoảng của bộ lọc f. */
+const countWin = (db, f) => runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) AS dn FROM s`)[0];
 
 // ------------------------------------------
 // Mức điều hành (thuần, không đụng DB)
 // ------------------------------------------
-/** |hôm nay − TB| / TB theo LECH_SAN_LUONG; sumWeeks = tổng n ngày cùng thứ. null nếu không so sánh được. */
-function mucSanLuong(today, sumWeeks, n) {
-  if (!n || !sumWeeks) return null;
-  const mag = Math.abs(today * n - sumWeeks) * 100;
-  if (mag >= TH.LECH_SAN_LUONG.xu_ly_ngay_pct * sumWeeks) return MUC.XU_LY_NGAY;
-  if (mag >= TH.LECH_SAN_LUONG.trong_ngay_pct * sumWeeks) return MUC.TRONG_NGAY;
+/** |hôm nay − tuần trước| / tuần trước theo LECH_SAN_LUONG. null nếu không có mốc (0 / null). KHÔNG kiểm sàn và giờ — xem danhGiaSanLuong. */
+function mucSanLuong(today, tuanTruoc) {
+  if (!tuanTruoc) return null;
+  const mag = Math.abs(today - tuanTruoc) * 100;
+  if (mag >= TH.LECH_SAN_LUONG.xu_ly_ngay_pct * tuanTruoc) return MUC.XU_LY_NGAY;
+  if (mag >= TH.LECH_SAN_LUONG.trong_ngay_pct * tuanTruoc) return MUC.TRONG_NGAY;
   return MUC.BINH_THUONG;
+}
+/**
+ * Đánh giá mức sản lượng lệch (#76): chỉ gắn mức khi (1) có mốc cùng thứ tuần trước, (2) mốc >= SAN_SO_SANH_TOI_THIEU bưu gửi,
+ * (3) giờ dữ liệu (0–23, từ den_luc) >= GIO_BAT_DAU_DANH_GIA. Thiếu một điều kiện -> muc null, trạng thái chua_du_du_lieu + lý do (theo thứ tự đó).
+ * homNay: số SHBG hôm nay tới den_luc; tuanTruoc: số SHBG cùng giờ của cùng thứ tuần trước (null = không có file); gio: giờ của den_luc (null nếu chưa có).
+ */
+function danhGiaSanLuong(homNay, tuanTruoc, gio) {
+  let lyDo = null;
+  if (tuanTruoc === null || tuanTruoc === undefined) lyDo = LY_DO.THIEU_TUAN_TRUOC;
+  else if (tuanTruoc < TH.SAN_SO_SANH_TOI_THIEU) lyDo = LY_DO.MOC_DUOI_SAN;
+  else if (gio === null || gio === undefined || gio < TH.GIO_BAT_DAU_DANH_GIA) lyDo = LY_DO.CHUA_TOI_GIO;
+  if (lyDo) return { trang_thai: DANH_GIA.CHUA_DU, ly_do: lyDo, muc: null };
+  return { trang_thai: DANH_GIA.DA_DANH_GIA, ly_do: null, muc: mucSanLuong(homNay, tuanTruoc) };
 }
 function mucChuaNhan(tong, choTu1Ngay) {
   if (!tong) return MUC.BINH_THUONG;
@@ -127,25 +145,23 @@ function issuesOf(db, c) {
 }
 
 // ------------------------------------------
-// Sản lượng của MỘT BCVH: hôm nay (lượt, bưu gửi, hàng nặng, sau 15:00) + so hôm qua / TB 4 tuần cùng thứ cùng giờ
+// Sản lượng của MỘT BCVH: hôm nay (lượt, bưu gửi, hàng đi ngoài, sau 15:00) + so hôm qua / cùng thứ tuần trước, cùng giờ dữ liệu
 // ------------------------------------------
 function volumeOf(db, c) {
-  const empty = { luot: 0, buu_gui: 0, nang: 0, co_kl: 0, muon: 0, hom_qua: null, tb: null, sum_tuan: 0, so_tuan: 0 };
+  const empty = { luot: 0, buu_gui: 0, di_ngoai: 0, muon: 0, hom_qua: null, tuan_truoc: null };
   if (!c.cut) return empty;
   const f = windowFilter(c.ma, c.day, c.cut);
-  const t = runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(weight_g >= @nang), 0) AS nang, COALESCE(SUM(weight_g > 0), 0) AS co_kl,
-      COALESCE(SUM(t >= @muon), 0) AS muon FROM s`, { nang: TH.HANG_NANG_G, muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00` })[0];
+  const t = runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) AS dn,
+      COALESCE(SUM(t >= @muon), 0) AS muon FROM s`, { muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00` })[0];
   const luot = db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT tracking_no, bd10_no, bd8_no FROM arrival_items
     WHERE receiver_code = @ma AND arrival_date = @d AND arrival_at BETWEEN @from AND @to)`).get({ ma: c.ma, d: c.day, from: f.from, to: f.to }).n;
   const y = addDays(c.day, -1);
-  const weeks = sameWeekdays(c.day);
-  const present = filesPresent(db, c.ma, [y, ...weeks]);
-  const homQua = present.has(y) ? countBg(db, windowFilter(c.ma, y, c.cut)) : null;
-  const weekVals = weeks.filter((d) => present.has(d)).map((d) => countBg(db, windowFilter(c.ma, d, c.cut)));
-  const sumTuan = weekVals.reduce((a, x) => a + x, 0);
+  const w = addDays(c.day, -7);
+  const present = filesPresent(db, c.ma, [y, w]);
   return {
-    luot, buu_gui: t.bg, nang: t.nang, co_kl: t.co_kl, muon: t.muon,
-    hom_qua: homQua, tb: weekVals.length ? round2(sumTuan / weekVals.length) : null, sum_tuan: sumTuan, so_tuan: weekVals.length
+    luot, buu_gui: t.bg, di_ngoai: t.dn, muon: t.muon,
+    hom_qua: present.has(y) ? countWin(db, windowFilter(c.ma, y, c.cut)) : null,
+    tuan_truoc: present.has(w) ? countWin(db, windowFilter(c.ma, w, c.cut)) : null
   };
 }
 
@@ -181,23 +197,25 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     const base = { ma: c.ma, ten: names.get(c.ma), co_du_lieu: !!c.day, ngay_du_lieu: c.day, den_luc: c.denLuc };
     if (!c.day) {
       return {
-        ...base, san_luong: { luot: 0, buu_gui: 0 }, so_hom_qua: null, so_tb_4_tuan: null,
+        ...base, san_luong: { luot: 0, buu_gui: 0 }, so_hom_qua: null, so_tuan_truoc: null, danh_gia_san_luong: null,
         chua_nhan: { buu_gui: 0, cho_tu_1_ngay: 0, cho_lau_nhat_ngay: null }, bd10_chua_xnd: { so: 0, tong: 0, ty_le: null },
         muc: null, muc_chi_tiet: { san_luong: null, chua_nhan: null, bd10_chua_xnd: null }, _v: null
       };
     }
     const v = volumeOf(db, c);
     const is = issuesOf(db, c);
-    const mSl = mucSanLuong(v.buu_gui, v.sum_tuan, v.so_tuan);
+    const dg = danhGiaSanLuong(v.buu_gui, v.tuan_truoc === null ? null : v.tuan_truoc.bg, c.cut ? Number(c.cut.slice(0, 2)) : null);
+    const ref = (m) => (m === null ? null : { gia_tri: m.bg, chenh_pct: pctChange(v.buu_gui, m.bg) });
     return {
       ...base,
       san_luong: { luot: v.luot, buu_gui: v.buu_gui },
-      so_hom_qua: v.hom_qua === null ? null : { gia_tri: v.hom_qua, chenh_pct: pctChange(v.buu_gui, v.hom_qua) },
-      so_tb_4_tuan: v.tb === null ? null : { gia_tri: v.tb, chenh_pct: pctChange(v.buu_gui, v.tb), so_tuan: v.so_tuan },
+      so_hom_qua: ref(v.hom_qua),
+      so_tuan_truoc: ref(v.tuan_truoc),
+      danh_gia_san_luong: { trang_thai: dg.trang_thai, ly_do: dg.ly_do },
       chua_nhan: { buu_gui: is.chua_nhan.buu_gui, cho_tu_1_ngay: is.chua_nhan.cho_tu_1_ngay, cho_lau_nhat_ngay: is.chua_nhan.cho_lau_nhat_ngay },
       bd10_chua_xnd: { so: is.bd10_chua_xnd.so, tong: is.bd10_chua_xnd.tong, ty_le: is.bd10_chua_xnd.ty_le },
-      muc: worst([mSl, is.chua_nhan.muc, is.bd10_chua_xnd.muc]),
-      muc_chi_tiet: { san_luong: mSl, chua_nhan: is.chua_nhan.muc, bd10_chua_xnd: is.bd10_chua_xnd.muc },
+      muc: worst([dg.muc, is.chua_nhan.muc, is.bd10_chua_xnd.muc]),
+      muc_chi_tiet: { san_luong: dg.muc, chua_nhan: is.chua_nhan.muc, bd10_chua_xnd: is.bd10_chua_xnd.muc },
       _v: v
     };
   });
@@ -205,14 +223,27 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
   // Tổng phạm vi: cộng các BCVH; so sánh chỉ trên các BCVH có mốc so sánh (cùng tập ở tử và mẫu).
   const sum = (arr, fn) => arr.reduce((a, x) => a + fn(x), 0);
   const vs = rows.filter((r) => r._v).map((r) => r._v);
-  const withY = vs.filter((v) => v.hom_qua !== null);
-  const withTb = vs.filter((v) => v.tb !== null);
   const bg = sum(vs, (v) => v.buu_gui);
-  const nang = sum(vs, (v) => v.nang);
-  const coKl = sum(vs, (v) => v.co_kl);
-  const yRef = sum(withY, (v) => v.hom_qua);
-  const tbRef = round2(sum(withTb, (v) => v.tb));
+  const dn = sum(vs, (v) => v.di_ngoai);
   const canChuY = rows.filter((r) => r.muc === MUC.XU_LY_NGAY || r.muc === MUC.TRONG_NGAY).length;
+  // Mốc so sánh của sản lượng: { gia_tri, chenh_pct, so_bcvh }; của hàng đi ngoài: { buu_gui, ty_le, mau_so, chenh_diem (điểm %, hôm nay − mốc), so_bcvh }.
+  const sanLuongVs = (key) => {
+    const set = vs.filter((v) => v[key] !== null);
+    if (!set.length) return null;
+    const ref = sum(set, (v) => v[key].bg);
+    return { gia_tri: ref, chenh_pct: pctChange(sum(set, (v) => v.buu_gui), ref), so_bcvh: set.length };
+  };
+  const diNgoaiVs = (key) => {
+    const set = vs.filter((v) => v[key] !== null);
+    if (!set.length) return null;
+    const refBg = sum(set, (v) => v[key].bg);
+    const refDn = sum(set, (v) => v[key].dn);
+    const todayBg = sum(set, (v) => v.buu_gui);
+    return {
+      buu_gui: refDn, ty_le: ratio4(refDn, refBg), mau_so: refBg,
+      chenh_diem: refBg && todayBg ? round2((sum(set, (v) => v.di_ngoai) / todayBg - refDn / refBg) * 100) : null, so_bcvh: set.length
+    };
+  };
 
   return {
     ...headerOf(db, p, ctxs, goiY),
@@ -220,10 +251,14 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     san_luong: {
       luot: sum(vs, (v) => v.luot),
       buu_gui: bg,
-      so_hom_qua_cung_gio: withY.length ? { gia_tri: yRef, chenh_pct: pctChange(sum(withY, (v) => v.buu_gui), yRef), so_bcvh: withY.length } : null,
-      so_tb_4_tuan_cung_thu: withTb.length ? { gia_tri: tbRef, chenh_pct: pctChange(sum(withTb, (v) => v.buu_gui), tbRef), so_bcvh: withTb.length } : null
+      so_hom_qua_cung_gio: sanLuongVs('hom_qua'),
+      so_tuan_truoc_cung_gio: sanLuongVs('tuan_truoc')
     },
-    hang_nang: { buu_gui: nang, ty_le: ratio4(nang, coKl), mau_so: coKl, khong_co_khoi_luong: bg - coKl, nguong_g: TH.HANG_NANG_G },
+    // Hàng đi ngoài (#76): chỉ hiển thị (số, %, chênh so hôm qua / tuần trước), KHÔNG gắn mức. mau_so = số bưu gửi đến (như «Sản lượng đến»).
+    hang_di_ngoai: {
+      buu_gui: dn, ty_le: ratio4(dn, bg), mau_so: bg,
+      so_hom_qua_cung_gio: diNgoaiVs('hom_qua'), so_tuan_truoc_cung_gio: diNgoaiVs('tuan_truoc')
+    },
     // da_toi_gio: có BCVH nào dữ liệu đã tới mốc GIO_MUON chưa (chưa tới thì số 0 không có nghĩa "không có hàng muộn").
     sau_15h: { buu_gui: sum(vs, (v) => v.muon), ty_le: ratio4(sum(vs, (v) => v.muon), bg), tu_gio: TH.GIO_MUON,
       da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON) },
@@ -267,7 +302,7 @@ function viecCanLam(db, query, { goiY = [] } = {}) {
 }
 
 // ------------------------------------------
-// GET /api/arrivals/dashboard/phuong-xa-tang — số bưu gửi đến theo phường/xã (nhóm HOME như /wards-surge), cùng giờ trong ngày.
+// GET /api/arrivals/dashboard/phuong-xa-tang — số bưu gửi đến theo phường/xã (nhóm HOME), cùng giờ trong ngày; so hôm qua và cùng thứ tuần trước.
 // ------------------------------------------
 const WARD_SQL = "SELECT ward_key, MIN(ward_name) AS ten, COUNT(*) AS n FROM s WHERE nhom = 'HOME' GROUP BY ward_key";
 
@@ -281,27 +316,27 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
     if (!c.cut) continue;
     const y = addDays(c.day, -1);
     const yy = addDays(c.day, -2);
-    const weeks = sameWeekdays(c.day);
-    const present = filesPresent(db, c.ma, [y, yy, ...weeks]);
+    const w = addDays(c.day, -7);
+    const present = filesPresent(db, c.ma, [y, yy, w]);
     const countsOf = (day) => (day === c.day || present.has(day)
       ? new Map(runCounted(db, windowFilter(c.ma, day, c.cut), WARD_SQL).map((r) => [r.ward_key, r])) : null);
     const today = countsOf(c.day);
     const yMap = countsOf(y);
     const yyMap = countsOf(yy);
-    const weekMaps = weeks.filter((d) => present.has(d)).map(countsOf);
+    const wMap = countsOf(w);
     const keys = new Set([...today.keys(), ...(yMap ? yMap.keys() : [])]);
     for (const k of keys) {
       const n = (m) => (m ? (m.get(k)?.n || 0) : null);
       const homNay = n(today);
       const homQua = n(yMap);
-      const tb = weekMaps.length ? round2(weekMaps.reduce((a, m) => a + (m.get(k)?.n || 0), 0) / weekMaps.length) : null;
+      const tuanTruoc = n(wMap);
       items.push({
         ten: today.get(k)?.ten || yMap?.get(k)?.ten, ward_key: k, bcvh: c.ma, ten_bcvh: names.get(c.ma), ngay: c.day,
         hom_kia: n(yyMap), hom_qua: homQua, hom_nay: homNay,
         tang_so_hom_qua: homQua === null ? null : homNay - homQua,
         tang_so_hom_qua_pct: pctChange(homNay, homQua),
-        tb_4_tuan_cung_thu: tb, so_tuan: weekMaps.length,
-        lech_so_tb_pct: pctChange(homNay, tb)
+        tuan_truoc_cung_gio: tuanTruoc,
+        lech_so_tuan_truoc_pct: pctChange(homNay, tuanTruoc)
       });
     }
   }
@@ -312,7 +347,7 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
 }
 
 module.exports = {
-  MUC, GIOI_HAN_MAC_DINH, GIOI_HAN_TOI_DA, parseParams, mucSanLuong, mucChuaNhan, mucBd10, tongQuanDen, viecCanLam, phuongXaTang,
+  MUC, DANH_GIA, LY_DO, GIOI_HAN_MAC_DINH, GIOI_HAN_TOI_DA, parseParams, mucSanLuong, danhGiaSanLuong, mucChuaNhan, mucBd10, tongQuanDen, viecCanLam, phuongXaTang,
   // Dùng chung cho module «Xử lý và tỷ lệ phát» (PHAT-1): chỉ thêm export, không đổi cách tính.
   bcvhContext, windowFilter, runCounted
 };

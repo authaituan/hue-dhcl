@@ -15,12 +15,13 @@
 
 ## Dữ liệu sản lượng đến (SANLUONG)
 6. ✅ SANLUONG-3 — API lọc/tổng hợp `/api/arrivals/*`; ✅ SANLUONG-3b — đổi sang "Sản lượng đến", lọc theo giờ, bỏ BĐX, chất lượng khai thác (08/10/2026).
-6b. ✅ SANLUONG-3d — API "Hàng đến theo đường thư và dịch vụ" + hàng nặng (`/by-route`, `/by-service`, hàng nặng trong `/summary`) (09/10/2026).
-6c. ADMIN chỉnh ngưỡng hàng nặng trên giao diện — cần bảng cấu hình (hiện là hằng số + tham số `heavy_g`, #40).
+6b. ✅ SANLUONG-3d — API "Hàng đến theo đường thư và dịch vụ" (`/by-route`, `/by-service`, `/summary`) (09/10/2026); «hàng nặng» đã đổi thành «hàng đi ngoài» ở DASH-6b (#76).
+6c. ~~ADMIN chỉnh ngưỡng hàng nặng~~ — bỏ (DASH-6b, #76: không còn ngưỡng hàng nặng / tham số `heavy_g`).
 6d. Khối "chốt 11h/17h" và "độ trễ giữa các mốc" — ticket riêng sau khi PO chốt khung giờ.
-6e. ✅ SANLUONG-3e — API Dashboard điều hành (`/api/arrivals/dashboard/overview|trend|wards-surge|center`) + `tong_hop` của `/quality-mocs` (09/10/2026).
-6f. ADMIN chỉnh ngưỡng `DASHBOARD_THRESHOLDS` (và danh sách 6 BCVH) trên giao diện — cần bảng cấu hình (hiện là hằng số trong `server/lib/dashboardQuery.js`, #45).
-6g. Xem lại ngưỡng và định nghĩa "xác nhận chậm" (hiện trung vị khoảng XN túi → XN bưu gửi ≥ 75 phút) sau khi chạy dữ liệu thật ~2 tuần; xem lại sản lượng tối thiểu 50 SHBG và ngưỡng 7 điểm % hàng nặng (#48, đều TẠM).
+6e. ✅ SANLUONG-3e — API Dashboard điều hành (09/10/2026) → ĐÃ XOÁ ở DASH-6b (#76), giữ `tong_hop` của `/quality-mocs`.
+6f. ADMIN chỉnh ngưỡng Dashboard (`DASHBOARD_DEN_THRESHOLDS`) và danh sách 6 BCVH trên giao diện — cần bảng cấu hình (hiện là hằng số trong `server/config/dashboard-thresholds.js` và `server/lib/dashboardQuery.js`, #45, #73, #76).
+6g. Xem lại ngưỡng mức điều hành (lệch sản lượng 15% / 25%, sàn 50 bưu gửi, giờ bắt đầu đánh giá 12:00 — #76) sau khi chạy dữ liệu thật ~2 tuần; đặt ngưỡng cho hàng đi ngoài khi có ≥ 4 tuần dữ liệu thật (hiện chỉ hiển thị); xem lại "xác nhận chậm" (API 3e đã xoá — nếu cần thì làm lại ở Dashboard hiện hành).
+6g2. Ngày lễ/nghỉ làm mốc so sánh (danh sách «ngày không dùng làm mốc» do ADMIN nhập) — để sau DASH-6b (#76).
 6h. Nối SFTP cho 5 BCVH còn lại (535470, 536250, 537015, 537220, 535790) — gộp vào SANLUONG-5; đến khi đó các BCVH này trả 0 / `co_du_lieu: false`.
 7. SANLUONG-3c — phân quyền TTVH/GDVH + gán GDVH–BCVH + export dữ liệu gốc xlsx (số hiệu dạng chữ).
 7a. ✅ SANLUONG-3c-2 — 4 vai trò ADMIN/TTVH/GDVH/STAFF, quản lý tài khoản chỉ ADMIN, bảng `user_bcvh` + API gán, `scripts/migrate-roles.js` (09/10/2026). **PO còn phải**: chạy chuyển đổi vai trò trên DB thật (`06_DEPLOYMENT.md` mục 7).
@@ -45,7 +46,7 @@
 7j. ✅ SANLUONG-4a6 (backend) — chỉ số "BD10 đến không XNĐ" (`bd10_den_khong_xnd` trong `/summary`, `/dashboard/center`; `/bd10-khong-xnd` + `/export`) — #67.
 7j1. Chỉ số riêng cho bưu gửi KHÔNG thuộc BD10 (BD10 rỗng, ~2.000 SHBG trên mẫu; chủ yếu chỉ có XN bưu gửi): hiện nằm ngoài chỉ số BD10.
 7j2. Giao diện (PO duyệt canvas trước, ticket Antigravity): thẻ "BD10 đến không XNĐ" (tổng / 530100 / khác, tuổi, ngoài khung), danh sách + nút xuất; chuyển khỏi khối "đủ trạng thái theo nguồn" (#61).
-7j3. Xoá mã #61 (`tong_hop.theo_nguon`, `du_trang_thai_theo_nguon`, `SOURCE_*` trong `arrivalsQuery.js` / `dashboardQuery.js`) SAU khi giao diện thay bằng #67.
+7j3. Xoá mã #61 (`tong_hop.theo_nguon`, `du_trang_thai_theo_nguon`, `SOURCE_*` trong `arrivalsQuery.js`) SAU khi giao diện thay bằng #67.
 7j4. Nếu cần nhanh hơn trên dữ liệu lớn: chỉ số chạy một lần quét toàn bảng (~1,8 s / 1 triệu dòng) — cân nhắc bảng tổng hợp theo BD10 khi triển khai nhiều BCVH.
 7j5. BD10 mã ngắn (< 12 ký tự, không rỗng) đang tính vào "loại khác" của "chưa nhận tại BCVH" (#68, PO giữ ở #70) — chưa gặp trên dữ liệu thật; xem lại nếu xuất hiện.
 7j6. Theo dõi: 46 bưu gửi "chưa nhận" (bản chép DB, 533140, 01→09/10) có các dòng thuộc nhiều loại BD10 khác nhau; hiện phân loại theo BD10 của dòng đại diện (#68).
