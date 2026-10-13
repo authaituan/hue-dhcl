@@ -70,6 +70,7 @@ Hệ quả: không có mục `ports`; chỉ chạy trên Linux/NAS.
 - `JWT_SECRET` — bắt buộc (mục 1).
 - `CMS_ALLOWED_IPS` — bắt buộc, **phải có `127.0.0.1`** (healthcheck gọi `http://127.0.0.1:<PORT>/`, thiếu thì "unhealthy").
 - `HOST_PORT` — `18060`.
+- `JWT_EXPIRY_TIVI` — không bắt buộc: hạn token của tài khoản vai trò `TIVI` (mặc định 90 ngày, #74). Hạn của các vai trò khác vẫn là `JWT_EXPIRY`.
 
 **Cài lần đầu**: chép mã nguồn vào `/volume1/docker/hue-dhcl/app/` trên NAS, tạo `.env`, rồi Container Manager → Project → Create
 (trỏ tới thư mục đó) hoặc SSH `docker compose up -d --build`. Lần chạy đầu server tự tạo DB và 3 ô Dashboard mặc định.

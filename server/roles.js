@@ -9,11 +9,13 @@ const ROLES = Object.freeze({
   ADMIN: 'ADMIN',
   TTVH: 'TTVH',
   GDVH: 'GDVH',
-  STAFF: 'STAFF'
+  STAFF: 'STAFF',
+  // Màn hình tivi 24/24: CHỈ xem dashboard phần «đến», allowlist ở server/lib/tivi.js (#74). KHÔNG thuộc VIEWER_ROLES.
+  TIVI: 'TIVI'
 });
 
 // Danh sách vai trò hợp lệ (thứ tự dùng cho thông báo lỗi / giao diện).
-const VALID_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH, ROLES.STAFF]);
+const VALID_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH, ROLES.STAFF, ROLES.TIVI]);
 
 // Nhóm được XEM dữ liệu "Hàng đến", Dashboard điều hành và danh sách mạng lưới.
 const VIEWER_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH]);

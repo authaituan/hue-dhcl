@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, verifyPassword } = require('../auth');
+const { ROLES } = require('../roles');
+const { getTiviScope } = require('../lib/tivi');
 
 const router = express.Router();
 
@@ -117,12 +119,29 @@ router.post('/auth/login', (req, res) => {
         id: user.id,
         hrm_code: user.hrm_code,
         full_name: user.full_name,
-        role: user.role
+        role: user.role,
+        tivi_scope: user.role === ROLES.TIVI ? getTiviScope(db, user.id) : null
       }
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/auth/me — tài khoản hiện tại (mọi vai trò; TIVI được gọi, #74): vai trò, phạm vi tivi, hạn token.
+router.get('/auth/me', (req, res) => {
+  try {
+    const u = db.prepare('SELECT id, hrm_code, full_name, role FROM users WHERE id = ?').get(req.user.id);
+    if (!u) return res.status(401).json({ error: 'Tài khoản không còn tồn tại' });
+    res.json({
+      ...u,
+      tivi_scope: u.role === ROLES.TIVI ? getTiviScope(db, u.id) : null,
+      token_het_han: req.user.exp ? new Date(req.user.exp * 1000).toISOString() : null
+    });
+  } catch (error) {
+    console.error('Auth me error:', error);
+    res.status(500).json({ error: 'Lỗi hệ thống khi đọc tài khoản' });
   }
 });
 

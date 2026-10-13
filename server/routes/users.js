@@ -6,6 +6,7 @@ const { ROLES, VALID_ROLES, isValidRole } = require('../roles');
 const { normalizeStr } = require('../lib/helpers');
 const { wouldRemoveLastAdmin } = require('../lib/adminGuard');
 const { VALID_BCVH_CODES, getAssignedBcvh, replaceAssignedBcvh } = require('../lib/userBcvh');
+const { validScopes, isValidTiviScope, setTiviScope } = require('../lib/tivi');
 
 const router = express.Router();
 
@@ -15,13 +16,27 @@ const router = express.Router();
 // ==========================================
 const ROLE_ERROR = `Vai trò không hợp lệ (chỉ nhận: ${VALID_ROLES.join(', ')})`;
 
+// Phạm vi tài khoản TIVI (#74): body.tivi_scope = 'all' | mã một trong 6 BCVH | null (bỏ gán). Chỉ nhận khi vai trò (mới) là TIVI.
+// Trả { error } hoặc { scope } (undefined = không gửi -> giữ nguyên).
+function readTiviScope(body, role) {
+  if (!body || body.tivi_scope === undefined) return { scope: undefined };
+  const v = body.tivi_scope;
+  if (role !== ROLES.TIVI) {
+    return v === null ? { scope: undefined } : { error: 'Chỉ tài khoản vai trò TIVI mới có phạm vi tivi (tivi_scope)' };
+  }
+  if (v === null) return { scope: null };
+  const s = typeof v === 'string' ? v.trim() : v;
+  if (!isValidTiviScope(s)) return { error: `Phạm vi tivi không hợp lệ (chỉ nhận: ${validScopes().join(', ')})` };
+  return { scope: s };
+}
+
 // Danh sách user — KHÔNG bao giờ trả password_hash (SELECT tường minh từng cột).
 // CHỈ trả tài khoản đăng nhập THẬT (password_hash IS NOT NULL) — DB kế thừa có thể
 // còn dòng users không có mật khẩu, không lẫn vào danh sách tài khoản đăng nhập.
 router.get('/users', authRequired, requireAdmin, (req, res) => {
   try {
     // Vẫn trả về CẢ user đã vô hiệu hoá — UI cần thấy để biết ai đang bị khoá + có
-    // nút Kích Hoạt Lại. `bcvh_codes` = mã BCVH đã gán (rỗng nếu không có).
+    // nút Kích Hoạt Lại. `bcvh_codes` = mã BCVH đã gán (rỗng nếu không có); `tivi_scope` = phạm vi tài khoản TIVI (null nếu không có).
     const users = db.prepare(`
       SELECT id, hrm_code, full_name, role, post_office_code, commune_code, post_office_id, created_at, deactivated_at
       FROM users
@@ -33,7 +48,8 @@ router.get('/users', authRequired, requireAdmin, (req, res) => {
       if (!assigned.has(r.user_id)) assigned.set(r.user_id, []);
       assigned.get(r.user_id).push(r.bcvh_code);
     }
-    res.json(users.map((u) => ({ ...u, bcvh_codes: assigned.get(u.id) || [] })));
+    const tivi = new Map(db.prepare('SELECT user_id, scope FROM user_tivi_scope').all().map((r) => [r.user_id, r.scope]));
+    res.json(users.map((u) => ({ ...u, bcvh_codes: assigned.get(u.id) || [], tivi_scope: tivi.get(u.id) || null })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -88,6 +104,8 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
     if (!isValidRole(finalRole)) {
       return res.status(400).json({ error: ROLE_ERROR });
     }
+    const tv = readTiviScope(req.body, finalRole);
+    if (tv.error) return res.status(400).json({ error: tv.error });
 
     const trimmedHrmCode = hrm_code.trim();
     const existing = db.prepare("SELECT id FROM users WHERE hrm_code = ?").get(trimmedHrmCode);
@@ -97,25 +115,29 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
 
     const id = uuidv4();
 
-    db.prepare(`
-      INSERT INTO users (id, hrm_code, full_name, role, password_hash)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, trimmedHrmCode, full_name.trim(), finalRole, hashPassword(password));
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO users (id, hrm_code, full_name, role, password_hash)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, trimmedHrmCode, full_name.trim(), finalRole, hashPassword(password));
+      if (tv.scope) setTiviScope(db, id, tv.scope);
+    })();
 
     res.status(201).json({
       message: 'Tạo tài khoản người dùng thành công',
       id,
       hrm_code: trimmedHrmCode,
       full_name: full_name.trim(),
-      role: finalRole
+      role: finalRole,
+      tivi_scope: finalRole === ROLES.TIVI ? (tv.scope || null) : null
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Sửa full_name/role của 1 user. Chặn: role ngoài danh sách (400), tự đổi role của chính mình,
-// hạ vai trò ADMIN hoạt động cuối cùng. Rời vai trò GDVH thì xoá các dòng gán BCVH.
+// Sửa full_name/role (và tivi_scope nếu vai trò là TIVI) của 1 user. Chặn: role ngoài danh sách (400), tự đổi role của chính mình,
+// hạ vai trò ADMIN hoạt động cuối cùng. Rời vai trò GDVH thì xoá các dòng gán BCVH; rời vai trò TIVI thì xoá phạm vi tivi.
 router.put('/users/:id', authRequired, requireAdmin, (req, res) => {
   try {
     const { full_name, role } = req.body || {};
@@ -129,8 +151,11 @@ router.put('/users/:id', authRequired, requireAdmin, (req, res) => {
       newRole = wanted;
     }
 
+    const tv = readTiviScope(req.body, newRole);
+    if (tv.error) return res.status(400).json({ error: tv.error });
+
     const wantsRoleChange = newRole !== existing.role;
-    if (wantsRoleChange && req.user.id === req.params.id) {
+    if ((wantsRoleChange || tv.scope !== undefined) && req.user.id === req.params.id) {
       return res.status(400).json({ error: 'Không thể tự đổi quyền (role) của chính mình, tránh tự khoá quyền quản lý' });
     }
     if (wantsRoleChange && wouldRemoveLastAdmin(db, existing)) {
@@ -146,6 +171,8 @@ router.put('/users/:id', authRequired, requireAdmin, (req, res) => {
       if (wantsRoleChange && existing.role === ROLES.GDVH) {
         db.prepare("DELETE FROM user_bcvh WHERE user_id = ?").run(req.params.id);
       }
+      if (wantsRoleChange && existing.role === ROLES.TIVI) setTiviScope(db, req.params.id, null);
+      if (tv.scope !== undefined) setTiviScope(db, req.params.id, tv.scope);
     })();
 
     res.json({ message: 'Cập nhật người dùng thành công' });

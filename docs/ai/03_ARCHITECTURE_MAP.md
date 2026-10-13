@@ -54,6 +54,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `post_offices` | Bưu cục (MBC) + thông tin mạng lưới, `responsible_user_id` (không FK cứng) | `commune_id` → commune |
 | `users` | Tài khoản đăng nhập (khoá theo `hrm_code`), `deactivated_at` = khoá | `post_office_id` → post_offices |
 | `user_bcvh` | Gán GDVH ↔ BCVH (nhiều-nhiều; PK `(user_id, bcvh_code)`; mã thuộc `DASHBOARD_BCVH`). Xoá khi tài khoản rời vai trò GDVH. Chỉ giới hạn xuất file (3c-3) | `user_id` → users |
+| `user_tivi_scope` | Phạm vi tài khoản TIVI: `scope` = `all` hoặc một mã trong 6 BCVH (PK `user_id`; xoá khi rời vai trò TIVI) — #74 | `user_id` → users |
 | `dashboard_widgets` | Cấu hình ô Dashboard (SYSTEM/CHART), dùng chung mọi người | — |
 | `arrival_import_files` | Nhật ký nạp file "Hàng đến": tên, mã BC nhận, ngày/giờ file, sha256, số dòng, `status` OK/EMPTY/REJECTED/CONFLICT, lỗi/cảnh báo | — |
 | `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
@@ -63,6 +64,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | Route | Quyền | File |
 |---|---|---|
 | `POST /api/auth/login` | công khai (rate-limit) | `routes/auth.js` |
+| `GET /api/auth/me` — tài khoản hiện tại `{ id, hrm_code, full_name, role, tivi_scope, token_het_han }` (#74) | mọi vai trò (kể cả TIVI) | `routes/auth.js` |
 | `GET/POST /api/users`, `PUT /api/users/:id`, `.../reset-password`, `.../deactivate`, `.../reactivate`, `GET/PUT /api/users/:id/bcvh` (gán BCVH cho GDVH) | ADMIN | `routes/users.js` |
 | `GET /api/users/search?q=` | ADMIN | `routes/users.js` |
 | `PUT /api/users/me/password` | mọi vai trò (đã đăng nhập) | `routes/users.js` |
@@ -111,26 +113,28 @@ Dashboard điều hành (`/api/arrivals/dashboard/*`): `date` (`YYYY-MM-DD`, m�
 
 
 ### Vai trò và ma trận quyền (`server/roles.js`, `04_DECISIONS.md` #49–#54)
-Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`. `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
+Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`, `TIVI` (#74). `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
 `VIEWER_ROLES = ADMIN, TTVH, GDVH`, `isValidRole`). Middleware `authRequired` (`server/auth.js`) tra DB mỗi request: lấy `role` + `deactivated_at` từ `users`
 (không tin vai trò trong token) — khoá/không còn → 401, vai trò ngoài danh sách (vd `MANAGER` chưa chuyển đổi) → 403. `requireRoles(...roles)` nhận danh sách tường minh
-(`requireAdmin` = `requireRoles('ADMIN')`); không còn quy tắc "khác STAFF".
+(`requireAdmin` = `requireRoles('ADMIN')`); không còn quy tắc "khác STAFF". `TIVI`: allowlist `TIVI_ALLOWED` (`server/lib/tivi.js`) kiểm ngay trong `authRequired`, ngoài danh sách → 403 (cột TIVI dưới đây); token hạn `JWT_EXPIRY_TIVI`, gắn vai trò + dấu mật khẩu (đổi vai trò / mật khẩu → 401).
 
-| Nhóm route | ADMIN | TTVH | GDVH | STAFF |
-|---|---|---|---|---|
-| `/api/users*` (trừ `PUT /users/me/password`), `/users/:id/bcvh` | ✔ | 403 | 403 | 403 |
-| `PUT /api/users/me/password` | ✔ | ✔ | ✔ | ✔ |
-| `GET /api/network`, `/network/export-data` | ✔ | ✔ | ✔ | 403 |
-| `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 |
-| `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 |
-| `/api/arrivals/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 |
-| `/api/arrivals/not-received`, `/bd10-khong-xnd`, `/bd10-trang-thai/*`, `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | ✔ theo bộ lọc (#72; không phụ thuộc BCVH được giao) | 403 |
-| `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` (cảnh báo dữ liệu; KHÔNG gồm `chua_nhan_tai_bcvh`) | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 |
-| `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | ✔ |
-| ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 |
-| `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | ✔ |
+| Nhóm route | ADMIN | TTVH | GDVH | STAFF | TIVI |
+|---|---|---|---|---|---|
+| `/api/users*` (trừ `PUT /users/me/password`), `/users/:id/bcvh` | ✔ | 403 | 403 | 403 | 403 |
+| `PUT /api/users/me/password` | ✔ | ✔ | ✔ | ✔ | 403 |
+| `GET /api/network`, `/network/export-data` | ✔ | ✔ | ✔ | 403 | 403 |
+| `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 | 403 |
+| `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 | 403 |
+| `/api/arrivals/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 | 403 |
+| `/api/arrivals/not-received`, `/bd10-khong-xnd`, `/bd10-trang-thai/*`, `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | ✔ theo bộ lọc (#72; không phụ thuộc BCVH được giao) | 403 | 403 |
+| `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` (cảnh báo dữ liệu; KHÔNG gồm `chua_nhan_tai_bcvh`) | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 | 403 |
+| `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | ✔ | 403 |
+| ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 | 403 |
+| `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | ✔ | 403 |
+| `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (#73) | ✔ | ✔ | ✔ | 403 | ✔ `bcvh` ép theo phạm vi; chưa có phạm vi → 403 |
+| `GET /api/auth/me` | ✔ | ✔ | ✔ | ✔ | ✔ |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
-(`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
+(`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
 Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DEPLOYMENT.md` mục 7).
 
 ## 4. Giao diện

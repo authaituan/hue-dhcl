@@ -4,6 +4,16 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-12] - Vai trò `TIVI`: chỉ xem dashboard «đến», token dài hạn, có phạm vi (DASH-3)
+
+- `server/roles.js`: thêm `TIVI` (không thuộc `VIEWER_ROLES`). `server/lib/tivi.js` (mới): allowlist `TIVI_ALLOWED` + `tiviAllows()`, bảng `user_tivi_scope` (`ensureTiviSchema`, gọi từ `server/db.js`), `getTiviScope` / `setTiviScope` / `isValidTiviScope`.
+- `server/auth.js`: token TIVI hạn `JWT_EXPIRY_TIVI` (mặc định 90 ngày; vai trò khác không đổi), claim `tivi` + dấu mật khẩu (HMAC); `authRequired` từ chối token TIVI khi tài khoản đổi vai trò / mật khẩu (401) và chặn mọi request ngoài allowlist của TIVI (403).
+- `server/routes/arrivals.js`: TIVI qua lớp `/arrivals` chỉ ở 3 endpoint dashboard; `bcvh` bị ép theo phạm vi, chưa có phạm vi → 403. `server/routes/auth.js`: `GET /api/auth/me`, `user.tivi_scope` khi đăng nhập. `server/routes/users.js`: `tivi_scope` khi tạo / sửa (chỉ ADMIN, kiểm giá trị, xoá khi rời TIVI), `GET /api/users` trả `tivi_scope`.
+- `tests/tivi.test.js` (mới, 10 ca; thêm vào script `test` của `package.json`). `npm test` 290 ca: 290 pass trong worktree riêng (không có `data/hue-dhcl.db` nên ca CLI seed chạy, không skip).
+- Docs: quyết định #74, bản đồ kiến trúc (cột TIVI trong ma trận quyền, bảng `user_tivi_scope`, `/auth/me`), `00_SNAPSHOT.md`, `06_DEPLOYMENT.md` (biến `JWT_EXPIRY_TIVI`).
+
+---
+
 ## [2026-10-11] - API Dashboard «Cần điều hành ngay hôm nay» — phần đến (DASH-1)
 
 - `server/lib/dashboardDenQuery.js` (mới) + `server/routes/arrivals.js`: `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (tham số `bcvh`, `date`, `gioi_han`; ADMIN / TTVH / GDVH, STAFF 403; `bcvh_goi_y` cho GDVH). Dùng lại `buildCountedCte`, `notReceivedStats`, `bd10.stats`, `latestFileDate`; không đổi API / cách tính có sẵn. Tên `/dashboard/overview` đã có (3e) nên đặt `tong-quan-den`.
