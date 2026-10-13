@@ -14,6 +14,23 @@ import {
   wardChangeChip,
 } from './arrivals/DailyOpsDashboard';
 
+// ─── Token màu và font chuẩn Canvas DASH-4c ──────────────────────────────────
+const TV = {
+  font: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  bgPage: '#0b0f14',
+  bgCard: '#141a22',
+  bgCardNested: '#1b232d',
+  border: '#222b36',
+  green: '#34d399',
+  greenBg: '#0f2a22',
+  yellow: '#fbbf24',
+  yellowBg: '#422006',
+  red: '#f87171',
+  redBg: '#450a0a',
+  textSecondary: '#8b97a6',
+  textPrimary: '#f1f5f9',
+};
+
 // ─── Hằng số ────────────────────────────────────────────────────────────────
 const STAGE_W = 1920;
 const STAGE_H = 1080;
@@ -59,6 +76,22 @@ function tvActionValue(item) {
   if (loai === 'chua_nhan_tai_bcvh') return { val: formatViVN(so_lieu?.buu_gui), unit: 'bưu gửi' };
   if (loai === 'bd10_chua_xnd') return { val: formatPercent(so_lieu?.ty_le), unit: 'chưa XNĐ' };
   return { val: formatViVN(so_lieu?.gia_tri), unit: '' };
+}
+
+function tvActionSub(item, isAll) {
+  const { loai, so_lieu, ten_bcvh } = item;
+  const pfx = isAll && ten_bcvh ? `${ten_bcvh} · ` : '';
+  if (loai === 'chua_nhan_tai_bcvh') {
+    const choTu1 = so_lieu?.cho_tu_1_ngay || 0;
+    if (choTu1 > 0) return `${pfx}đã chờ từ 1 ngày: ${formatViVN(choTu1)}`;
+    return `${pfx}trong ngày: ${formatViVN(so_lieu?.buu_gui || 0)} bưu gửi`;
+  }
+  if (loai === 'bd10_chua_xnd') {
+    const cl = so_lieu?.chua_xnd ?? 0;
+    const tong = so_lieu?.tong_bd10_den ?? 0;
+    return `${pfx}${formatPercent(so_lieu?.ty_le)} BD10 đến (${cl}/${tong})`;
+  }
+  return pfx.replace(/ · $/, '') || '';
 }
 
 // ─── Hook lấy dữ liệu dashboard ──────────────────────────────────────────────
@@ -160,17 +193,17 @@ function useWakeLock() {
   }, []);
 }
 
-// ─── Hook carousel việc cần làm ──────────────────────────────────────────────
-function useCarousel(items) {
-  const [idx, setIdx] = useState(0);
+// ─── Hook carousel phân trang việc cần làm (5 giây đổi trang) ────────────────
+function useCarouselPages(totalPages) {
+  const [page, setPage] = useState(0);
   useEffect(() => {
-    if (items.length <= 1) { setIdx(0); return; }
-    const t = setInterval(() => setIdx((p) => (p + 1) % items.length), SLIDE_MS);
+    if (totalPages <= 1) { setPage(0); return; }
+    const t = setInterval(() => setPage((p) => (p + 1) % totalPages), SLIDE_MS);
     return () => clearInterval(t);
-  }, [items.length]);
-  // Reset khi danh sách thay đổi
-  useEffect(() => { setIdx(0); }, [items]);
-  return idx;
+  }, [totalPages]);
+  // Reset khi tổng số trang thay đổi
+  useEffect(() => { setPage(0); }, [totalPages]);
+  return page;
 }
 
 // ─── Hook scale sân khấu ─────────────────────────────────────────────────────
@@ -220,9 +253,22 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   const isAll = !bcvhScope || bcvhScope === 'all';
   const scopeName = isAll ? 'Trung tâm · 6 BCVH' : bcvhName(bcvhScope);
 
-  const actionItems = useMemo(() => viecCanLam?.items || [], [viecCanLam]);
-  const slideIdx = useCarousel(actionItems);
-  const currentItem = actionItems[slideIdx] || null;
+  // Sắp xếp «Xử lý ngay» đứng trước
+  const rawActionItems = useMemo(() => viecCanLam?.items || [], [viecCanLam]);
+  const actionItems = useMemo(() => {
+    return [...rawActionItems].sort((a, b) => {
+      const aX = a.muc === 'xu_ly_ngay' ? 1 : 0;
+      const bX = b.muc === 'xu_ly_ngay' ? 1 : 0;
+      return bX - aX;
+    });
+  }, [rawActionItems]);
+
+  const ACTION_PAGE_SIZE = 4;
+  const totalActionPages = Math.ceil(actionItems.length / ACTION_PAGE_SIZE) || 1;
+  const actionPage = useCarouselPages(totalActionPages);
+  const currentActionItems = useMemo(() => {
+    return actionItems.slice(actionPage * ACTION_PAGE_SIZE, (actionPage + 1) * ACTION_PAGE_SIZE);
+  }, [actionItems, actionPage]);
 
   // Thẻ sản lượng
   const slBuuGui = isAll
@@ -250,9 +296,9 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   // ── Đang chờ /api/auth/me trả tivi_scope (chỉ với TIVI role). App.jsx tự thử lại mỗi 10 giây khi lỗi / mất mạng. ──
   if (bcvhScope === undefined) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center gap-6">
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6" style={{ background: TV.bgPage }}>
         <div className="w-16 h-16 border-4 border-gray-700 border-t-emerald-400 rounded-full animate-spin" />
-        <div className="text-2xl text-gray-400" style={{ fontFamily: 'Inter, sans-serif' }}>Đang kết nối…</div>
+        <div className="text-2xl text-gray-400" style={{ fontFamily: TV.font }}>Đang kết nối…</div>
       </div>
     );
   }
@@ -261,8 +307,8 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   if (bcvhScope === null) {
     return (
       <div
-        className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center text-center p-8"
-        style={{ fontFamily: 'Inter, sans-serif' }}
+        className="fixed inset-0 flex items-center justify-center text-center p-8"
+        style={{ background: TV.bgPage, fontFamily: TV.font }}
       >
         <div>
           <div className="text-6xl mb-6">📺</div>
@@ -288,7 +334,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   // ── Loading ban đầu ──────────────────────────────────────────────────────
   if (loading && !tongQuan) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: TV.bgPage }}>
         <div className="w-16 h-16 border-4 border-gray-700 border-t-emerald-400 rounded-full animate-spin" />
       </div>
     );
@@ -301,22 +347,51 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
       onMouseMove={showExit}
       onTouchStart={showExit}
     >
-      {/* Nút thoát / đăng xuất — hiện khi di chuột, ẩn sau 5s */}
+      <style>{`
+        @keyframes tv-pulse-green {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.35; transform: scale(0.85); }
+        }
+      `}</style>
+
+      {/* Nút thoát / đăng xuất — hiện khi di chuột, ẩn sau 5s; đặt chính giữa đỉnh màn hình để không bao giờ đè tiêu đề */}
       <div
-        className="fixed top-4 left-4 z-50 transition-opacity duration-500"
+        className="fixed top-3 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-300"
         style={{ opacity: exitVisible ? 1 : 0, pointerEvents: exitVisible ? 'auto' : 'none' }}
       >
         {isTiviRole ? (
           <button
             onClick={() => { clearToken(); onForceLogout?.(); }}
-            className="px-4 py-2 bg-gray-800/90 border border-gray-600 text-white text-sm rounded-lg hover:bg-gray-700"
+            style={{
+              background: 'rgba(20, 26, 34, 0.95)',
+              border: `1.5px solid ${TV.border}`,
+              color: TV.textPrimary,
+              fontSize: 14,
+              fontWeight: 700,
+              padding: '8px 20px',
+              borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+              cursor: 'pointer',
+              fontFamily: TV.font,
+            }}
           >
             Đăng xuất
           </button>
         ) : (
           <button
             onClick={onExit}
-            className="px-4 py-2 bg-gray-800/90 border border-gray-600 text-white text-sm rounded-lg hover:bg-gray-700"
+            style={{
+              background: 'rgba(20, 26, 34, 0.95)',
+              border: `1.5px solid ${TV.border}`,
+              color: TV.textPrimary,
+              fontSize: 14,
+              fontWeight: 700,
+              padding: '8px 20px',
+              borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+              cursor: 'pointer',
+              fontFamily: TV.font,
+            }}
           >
             ← Thoát chế độ tivi
           </button>
@@ -330,8 +405,8 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
           height: STAGE_H,
           transform: `scale(${scale})`,
           transformOrigin: 'center center',
-          fontFamily: 'Inter, sans-serif',
-          background: '#111318',
+          fontFamily: TV.font,
+          background: TV.bgPage,
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -374,9 +449,10 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
           <div style={{ flex: 1, display: 'flex', gap: 24, minHeight: 0 }}>
             {/* Cột Trái: Việc cần làm */}
             <ColViec
-              items={actionItems}
-              currentItem={currentItem}
-              slideIdx={slideIdx}
+              items={currentActionItems}
+              totalItems={actionItems.length}
+              currentPage={actionPage}
+              totalPages={totalActionPages}
               isAll={isAll}
             />
 
@@ -417,13 +493,13 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       {/* Tiêu đề trái */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <h1 style={{ fontSize: 44, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-1px' }}>
+        <h1 style={{ fontSize: 44, fontWeight: 900, color: TV.textPrimary, margin: 0, letterSpacing: '-1px' }}>
           Cần điều hành ngay hôm nay
         </h1>
         <span style={{
-          background: '#1e2430', border: '1.5px solid #374151',
-          color: '#d1d5db', borderRadius: 10, padding: '6px 16px',
-          fontSize: 24, fontWeight: 700,
+          background: TV.bgCardNested, border: `1.5px solid ${TV.border}`,
+          color: TV.textPrimary, borderRadius: 9999, padding: '6px 20px',
+          fontSize: 22, fontWeight: 700,
         }}>
           {scopeName}
         </span>
@@ -431,23 +507,31 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
 
       {/* Trạng thái + đồng hồ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: lostAt ? TV.yellowBg : TV.greenBg,
+          border: `1.5px solid ${lostAt ? 'rgba(251, 191, 36, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`,
+          borderRadius: 9999,
+          padding: '7px 20px',
+        }}>
           <span style={{
-            width: 14, height: 14, borderRadius: '50%',
-            background: lostAt ? '#f59e0b' : '#10b981',
+            width: 12, height: 12, borderRadius: '50%',
+            background: lostAt ? TV.yellow : TV.green,
             display: 'inline-block',
-            boxShadow: lostAt ? 'none' : '0 0 8px #10b981',
-            animation: lostAt ? 'none' : 'pulse-green 2s infinite',
+            boxShadow: lostAt ? 'none' : `0 0 10px ${TV.green}`,
+            animation: lostAt ? 'none' : 'tv-pulse-green 2s infinite',
           }} />
           <span style={{
-            fontSize: 26, fontWeight: 800,
-            color: lostAt ? '#f59e0b' : '#10b981',
-            letterSpacing: 2,
+            fontSize: 22, fontWeight: 800,
+            color: lostAt ? TV.yellow : TV.green,
+            letterSpacing: '0.08em',
           }}>
-            {lostAt ? 'MẤT KẾT NỐI' : '● TRỰC TIẾP'}
+            {lostAt ? 'MẤT KẾT NỐI' : 'TRỰC TIẾP'}
           </span>
         </div>
-        <span style={{ fontSize: 52, fontWeight: 900, color: '#fff', letterSpacing: '-2px' }}>
+        <span style={{ fontSize: 52, fontWeight: 900, color: TV.textPrimary, letterSpacing: '-2px' }}>
           {clock}
         </span>
       </div>
@@ -459,8 +543,8 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
 function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
   const cardStyle = {
     flex: 1,
-    background: '#1a1d27',
-    border: '1.5px solid #2d3143',
+    background: TV.bgCard,
+    border: `1.5px solid ${TV.border}`,
     borderRadius: 20,
     padding: '24px 28px',
     display: 'flex',
@@ -469,58 +553,64 @@ function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
     minWidth: 0,
   };
 
-  // Thẻ PTC nổi nhất (màu trắng/sáng)
+  // Thẻ PTC nổi nhất (màu trắng/sáng theo canvas, dựng khung, giá trị là «–», badge «SẮP CÓ»)
   const ptcCardStyle = {
     ...cardStyle,
-    background: '#f8fafc',
+    flex: 1.35,
+    background: '#ffffff',
     border: '2px solid #e2e8f0',
-    flex: 1.4,
   };
 
   return (
     <div style={{ display: 'flex', gap: 20, height: 196 }}>
       {/* Thẻ 1: Sản lượng đến */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
           {isAll ? 'Sản lượng đến' : 'Hàng đến hôm nay'}
         </div>
-        <div style={{ fontSize: 72, fontWeight: 900, color: '#fff', lineHeight: 1, marginTop: 8 }}>
+        <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
           {slBuuGui !== null && slBuuGui !== undefined ? formatViVN(slBuuGui) : '—'}
         </div>
-        <div style={{ fontSize: 20, color: '#6b7280', marginTop: 4 }}>
+        <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
           {tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct !== undefined
             ? `${formatPctChange(tongQuan.san_luong.so_hom_qua_cung_gio.chenh_pct)} so hôm qua cùng giờ`
             : 'chưa đủ dữ liệu'}
         </div>
       </div>
 
-      {/* Thẻ 2: PTC — Sắp có */}
+      {/* Thẻ 2: PTC — Khung giống canvas, giá trị là «–», badge «SẮP CÓ», giữ nguyên nhãn hiện tại */}
       <div style={ptcCardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#374151', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: 1, textTransform: 'uppercase' }}>
             PHÁT THÀNH CÔNG (PTC)
           </div>
           <span style={{
-            background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
-            borderRadius: 8, padding: '3px 12px', fontSize: 18, fontWeight: 700,
+            background: '#0b0f14', color: '#ffffff',
+            borderRadius: 9999, padding: '4px 14px', fontSize: 16, fontWeight: 800,
+            letterSpacing: '0.05em',
           }}>
-            Sắp có
+            SẮP CÓ
           </span>
         </div>
-        <div style={{ fontSize: 34, fontWeight: 700, color: '#9ca3af', textAlign: 'center', padding: '16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 4 }}>
+          <span style={{ fontSize: 68, fontWeight: 900, color: '#64748b', lineHeight: 1 }}>
+            –
+          </span>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#64748b', marginTop: 4 }}>
           Module «Xử lý và tỷ lệ phát» đang được xây dựng
         </div>
       </div>
 
       {/* Thẻ 3: Hàng nặng */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
           Hàng nặng ≥ 2 kg
         </div>
-        <div style={{ fontSize: 72, fontWeight: 900, color: '#fff', lineHeight: 1, marginTop: 8 }}>
+        <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
           {formatPercent(hangNang?.ty_le)}
         </div>
-        <div style={{ fontSize: 20, color: '#6b7280', marginTop: 4 }}>
+        <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
           {hangNang?.buu_gui !== undefined ? `${formatViVN(hangNang.buu_gui)} bưu gửi` : '—'}
           {hangNang?.khong_co_khoi_luong > 0 && ` · ${formatViVN(hangNang.khong_co_khoi_luong)} chưa có khối lượng`}
         </div>
@@ -528,20 +618,20 @@ function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
 
       {/* Thẻ 4: Đến sau 15:00 */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
           Đến sau 15:00
         </div>
         {sau15h?.da_toi_gio ? (
           <>
-            <div style={{ fontSize: 72, fontWeight: 900, color: '#fff', lineHeight: 1, marginTop: 8 }}>
+            <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
               {formatPercent(sau15h.ty_le)}
             </div>
-            <div style={{ fontSize: 20, color: '#6b7280', marginTop: 4 }}>
+            <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
               {formatViVN(sau15h.buu_gui)} bưu gửi
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#6b7280', marginTop: 16 }}>
+          <div style={{ fontSize: 32, fontWeight: 700, color: TV.textSecondary, marginTop: 16 }}>
             Chưa tới 15:00
           </div>
         )}
@@ -551,14 +641,14 @@ function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
 }
 
 // ── Cột Trái: Việc cần làm ────────────────────────────────────────────────────
-function ColViec({ items, currentItem, slideIdx, isAll }) {
+function ColViec({ items, totalItems, currentPage, totalPages, isAll }) {
   const colStyle = {
     width: 500,
     flexShrink: 0,
-    background: '#1a1d27',
-    border: '1.5px solid #2d3143',
+    background: TV.bgCard,
+    border: `1.5px solid ${TV.border}`,
     borderRadius: 20,
-    padding: '28px 32px',
+    padding: '24px 28px',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -566,39 +656,44 @@ function ColViec({ items, currentItem, slideIdx, isAll }) {
 
   return (
     <div style={colStyle}>
-      {/* Tiêu đề một dòng (không xuống dòng giữa chữ); ghi chú ở dòng riêng bên dưới */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+      {/* Tiêu đề & ghi chú ở dòng riêng bên dưới, không bị dính cùng dòng hay cắt chữ */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
           {isAll ? 'Việc cần làm' : 'Việc của BCVH tôi'}
         </div>
-        <div style={{ fontSize: 18, color: '#6b7280', lineHeight: 1.2, marginTop: 6, whiteSpace: 'nowrap' }}>
-          đổi thẻ mỗi 5 giây · <span style={{ color: '#f59e0b' }}>Xử lý ngay</span> trước
+        <div style={{ fontSize: 16, color: TV.textSecondary, lineHeight: 1.2, marginTop: 6, whiteSpace: 'nowrap' }}>
+          đổi thẻ mỗi 5 giây · <span style={{ color: TV.yellow }}>Xử lý ngay</span> trước
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {totalItems === 0 ? (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 16,
         }}>
           <div style={{ fontSize: 48 }}>✅</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', textAlign: 'center' }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: TV.green, textAlign: 'center' }}>
             Hôm nay chưa có việc cần điều hành
           </div>
         </div>
       ) : (
         <>
-          {/* Thẻ việc hiện tại */}
-          {currentItem && (
-            <ActionCard item={currentItem} isAll={isAll} />
-          )}
-          {/* Phân trang */}
-          {items.length > 1 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'center' }}>
-              {items.map((_, i) => (
+          {/* Tối đa 4 thẻ xếp chồng, cao vừa nội dung (không kéo giãn bằng cột), xếp từ trên xuống */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
+            {items.map((item, idx) => (
+              <ActionCardStack key={`${item.loai}-${item.ten_bcvh || ''}-${idx}`} item={item} isAll={isAll} />
+            ))}
+          </div>
+
+          {/* Phân trang khi có hơn 4 thẻ */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'center' }}>
+              {Array.from({ length: totalPages }).map((_, i) => (
                 <div key={i} style={{
-                  width: i === slideIdx ? 28 : 10, height: 10, borderRadius: 5,
-                  background: i === slideIdx ? '#f59e0b' : '#374151',
+                  width: i === currentPage ? 28 : 10,
+                  height: 8,
+                  borderRadius: 4,
+                  background: i === currentPage ? TV.yellow : TV.border,
                   transition: 'all 0.3s',
                 }} />
               ))}
@@ -610,111 +705,245 @@ function ColViec({ items, currentItem, slideIdx, isAll }) {
   );
 }
 
-function ActionCard({ item, isAll }) {
+function ActionCardStack({ item, isAll }) {
   const isXuLy = item.muc === 'xu_ly_ngay';
   const { val, unit } = tvActionValue(item);
+  const sub = tvActionSub(item, isAll);
 
   return (
     <div style={{
-      background: isXuLy ? '#3b0000' : '#2d1a00',
-      border: `2px solid ${isXuLy ? '#7f1d1d' : '#78350f'}`,
-      borderRadius: 16,
-      padding: '24px 28px',
-      flex: 1,
+      background: TV.bgCardNested,
+      border: `1.5px solid ${TV.border}`,
+      borderLeft: `6px solid ${isXuLy ? TV.red : TV.yellow}`,
+      borderRadius: 14,
+      padding: '14px 18px',
       display: 'flex',
-      flexDirection: 'column',
+      alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 16,
     }}>
-      <div>
-        <span style={{
-          display: 'inline-block',
-          background: isXuLy ? '#be123c' : '#b45309',
-          color: '#fff',
-          borderRadius: 8,
-          padding: '4px 14px',
-          fontSize: 20,
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div>
+          <span style={{
+            display: 'inline-block',
+            background: isXuLy ? TV.redBg : TV.yellowBg,
+            border: `1px solid ${isXuLy ? 'rgba(248, 113, 113, 0.35)' : 'rgba(251, 191, 36, 0.35)'}`,
+            color: isXuLy ? TV.red : TV.yellow,
+            borderRadius: 6,
+            padding: '2px 8px',
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: '0.02em',
+          }}>
+            {isXuLy ? 'Xử lý ngay' : 'Trong ngày'}
+          </span>
+        </div>
+        {/* Tiêu đề cho xuống dòng, tối đa 3 dòng, không dùng ellipsis cắt ngang tên BCVH */}
+        <div style={{
+          fontSize: 18,
           fontWeight: 800,
-          marginBottom: 16,
-        }}>
-          {isXuLy ? 'Xử lý ngay' : 'Trong ngày'}
-        </span>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1.3 }}>
+          color: TV.textPrimary,
+          lineHeight: 1.3,
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          wordBreak: 'break-word',
+        }} title={tvActionTitle(item, isAll)}>
           {tvActionTitle(item, isAll)}
         </div>
+        {sub && (
+          <div style={{
+            fontSize: 14,
+            color: TV.textSecondary,
+            lineHeight: 1.25,
+            marginTop: 2,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>
+            {sub}
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 16 }}>
-        <span style={{
-          fontSize: 64, fontWeight: 900,
-          color: isXuLy ? '#fca5a5' : '#fcd34d',
+
+      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 90, marginLeft: 8 }}>
+        <div style={{
+          fontSize: 40,
+          fontWeight: 900,
+          color: isXuLy ? TV.red : TV.yellow,
           lineHeight: 1,
         }}>
           {val}
-        </span>
-        <span style={{ fontSize: 24, color: '#9ca3af', fontWeight: 600 }}>{unit}</span>
+        </div>
+        {unit && (
+          <div style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: isXuLy ? TV.red : TV.yellow,
+            marginTop: 4,
+          }}>
+            {unit}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Cột Giữa — Bảng 11: Xếp hạng BCVH (Sắp có) ─────────────────────────────
+// ── Cột Giữa — Bảng 11: Xếp hạng BCVH - PTC ─────────────────────────────
 function ColXepHang() {
+  const TABS = ['Cả ngày', '<10h', '10–12h', '12–14h', '14–16h', '16–18h', '>18h'];
+
   return (
     <div style={{
       flex: 1,
-      background: '#1a1d27',
-      border: '1.5px solid #2d3143',
+      background: TV.bgCard,
+      border: `1.5px solid ${TV.border}`,
       borderRadius: 20,
-      padding: '28px 32px',
+      padding: '24px 28px',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      textAlign: 'center',
+      minHeight: 0,
+      overflow: 'hidden',
     }}>
-      <span style={{
-        background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
-        borderRadius: 8, padding: '4px 16px', fontSize: 20, fontWeight: 700,
-        marginBottom: 20,
-      }}>
-        Sắp có
-      </span>
-      <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', marginBottom: 12 }}>
-        Xếp hạng BCVH · PTC
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary }}>
+          Xếp hạng BCVH · PTC
+        </div>
+        <span style={{
+          background: '#0b0f14',
+          border: `1.5px solid ${TV.border}`,
+          color: '#ffffff',
+          borderRadius: 9999,
+          padding: '4px 14px',
+          fontSize: 14,
+          fontWeight: 800,
+          letterSpacing: '0.05em',
+        }}>
+          SẮP CÓ
+        </span>
       </div>
-      <div style={{ fontSize: 22, color: '#6b7280', maxWidth: 400 }}>
+
+      {/* Tab khung giờ */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto' }}>
+        {TABS.map((tab, idx) => (
+          <span key={tab} style={{
+            background: idx === 0 ? '#ffffff' : TV.bgCardNested,
+            color: idx === 0 ? '#0f172a' : TV.textSecondary,
+            border: `1px solid ${idx === 0 ? '#ffffff' : TV.border}`,
+            borderRadius: 9999,
+            padding: '3px 12px',
+            fontSize: 14,
+            fontWeight: idx === 0 ? 800 : 600,
+            whiteSpace: 'nowrap',
+          }}>
+            {tab}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 14, color: TV.textSecondary, marginBottom: 14 }}>
         Tính năng xếp hạng theo tỉ lệ phát thành công thuộc module «Xử lý và tỷ lệ phát»
       </div>
+
+      {/* 6 BCVH với thanh tiến độ rỗng và giá trị «–», không số mẫu, không mũi tên */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0 }}>
+        {BCVH_LIST.map((bcvh, idx) => (
+          <div key={bcvh.ma} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            padding: '8px 14px',
+            background: TV.bgCardNested,
+            border: `1px solid ${TV.border}`,
+            borderRadius: 12,
+          }}>
+            <span style={{ width: 20, fontSize: 18, fontWeight: 800, color: TV.textSecondary, textAlign: 'center' }}>
+              {idx + 1}
+            </span>
+            <span style={{ width: 130, fontSize: 18, fontWeight: 700, color: TV.textPrimary, whiteSpace: 'nowrap' }}>
+              {bcvh.ten.replace('BCVH ', '')}
+            </span>
+            <div style={{ flex: 1, height: 12, background: '#111720', borderRadius: 6, overflow: 'hidden' }} />
+            <span style={{ width: 36, fontSize: 18, fontWeight: 800, color: TV.textSecondary, textAlign: 'right' }}>
+              –
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ── Cột Giữa — Bảng 12: Khung giờ (Sắp có) ──────────────────────────────────
+// ── Cột Giữa — Bảng 12: Khung giờ ───────────────────────────────────────────
 function ColKhungGio() {
+  const TIME_SLOTS = [
+    'Cả ngày',
+    'Trước 10h',
+    '10–12h',
+    '12–14h',
+    '14–16h',
+    '16–18h',
+    'Sau 18h',
+  ];
+
   return (
     <div style={{
       flex: 1,
-      background: '#1a1d27',
-      border: '1.5px solid #2d3143',
+      background: TV.bgCard,
+      border: `1.5px solid ${TV.border}`,
       borderRadius: 20,
-      padding: '28px 32px',
+      padding: '24px 28px',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      textAlign: 'center',
+      minHeight: 0,
+      overflow: 'hidden',
     }}>
-      <span style={{
-        background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
-        borderRadius: 8, padding: '4px 16px', fontSize: 20, fontWeight: 700,
-        marginBottom: 20,
-      }}>
-        Sắp có
-      </span>
-      <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', marginBottom: 12 }}>
-        Hôm nay từng khung giờ
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary }}>
+          Hôm nay từng khung giờ
+        </div>
+        <span style={{
+          background: '#0b0f14',
+          border: `1.5px solid ${TV.border}`,
+          color: '#ffffff',
+          borderRadius: 9999,
+          padding: '4px 14px',
+          fontSize: 14,
+          fontWeight: 800,
+          letterSpacing: '0.05em',
+        }}>
+          SẮP CÓ
+        </span>
       </div>
-      <div style={{ fontSize: 22, color: '#6b7280', maxWidth: 400 }}>
+
+      <div style={{ fontSize: 14, color: TV.textSecondary, marginBottom: 16 }}>
         Thống kê PTC theo từng khung giờ thuộc module «Xử lý và tỷ lệ phát»
+      </div>
+
+      {/* 7 khung giờ với thanh tiến độ rỗng và giá trị «–», không số mẫu */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0 }}>
+        {TIME_SLOTS.map((slot) => (
+          <div key={slot} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            padding: '7px 14px',
+            background: TV.bgCardNested,
+            border: `1px solid ${TV.border}`,
+            borderRadius: 12,
+          }}>
+            <span style={{ width: 110, fontSize: 18, fontWeight: 700, color: TV.textPrimary, whiteSpace: 'nowrap' }}>
+              {slot}
+            </span>
+            <div style={{ flex: 1, height: 12, background: '#111720', borderRadius: 6, overflow: 'hidden' }} />
+            <span style={{ width: 36, fontSize: 18, fontWeight: 800, color: TV.textSecondary, textAlign: 'right' }}>
+              –
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -725,10 +954,10 @@ function ColChuaNhanAll({ chuaNhanList }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
-    background: '#1a1d27',
-    border: '1.5px solid #2d3143',
+    background: TV.bgCard,
+    border: `1.5px solid ${TV.border}`,
     borderRadius: 20,
-    padding: '28px 32px',
+    padding: '24px 28px',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -736,17 +965,13 @@ function ColChuaNhanAll({ chuaNhanList }) {
 
   return (
     <div style={colStyle}>
-      <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 8 }}>
+      <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary, marginBottom: 16 }}>
         Chưa nhận tại BCVH, đã chờ bao lâu?
       </div>
-      <div style={{ fontSize: 18, color: '#6b7280', marginBottom: 20 }}>
-        Trong ngày <span style={{ color: '#f59e0b', fontWeight: 700 }}>■</span>
-        {' '}· Từ 1 ngày trở lên <span style={{ color: '#ef4444', fontWeight: 700 }}>■</span>
-        {' '}· Chia theo giờ: <span style={{ color: '#6b7280' }}>sắp có</span>
-      </div>
+
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {chuaNhanList.length === 0 ? (
-          <div style={{ color: '#6b7280', fontSize: 22, textAlign: 'center', marginTop: 20 }}>
+          <div style={{ color: TV.textSecondary, fontSize: 22, textAlign: 'center', marginTop: 20 }}>
             Chưa có dữ liệu
           </div>
         ) : chuaNhanList.map((row) => {
@@ -756,44 +981,67 @@ function ColChuaNhanAll({ chuaNhanList }) {
           const trong = Math.max(0, tong - tu1);
           const pTrong = tong > 0 ? (trong / tong) * 100 : 0;
           const pTu1   = tong > 0 ? (tu1 / tong) * 100 : 0;
-          // BCVH chưa có file dữ liệu nào: không hiện số 0 (0 ở đây không có nghĩa "không có bưu gửi chờ").
           const coDuLieu = row.co_du_lieu !== false;
 
           return (
-            <div key={row.ma} style={{ display: 'flex', alignItems: 'center', gap: 16, minHeight: 48 }}>
-              <div style={{ width: 160, flexShrink: 0, fontSize: 22, fontWeight: 700, color: '#d1d5db', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div key={row.ma} style={{ display: 'flex', alignItems: 'center', gap: 16, minHeight: 46 }}>
+              <div style={{ width: 140, flexShrink: 0, fontSize: 20, fontWeight: 700, color: '#d1d5db', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {row.ten?.replace('BCVH ', '') || row.ma}
               </div>
               <div style={{ flex: 1 }}>
                 {!coDuLieu ? (
-                  <div style={{ fontSize: 18, color: '#6b7280', padding: '6px 12px' }}>
+                  <div style={{ fontSize: 16, color: TV.textSecondary, padding: '6px 12px' }}>
                     chưa có dữ liệu
                   </div>
                 ) : tong === 0 ? (
-                  <div style={{ fontSize: 20, color: '#374151', background: '#1f2937', borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, color: '#475569', background: TV.bgCardNested, borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
                     0 bưu gửi
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', height: 32, borderRadius: 8, overflow: 'hidden', background: '#1f2937' }}>
+                  <div style={{ display: 'flex', height: 30, borderRadius: 8, overflow: 'hidden', background: TV.bgCardNested }}>
                     {trong > 0 && (
-                      <div style={{ width: `${pTrong}%`, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#1a0a00' }}>
+                      <div style={{ width: `${pTrong}%`, background: TV.yellow, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#1a0a00' }}>
                         {trong}
                       </div>
                     )}
                     {tu1 > 0 && (
-                      <div style={{ width: `${pTu1}%`, background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                      <div style={{ width: `${pTu1}%`, background: TV.red, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
                         {tu1}
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              <div style={{ width: 64, flexShrink: 0, fontSize: 24, fontWeight: 900, color: tong > 0 ? '#fff' : '#4b5563', textAlign: 'right' }}>
+              <div style={{ width: 56, flexShrink: 0, fontSize: 22, fontWeight: 900, color: tong > 0 ? TV.textPrimary : '#475569', textAlign: 'right' }}>
                 {coDuLieu ? formatViVN(tong) : ''}
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Chú thích màu ở đáy */}
+      <div style={{
+        marginTop: 14,
+        paddingTop: 12,
+        borderTop: `1px solid ${TV.border}`,
+        fontSize: 15,
+        color: TV.textSecondary,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: TV.yellow }} />
+          <span>Trong ngày</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: TV.red }} />
+          <span>Từ 1 ngày trở lên</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: TV.textSecondary }}>Chia theo giờ: sắp có</span>
+        </div>
       </div>
     </div>
   );
@@ -802,11 +1050,11 @@ function ColChuaNhanAll({ chuaNhanList }) {
 // ── Cột Phải — Bảng 12: Chưa nhận + Phường/xã ───────────────────────────────
 // Chip phường/xã trên nền tối: cùng quy tắc / chữ với DASH-2b (wardChangeChip), chỉ đổi bảng màu cho tivi.
 const TV_CHIP_STYLE = {
-  moi_co:   { color: '#d1d5db', bg: '#1f2937', border: '#374151' },
-  bang:     { color: '#9ca3af', bg: '#1f2937', border: '#374151' },
-  giam:     { color: '#6ee7b7', bg: '#052e16', border: '#065f46' },
-  tang_cao: { color: '#fca5a5', bg: '#3b0000', border: '#7f1d1d' },
-  tang:     { color: '#fcd34d', bg: '#2d1a00', border: '#78350f' },
+  moi_co:   { color: '#d1d5db', bg: TV.bgCardNested, border: TV.border },
+  bang:     { color: TV.textSecondary, bg: TV.bgCardNested, border: TV.border },
+  giam:     { color: TV.green, bg: TV.greenBg, border: 'rgba(52, 211, 153, 0.3)' },
+  tang_cao: { color: TV.red, bg: TV.redBg, border: 'rgba(248, 113, 113, 0.3)' },
+  tang:     { color: TV.yellow, bg: TV.yellowBg, border: 'rgba(251, 191, 36, 0.3)' },
 };
 
 // Bố cục cột phải bảng 12 ở sân khấu 1920×1080 (chiều cao hàng B ≈ 681 px):
@@ -824,15 +1072,20 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
   };
 
   const cn = chuaNhan || {};
-  const tu1  = cn.cho_tu_1_ngay || 0;
-  // «QUA NGÀY»: chỉ đỏ + «Xử lý ngay» khi có bưu gửi; bằng 0 thì màu trung tính, «Không có».
+  const tu1 = cn.cho_tu_1_ngay || 0;
+  // «QUA NGÀY» là ô DUY NHẤT có số thật trong code từ API (cho_tu_1_ngay).
+  // Chỉ tô màu theo mức cho ô có số thật:
+  // - Nếu > 0: tô màu đỏ mức xử lý ngay.
+  // - Nếu = 0: màu trung tính («Không có»).
   const quaNgay = tu1 > 0
-    ? { label: 'QUA NGÀY', val: tu1, note: 'Xử lý ngay', bg: '#3b0000', border: '#7f1d1d', col: '#fca5a5' }
-    : { label: 'QUA NGÀY', val: 0,   note: 'Không có',   bg: '#1f2937', border: '#2d3143', col: '#9ca3af' };
+    ? { label: 'QUA NGÀY', val: tu1, note: 'Xử lý ngay', bg: TV.redBg, border: '#7f1d1d', col: TV.red, noteCol: '#fca5a5' }
+    : { label: 'QUA NGÀY', val: 0,   note: 'Không có',   bg: TV.bgCardNested, border: TV.border, col: TV.textSecondary, noteCol: '#64748b' };
+
+  // 3 ô đầu hiện tại là «Sắp có» (chưa có dữ liệu chia theo giờ từ backend), để màu trung tính
   const cells = [
-    { label: 'DƯỚI 2 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
-    { label: '2–4 GIỜ',    val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
-    { label: 'TRÊN 4 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: '#1f2937', border: '#2d3143', col: '#6b7280' },
+    { label: 'DƯỚI 2 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: TV.bgCardNested, border: TV.border, col: '#64748b', noteCol: TV.textSecondary },
+    { label: '2–4 GIỜ',    val: null, note: 'Chia theo giờ: sắp có', bg: TV.bgCardNested, border: TV.border, col: '#64748b', noteCol: TV.textSecondary },
+    { label: 'TRÊN 4 GIỜ', val: null, note: 'Chia theo giờ: sắp có', bg: TV.bgCardNested, border: TV.border, col: '#64748b', noteCol: TV.textSecondary },
     quaNgay,
   ];
 
@@ -841,24 +1094,24 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
       {/* Khối chưa nhận */}
       <div style={{
         flexShrink: 0,
-        background: '#1a1d27',
-        border: '1.5px solid #2d3143',
+        background: TV.bgCard,
+        border: `1.5px solid ${TV.border}`,
         borderRadius: 20,
         padding: '20px 24px',
       }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: TV.textPrimary, lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
           Chưa nhận tại BCVH, đã chờ bao lâu?
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {cells.map((cell) => (
             <div key={cell.label} style={{
               background: cell.bg,
-              border: `1px solid ${cell.border}`,
+              border: `1.5px solid ${cell.border}`,
               borderRadius: 12,
               padding: '10px 12px',
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, lineHeight: 1.2, marginBottom: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, lineHeight: 1.2, marginBottom: 6 }}>
                 {cell.label}
               </div>
               {cell.val !== null ? (
@@ -866,9 +1119,9 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
                   {formatViVN(cell.val)}
                 </div>
               ) : (
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#4b5563', lineHeight: '40px' }}>Sắp có</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#64748b', lineHeight: '40px' }}>Sắp có</div>
               )}
-              <div style={{ fontSize: 14, color: cell.label === 'QUA NGÀY' && cell.val > 0 ? '#fca5a5' : '#6b7280', lineHeight: 1.2, marginTop: 4 }}>
+              <div style={{ fontSize: 14, color: cell.noteCol, lineHeight: 1.2, marginTop: 4 }}>
                 {cell.note}
               </div>
             </div>
@@ -880,19 +1133,19 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
       <div style={{
         flex: 1,
         minHeight: 0,
-        background: '#1a1d27',
-        border: '1.5px solid #2d3143',
+        background: TV.bgCard,
+        border: `1.5px solid ${TV.border}`,
         borderRadius: 20,
         padding: '20px 24px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: TV.textPrimary, lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
           Phường/xã đến tăng mạnh hôm nay
         </div>
         {pxItems.length === 0 ? (
-          <div style={{ color: '#6b7280', fontSize: 20, textAlign: 'center', marginTop: 12 }}>
+          <div style={{ color: TV.textSecondary, fontSize: 20, textAlign: 'center', marginTop: 12 }}>
             Chưa có phường/xã nào tăng đột biến
           </div>
         ) : (
@@ -900,7 +1153,7 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
             {pxItems.slice(0, 3).map((px, i) => {
               const maxV = Math.max(px.hom_kia || 0, px.hom_qua || 0, px.hom_nay || 0, 1);
               const chip = wardChangeChip(px);
-              const cs = TV_CHIP_STYLE[chip.loai];
+              const cs = TV_CHIP_STYLE[chip.loai] || TV_CHIP_STYLE.bang;
 
               return (
                 <div key={`${px.ward_key}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 16, height: 64 }}>
@@ -920,15 +1173,23 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
                       </span>
                     </div>
                   </div>
-                  {/* 3 cột mini: hôm kia, hôm qua, hôm nay */}
+                  {/* 3 cột mini: hôm kia, hôm qua, hôm nay (cột hôm nay màu trắng nổi bật, các cột khác tối giản) */}
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 56, flexShrink: 0 }}>
                     {[
-                      { v: px.hom_kia, col: '#3b82f6' },
-                      { v: px.hom_qua, col: '#60a5fa' },
-                      { v: px.hom_nay, col: '#ea580c' },
+                      { v: px.hom_kia, col: '#475569' },
+                      { v: px.hom_qua, col: '#64748b' },
+                      { v: px.hom_nay, col: '#ffffff' },
                     ].map((bar, bi) => (
                       <div key={bi} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', width: 32 }}>
-                        <div style={{ fontSize: 14, color: '#9ca3af', lineHeight: 1.2, marginBottom: 2 }}>{bar.v ?? '—'}</div>
+                        <div style={{
+                          fontSize: 14,
+                          color: bi === 2 ? '#ffffff' : TV.textSecondary,
+                          fontWeight: bi === 2 ? 800 : 500,
+                          lineHeight: 1.2,
+                          marginBottom: 2,
+                        }}>
+                          {bar.v ?? '—'}
+                        </div>
                         <div style={{
                           width: '100%',
                           height: bar.v !== null && bar.v !== undefined ? `${Math.max(6, (bar.v / maxV) * 34)}px` : 4,
@@ -952,12 +1213,12 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
 function Footer({ tongQuan, lastOk }) {
   return (
     <div style={{
-      marginTop: 16,
+      marginTop: 14,
       display: 'flex',
       justifyContent: 'flex-end',
       alignItems: 'center',
     }}>
-      <div style={{ fontSize: 20, color: '#4b5563' }}>
+      <div style={{ fontSize: 16, color: TV.textSecondary, fontWeight: 500 }}>
         Dữ liệu đến {formatTimeOnly(tongQuan?.den_luc) || '—'}
         {' · '}
         Làm mới {lastOk ? formatDateTimeSec(lastOk) : '—'}
