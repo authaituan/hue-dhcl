@@ -125,4 +125,13 @@ try {
   console.error('[db] Lỗi tạo bảng user_bcvh:', err.message);
 }
 
+// ==========================================
+// Phạm vi tài khoản TIVI (user_tivi_scope). Idempotent. Schema đặt trong server/lib/tivi.js (#74).
+// ==========================================
+try {
+  require('./lib/tivi').ensureTiviSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng user_tivi_scope:', err.message);
+}
+
 module.exports = db;

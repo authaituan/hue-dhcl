@@ -8,6 +8,7 @@ const exp = require('../lib/arrivalsExport');
 const bd10 = require('../lib/bd10Query');
 const den = require('../lib/dashboardDenQuery');
 const { getAssignedBcvh } = require('../lib/userBcvh');
+const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 
 const router = express.Router();
@@ -20,7 +21,9 @@ const router = express.Router();
 // /summary bỏ trường `canh_bao` với vai trò khác ADMIN (docs/ai/04_DECISIONS.md #34).
 // Quy tắc đếm sản lượng + bộ lọc: server/lib/arrivalsQuery.js. Dashboard điều hành: /arrivals/dashboard/* (server/lib/dashboardQuery.js).
 // ==========================================
-router.use('/arrivals', authRequired, requireRoles(VIEWER_ROLES));
+// TIVI đi qua lớp này nhưng authRequired đã giới hạn TIVI vào allowlist (3 endpoint dashboard «đến», server/lib/tivi.js — #74).
+const viewerGuard = requireRoles(VIEWER_ROLES);
+router.use('/arrivals', authRequired, (req, res, next) => (req.user.role === ROLES.TIVI ? next() : viewerGuard(req, res, next)));
 
 const FILTER_KEYS = ['from', 'to', 'date_basis', 'receiver_code', 'ward_key'];
 const isAdmin = (req) => req.user && req.user.role === ROLES.ADMIN;
@@ -82,9 +85,22 @@ router.get('/arrivals/dashboard/center', handle((req) => dash.center(db, req.que
 // Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF 403.
 // bcvh_goi_y: BCVH được giao của GDVH (giao diện chọn sẵn), rỗng với vai trò khác. Tham số: bcvh (mã | all), date; phuong-xa-tang thêm gioi_han.
 const goiY = (req) => ({ goiY: req.user.role === ROLES.GDVH ? getAssignedBcvh(req.user.id, db) : [] });
-router.get('/arrivals/dashboard/tong-quan-den', handle((req) => den.tongQuanDen(db, req.query, goiY(req)), 'dashboard-tong-quan-den'));
-router.get('/arrivals/dashboard/viec-can-lam', handle((req) => den.viecCanLam(db, req.query, goiY(req)), 'dashboard-viec-can-lam'));
-router.get('/arrivals/dashboard/phuong-xa-tang', handle((req) => den.phuongXaTang(db, req.query, goiY(req)), 'dashboard-phuong-xa-tang'));
+// TIVI (#74): tham số bcvh LUÔN bị ép theo phạm vi của tài khoản (bỏ qua giá trị client gửi); chưa có phạm vi -> 403.
+function dashScope(req, res, next) {
+  if (req.user.role !== ROLES.TIVI) {
+    req.dashQuery = req.query;
+    return next();
+  }
+  const scope = getTiviScope(db, req.user.id);
+  if (!isValidTiviScope(scope)) {
+    return res.status(403).json({ error: 'Tài khoản màn hình tivi chưa được gán phạm vi (toàn Trung tâm hoặc một BCVH), vui lòng liên hệ quản trị viên' });
+  }
+  req.dashQuery = { ...req.query, bcvh: scope };
+  next();
+}
+router.get('/arrivals/dashboard/tong-quan-den', dashScope, handle((req) => den.tongQuanDen(db, req.dashQuery, goiY(req)), 'dashboard-tong-quan-den'));
+router.get('/arrivals/dashboard/viec-can-lam', dashScope, handle((req) => den.viecCanLam(db, req.dashQuery, goiY(req)), 'dashboard-viec-can-lam'));
+router.get('/arrivals/dashboard/phuong-xa-tang', dashScope, handle((req) => den.phuongXaTang(db, req.dashQuery, goiY(req)), 'dashboard-phuong-xa-tang'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));
