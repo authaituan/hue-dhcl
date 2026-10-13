@@ -137,8 +137,9 @@ after(async () => {
 });
 
 test('hằng số mức điều hành: một file, giá trị tạm PO chốt 11/10/2026 (DASH-6b 14/10/2026: sàn 50 và giờ 12, bỏ hàng nặng và TB 4 tuần)', () => {
-  assert.deepEqual(Object.keys(TH).sort(), ['BD10_CHUA_XND', 'CHUA_NHAN', 'GIO_BAT_DAU_DANH_GIA', 'GIO_MUON', 'LECH_SAN_LUONG', 'SAN_SO_SANH_TOI_THIEU']);
+  assert.deepEqual(Object.keys(TH).sort(), ['BD10_CHUA_XND', 'CHUA_NHAN', 'GIO_BAT_DAU_DANH_GIA', 'GIO_MUON', 'LECH_SAN_LUONG', 'SAN_SO_SANH_PHUONG_XA', 'SAN_SO_SANH_TOI_THIEU']);
   assert.equal(TH.SAN_SO_SANH_TOI_THIEU, 50);
+  assert.equal(TH.SAN_SO_SANH_PHUONG_XA, 10);
   assert.equal(TH.GIO_BAT_DAU_DANH_GIA, 12);
   assert.equal(TH.GIO_MUON, 15);
   assert.deepEqual(TH.BD10_CHUA_XND, { xu_ly_ngay_pct: 10, trong_ngay_pct: 5 });
@@ -197,23 +198,23 @@ test('tong-quan-den một BCVH: lượt / bưu gửi, hàng đi ngoài, sau 15:0
   assert.equal(b.san_luong.buu_gui, 7);
   assert.equal(b.san_luong.luot, 8);
   // hôm qua tới 16:00 (giờ DỮ LIỆU của hôm nay, không phải đồng hồ máy) -> 1 (Y2 lúc 17:00 không tính); cùng thứ tuần trước: 13/10 tới 16:00 -> 2 (W3 lúc 16:30 không tính)
-  assert.deepEqual(b.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: 600, so_bcvh: 1 });
-  assert.deepEqual(b.san_luong.so_tuan_truoc_cung_gio, { gia_tri: 2, chenh_pct: 250, so_bcvh: 1 });
+  assert.deepEqual(b.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: null, so_bcvh: 1 });
+  assert.deepEqual(b.san_luong.so_tuan_truoc_cung_gio, { gia_tri: 2, chenh_pct: null, so_bcvh: 1 });
   assert.ok(!('so_tb_4_tuan_cung_thu' in b.san_luong) && !('hang_nang' in b));
   // đi ngoài: A2, A3 (BD8 viết thường + khoảng trắng), A5 (một dòng BD8 = SHBG, một dòng của túi khác); A1 (BD8 của bưu gửi khác), A4 (BD8 rỗng), A6, A7 không. Mẫu số = 7 bưu gửi đến.
-  // Hôm qua: Y1 đi ngoài (1/1 = 100%); tuần trước: W1 đi ngoài, W2 không (1/2 = 50%). Chênh = điểm phần trăm, hôm nay − mốc.
+  // Hôm qua: Y1 đi ngoài (1/1 = 100%); tuần trước: W1 đi ngoài, W2 không (1/2 = 50%). Mốc dưới sàn 50 bưu gửi nên chenh_* = null (số chênh đủ sàn: dashboard-den-danh-gia.test.js).
   assert.deepEqual(b.hang_di_ngoai, {
     buu_gui: 3, ty_le: 0.4286, mau_so: 7,
-    so_hom_qua_cung_gio: { buu_gui: 1, ty_le: 1, mau_so: 1, chenh_diem: -57.14, so_bcvh: 1 },
-    so_tuan_truoc_cung_gio: { buu_gui: 1, ty_le: 0.5, mau_so: 2, chenh_diem: -7.14, so_bcvh: 1 }
+    so_hom_qua_cung_gio: { buu_gui: 1, ty_le: 1, mau_so: 1, chenh_diem: null, so_bcvh: 1 },
+    so_tuan_truoc_cung_gio: { buu_gui: 1, ty_le: 0.5, mau_so: 2, chenh_diem: null, so_bcvh: 1 }
   });
   // sau 15:00: A4 (15:00:00), A7 (16:00); A3 (14:59:59) không
   assert.deepEqual(b.sau_15h, { buu_gui: 2, ty_le: 0.2857, tu_gio: 15, da_toi_gio: true });
   const row = b.theo_bcvh[0];
   assert.equal(b.theo_bcvh.length, 1);
   assert.equal(row.ten, 'BCVH Thuận Hóa');
-  assert.deepEqual(row.so_tuan_truoc, { gia_tri: 2, chenh_pct: 250 });
-  assert.deepEqual(row.so_hom_qua, { gia_tri: 1, chenh_pct: 600 });
+  assert.deepEqual(row.so_tuan_truoc, { gia_tri: 2, chenh_pct: null });
+  assert.deepEqual(row.so_hom_qua, { gia_tri: 1, chenh_pct: null });
   assert.ok(!('so_tb_4_tuan' in row));
   // tuần trước chỉ 2 bưu gửi (< sàn 50) -> không gắn mức sản lượng dù lệch +250%
   assert.deepEqual(row.danh_gia_san_luong, { trang_thai: 'chua_du_du_lieu', ly_do: 'moc_duoi_san' });
@@ -242,8 +243,8 @@ test('tong-quan-den all: đủ 6 BCVH; thiếu dữ liệu so sánh -> null (kh�
   const none = b.theo_bcvh.find((x) => x.ma === '537220');
   assert.deepEqual([none.co_du_lieu, none.ngay_du_lieu, none.muc, none.so_hom_qua], [false, null, null, null]);
   assert.equal(b.san_luong.buu_gui, 27);
-  assert.deepEqual(b.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: 600, so_bcvh: 1 }, 'chỉ M có hôm qua');
-  assert.deepEqual(b.san_luong.so_tuan_truoc_cung_gio, { gia_tri: 2, chenh_pct: 250, so_bcvh: 1 }, 'chỉ M có tuần trước; tử và mẫu cùng tập BCVH (M: 7 so với 2)');
+  assert.deepEqual(b.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: null, so_bcvh: 1 }, 'chỉ M có hôm qua');
+  assert.deepEqual(b.san_luong.so_tuan_truoc_cung_gio, { gia_tri: 2, chenh_pct: null, so_bcvh: 1 }, 'chỉ M có tuần trước; tử và mẫu cùng tập BCVH (M: 7 so với 2)');
   assert.deepEqual([b.hang_di_ngoai.buu_gui, b.hang_di_ngoai.mau_so, b.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh], [3, 27, 1], 'M2 không có đi ngoài');
   assert.deepEqual(b.bcvh_can_chu_y, { so: 2, tong: 6 });
   assert.equal(b.ngay_du_lieu, D);
@@ -261,7 +262,7 @@ test('tong-quan-den: date không có dữ liệu -> số 0, so sánh null; tham 
   const y = (await api(`${TQ}?bcvh=${M}&date=2026-10-19`, 'ttvh')).body;
   assert.equal(y.den_luc, '2026-10-19 17:00:00');
   assert.equal(y.san_luong.buu_gui, 2);
-  assert.deepEqual(y.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: 100, so_bcvh: 1 });
+  assert.deepEqual(y.san_luong.so_hom_qua_cung_gio, { gia_tri: 1, chenh_pct: null, so_bcvh: 1 });
   assert.equal(y.san_luong.so_tuan_truoc_cung_gio, null);
   for (const qs of ['bcvh=999999', 'date=2026-02-30', 'gioi_han=3', 'bcvh=533140&bcvh=535470']) {
     assert.equal((await api(`${TQ}?${qs}`, 'ttvh')).status, 400, qs);
@@ -289,7 +290,7 @@ test('phuong-xa-tang: cùng giờ trong ngày, xếp theo mức tăng so hôm qu
   const rows = b.items.map((x) => [x.ten, x.hom_kia, x.hom_qua, x.hom_nay, x.tang_so_hom_qua, x.tang_so_hom_qua_pct, x.tuan_truoc_cung_gio, x.lech_so_tuan_truoc_pct]);
   assert.deepEqual(rows, [
     ['Phường Bình', 1, 0, 3, 3, null, 0, null], // A4, A5, A7; hôm qua 0 -> % null, vẫn xếp bằng số tuyệt đối
-    ['Phường An', 0, 1, 3, 2, 200, 2, 50], // A1, A2, A3; hôm qua Y1 (Y2 sau 16:00 không tính); tuần trước 13/10: W1, W2
+    ['Phường An', 0, 1, 3, 2, null, 2, null], // A1, A2, A3; hôm qua Y1 (Y2 sau 16:00 không tính); tuần trước 13/10: W1, W2
     ['Phường Chi', 0, 0, 1, 1, null, 0, null]
   ]);
   assert.equal((await api(`${PX}?bcvh=${M}&gioi_han=1`, 'ttvh')).body.items.length, 1);

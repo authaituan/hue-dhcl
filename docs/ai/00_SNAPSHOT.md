@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-14 (DASH-6b chặng 1).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-14 (DASH-6b chặng 2).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -28,7 +28,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Dữ liệu "Hàng đến": bảng + nạp CSV bằng dòng lệnh (`scripts/import-arrivals.js`), ánh xạ phường→BĐX, kiểm thiếu đợt | Có |
 | API "Hàng đến" `/api/arrivals/*` (meta, summary, by-time, by-ward, by-route, by-service, quality-mocs, lookup, items; exceptions + import-status chỉ ADMIN) — ADMIN + TTVH + GDVH | Có (chưa giao diện/SFTP) |
 | ~~API Dashboard điều hành `/api/arrivals/dashboard/overview|trend|wards-surge|center`~~ — ĐÃ XOÁ ở DASH-6b (#76); `server/lib/dashboardQuery.js` chỉ còn danh mục 6 BCVH | Đã xoá |
-| Dashboard «Cần điều hành ngay hôm nay» — phần đến: `/api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (hôm nay = ngày dữ liệu mới nhất của BCVH; hai mốc so sánh hôm qua / cùng thứ tuần trước, cùng giờ DỮ LIỆU; hàng đi ngoài chỉ hiển thị; sau 15:00; mức điều hành từ `server/config/dashboard-thresholds.js` TẠM; mức sản lượng chỉ gắn khi mốc tuần trước ≥ 50 bưu gửi và dữ liệu từ 12:00) — #73, #76 | Có (API đã đổi khoá ở DASH-6b chặng 1; giao diện đang đọc khoá CŨ, chờ chặng 2) |
+| Dashboard «Cần điều hành ngay hôm nay» — phần đến: `/api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (hôm nay = ngày dữ liệu mới nhất của BCVH; hai mốc so sánh hôm qua / cùng thứ tuần trước, cùng giờ DỮ LIỆU; hàng đi ngoài chỉ hiển thị; sau 15:00; mức điều hành từ `server/config/dashboard-thresholds.js` TẠM; mức sản lượng chỉ gắn khi mốc tuần trước ≥ 50 bưu gửi và dữ liệu từ 12:00) — #73, #76 | Có (API + giao diện đã đổi khoá ở DASH-6b; số chênh = null khi mốc dưới 50 bưu gửi) |
 | Công cụ dev: `scripts/reset-arrivals.js` (xoá dữ liệu sản lượng đến), `scripts/split-arrivals-csv.js` (tách file CSV nhiều ngày theo ngày) rồi nạp bằng `import-arrivals.js`; importer đọc cột theo TÊN (cột lạ bỏ qua, bí danh không dấu); ngày giờ nhận ISO có mili giây / dạng T / dạng Mỹ cũ, chữ `NULL` ở MỌI cột = ô rỗng (#65, #66) — #63, #64, `06_DEPLOYMENT.md` mục 9 | Có |
 | "BD10 đến không XNĐ" (`bd10_den_khong_xnd` trong `/summary`, `/dashboard/center`; `GET /api/arrivals/bd10-khong-xnd` + `/export`; trạng thái BD10 đến theo ngày / theo bưu cục lập `GET /api/arrivals/bd10-trang-thai/theo-ngay` và `/theo-buu-cuc-lap` (≤ 92 ngày; số BD10 và số bưu gửi — #71); CÔNG KHAI mọi vai trò theo bộ lọc BCVH, tải / xuất GDVH chỉ BCVH được giao — #72; đơn vị BD10 tính lúc truy vấn) — #67, #69 | Có (API; chưa giao diện) |
 | "Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH" (`chua_nhan_tai_bcvh` trong `/summary`, `/dashboard/center`; `GET /api/arrivals/not-received` + `/not-received/export`; mọi vai trò theo bộ lọc BCVH, tải / xuất GDVH chỉ BCVH được giao — #72; loại bưu gửi có BD10 của dòng đại diện rỗng / lập đi — #68) và chất lượng khai thác theo nguồn BD10 (`tong_hop.theo_nguon`, `TTKT_BD10_PREFIX = '530100'`) — #60, #61 | Có (API; chưa giao diện) |
@@ -49,7 +49,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); chỉ hai mốc so sánh — hôm qua (hiển thị) và cùng thứ tuần trước (dùng để gắn mức), cùng giờ dữ liệu; không còn «TB 4 tuần»/«mức bình thường» (#76); "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; mức sản lượng lệch 15% / 25% (TẠM) chỉ khi mốc tuần trước ≥ 50 bưu gửi và `den_luc` từ 12:00, ngược lại trả `chua_du_du_lieu` + lý do; hàng đi ngoài không gắn mức — khác cảnh báo dữ liệu ADMIN-only — #41, #43–#47 (phần còn hiệu lực), #73, #76.
 
 ## 5. Kiểm thử
-`npm test`: 23 file, 303 ca — 303 pass, 0 fail, 2026-10-14 (DASH-6b chặng 1; trước đó 318 ca: xoá 21 ca của API 3e, sửa ~30 khối, thêm ~11 ca mới).
+`npm test`: 23 file, 304 ca — 304 pass, 0 fail, 2026-10-14 (DASH-6b chặng 2; trước đó 318 ca: xoá 21 ca của API 3e, sửa ~30 khối, thêm ~11 ca mới).
 
 ## 6. Rủi ro / việc treo
 - **DB thật còn ngày đến theo quy tắc cũ** (mốc sớm nhất): sao lưu rồi chạy `scripts/rederive-arrival.js` (chạy thử → `--apply`, `06_DEPLOYMENT.md` mục 8). Trên bản chép: đổi 110/13.102 dòng, sản lượng 02→08/10 giữ 12.783. Dữ liệu nạp mới đã theo R2.

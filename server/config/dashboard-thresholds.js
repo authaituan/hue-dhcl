@@ -19,6 +19,8 @@ const DASHBOARD_DEN_THRESHOLDS = Object.freeze({
   // Chỉ gắn mức sản lượng lệch khi mốc so sánh (tuần trước, cùng giờ) có từ SAN_SO_SANH_TOI_THIEU bưu gửi trở lên (tránh nhiễu số nhỏ)
   // VÀ giờ dữ liệu (den_luc, không phải đồng hồ máy) đã từ GIO_BAT_DAU_DANH_GIA giờ. Không đủ -> không gắn mức, trả trạng thái «chưa đủ dữ liệu».
   SAN_SO_SANH_TOI_THIEU: 50,
+  // Phường/xã: số chênh % (tang_so_hom_qua_pct, lech_so_tuan_truoc_pct) chỉ tính khi mốc so sánh >= SAN_SO_SANH_PHUONG_XA bưu gửi (số phường/xã nhỏ hơn nhiều sản lượng cả BCVH). TẠM.
+  SAN_SO_SANH_PHUONG_XA: 10,
   GIO_BAT_DAU_DANH_GIA: 12
 });
 

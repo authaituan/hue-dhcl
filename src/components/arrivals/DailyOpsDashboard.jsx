@@ -29,12 +29,32 @@ export function formatPctChange(pct) {
   return `${sign}${pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+// «+5,0% so tuần trước» khi có số chênh; null (thiếu mốc hoặc mốc dưới sàn 50 BG, DASH-6b) -> «chưa đủ dữ liệu so tuần trước». label: 'so tuần trước' | 'so hôm qua cùng giờ'.
+export function formatSoSanh(pct, label) {
+  if (pct === null || pct === undefined || isNaN(pct)) return `chưa đủ dữ liệu ${label}`;
+  return `${formatPctChange(pct)} ${label}`;
+}
+
+// Lý do chưa đánh giá mức sản lượng (danh_gia_san_luong.ly_do của API) -> chữ ngắn để làm chú thích.
+export function lyDoChuaDanhGia(dg) {
+  if (!dg || dg.trang_thai !== 'chua_du_du_lieu') return '';
+  if (dg.ly_do === 'thieu_tuan_truoc') return 'Chưa có dữ liệu cùng thứ tuần trước';
+  if (dg.ly_do === 'moc_duoi_san') return 'Mốc tuần trước còn quá ít bưu gửi (dưới 50 BG)';
+  if (dg.ly_do === 'chua_toi_gio') return 'Dữ liệu chưa tới 12:00 nên chưa đánh giá';
+  return 'Chưa đủ dữ liệu so tuần trước';
+}
+
 // Chip tăng/giảm số bưu gửi của phường/xã so với hôm qua (quy tắc DASH-2b) — dùng chung cho Dashboard và màn tivi.
 // loai: 'moi_co' (không có tỉ lệ so sánh) | 'bang' (bằng 0, không mũi tên) | 'giam' (xanh) | 'tang_cao' (tăng từ 20%, đỏ) | 'tang' (vàng).
 export function wardChangeChip(item) {
   const tang = item.tang_so_hom_qua ?? 0; // số BG tăng/giảm so hôm qua
-  const pct = item.tang_so_hom_qua_pct;   // null = mới có
-  if (pct === null || pct === undefined) return { loai: 'moi_co', text: 'mới có' };
+  const pct = item.tang_so_hom_qua_pct;   // null = mới có (hôm qua 0) hoặc mốc hôm qua dưới sàn 50 BG (DASH-6b: chỉ hiện số BG, không %)
+  if (pct === null || pct === undefined) {
+    if (!item.hom_qua) return { loai: 'moi_co', text: 'mới có' };
+    if (tang === 0) return { loai: 'bang', text: '— 0 BG' };
+    if (tang < 0) return { loai: 'giam', text: `▼ ${tang.toLocaleString('vi-VN')} BG` };
+    return { loai: 'tang', text: `▲ +${tang.toLocaleString('vi-VN')} BG` };
+  }
   if (tang === 0) return { loai: 'bang', text: '— 0 BG (0%)' };
   if (tang < 0) return { loai: 'giam', text: `▼ ${tang.toLocaleString('vi-VN')} BG (${formatPctChange(pct)})` };
   return {
@@ -390,15 +410,15 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <div className="text-xs text-[#57534e] space-y-0.5 pt-2 border-t border-[#f5f5f4]">
             {isAllView ? (
               <div>
-                <span>{tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct !== undefined ? `${formatPctChange(tongQuan.san_luong.so_hom_qua_cung_gio?.chenh_pct)} so hôm qua cùng giờ` : 'chưa đủ dữ liệu'}</span>
+                <span>{formatSoSanh(tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct, 'so hôm qua cùng giờ')}</span>
                 <span className="mx-1.5">·</span>
-                <span>{tongQuan?.san_luong?.so_tb_4_tuan_cung_thu?.chenh_pct !== undefined ? `${formatPctChange(tongQuan.san_luong.so_tb_4_tuan_cung_thu?.chenh_pct)} so TB 4 tuần` : 'chưa đủ dữ liệu'}</span>
+                <span>{formatSoSanh(tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.chenh_pct, 'so tuần trước')}</span>
               </div>
             ) : (
               <div>
-                <span>{currentBcvhRow?.so_hom_qua?.chenh_pct !== undefined ? `${formatPctChange(currentBcvhRow.so_hom_qua?.chenh_pct)} so hôm qua cùng giờ` : 'chưa đủ dữ liệu'}</span>
+                <span>{formatSoSanh(currentBcvhRow?.so_hom_qua?.chenh_pct, 'so hôm qua cùng giờ')}</span>
                 <span className="mx-1.5">·</span>
-                <span>{currentBcvhRow?.so_tb_4_tuan?.chenh_pct !== undefined ? `${formatPctChange(currentBcvhRow.so_tb_4_tuan?.chenh_pct)} so TB 4 tuần` : 'chưa đủ dữ liệu'}</span>
+                <span title={lyDoChuaDanhGia(currentBcvhRow?.danh_gia_san_luong)}>{formatSoSanh(currentBcvhRow?.so_tuan_truoc?.chenh_pct, 'so tuần trước')}</span>
               </div>
             )}
             <div className="text-[11px] text-[#a8a29e] italic">BG = bưu gửi (lần đến sớm nhất)</div>
@@ -423,23 +443,23 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           </div>
         )}
 
-        {/* THẺ 3: HÀNG NẶNG (TỪ 2 KG TRỞ LÊN) */}
+        {/* THẺ 3: HÀNG ĐI NGOÀI */}
         <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
-              HÀNG NẶNG (TỪ 2 KG TRỞ LÊN)
+              HÀNG ĐI NGOÀI
             </div>
             <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
-              {formatPercent(tongQuan?.hang_nang?.ty_le)}
+              {formatPercent(tongQuan?.hang_di_ngoai?.ty_le)}
             </div>
           </div>
           <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-            <span>{(tongQuan?.hang_nang?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi hôm nay</span>
-            {tongQuan?.hang_nang?.khong_co_khoi_luong > 0 && (
-              <span className="text-[#a8a29e] block text-[11px]">
-                ({tongQuan.hang_nang.khong_co_khoi_luong.toLocaleString('vi-VN')} bưu gửi chưa có mốc khối lượng)
-              </span>
-            )}
+            <span>{(tongQuan?.hang_di_ngoai?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi hôm nay</span>
+            <span className="text-[#a8a29e] block text-[11px]">
+              {tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== null && tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== undefined
+                ? `${formatPointDiff(tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.chenh_diem)} so tuần trước`
+                : 'chưa đủ dữ liệu so tuần trước'}
+            </span>
           </div>
         </div>
 
@@ -496,7 +516,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               </h2>
             </div>
             <p className="text-xs text-[#78716c] mt-0.5">
-              So sánh với mức bình thường của chính BCVH (trung bình 4 tuần cùng thứ, cùng giờ). «Xử lý ngay» đứng trước.
+              Sản lượng được so với cùng thứ tuần trước (cùng giờ). «Xử lý ngay» đứng trước.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -628,7 +648,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   <th className="px-4 py-3">BCVH</th>
                   <th className="px-4 py-3 text-right">SẢN LƯỢNG ĐẾN</th>
                   <th className="px-4 py-3 text-right">SO HÔM QUA</th>
-                  <th className="px-4 py-3 text-right">SO TB 4 TUẦN</th>
+                  <th className="px-4 py-3 text-right">SO TUẦN TRƯỚC</th>
                   <th className="px-4 py-3 text-right">CHƯA NHẬN</th>
                   <th className="px-4 py-3 text-right">BD10 CHƯA XNĐ</th>
                   <th className="px-4 py-3 text-center">ĐÁNH GIÁ</th>
@@ -663,11 +683,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         )}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
-                        {isNoData || row.so_tb_4_tuan?.chenh_pct === null || row.so_tb_4_tuan?.chenh_pct === undefined ? (
-                          <span className="text-[#a8a29e]">—</span>
+                        {isNoData || row.so_tuan_truoc?.chenh_pct === null || row.so_tuan_truoc?.chenh_pct === undefined ? (
+                          <span className="text-[#a8a29e]" title={lyDoChuaDanhGia(row.danh_gia_san_luong)}>—</span>
                         ) : (
-                          <span className={row.so_tb_4_tuan.chenh_pct >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
-                            {formatPctChange(row.so_tb_4_tuan.chenh_pct)}
+                          <span className={row.so_tuan_truoc.chenh_pct >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
+                            {formatPctChange(row.so_tuan_truoc.chenh_pct)}
                           </span>
                         )}
                       </td>
@@ -717,7 +737,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           </div>
 
           <p className="text-[11px] text-[#78716c] italic">
-            Mức đánh giá do hệ thống tính từ sản lượng so với mức bình thường, bưu gửi chưa nhận và BD10 chưa XNĐ. Ngưỡng đang là tạm thời.
+            Mức đánh giá do hệ thống tính từ sản lượng so với cùng thứ tuần trước, bưu gửi chưa nhận và BD10 chưa XNĐ. Ngưỡng đang là tạm thời.
           </p>
         </div>
       )}
@@ -934,7 +954,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                     </div>
                   </div>
 
-                  {/* CHIP TĂNG TRƯỞNG & DÒNG NHỎ SO TB */}
+                  {/* CHIP TĂNG TRƯỞNG & DÒNG NHỎ SO TUẦN TRƯỚC */}
                   <div className="sm:text-right shrink-0">
                     <div>
                       {chip.loai === 'moi_co' ? (
@@ -955,10 +975,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       )}
                     </div>
                     <div className="text-[11px] text-[#78716c] mt-1">
-                      {item.tb_4_tuan_cung_thu !== null ? (
-                        <span>so TB 4 tuần ({item.tb_4_tuan_cung_thu} BG): {formatPctChange(item.lech_so_tb_pct)}</span>
+                      {item.tuan_truoc_cung_gio !== null && item.tuan_truoc_cung_gio !== undefined ? (
+                        <span>so tuần trước ({item.tuan_truoc_cung_gio} BG): {formatPctChange(item.lech_so_tuan_truoc_pct)}</span>
                       ) : (
-                        <span>so TB 4 tuần: chưa đủ dữ liệu</span>
+                        <span>so tuần trước: chưa đủ dữ liệu</span>
                       )}
                     </div>
                   </div>

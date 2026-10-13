@@ -30,6 +30,11 @@ const GIOI_HAN_TOI_DA = 50;
 const round2 = (x) => Math.round(x * 100) / 100;
 const ratio4 = (n, d) => (d ? Math.round((n / d) * 10000) / 10000 : null);
 const pctChange = (v, ref) => (ref ? round2(((v - ref) / ref) * 100) : null);
+/** Mốc so sánh đủ lớn để tính chênh (>= SAN_SO_SANH_TOI_THIEU bưu gửi, #76). Dưới sàn -> không có số chênh (vẫn hiển thị giá trị mốc). */
+const mocDuLon = (ref) => ref !== null && ref !== undefined && ref >= TH.SAN_SO_SANH_TOI_THIEU;
+const pctVsMoc = (v, ref) => (mocDuLon(ref) ? pctChange(v, ref) : null);
+/** Như pctVsMoc nhưng sàn riêng cho phường/xã (SAN_SO_SANH_PHUONG_XA). */
+const pctVsMocPhuongXa = (v, ref) => (ref !== null && ref !== undefined && ref >= TH.SAN_SO_SANH_PHUONG_XA ? pctChange(v, ref) : null);
 const worst = (list) => list.filter(Boolean).sort((a, b) => MUC_RANK[a] - MUC_RANK[b])[0] || null;
 
 // ------------------------------------------
@@ -205,7 +210,7 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     const v = volumeOf(db, c);
     const is = issuesOf(db, c);
     const dg = danhGiaSanLuong(v.buu_gui, v.tuan_truoc === null ? null : v.tuan_truoc.bg, c.cut ? Number(c.cut.slice(0, 2)) : null);
-    const ref = (m) => (m === null ? null : { gia_tri: m.bg, chenh_pct: pctChange(v.buu_gui, m.bg) });
+    const ref = (m) => (m === null ? null : { gia_tri: m.bg, chenh_pct: pctVsMoc(v.buu_gui, m.bg) });
     return {
       ...base,
       san_luong: { luot: v.luot, buu_gui: v.buu_gui },
@@ -226,12 +231,12 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
   const bg = sum(vs, (v) => v.buu_gui);
   const dn = sum(vs, (v) => v.di_ngoai);
   const canChuY = rows.filter((r) => r.muc === MUC.XU_LY_NGAY || r.muc === MUC.TRONG_NGAY).length;
-  // Mốc so sánh của sản lượng: { gia_tri, chenh_pct, so_bcvh }; của hàng đi ngoài: { buu_gui, ty_le, mau_so, chenh_diem (điểm %, hôm nay − mốc), so_bcvh }.
+  // Mốc so sánh (dưới sàn 50 bưu gửi thì chenh_pct / chenh_diem = null, vẫn giữ giá trị mốc). Sản lượng: { gia_tri, chenh_pct, so_bcvh }; của hàng đi ngoài: { buu_gui, ty_le, mau_so, chenh_diem (điểm %, hôm nay − mốc), so_bcvh }.
   const sanLuongVs = (key) => {
     const set = vs.filter((v) => v[key] !== null);
     if (!set.length) return null;
     const ref = sum(set, (v) => v[key].bg);
-    return { gia_tri: ref, chenh_pct: pctChange(sum(set, (v) => v.buu_gui), ref), so_bcvh: set.length };
+    return { gia_tri: ref, chenh_pct: pctVsMoc(sum(set, (v) => v.buu_gui), ref), so_bcvh: set.length };
   };
   const diNgoaiVs = (key) => {
     const set = vs.filter((v) => v[key] !== null);
@@ -241,7 +246,7 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     const todayBg = sum(set, (v) => v.buu_gui);
     return {
       buu_gui: refDn, ty_le: ratio4(refDn, refBg), mau_so: refBg,
-      chenh_diem: refBg && todayBg ? round2((sum(set, (v) => v.di_ngoai) / todayBg - refDn / refBg) * 100) : null, so_bcvh: set.length
+      chenh_diem: mocDuLon(refBg) && todayBg ? round2((sum(set, (v) => v.di_ngoai) / todayBg - refDn / refBg) * 100) : null, so_bcvh: set.length
     };
   };
 
@@ -334,9 +339,9 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
         ten: today.get(k)?.ten || yMap?.get(k)?.ten, ward_key: k, bcvh: c.ma, ten_bcvh: names.get(c.ma), ngay: c.day,
         hom_kia: n(yyMap), hom_qua: homQua, hom_nay: homNay,
         tang_so_hom_qua: homQua === null ? null : homNay - homQua,
-        tang_so_hom_qua_pct: pctChange(homNay, homQua),
+        tang_so_hom_qua_pct: pctVsMocPhuongXa(homNay, homQua),
         tuan_truoc_cung_gio: tuanTruoc,
-        lech_so_tuan_truoc_pct: pctChange(homNay, tuanTruoc)
+        lech_so_tuan_truoc_pct: pctVsMocPhuongXa(homNay, tuanTruoc)
       });
     }
   }

@@ -8,7 +8,7 @@ import { BCVH_LIST } from '../constants/bcvh';
 import { apiFetchJson, clearToken } from '../utils/api';
 import {
   formatPercent,
-  formatPctChange,
+  formatSoSanh,
   formatTimeOnly,
   formatDateTimeSec,
   wardChangeChip,
@@ -276,7 +276,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
     : tongQuan?.theo_bcvh?.find((r) => r.ma === bcvhScope)?.san_luong?.buu_gui
       ?? tongQuan?.san_luong?.buu_gui;
 
-  const hangNang = tongQuan?.hang_nang;
+  const hangDiNgoai = tongQuan?.hang_di_ngoai;
   const sau15h   = tongQuan?.sau_15h;
 
   // Chưa nhận — Bảng 11 dùng theo_bcvh[], Bảng 12 dùng chua_nhan tổng
@@ -438,7 +438,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
           <RowA
             isAll={isAll}
             slBuuGui={slBuuGui}
-            hangNang={hangNang}
+            hangDiNgoai={hangDiNgoai}
             sau15h={sau15h}
             tongQuan={tongQuan}
           />
@@ -540,7 +540,7 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
 }
 
 // ── Hàng A: 4 thẻ ────────────────────────────────────────────────────────────
-function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
+function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
   const cardStyle = {
     flex: 1,
     background: TV.bgCard,
@@ -572,9 +572,7 @@ function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
           {slBuuGui !== null && slBuuGui !== undefined ? formatViVN(slBuuGui) : '—'}
         </div>
         <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
-          {tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct !== undefined
-            ? `${formatPctChange(tongQuan.san_luong.so_hom_qua_cung_gio.chenh_pct)} so hôm qua cùng giờ`
-            : 'chưa đủ dữ liệu'}
+          {formatSoSanh(tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct, 'so hôm qua cùng giờ')}
         </div>
       </div>
 
@@ -602,17 +600,16 @@ function RowA({ isAll, slBuuGui, hangNang, sau15h, tongQuan }) {
         </div>
       </div>
 
-      {/* Thẻ 3: Hàng nặng */}
+      {/* Thẻ 3: Hàng đi ngoài */}
       <div style={cardStyle}>
         <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
-          Hàng nặng ≥ 2 kg
+          Hàng đi ngoài
         </div>
         <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
-          {formatPercent(hangNang?.ty_le)}
+          {formatPercent(hangDiNgoai?.ty_le)}
         </div>
         <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
-          {hangNang?.buu_gui !== undefined ? `${formatViVN(hangNang.buu_gui)} bưu gửi` : '—'}
-          {hangNang?.khong_co_khoi_luong > 0 && ` · ${formatViVN(hangNang.khong_co_khoi_luong)} chưa có khối lượng`}
+          {hangDiNgoai?.buu_gui !== undefined ? `${formatViVN(hangDiNgoai.buu_gui)} bưu gửi` : '—'}
         </div>
       </div>
 

@@ -33,7 +33,7 @@ const clock = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)
  * after: số bưu gửi thêm lúc 17:00 trở đi (sau mọi mốc cắt dùng trong test: không được tính vào «cùng giờ»).
  * diNgoai: BD8 = SHBG cho mọi bưu gửi (hàng đi ngoài).
  */
-function dayRows(bcvh, day, n, last, { after: extra = 0, diNgoai = false } = {}) {
+function dayRows(bcvh, day, n, last, { after: extra = 0, diNgoai = false, ward = 'Phường An' } = {}) {
   const rows = [];
   const mk = (time) => {
     seq++;
@@ -42,7 +42,7 @@ function dayRows(bcvh, day, n, last, { after: extra = 0, diNgoai = false } = {})
       bcvh, day, Ma_BC_dong: '990001', BC_nhan_BG: bcvh, Ten_duong_thu: 'Đường thư giả', SHBG: sh, So_hieu_BD10: '',
       'Thời gian XN túi': `${day} ${time}`, 'Thời gian XN BG': 'NULL', Ngay_gio_XND_BD10: 'NULL', Ngay_gio_XND_BD10_tai_TTKT: 'NULL',
       So_hieu_BD8: diNgoai ? sh : `P${seq}`, Khoi_luong_thuc_te: '500', Dich_vu_code: 'R', Ten_dich_vu: 'Dịch vụ giả', Ghi_chu: 'NULL',
-      Ten_Xa_Phuong: 'Phường An', Ten_Tinh_Thanh: 'Tỉnh Thử'
+      Ten_Xa_Phuong: ward, Ten_Tinh_Thanh: 'Tỉnh Thử'
     });
   };
   for (let i = 0; i < n - 1; i++) mk(clock(360 + i));
@@ -53,6 +53,9 @@ function dayRows(bcvh, day, n, last, { after: extra = 0, diNgoai = false } = {})
 
 const D20 = '2026-10-20'; const W13 = '2026-10-13'; const Y19 = '2026-10-19';
 const D21 = '2026-10-21'; const W14 = '2026-10-14';
+const D03 = '2026-11-03'; const D02 = '2026-11-02'; const W27 = '2026-10-27';
+const PX = '/api/arrivals/dashboard/phuong-xa-tang';
+const D10 = '2026-11-10'; const D09 = '2026-11-09'; const W03 = '2026-11-03';
 const ROWS = [
   // A: 20/10 125 bưu gửi tới 13:30 (mọi bưu gửi hôm nay đều đi ngoài); tuần trước 13/10: 100 tới cùng giờ + 30 sau 17:00 (không tính) -> +25% = Xử lý ngay
   ...dayRows(A, D20, 125, '13:30:00', { diNgoai: true }), ...dayRows(A, W13, 100, '07:00:00', { after: 30 }),
@@ -67,7 +70,13 @@ const ROWS = [
   // E: tuần trước là ngày lẻ chỉ 2 bưu gửi (hồi quy +4.900% sai) -> không gắn mức
   ...dayRows(E, D20, 100, '13:00:00'), ...dayRows(E, W13, 2, '07:00:00'),
   // F: không có file tuần trước -> không gắn mức
-  ...dayRows(F, D20, 60, '14:00:00')
+  ...dayRows(F, D20, 60, '14:00:00'),
+  // D, 03/11: số chênh có sàn. Hôm qua 02/11 đúng 50 bưu gửi (đủ sàn -> có số), tuần trước 27/10 chỉ 49 (dưới sàn -> chenh = null). Hôm nay 60, đều đi ngoài.
+  ...dayRows(D, D03, 60, '13:00:00', { diNgoai: true }), ...dayRows(D, D02, 50, '09:00:00'), ...dayRows(D, W27, 49, '09:00:00'),
+  // F, 10/11, số chênh phường/xã có sàn riêng 10: Phường Bình hôm qua 10 (có số) / tuần trước 9 (null); Phường An hôm qua 9 (null) / tuần trước 10 (có số)
+  ...dayRows(F, D10, 20, '13:00:00', { ward: 'Phường Bình' }), ...dayRows(F, D10, 20, '12:30:00', { ward: 'Phường An' }),
+  ...dayRows(F, D09, 10, '09:00:00', { ward: 'Phường Bình' }), ...dayRows(F, D09, 9, '09:00:00', { ward: 'Phường An' }),
+  ...dayRows(F, W03, 9, '09:00:00', { ward: 'Phường Bình' }), ...dayRows(F, W03, 10, '09:00:00', { ward: 'Phường An' })
 ];
 
 function writeFiles() {
@@ -152,7 +161,7 @@ test('chưa tới 12:00 (giờ DỮ LIỆU den_luc 11:59:59): D lệch +25% vẫ
 test('mốc dưới 50 bưu gửi (hồi quy ngày lẻ chỉ 2 bưu gửi) và thiếu tuần trước: KHÔNG gắn mức, có lý do', async () => {
   const b = (await api(`${TQ}?date=${D20}`)).body;
   const e = row(b, E);
-  assert.deepEqual(e.so_tuan_truoc, { gia_tri: 2, chenh_pct: 4900 }, 'số vẫn hiển thị, nhưng không đủ để gắn mức');
+  assert.deepEqual(e.so_tuan_truoc, { gia_tri: 2, chenh_pct: null }, 'giá trị mốc vẫn hiển thị; không có số chênh (+4.900% vô nghĩa) và không gắn mức');
   assert.deepEqual(e.danh_gia_san_luong, { trang_thai: 'chua_du_du_lieu', ly_do: 'moc_duoi_san' });
   assert.equal(e.muc_chi_tiet.san_luong, null);
   assert.equal(e.muc, 'binh_thuong');
@@ -186,4 +195,38 @@ test('hàng đi ngoài chỉ hiển thị: tăng +100 điểm so tuần trước
   assert.deepEqual(Object.keys(row(b, A).muc_chi_tiet), ['san_luong', 'chua_nhan', 'bd10_chua_xnd']);
   const v = (await api(`${VIEC}?date=${D20}`)).body;
   assert.deepEqual(v.items, [], 'không có chưa nhận / BD10 chưa XNĐ nên không có việc; không có loại «hàng nặng»/«hàng đi ngoài»');
+});
+
+test('số chênh có sàn 50: mốc 49 -> chenh = null (vẫn giữ giá trị mốc), mốc 50 -> có số; áp cho sản lượng, hàng đi ngoài, phường/xã', async () => {
+  const b = (await api(`${TQ}?bcvh=${D}&date=${D03}`)).body;
+  const r = row(b, D);
+  // sản lượng: hôm nay 60 so hôm qua 50 (+20%) và tuần trước 49 (không có số)
+  assert.deepEqual(r.so_hom_qua, { gia_tri: 50, chenh_pct: 20 });
+  assert.deepEqual(r.so_tuan_truoc, { gia_tri: 49, chenh_pct: null });
+  assert.deepEqual(b.san_luong.so_hom_qua_cung_gio, { gia_tri: 50, chenh_pct: 20, so_bcvh: 1 });
+  assert.deepEqual(b.san_luong.so_tuan_truoc_cung_gio, { gia_tri: 49, chenh_pct: null, so_bcvh: 1 });
+  // hàng đi ngoài: hôm nay 100% so hôm qua 0% (mốc 50: +100 điểm) và tuần trước 0% (mốc 49: null)
+  assert.deepEqual(b.hang_di_ngoai.so_hom_qua_cung_gio, { buu_gui: 0, ty_le: 0, mau_so: 50, chenh_diem: 100, so_bcvh: 1 });
+  assert.deepEqual(b.hang_di_ngoai.so_tuan_truoc_cung_gio, { buu_gui: 0, ty_le: 0, mau_so: 49, chenh_diem: null, so_bcvh: 1 });
+  // phường/xã dùng sàn riêng SAN_SO_SANH_PHUONG_XA = 10 (không phải 50): mốc 49 và 50 đều có số
+  const w = (await api(`${PX}?bcvh=${D}&date=${D03}`)).body.items[0];
+  assert.deepEqual([w.hom_nay, w.hom_qua, w.tang_so_hom_qua, w.tang_so_hom_qua_pct], [60, 50, 10, 20]);
+  assert.deepEqual([w.tuan_truoc_cung_gio, w.lech_so_tuan_truoc_pct], [49, 22.45]);
+  // đã xét ở các ca trên: mốc 100 có số (+25%), mốc đúng 50 có số (+20%), mốc 2 không có số
+  const e = row((await api(`${TQ}?date=${D20}`)).body, E);
+  assert.deepEqual(e.so_tuan_truoc, { gia_tri: 2, chenh_pct: null });
+});
+
+test('phường/xã: sàn riêng 10 bưu gửi — mốc 9 -> chenh_pct null (vẫn giữ số và số tuyệt đối), mốc 10 -> có số; áp cho cả hôm qua và tuần trước', async () => {
+  const items = (await api(`${PX}?bcvh=${F}&date=${D10}`)).body.items;
+  const by = (ten) => items.find((x) => x.ten === ten);
+  const binh = by('Phường Bình');
+  assert.deepEqual([binh.hom_nay, binh.hom_qua, binh.tang_so_hom_qua, binh.tang_so_hom_qua_pct], [20, 10, 10, 100], 'hôm qua đúng 10 -> có số');
+  assert.deepEqual([binh.tuan_truoc_cung_gio, binh.lech_so_tuan_truoc_pct], [9, null], 'tuần trước 9 -> null');
+  const an = by('Phường An');
+  assert.deepEqual([an.hom_nay, an.hom_qua, an.tang_so_hom_qua, an.tang_so_hom_qua_pct], [20, 9, 11, null], 'hôm qua 9 -> null, số tuyệt đối vẫn có');
+  assert.deepEqual([an.tuan_truoc_cung_gio, an.lech_so_tuan_truoc_pct], [10, 100], 'tuần trước đúng 10 -> có số');
+  // sản lượng vẫn dùng sàn 50: cả hai mốc của F (tổng 19 và 19 bưu gửi) đều không có số chênh
+  const f = row((await api(`${TQ}?bcvh=${F}&date=${D10}`)).body, F);
+  assert.deepEqual([f.so_hom_qua.chenh_pct, f.so_tuan_truoc.chenh_pct], [null, null]);
 });

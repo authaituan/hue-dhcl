@@ -4,6 +4,14 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-14] - DASH-6b chặng 2: số chênh có sàn 50 + nối giao diện khoá mới (DASH-6b)
+
+- Backend (PO chỉnh sau duyệt chặng 1): `chenh_pct` / `chenh_diem` = `null` khi mốc (hôm qua hoặc tuần trước) dưới 50 bưu gửi, vẫn giữ giá trị mốc — `server/lib/dashboardDenQuery.js` (`pctVsMoc`): sản lượng (tổng và từng BCVH), `hang_di_ngoai`, `phuong-xa-tang` (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`). Quyết định #76. Test: sửa `dashboard-den.test.js` (mốc nhỏ → null), thêm 1 ca mốc 49 → null / 50 → có số ở `dashboard-den-danh-gia.test.js`. `npm test` 304 ca pass.
+- PO chỉnh sau duyệt chặng 2: phường/xã dùng sàn riêng `SAN_SO_SANH_PHUONG_XA` = 10 (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`); `SAN_SO_SANH_TOI_THIEU` = 50 chỉ còn cho sản lượng và hàng đi ngoài. Test: mốc 9 → null, mốc 10 → có số (`dashboard-den-danh-gia.test.js`, `dashboard-den.test.js`). `npm test` 305 ca.
+- Giao diện (chỉ đổi khoá và chữ): `DailyOpsDashboard.jsx` (thẻ «Hàng đi ngoài», «so tuần trước», cột «SO TUẦN TRƯỚC», dòng phường/xã, chip phường/xã khi mốc dưới sàn, hàm `formatSoSanh`, `lyDoChuaDanhGia`), `TiviView.jsx` (thẻ «Hàng đi ngoài», chữ so hôm qua), `ArrivalsOverview.jsx`, `ArrivalsRoutesServices.jsx` («Hàng đi ngoài», biểu đồ «Còn lại / Hàng đi ngoài»). Không đổi bố cục, màu, font, kích thước.
+
+---
+
 ## [2026-10-14] - «Hàng đi ngoài» thay «hàng nặng», bỏ «TB 4 tuần», đổi mốc đánh giá: backend + test + tài liệu (DASH-6b, chặng 1)
 
 - `server/lib/arrivalsQuery.js`: `DI_NGOAI_SQL` (SHBG có ≥ 1 dòng BD8 chuẩn hoá = SHBG; BD8 rỗng không tính) thay `heavy_g`/`HEAVY_THRESHOLD_G_*`/`parseHeavyG`; `/summary`, `/by-route`, `/by-service` trả `hang_di_ngoai`, `ty_le_hang_di_ngoai` (bỏ `hang_nang`, `ty_le_hang_nang`, `nguong_hang_nang_g`); `heavy_g` gửi lên → 400. `server/lib/phat.js`, `server/routes/arrivals.js`: bỏ `heavyG`/`heavy_g`.
