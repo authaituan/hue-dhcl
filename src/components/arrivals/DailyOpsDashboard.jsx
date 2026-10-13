@@ -83,7 +83,7 @@ function formatActionDetail(item) {
   return '';
 }
 
-export default function DailyOpsDashboard({ authUser, onNavigate }) {
+export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode }) {
   const isGdvH = authUser?.role === 'GDVH';
   
   // State phạm vi BCVH đang chọn ('all' hoặc mã bcvh cụ thể)
@@ -327,28 +327,37 @@ export default function DailyOpsDashboard({ authUser, onNavigate }) {
           </div>
         </div>
 
-        {/* BỘ CHỌN BCVH & VAI TRÒ */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2 bg-[#f5f5f4] p-1.5 rounded-xl border border-[#e7e5e4]">
-            <span className="text-xs font-bold text-[#57534e] px-2 whitespace-nowrap">
-              {isAllView ? 'Lãnh đạo Trung tâm · 6 BCVH' : 'GĐ BCVH'}
-            </span>
-            <select
-              id="select-bcvh-dashboard"
-              value={selectedBcvh}
-              onChange={(e) => handleSelectBcvh(e.target.value)}
-              className="text-sm font-semibold text-[#292524] bg-white border border-[#d6d3d1] rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#881337] cursor-pointer"
-            >
-              <option value="all">Toàn Trung tâm (6 BCVH)</option>
-              {DASHBOARD_BCVH.map((b) => (
-                <option key={b.ma} value={b.ma}>
-                  {b.ten} ({b.ma})
-                </option>
-              ))}
-            </select>
+          {/* BỘ CHỌN BCVH & VAI TRÒ + NÚT TIVI */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 bg-[#f5f5f4] p-1.5 rounded-xl border border-[#e7e5e4]">
+              <span className="text-xs font-bold text-[#57534e] px-2 whitespace-nowrap">
+                {isAllView ? 'Lãnh đạo Trung tâm · 6 BCVH' : 'GĐ BCVH'}
+              </span>
+              <select
+                id="select-bcvh-dashboard"
+                value={selectedBcvh}
+                onChange={(e) => handleSelectBcvh(e.target.value)}
+                className="text-sm font-semibold text-[#292524] bg-white border border-[#d6d3d1] rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#881337] cursor-pointer"
+              >
+                <option value="all">Toàn Trung tâm (6 BCVH)</option>
+                {DASHBOARD_BCVH.map((b) => (
+                  <option key={b.ma} value={b.ma}>
+                    {b.ten} ({b.ma})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {onEnterTvMode && (
+              <button
+                onClick={() => onEnterTvMode(selectedBcvh)}
+                title="Mở chế độ tivi (toàn màn hình)"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#57534e] bg-white border border-[#d6d3d1] rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors"
+              >
+                📺 Chế độ tivi
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
       {/* 2. HÀNG A: CÁC THẺ CHỈ SỐ */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAllView ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
