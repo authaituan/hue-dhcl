@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetchJson, apiFetch } from '../../utils/api';
 import { RefreshCw, Download, AlertTriangle } from 'lucide-react';
+import { BCVH_LIST } from '../../constants/bcvh';
 import ArrivalsFilters from './ArrivalsFilters';
 import ArrivalsOverview from './ArrivalsOverview';
 import ArrivalsBd10Status from './ArrivalsBd10Status';
@@ -12,14 +13,8 @@ import { ArrivalsNotReceivedBanner, ArrivalsNotReceivedDetail } from './Arrivals
 import { ArrivalsBd10NotConfirmedBanner, ArrivalsBd10NotConfirmedDetail } from './ArrivalsBd10NotConfirmed';
 import { formatToApiDate } from './dateUtils';
 
-const DASHBOARD_BCVH = [
-  { ma: '533140', ten: 'BCVH Thuận Hóa' },
-  { ma: '535470', ten: 'BCVH Hương Trà' },
-  { ma: '536250', ten: 'BCVH Hương Thủy' },
-  { ma: '537015', ten: 'BCVH Thuận An' },
-  { ma: '537220', ten: 'BCVH Phú Lộc' },
-  { ma: '535790', ten: 'BCVH A Lưới' }
-];
+// Alias dùng chung từ constants/bcvh.js
+const DASHBOARD_BCVH = BCVH_LIST;
 
 export default function ArrivalsView({ authUser, navParams, onClearNavParams }) {
   const isAdmin = authUser?.role === 'ADMIN';
