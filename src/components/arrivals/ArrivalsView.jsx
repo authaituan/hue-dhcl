@@ -21,7 +21,7 @@ const DASHBOARD_BCVH = [
   { ma: '535790', ten: 'BCVH A Lưới' }
 ];
 
-export default function ArrivalsView({ authUser }) {
+export default function ArrivalsView({ authUser, navParams, onClearNavParams }) {
   const isAdmin = authUser?.role === 'ADMIN';
 
   const [meta, setMeta] = useState(null);
@@ -68,6 +68,27 @@ export default function ArrivalsView({ authUser }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [showNotReceivedDetail, setShowNotReceivedDetail] = useState(false);
   const [showBd10Detail, setShowBd10Detail] = useState(false);
+
+  // Xử lý điều hướng từ Dashboard điều hành hôm nay
+  useEffect(() => {
+    if (!navParams) return;
+    if (navParams.subTab) {
+      setActiveTab(navParams.subTab);
+    }
+    if (navParams.showNotReceivedDetail) {
+      setShowNotReceivedDetail(true);
+      setShowBd10Detail(false);
+    }
+    if (navParams.showBd10Detail) {
+      setShowBd10Detail(true);
+      setShowNotReceivedDetail(false);
+    }
+    if (navParams.bcvh) {
+      const codes = Array.isArray(navParams.bcvh) ? navParams.bcvh : [navParams.bcvh];
+      setFilters(prev => ({ ...prev, receiver_code: codes }));
+    }
+    onClearNavParams?.();
+  }, [navParams, onClearNavParams]);
   
   const [data, setData] = useState({
     summary: null,

@@ -6,6 +6,7 @@ import DashboardView from './components/DashboardView';
 import NetworkListView from './components/NetworkListView';
 import UserAdminView from './components/UserAdminView';
 import ArrivalsView from './components/arrivals/ArrivalsView';
+import DailyOpsDashboard from './components/arrivals/DailyOpsDashboard';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT } from './utils/api';
 
 // Đọc token đã lưu (nếu có) ngay lúc khởi tạo state, để tránh nháy màn hình
@@ -23,9 +24,18 @@ function getInitialAuthUser() {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [authUser, setAuthUser] = useState(getInitialAuthUser);
+  const [arrivalsNavParams, setArrivalsNavParams] = useState(null);
   
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin = authUser?.role === 'ADMIN';
+
+  const handleNavigate = (params) => {
+    if (!params) return;
+    if (params.tab) {
+      setActiveTab(params.tab);
+    }
+    setArrivalsNavParams(params);
+  };
 
   // Bất kỳ request ghi nào (qua src/utils/api.js) nhận 401 từ backend sẽ tự
   // xoá token + phát event này -> quay về LoginView, không để lộ lỗi JSON thô.
@@ -74,8 +84,16 @@ export default function App() {
                 <DashboardView isAdmin={isAdmin} />
               )}
 
+              {activeTab === 'ops_today' && (
+                <DailyOpsDashboard authUser={authUser} onNavigate={handleNavigate} />
+              )}
+
               {activeTab === 'arrivals' && isViewer && (
-                <ArrivalsView authUser={authUser} />
+                <ArrivalsView 
+                  authUser={authUser} 
+                  navParams={arrivalsNavParams}
+                  onClearNavParams={() => setArrivalsNavParams(null)}
+                />
               )}
 
               {activeTab === 'network' && isViewer && (

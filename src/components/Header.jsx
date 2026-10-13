@@ -6,6 +6,8 @@ export default function Header({ activeTab }) {
   const getScreenName = () => {
     switch(activeTab) {
       case 'dashboard': return 'Dashboard';
+      case 'ops_today': return 'Điều hành hôm nay';
+      case 'arrivals': return 'Sản lượng đến';
       case 'network': return 'Quản lý mạng lưới';
       case 'useradmin': return 'Quản lý người dùng';
       default: return 'Trang chủ';
@@ -23,7 +25,7 @@ export default function Header({ activeTab }) {
             <li className="text-[var(--color-title)] truncate" aria-current="page">{getScreenName()}</li>
           </ol>
         </nav>
-        <h6 className="font-bold text-[var(--color-title)] mt-0.5 text-base capitalize whitespace-nowrap truncate">{getScreenName()}</h6>
+        <h6 className="font-bold text-[var(--color-title)] mt-0.5 text-base whitespace-nowrap truncate">{getScreenName()}</h6>
       </div>
 
       {/* Right side: tên hệ thống */}
