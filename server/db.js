@@ -134,4 +134,15 @@ try {
   console.error('[db] Lỗi tạo bảng user_tivi_scope:', err.message);
 }
 
+// ==========================================
+// Module «Xử lý và tỷ lệ phát» (phat_*). Idempotent; dọn bản kiểm tra hết hạn khi khởi động. Schema ở server/lib/phat.js (#75).
+// ==========================================
+try {
+  const phat = require('./lib/phat');
+  phat.ensurePhatSchema(db);
+  phat.purgeExpiredDrafts(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng phat_*:', err.message);
+}
+
 module.exports = db;
