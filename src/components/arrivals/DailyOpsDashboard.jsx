@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { apiFetchJson } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
+import DailyOpsPtcRow from './DailyOpsPtcRow';
+import DailyOpsBcvhRank from './DailyOpsBcvhRank';
 
 // Alias dùng chung từ constants/bcvh.js
 const DASHBOARD_BCVH = BCVH_LIST;
@@ -128,6 +130,8 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   const [tongQuan, setTongQuan] = useState(null);
   const [viecCanLam, setViecCanLam] = useState(null);
   const [phuongXa, setPhuongXa] = useState(null);
+  const [ketQuaPhat, setKetQuaPhat] = useState(null);
+  const [phatError, setPhatError] = useState(null);
 
   // Trạng thái mạng / refresh
   const [initialLoading, setInitialLoading] = useState(true);
@@ -140,16 +144,21 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isHoveringSlide, setIsHoveringSlide] = useState(false);
 
-  // Gọi 3 API
+  // Gọi các API dashboard
   const fetchData = useCallback(async (bcvhCode) => {
     setIsRefreshing(true);
     const code = bcvhCode || 'all';
 
     try {
-      const [tqRes, viecRes, pxRes] = await Promise.all([
+      const [tqRes, viecRes, pxRes, phatRes] = await Promise.all([
         apiFetchJson(`/api/arrivals/dashboard/tong-quan-den?bcvh=${code}`),
         apiFetchJson(`/api/arrivals/dashboard/viec-can-lam?bcvh=${code}`),
-        apiFetchJson(`/api/arrivals/dashboard/phuong-xa-tang?bcvh=${code}&gioi_han=5`)
+        apiFetchJson(`/api/arrivals/dashboard/phuong-xa-tang?bcvh=${code}&gioi_han=5`),
+        apiFetchJson(`/api/arrivals/dashboard/ket-qua-phat?bcvh=${code}`).catch(() => ({
+          ok: false,
+          status: 0,
+          error: 'Lỗi mạng khi tải kết quả phát'
+        }))
       ]);
 
       // Kiểm tra 403
@@ -179,9 +188,22 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         // Lỗi từ backend nhưng không phải 403: ghi nhận mất kết nối, giữ số cũ
         if (!connectionLostAt) setConnectionLostAt(new Date());
       }
+
+      // Xử lý riêng kết quả phát để không làm hỏng các khối còn lại (PHAT-3c)
+      if (phatRes.ok) {
+        setKetQuaPhat(phatRes.data);
+        setPhatError(null);
+      } else if (phatRes.status === 403) {
+        setKetQuaPhat(null);
+        setPhatError('Tài khoản không có quyền xem kết quả phát (STAFF không được truy cập).');
+      } else {
+        setKetQuaPhat(null);
+        setPhatError(phatRes.error || 'Không thể tải kết quả phát.');
+      }
     } catch (err) {
       // Lỗi mạng hoặc server không phản hồi: giữ số cũ, bật cảnh báo
       if (!connectionLostAt) setConnectionLostAt(new Date());
+      setPhatError('Lỗi kết nối khi tải kết quả phát.');
     } finally {
       setInitialLoading(false);
       setIsRefreshing(false);
@@ -483,28 +505,8 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         </div>
       </div>
 
-      {/* 3. HÀNG PTC (PLACEHOLDER «SẮP CÓ») */}
-      <div className="bg-white rounded-2xl border border-[#fed7aa] p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-orange-50/50 to-white">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 font-bold shrink-0">
-            PTC
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-[#292524] text-[15px]">Phát thành công (PTC)</span>
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                Sắp có
-              </span>
-            </div>
-            <p className="text-xs text-[#78716c] mt-0.5">
-              Module «Xử lý và tỷ lệ phát» đang được xây dựng (tỷ lệ phát thành công, phát không thành công, chuyển hoàn).
-            </p>
-          </div>
-        </div>
-        <div className="text-xs font-semibold text-[#a8a29e] italic whitespace-nowrap">
-          Chưa phát sinh dữ liệu phát
-        </div>
-      </div>
+      {/* 3. HÀNG PTC (PHAT-3c: THẺ PTC LỚN + 4 THẺ NHỎ) */}
+      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} />
 
       {/* 4. KHỐI «CẦN ĐIỀU HÀNH NGAY HÔM NAY» / «VIỆC CỦA BCVH TÔI» */}
       <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
@@ -607,18 +609,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         )}
       </div>
 
-      {/* 5. PLACEHOLDER: XẾP HẠNG & BIỂU ĐỒ KHUNG GIỜ (SẮP CÓ) */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col items-center justify-center text-center py-10 space-y-2">
-        <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-          Sắp có
-        </span>
-        <h3 className="font-bold text-[16px] text-[#292524]">
-          {isAllView ? 'Xếp hạng BCVH theo khung giờ và Kết quả phát toàn Trung tâm' : 'Hôm nay từng khung giờ thế nào?'}
-        </h3>
-        <p className="text-xs text-[#78716c] max-w-lg">
-          Tính năng thống kê kết quả phát theo từng khung giờ và so sánh tiến độ phát đang thuộc module «Xử lý và tỷ lệ phát».
-        </p>
-      </div>
+      {/* 5. KHỐI BẢNG XẾP HẠNG BCVH (PHAT-3c) */}
+      <DailyOpsBcvhRank
+        ketQuaPhat={ketQuaPhat}
+        phatError={phatError}
+      />
 
       {/* 6. BẢNG «HÔM NAY THEO TỪNG BCVH» (CHỈ HIỆN KHI XEM TOÀN TRUNG TÂM ALL) */}
       {isAllView && (
