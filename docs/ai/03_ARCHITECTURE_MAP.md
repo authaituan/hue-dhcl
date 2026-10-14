@@ -36,6 +36,7 @@ src/
   components/dashboard/ # ChartWidget + editor/ (ChartWidgetModal, SystemWidgetModal, WidgetToolbar, DashboardEditorToolbar, ConfirmModal)
 scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thống cũ vào data/hue-dhcl.db (06_DEPLOYMENT.md mục 5)
 scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
+scripts/sftp-sync.js         # đồng bộ SFTP chạy tay: quét → tải tệp tạm → nạp (source='SFTP'); mặc định chạy khô, --chay-that (SANLUONG-5c; docs/ai/13_SFTP_SYNC.md)
 scripts/sftp-probe.js        # thử kết nối SFTP CHỈ ĐỌC: vân tay khoá máy chủ + liệt kê tên/kích thước/mtime (SANLUONG-5b; chưa tải/nạp; docs/ai/12_SFTP_PROBE.md)
 scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
 scripts/rederive-arrival.js  # tính lại arrival_at/basis/date theo R2 cho dữ liệu đã nạp (chạy thử mặc định, --apply ghi 1 transaction; #59)
@@ -59,6 +60,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `phat_batches`, `phat_status_current`, `phat_status_history`, `phat_drafts`, `phat_draft_rows` | Module «Xử lý và tỷ lệ phát»: đợt nhập, trạng thái phát hiện tại theo (bcvh, shbg), lịch sử, bản kiểm tra + dòng (hết hạn 7 ngày). Chi tiết `08_PHAT.md` — #75 | `user_id` (không FK cứng) |
 | `dashboard_widgets` | Cấu hình ô Dashboard (SYSTEM/CHART), dùng chung mọi người | — |
 | `arrival_import_files` | Nhật ký nạp file "Hàng đến": tên, mã BC nhận, ngày/giờ file, sha256, số dòng, `status` OK/EMPTY/REJECTED/CONFLICT, lỗi/cảnh báo | — |
+| `sftp_sync_runs`, `sftp_sync_files` | «Lượt lấy» SFTP (SANLUONG-5c, `server/lib/sftpSync.js`, tạo ở `server/db.js`): mỗi lượt chạy tay một dòng (`started_at`, `finished_at`, `trigger` MANUAL/TIMER, bộ đếm, `ghi_chu_loi`) và mỗi file một dòng kết quả (`DA_NAP`/`DA_CO`/`CHUA_ON_DINH`/`EMPTY`/`LOI`/`BO_QUA`/`WOULD_IMPORT`). Khoá chống chạy chồng = lượt chưa `finished_at` < 30 phút. Chi tiết `13_SFTP_SYNC.md` | — |
 | `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
 | `ward_bdx_map` | Phường/xã (`ward_key`) → BĐX, `source` AUTO/MANUAL | `commune_id` → commune |
 
