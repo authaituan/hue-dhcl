@@ -592,7 +592,7 @@ test('commit kiểm lại từng dòng tại thời điểm commit: dòng đã h
 });
 
 // ---------------- Quyền ----------------
-test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa gán, STAFF, TIVI 403; không token 401; bản kiểm tra theo BCVH của nó', async () => {
+test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa gán, STAFF, TIVI 403; không token 401; bản kiểm tra của người khác 404', async () => {
   const tpl = (who, b) => call('GET', `/api/phat/template?bcvh=${b}&from=2026-10-02&to=2026-10-03`, who);
   const cho = { admin: [200, 200], ttvh: [200, 200], gdvhM: [200, 403], gdvhM2: [403, 200], gdvhNone: [403, 403], staff: [403, 403], tivi: [403, 403] };
   for (const [who, [a, b]] of Object.entries(cho)) {
@@ -610,7 +610,7 @@ test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa
   }
   assert.equal((await upload(undefined, M, buf)).status, 401);
   assert.equal((await upload('admin', '999999', buf)).status, 400);
-  // Truy cập bản kiểm tra của BCVH M: chỉ người được phép với M
+  // Truy cập bản kiểm tra của admin (BCVH M): người khác không thấy
   const id = st.d1;
   const calls = (who) => Promise.all([
     call('GET', `/api/phat/drafts/${id}`, who), call('GET', `/api/phat/drafts/${id}/rows`, who),
@@ -620,10 +620,11 @@ test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa
     call('POST', `/api/phat/drafts/${id}/assign-list`, who, { trang_thai: 'PTC', shbg: [sh(1)] }),
     call('POST', `/api/phat/drafts/${id}/commit`, who, { mode: 'hop-le' })
   ]);
-  for (const who of ['gdvhM2', 'gdvhNone', 'staff', 'tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
+  // PHAT-1b: bản kiểm tra thuộc người tạo (admin): GDVH khác -> 404 (không lộ sự tồn tại); STAFF, TIVI bị chặn từ cổng nhập -> 403
+  for (const who of ['gdvhM2', 'gdvhNone', 'gdvhM']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(404), who);
+  for (const who of ['staff', 'tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
   assert.deepEqual((await calls(undefined)).map((x) => x.status), Array(8).fill(401));
-  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM')).status, 200);
-  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'ttvh')).status, 200);
+  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'ttvh')).status, 200, 'TTVH xem được bản của người khác');
   assert.equal((await call('GET', '/api/phat/drafts/khong-co-id', 'admin')).status, 404);
   assert.equal(byLine(await rowsOf(id))[2].trang_thai, 'CHUYEN_HOAN', 'các lệnh bị từ chối không đổi gì');
   // GDVH được gán thực hiện trọn quy trình cho BCVH của mình
@@ -1013,4 +1014,254 @@ test('nhật ký bảo mật: hoàn tác ghi sự kiện phat_undo; loai_tru đ�
   assert.ok(lines.some((l) => l.includes('"event":"phat_draft_errors"') && l.includes('"loai_tru":"KHONG_DOI"')));
   assert.ok(!lines.some((l) => /ZZ9\d{8}VN/.test(l)), 'không có SHBG trong nhật ký');
   assert.ok(!lines.some((l) => l.includes('ghi chú A') || l.includes('ghi chú B') || l.includes('gggggg')), 'không có ghi chú');
+});
+
+// ---------------- PHAT-1b: danh sách bản kiểm tra của tôi + quyền sở hữu ----------------
+const dsBan = (who, qs = '') => call('GET', `/api/phat/drafts${qs}`, who);
+const idsBan = (res) => res.body.items.map((x) => x.id);
+/** Dòng hợp lệ chắc chắn cho M2: đổi trạng thái sh(25) sang giá trị khác hiện có. */
+function dongHopLeM2() {
+  const cur = ctx.db.prepare('SELECT trang_thai FROM phat_status_current WHERE bcvh = ? AND shbg = ?').get(M2, sh(25));
+  return [[sh(25), cur && cur.trang_thai === 'PTC' ? 'Phát không thành công' : 'Phát thành công', null]];
+}
+async function banM2(who, ten) {
+  const res = await upload(who, M2, await xlsxBuf([...dongHopLeM2(), [sh(26), 'Trạng thái lạ', null], [sh(27), null, null]]), ten);
+  assert.equal(res.status, 201, JSON.stringify(res.body));
+  return res.body.id;
+}
+
+test('PHAT-1b danh sách: chỉ bản của mình, mới nhất trước, đủ trường, không có nội dung dòng; tổng hợp khớp GET /drafts/:id', async () => {
+  const a1 = await banM2('gdvhM2', 'a1.xlsx');
+  const a2 = await banM2('gdvhM2b', 'a2.xlsx'); // người khác, cùng BCVH
+  const a3 = await banM2('admin', 'a3.xlsx');
+  const a4 = await banM2('gdvhM2', 'a4.xlsx');
+  const b1 = (await upload('gdvhM', M, await xlsxBuf([[sh(7), 'Phát thành công', null]]), 'b1.xlsx')).body.id; // BCVH khác của người khác
+
+  const mine = await dsBan('gdvhM2', `?bcvh=${M2}`);
+  assert.equal(mine.status, 200);
+  const ids = idsBan(mine);
+  assert.ok(ids.includes(a1) && ids.includes(a4), 'có bản của mình');
+  assert.ok(!ids.includes(a2) && !ids.includes(a3) && !ids.includes(b1), 'không có bản của người khác / BCVH khác');
+  assert.ok(ids.indexOf(a4) < ids.indexOf(a1), 'mới nhất trước');
+  assert.ok(mine.body.items.every((x) => x.nguoi_tao === 'PH_GDVH2' && x.bcvh === M2 && x.cua_toi === true));
+  const it = mine.body.items.find((x) => x.id === a1);
+  assert.deepEqual(Object.keys(it), ['id', 'bcvh', 'ten_file', 'tao_luc', 'tao_luc_bangkok', 'het_han_luc', 'nguoi_tao', 'cua_toi', 'tong_dong', 'hop_le', 'bo_qua', 'loi', 'da_nhap']);
+  assert.equal(it.ten_file, 'a1.xlsx');
+  assert.match(it.tao_luc, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  assert.equal(it.tao_luc_bangkok, P.gioBangkok(it.tao_luc));
+  const full = (await call('GET', `/api/phat/drafts/${a1}`, 'gdvhM2')).body;
+  assert.equal(it.het_han_luc, full.het_han_luc);
+  assert.deepEqual([it.tong_dong, it.hop_le, it.bo_qua, it.loi, it.da_nhap], [full.tong_hop.tong_dong, full.tong_hop.hop_le, full.tong_hop.bo_qua_trong, full.tong_hop.loi, full.tong_hop.da_nhap]);
+  assert.deepEqual([it.tong_dong, it.hop_le, it.bo_qua, it.loi, it.da_nhap], [3, 1, 1, 1, 0]);
+  assert.ok(!JSON.stringify(mine.body).includes(sh(25)), 'không trả nội dung dòng (SHBG)');
+  // Sau khi nhập: da_nhap tăng, hop_le giảm
+  assert.equal((await call('POST', `/api/phat/drafts/${a1}/commit`, 'gdvhM2', { mode: 'hop-le' })).status, 200);
+  const sau = (await dsBan('gdvhM2', `?bcvh=${M2}`)).body.items.find((x) => x.id === a1);
+  assert.deepEqual([sau.tong_dong, sau.hop_le, sau.bo_qua, sau.loi, sau.da_nhap], [3, 0, 1, 1, 1]);
+  st.pb = { a1, a2, a3, a4, b1 };
+});
+
+test('PHAT-1b danh sách: ADMIN, TTVH — của mình, hoặc của mọi người với tat_ca=1; GDVH tat_ca=1 -> 403', async () => {
+  const { a1, a2, a3, a4, b1 } = st.pb;
+  const ownAdmin = await dsBan('admin', `?bcvh=${M2}`);
+  assert.ok(idsBan(ownAdmin).includes(a3) && ![a1, a2, a4].some((x) => idsBan(ownAdmin).includes(x)), 'ADMIN không tat_ca: chỉ của mình');
+  assert.ok(ownAdmin.body.items.every((x) => x.cua_toi));
+  assert.deepEqual(idsBan(await dsBan('admin', `?bcvh=${M2}&tat_ca=0`)), idsBan(ownAdmin));
+  for (const who of ['admin', 'ttvh']) {
+    const all = await dsBan(who, `?bcvh=${M2}&tat_ca=1`);
+    assert.equal(all.status, 200, who);
+    for (const x of [a1, a2, a3, a4]) assert.ok(idsBan(all).includes(x), `${who} thấy ${x}`);
+    assert.ok(!idsBan(all).includes(b1), 'đúng BCVH');
+    const x2 = all.body.items.find((x) => x.id === a2);
+    assert.deepEqual([x2.nguoi_tao, x2.cua_toi], ['PH_GDVH3', false]);
+    assert.ok(all.body.items.some((x) => x.id === a3 && x.cua_toi === (who === 'admin')));
+    const tg = all.body.items.map((x) => x.tao_luc);
+    assert.deepEqual(tg, [...tg].sort().reverse(), 'mới nhất trước');
+  }
+  assert.ok(idsBan(await dsBan('ttvh', `?bcvh=${M2}`)).every((x) => ![a1, a2, a3, a4].includes(x)), 'TTVH không tat_ca: chưa có bản nào của mình');
+  assert.equal((await dsBan('gdvhM2', `?bcvh=${M2}&tat_ca=1`)).status, 403);
+  assert.equal((await dsBan('gdvhM2', `?bcvh=${M2}&tat_ca=0`)).status, 200);
+  assert.equal((await dsBan('admin', `?bcvh=${M2}&tat_ca=2`)).status, 400);
+  assert.equal((await dsBan('admin', `?bcvh=${M2}&tat_ca=1&tat_ca=1`)).status, 400);
+});
+
+test('PHAT-1b danh sách: quyền và tham số — GDVH chưa gán / BCVH khác, STAFF, TIVI 403; không token 401; thiếu / sai bcvh, tham số lạ 400', async () => {
+  assert.equal((await dsBan('gdvhNone', `?bcvh=${M2}`)).status, 403);
+  assert.match((await dsBan('gdvhNone', `?bcvh=${M2}`)).body.error, /chưa được gán BCVH nào/);
+  assert.equal((await dsBan('gdvhM', `?bcvh=${M2}`)).status, 403, 'GDVH được gán M, không được xem danh sách M2');
+  assert.equal((await dsBan('gdvhM', `?bcvh=${M}`)).status, 200);
+  for (const who of ['staff', 'tivi']) assert.equal((await dsBan(who, `?bcvh=${M2}`)).status, 403, who);
+  assert.equal((await dsBan(undefined, `?bcvh=${M2}`)).status, 401);
+  assert.equal((await dsBan('admin')).status, 400, 'thiếu bcvh');
+  assert.equal((await dsBan('admin', '?bcvh=999999')).status, 400);
+  assert.equal((await dsBan('admin', `?bcvh=${M2}&x=1`)).status, 400);
+  assert.equal((await dsBan('admin', `?bcvh=${M2}&page=1`)).status, 400);
+});
+
+test('PHAT-1b danh sách: bản hết hạn không hiện (bị dọn); bản còn hạn chưa có dòng vẫn hiện với tổng 0', async () => {
+  const them = (id, het, rows) => {
+    ctx.db.prepare('INSERT INTO phat_drafts (id, bcvh, user_id, tao_luc, het_han_luc, ten_file) VALUES (?, ?, ?, ?, ?, ?)').run(id, M2, st.ids.gdvhM2, '2026-01-01T00:00:00Z', het, id);
+    for (let i = 0; i < rows; i++) ctx.db.prepare("INSERT INTO phat_draft_rows (draft_id, so_dong_goc, shbg) VALUES (?, ?, 'AB12')").run(id, i + 2);
+  };
+  them('pb-het-han', '2000-01-01T00:00:00Z', 2);
+  them('pb-con-han', '2999-01-01T00:00:00Z', 0);
+  const ds = await dsBan('gdvhM2', `?bcvh=${M2}`);
+  assert.ok(!idsBan(ds).includes('pb-het-han'));
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM phat_drafts WHERE id = 'pb-het-han'").get().n, 0, 'đã dọn khi truy cập');
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM phat_draft_rows WHERE draft_id = 'pb-het-han'").get().n, 0);
+  const conHan = ds.body.items.find((x) => x.id === 'pb-con-han');
+  assert.deepEqual([conHan.tong_dong, conHan.hop_le, conHan.bo_qua, conHan.loi, conHan.da_nhap], [0, 0, 0, 0, 0]);
+  // Hết hạn đúng lúc xem: bản có het_han_luc trong quá khứ cũng không hiện ở chế độ tat_ca
+  ctx.db.prepare("UPDATE phat_drafts SET het_han_luc = '2026-01-02T00:00:00Z' WHERE id = 'pb-con-han'").run();
+  assert.ok(!idsBan(await dsBan('admin', `?bcvh=${M2}&tat_ca=1`)).includes('pb-con-han'));
+});
+
+test('PHAT-1b sở hữu: người khác (cùng BCVH, BCVH khác, chưa gán) -> 404 ở mọi điểm cuối; STAFF, TIVI 403; bản không bị đổi', async () => {
+  const id = await banM2('gdvhM2', 'chu.xlsx');
+  const dongTruoc = JSON.stringify(await rowsOf(id, 'gdvhM2'));
+  const batchTruoc = ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches').get().n;
+  const calls = (who) => Promise.all([
+    call('GET', `/api/phat/drafts/${id}`, who), call('GET', `/api/phat/drafts/${id}/rows`, who),
+    call('GET', `/api/phat/drafts/${id}/errors.xlsx`, who, undefined, { binary: true }),
+    call('PATCH', `/api/phat/drafts/${id}/rows`, who, { rows: [{ id: 1, ghi_chu: 'x' }] }), call('DELETE', `/api/phat/drafts/${id}/rows`, who, { ids: [1] }),
+    call('POST', `/api/phat/drafts/${id}/fill`, who, { trang_thai: 'PTC', ids: [1] }),
+    call('POST', `/api/phat/drafts/${id}/assign-list`, who, { trang_thai: 'PTC', shbg: [sh(25)] }),
+    call('POST', `/api/phat/drafts/${id}/commit`, who, { mode: 'hop-le' })
+  ]);
+  for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(404), who);
+  for (const who of ['staff', 'tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
+  const lo = await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2b');
+  assert.equal(lo.body.error, (await call('GET', '/api/phat/drafts/khong-co-id', 'gdvhM2b')).body.error, '404 giống hệt bản không tồn tại');
+  assert.equal(JSON.stringify(await rowsOf(id, 'gdvhM2')), dongTruoc, 'các lệnh bị từ chối không đổi gì');
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches').get().n, batchTruoc);
+  // Người tạo làm được tất cả
+  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 200);
+  assert.equal((await call('GET', `/api/phat/drafts/${id}/rows`, 'gdvhM2')).status, 200);
+  assert.equal((await call('GET', `/api/phat/drafts/${id}/errors.xlsx`, 'gdvhM2', undefined, { binary: true })).status, 200);
+  const dong0 = (await rowsOf(id, 'gdvhM2'))[0].id;
+  assert.equal((await call('PATCH', `/api/phat/drafts/${id}/rows`, 'gdvhM2', { rows: [{ id: dong0, ghi_chu: 'của tôi' }] })).status, 200);
+  st.pb.chu = id;
+});
+
+test('PHAT-1b sở hữu: ADMIN, TTVH xem được bản của người khác nhưng không sửa / điền / xoá dòng / tải file lỗi / commit được (403, không đổi gì)', async () => {
+  const id = st.pb.chu;
+  const batchTruoc = ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches').get().n;
+  const dongTruoc = JSON.stringify(await rowsOf(id, 'gdvhM2'));
+  for (const who of ['admin', 'ttvh']) {
+    const g = await call('GET', `/api/phat/drafts/${id}`, who);
+    assert.equal(g.status, 200, who);
+    assert.equal(g.body.tong_hop.tong_dong, 3);
+    assert.equal((await call('GET', `/api/phat/drafts/${id}/rows`, who)).body.items.length, 3);
+    const sai = await Promise.all([
+      call('GET', `/api/phat/drafts/${id}/errors.xlsx`, who, undefined, { binary: true }),
+      call('PATCH', `/api/phat/drafts/${id}/rows`, who, { rows: [{ id: 1, ghi_chu: 'x' }] }), call('DELETE', `/api/phat/drafts/${id}/rows`, who, { filter: {} }),
+      call('POST', `/api/phat/drafts/${id}/fill`, who, { trang_thai: 'PTC', filter: {} }),
+      call('POST', `/api/phat/drafts/${id}/assign-list`, who, { trang_thai: 'PTC', shbg: [sh(25)] }),
+      call('POST', `/api/phat/drafts/${id}/commit`, who, { mode: 'hop-le' })
+    ]);
+    assert.deepEqual(sai.map((x) => x.status), Array(6).fill(403), who);
+    assert.match(sai[5].body.error, /chỉ xem được, không sửa hay nhập thay/);
+  }
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches').get().n, batchTruoc, 'không có đợt nào do ADMIN / TTVH nhập thay');
+  assert.equal(JSON.stringify(await rowsOf(id, 'gdvhM2')), dongTruoc);
+  // Bản của chính ADMIN: ADMIN tải file lỗi và nhập được
+  assert.equal((await call('GET', `/api/phat/drafts/${st.pb.a3}/errors.xlsx`, 'admin', undefined, { binary: true })).status, 200);
+  const nhap = await call('POST', `/api/phat/drafts/${st.pb.a3}/commit`, 'admin', { mode: 'hop-le' });
+  assert.notEqual(nhap.status, 403, 'bản của chính mình qua được cổng sở hữu');
+  // Người tạo commit được bản của mình
+  const ok = await call('POST', `/api/phat/drafts/${id}/commit`, 'gdvhM2', { mode: 'hop-le' });
+  assert.equal(ok.status, 200);
+  assert.equal(ctx.db.prepare('SELECT user_id FROM phat_batches WHERE id = ?').get(ok.body.batch_id).user_id, st.ids.gdvhM2);
+});
+
+test('PHAT-1b sở hữu: GDVH bị bỏ gán BCVH mất quyền ngay với bản của chính mình (403, kể cả danh sách); gán lại thì có lại; ADMIN vẫn xem', async () => {
+  const id = await banM2('gdvhM2', 'mat-quyen.xlsx');
+  replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, []);
+  try {
+    const calls = await Promise.all([
+      call('GET', `/api/phat/drafts/${id}`, 'gdvhM2'), call('GET', `/api/phat/drafts/${id}/rows`, 'gdvhM2'),
+      call('GET', `/api/phat/drafts/${id}/errors.xlsx`, 'gdvhM2', undefined, { binary: true }),
+      call('PATCH', `/api/phat/drafts/${id}/rows`, 'gdvhM2', { rows: [{ id: 1, ghi_chu: 'x' }] }),
+      call('POST', `/api/phat/drafts/${id}/commit`, 'gdvhM2', { mode: 'hop-le' }), dsBan('gdvhM2', `?bcvh=${M2}`)
+    ]);
+    assert.deepEqual(calls.map((x) => x.status), Array(6).fill(403));
+    assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'admin')).status, 200, 'ADMIN vẫn xem');
+  } finally {
+    replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, [M2]);
+  }
+  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 200, 'gán lại thì có lại');
+  assert.ok(idsBan(await dsBan('gdvhM2', `?bcvh=${M2}`)).includes(id));
+  // Chuyển gán sang BCVH khác cũng mất quyền với M2
+  replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, [M]);
+  try {
+    assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 403);
+  } finally {
+    replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, [M2]);
+  }
+});
+
+// ---------------- PHAT-1b (d): xoá cả bản kiểm tra ----------------
+test('PHAT-1b xoá bản: người khác 404, STAFF/TIVI 403, không token 401; người tạo xoá được bản của mình; bản không tồn tại / xoá lần hai 404', async () => {
+  const id = await banM2('gdvhM2', 'xoa1.xlsx');
+  const dem = () => ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_draft_rows WHERE draft_id = ?').get(id).n;
+  const del = (who, i = id) => call('DELETE', `/api/phat/drafts/${i}`, who);
+  for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone']) assert.equal((await del(who)).status, 404, who);
+  for (const who of ['staff', 'tivi']) assert.equal((await del(who)).status, 403, who);
+  assert.equal((await del(undefined)).status, 401);
+  assert.equal(dem(), 3, 'các lệnh bị từ chối không đổi gì');
+  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 200);
+  const ok = await del('gdvhM2');
+  assert.deepEqual([ok.status, ok.body.da_xoa, ok.body.so_dong, ok.body.id], [200, true, 3, id]);
+  assert.equal(dem(), 0, 'dòng của bản đã xoá');
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_drafts WHERE id = ?').get(id).n, 0);
+  assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 404);
+  assert.ok(!idsBan(await dsBan('gdvhM2', `?bcvh=${M2}`)).includes(id));
+  assert.equal((await del('gdvhM2')).status, 404, 'xoá lần hai');
+  assert.equal((await del('admin', 'khong-co-id')).status, 404);
+});
+
+test('PHAT-1b xoá bản: ADMIN, TTVH xoá mọi bản; GDVH bị bỏ gán BCVH không xoá được bản của chính mình (403)', async () => {
+  const a = await banM2('gdvhM2', 'xoa-admin.xlsx');
+  const b = await banM2('gdvhM2b', 'xoa-ttvh.xlsx');
+  assert.equal((await call('DELETE', `/api/phat/drafts/${a}`, 'admin')).status, 200);
+  assert.equal((await call('DELETE', `/api/phat/drafts/${b}`, 'ttvh')).status, 200);
+  for (const i of [a, b]) assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_drafts WHERE id = ?').get(i).n, 0);
+  const c = await banM2('gdvhM2', 'xoa-mat-quyen.xlsx');
+  replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, []);
+  try {
+    assert.equal((await call('DELETE', `/api/phat/drafts/${c}`, 'gdvhM2')).status, 403);
+  } finally {
+    replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, [M2]);
+  }
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_drafts WHERE id = ?').get(c).n, 1, 'bản còn nguyên');
+  assert.equal((await call('DELETE', `/api/phat/drafts/${c}`, 'gdvhM2')).status, 200);
+});
+
+test('PHAT-1b xoá bản đã có dòng DA_NHAP: đợt nhập, trạng thái, lịch sử vẫn nguyên; hoàn tác đợt vẫn chạy và khôi phục đúng', async () => {
+  const cur = () => ctx.db.prepare('SELECT * FROM phat_status_current WHERE bcvh = ? AND shbg = ?').get(M2, sh(25));
+  const truoc = cur();
+  const id = await banM2('gdvhM2', 'xoa-da-nhap.xlsx');
+  const nhap = await call('POST', `/api/phat/drafts/${id}/commit`, 'gdvhM2', { mode: 'hop-le' });
+  assert.equal(nhap.status, 200);
+  const batchId = nhap.body.batch_id;
+  const snap = () => JSON.stringify({
+    batch: ctx.db.prepare('SELECT * FROM phat_batches WHERE id = ?').get(batchId),
+    cur: cur(),
+    his: ctx.db.prepare('SELECT * FROM phat_status_history ORDER BY id').all(),
+    tong: ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_status_current').get().n
+  });
+  const truocXoa = snap();
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM phat_draft_rows WHERE draft_id = ? AND ket_qua = 'DA_NHAP'").get(id).n, 1);
+  assert.equal((await call('DELETE', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 200);
+  assert.equal(snap(), truocXoa, 'đợt nhập, trạng thái hiện tại và lịch sử không đổi sau khi xoá bản');
+  assert.equal(ctx.db.prepare('SELECT draft_id FROM phat_batches WHERE id = ?').get(batchId).draft_id, id, 'đợt vẫn ghi mã bản đã xoá');
+  const ds = (await call('GET', `/api/phat/batches?bcvh=${M2}&size=200`, 'gdvhM2')).body.items;
+  assert.ok(ds.find((x) => x.id === batchId && x.trang_thai === 'da_nhap'), 'danh sách đợt vẫn có đợt');
+  // Hoàn tác khi bản kiểm tra không còn
+  const hoan = await undo('gdvhM2', batchId);
+  assert.equal(hoan.status, 200);
+  assert.equal(batchRow(batchId).trang_thai, 'da_hoan_tac');
+  const sau = cur();
+  if (truoc) assert.deepEqual([sau.trang_thai, sau.ghi_chu, sau.batch_id], [truoc.trang_thai, truoc.ghi_chu, truoc.batch_id], 'khôi phục trạng thái ngay trước');
+  else assert.equal(sau, undefined, 'trước đó chưa có -> xoá trạng thái');
 });

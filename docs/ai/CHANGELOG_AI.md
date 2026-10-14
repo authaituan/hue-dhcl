@@ -19,6 +19,18 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-14] - Danh sách bản kiểm tra của tôi + rà quyền sở hữu bản kiểm tra (PHAT-1b)
+
+- Việc 0 (khảo sát): trước đó `layDraft` chỉ kiểm quyền BCVH, không kiểm người tạo — mọi GDVH cùng BCVH, ADMIN, TTVH đọc / sửa / tải file lỗi / commit được bản của người khác. Bảng đầy đủ ở báo cáo của ticket.
+- `server/routes/phat.js`: `layDraft(req, { chiXem })` kiểm người tạo trước quyền BCVH — người khác 404 (cùng câu «không tồn tại»); ADMIN/TTVH chỉ `GET /drafts/:id` và `/rows`, còn lại 403; người tạo bị bỏ gán BCVH 403. Điểm cuối mới `GET /api/phat/drafts?bcvh=[&tat_ca=1]`.
+- `server/lib/phat.js`: `dsBanKiemTra` (bản chưa hết hạn, mới nhất trước, tổng hợp theo dòng bằng một truy vấn, không trả nội dung dòng).
+- Test (`tests/phat.test.js`): +7 ca (danh sách của mình, `tat_ca`, quyền / tham số, hết hạn, người khác 404, ADMIN/TTVH xem không sửa / commit, GDVH bị bỏ gán); sửa 1 ca cũ (người khác từng 403 → 404). `npm test`: 23 file, 312 ca, 0 fail. `npm run build` OK.
+- Docs: `08_PHAT.md` (điểm cuối + quy tắc sở hữu), `04_DECISIONS.md` #77 (kèm 5 điểm tự quyết chờ PO), `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`.
+- PO duyệt tự quyết a, b, c, e, f, g; làm thêm (d) `DELETE /api/phat/drafts/:id` (`routes/phat.js`, `lib/phat.js` `xoaBanKiemTra`): người tạo hoặc ADMIN/TTVH xoá cả bản + dòng; đã kiểm không khoá ngoại, hoàn tác và lịch sử không phụ thuộc bản (không cần 409). Nhật ký `phat_draft_delete`. +3 ca test. `08_PHAT.md`, #77 cập nhật.
+- Chưa làm: giao diện (PHAT-2).
+
+---
+
 ## [2026-10-14] - DASH-6b sửa nhỏ 1: chú thích khối «Phường/xã tăng mạnh» (`DailyOpsDashboard.jsx`) bỏ chữ «trung bình 4 tuần cùng thứ» → «cùng thứ tuần trước (cùng giờ)», thêm ý chip chỉ hiện số BG khi hôm qua quá ít; sửa chú thích mã `wardChangeChip` (sàn phường/xã 10). Không đổi logic.
 
 ---
