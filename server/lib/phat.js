@@ -291,6 +291,15 @@ function layBanKiemTra(db, id) {
   return db.prepare('SELECT * FROM phat_drafts WHERE id = ?').get(String(id)) || null;
 }
 
+/** Xoá cả bản kiểm tra và các dòng của nó. KHÔNG đụng phat_batches / phat_status_*: hoàn tác đợt chỉ dùng lịch sử trạng thái. Trả số dòng đã xoá. */
+function xoaBanKiemTra(db, id) {
+  return db.transaction(() => {
+    const n = db.prepare('DELETE FROM phat_draft_rows WHERE draft_id = ?').run(id).changes;
+    db.prepare('DELETE FROM phat_drafts WHERE id = ?').run(id);
+    return n;
+  })();
+}
+
 function tongHop(db, draftId) {
   const out = {
     tong_dong: 0, hop_le: 0, bo_qua_trong: 0, loi: 0, da_nhap: 0, canh_bao: 0,
@@ -307,6 +316,33 @@ function tongHop(db, draftId) {
   out.khong_doi = out.loi_theo_ma[MA_LOI.KHONG_DOI];
   out.loi_can_sua = out.loi - out.khong_doi;
   return out;
+}
+
+/**
+ * Danh sách bản kiểm tra CHƯA hết hạn của một BCVH, mới nhất trước (PHAT-1b). Không trả nội dung dòng.
+ * tatCa=false: chỉ bản của user; tatCa=true (ADMIN, TTVH): của mọi người. Tổng hợp cùng nghĩa với tongHop (bo_qua = bo_qua_trong, loi = mọi dòng lỗi).
+ */
+function dsBanKiemTra(db, { bcvh, user, tatCa }) {
+  purgeExpiredDrafts(db);
+  const ds = db.prepare(`SELECT d.*, u.full_name AS tao_ten, u.hrm_code AS tao_hrm FROM phat_drafts d LEFT JOIN users u ON u.id = d.user_id
+    WHERE d.bcvh = @b AND d.het_han_luc >= @now ${tatCa ? '' : 'AND d.user_id = @u'} ORDER BY d.tao_luc DESC, d.rowid DESC`)
+    .all({ b: bcvh, now: nowIso(), ...(tatCa ? {} : { u: user.id }) });
+  if (!ds.length) return [];
+  const tong = new Map(db.prepare(`SELECT r.draft_id, r.ket_qua, COUNT(*) AS n FROM phat_draft_rows r JOIN phat_drafts d ON d.id = r.draft_id
+    WHERE d.bcvh = ? GROUP BY r.draft_id, r.ket_qua`).all(bcvh).reduce((m, r) => {
+    const o = m.get(r.draft_id) || {};
+    o[r.ket_qua] = r.n;
+    return m.set(r.draft_id, o);
+  }, new Map()));
+  return ds.map((d) => {
+    const t = tong.get(d.id) || {};
+    const loi = t[KET_QUA.LOI] || 0;
+    return {
+      id: d.id, bcvh: d.bcvh, ten_file: d.ten_file, tao_luc: d.tao_luc, tao_luc_bangkok: gioBangkok(d.tao_luc), het_han_luc: d.het_han_luc,
+      nguoi_tao: d.tao_ten || d.tao_hrm || null, cua_toi: d.user_id === user.id,
+      tong_dong: Object.values(t).reduce((a, b) => a + b, 0), hop_le: t[KET_QUA.HOP_LE] || 0, bo_qua: t[KET_QUA.BO_QUA_TRONG] || 0, loi, da_nhap: t[KET_QUA.DA_NHAP] || 0
+    };
+  });
 }
 
 const dongRa = (r) => ({
@@ -808,6 +844,6 @@ function hoanTacDot(db, batch, user) {
 
 module.exports = {
   PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
-  kiemTraLai, taoBanKiemTra, layBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
+  kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
   demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, dsDot, hoanTacDot
 };

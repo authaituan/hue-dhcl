@@ -1,7 +1,7 @@
 # 📸 SNAPSHOT — Trạng thái kỹ thuật HIỆN TẠI
 
 > Chỉ ghi trạng thái hiện tại (không tường thuật từng PR — tường thuật ở `CHANGELOG_AI.md`).
-> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-14 (DASH-6b chặng 2).
+> Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-10-14 (PHAT-1b).
 
 ## 1. Tổng quan
 - **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
@@ -20,7 +20,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 | Quản lý người dùng (tạo, sửa tên/quyền, đặt lại mật khẩu, khoá/mở khoá) — chỉ ADMIN; 5 vai trò ADMIN/TTVH/GDVH/STAFF/TIVI (`server/roles.js`) | Có |
 | Gán GDVH ↔ BCVH (`user_bcvh`, `GET/PUT /api/users/:id/bcvh`, `bcvh_codes` trong danh sách) | Có (API; chưa giao diện); dùng để giới hạn xuất file của GDVH |
 | Vai trò `TIVI` (màn hình tivi 24/24): chỉ 3 endpoint dashboard «đến» + `/auth/me` (allowlist, từ chối mặc định), phạm vi `all` / một BCVH (`user_tivi_scope`, `tivi_scope` trong API tài khoản), token `JWT_EXPIRY_TIVI` (90 ngày) — #74 | Có (API; chưa giao diện) |
-| Module «Xử lý và tỷ lệ phát» (backend): file mẫu 1 dòng/SHBG, tải lên + kiểm tra từng dòng, biên tập, nhập từng phần, file lỗi, hoàn tác đợt, danh sách đợt, `GET /api/phat/ty-le` (mẫu số khớp `tong-quan-den`, mức cập nhật, khung giờ đến, tồn chờ); `nhap_luc` do máy chủ ghi — `08_PHAT.md`, #75 | Có (API; chưa giao diện — PHAT-2; chưa nối Dashboard / tivi — PHAT-3) |
+| Module «Xử lý và tỷ lệ phát» (backend): file mẫu 1 dòng/SHBG, tải lên + kiểm tra từng dòng, biên tập, nhập từng phần, file lỗi, hoàn tác đợt, danh sách đợt, **danh sách bản kiểm tra của tôi `GET /api/phat/drafts` + bản kiểm tra thuộc người tạo (ADMIN/TTVH chỉ xem, xoá được mọi bản; người khác 404 — #77, PHAT-1b)**, `DELETE /api/phat/drafts/:id`, `GET /api/phat/ty-le` (mẫu số khớp `tong-quan-den`, mức cập nhật, khung giờ đến, tồn chờ); `nhap_luc` do máy chủ ghi — `08_PHAT.md`, #75 | Có (API; chưa giao diện — PHAT-2; chưa nối Dashboard / tivi — PHAT-3) |
 | Quản lý mạng lưới — danh sách, lọc, thêm/sửa/xoá bưu cục, người phụ trách, import/export Excel | Có |
 | Dashboard động (3 ô CHART mặc định trên dữ liệu bưu cục; ADMIN chỉnh sửa) | Có |
 | Lọc IP truy cập, header bảo mật, trang 404 | Có |
@@ -49,7 +49,7 @@ Recharts · ExcelJS (import/export mạng lưới) · csv-parse (đọc CSV "Hà
 - Dashboard điều hành: 6 BCVH cố định (`DASHBOARD_BCVH`); chỉ hai mốc so sánh — hôm qua (hiển thị) và cùng thứ tuần trước (dùng để gắn mức), cùng giờ dữ liệu; không còn «TB 4 tuần»/«mức bình thường» (#76); "đủ trạng thái (SHBG, BD8, BD10)" = đủ cả 3 mốc; mức sản lượng lệch 15% / 25% (TẠM) chỉ khi mốc tuần trước ≥ 50 bưu gửi và `den_luc` từ 12:00, ngược lại trả `chua_du_du_lieu` + lý do; hàng đi ngoài không gắn mức — khác cảnh báo dữ liệu ADMIN-only — #41, #43–#47 (phần còn hiệu lực), #73, #76.
 
 ## 5. Kiểm thử
-`npm test`: 23 file, 304 ca — 304 pass, 0 fail, 2026-10-14 (DASH-6b chặng 2; trước đó 318 ca: xoá 21 ca của API 3e, sửa ~30 khối, thêm ~11 ca mới).
+`npm test`: 23 file, 315 ca — 315 pass, 0 fail, 2026-10-14 (PHAT-1b: +10 ca ở `tests/phat.test.js`; trước đó DASH-6b chặng 2).
 
 ## 6. Rủi ro / việc treo
 - **DB thật còn ngày đến theo quy tắc cũ** (mốc sớm nhất): sao lưu rồi chạy `scripts/rederive-arrival.js` (chạy thử → `--apply`, `06_DEPLOYMENT.md` mục 8). Trên bản chép: đổi 110/13.102 dòng, sản lượng 02→08/10 giữ 12.783. Dữ liệu nạp mới đã theo R2.
