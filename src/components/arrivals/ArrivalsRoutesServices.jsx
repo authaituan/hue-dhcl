@@ -55,8 +55,8 @@ export default function ArrivalsRoutesServices({ data }) {
   // Route Bar Chart Data
   const routeBarData = (routes?.items || []).map(r => ({
     name: r.ten,
-    'Sản lượng thường': r.san_luong - (r.hang_nang || 0),
-    'Hàng nặng': r.hang_nang || 0,
+    'Còn lại': r.san_luong - (r.hang_di_ngoai || 0),
+    'Hàng đi ngoài': r.hang_di_ngoai || 0,
     tong: r.san_luong,
     ty_trong: r.ty_trong
   }));
@@ -115,8 +115,8 @@ export default function ArrivalsRoutesServices({ data }) {
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                 <RechartsTooltip formatter={(val) => val.toLocaleString('vi-VN')} cursor={{fill: 'transparent'}} />
-                <Bar dataKey="Sản lượng thường" stackId="a" fill="#F97316" radius={[0,0,0,0]} />
-                <Bar dataKey="Hàng nặng" stackId="a" fill="#fca5a5" radius={[0,4,4,0]} />
+                <Bar dataKey="Còn lại" stackId="a" fill="#F97316" radius={[0,0,0,0]} />
+                <Bar dataKey="Hàng đi ngoài" stackId="a" fill="#fca5a5" radius={[0,4,4,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -178,7 +178,7 @@ export default function ArrivalsRoutesServices({ data }) {
                   <th className="px-4 py-2">Tên</th>
                   <th className="px-4 py-2 text-right">Sản lượng</th>
                   <th className="px-4 py-2 text-right">Tỷ trọng</th>
-                  <th className="px-4 py-2 text-right">Hàng nặng</th>
+                  <th className="px-4 py-2 text-right">Hàng đi ngoài</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,7 +188,7 @@ export default function ArrivalsRoutesServices({ data }) {
                     <td className="px-4 py-2 text-right">{r.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(r.ty_trong)}</td>
                     <td className="px-4 py-2 text-right text-gray-500">
-                      {r.hang_nang.toLocaleString('vi-VN')}
+                      {r.hang_di_ngoai.toLocaleString('vi-VN')}
                     </td>
                   </tr>
                 ))}
@@ -198,7 +198,7 @@ export default function ArrivalsRoutesServices({ data }) {
                     <td className="px-4 py-2 text-right">{routes.chua_co_ten.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(routes.chua_co_ten.ty_trong)}</td>
                     <td className="px-4 py-2 text-right">
-                      {routes.chua_co_ten.hang_nang.toLocaleString('vi-VN')}
+                      {routes.chua_co_ten.hang_di_ngoai.toLocaleString('vi-VN')}
                     </td>
                   </tr>
                 )}

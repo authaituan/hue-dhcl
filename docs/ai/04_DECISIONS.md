@@ -245,12 +245,12 @@ MANAGER (vẫn 200, các chỉ số chính giữ nguyên). `/quality-mocs` (gồ
 ### 36. "Đường thư" thay cho "Tuyến thư" (PO, 08/10/2026)
 "Tuyến thư" đổi tên thành "Đường thư" trong mọi chữ hiển thị/tài liệu (cột dữ liệu gốc vẫn là `Ten_duong_thu`, trong DB là `route_name`).
 
-### 37. Hàng nặng (PO, 08/10/2026)
+### 37. Hàng nặng (PO, 08/10/2026) **[ĐÃ BỊ THAY bởi #76 (DASH-6b): bỏ khái niệm và ngưỡng «hàng nặng»; thay bằng «hàng đi ngoài».]**
 Hàng nặng = bưu gửi có khối lượng lớn hơn 2,5 kg (> 2.500 g; đúng 2.500 g chưa tính là nặng). Khối lượng của bưu gửi lấy theo đúng định
 nghĩa đang dùng ở `/summary` của 3b (một giá trị cho mỗi bưu gửi; báo cáo 3b ghi không có SHBG nào lệch khối lượng giữa các dòng).
 Khối lượng rỗng/0 không tính là nặng.
 
-### 38. Hàng nặng là chỉ số phụ (PO, 08/10/2026)
+### 38. Hàng nặng là chỉ số phụ (PO, 08/10/2026) **[Nay áp cho «hàng đi ngoài» — #76.]**
 Hàng nặng nằm trong sản lượng đến, không tách ra khỏi sản lượng. Chỉ là chỉ số phụ: số bưu gửi nặng và tỷ lệ trên sản lượng của nhóm.
 
 ### 39. Quy tắc đếm cho đường thư / dịch vụ (PO, 08/10/2026)
@@ -280,7 +280,7 @@ và cờ `co_du_lieu: false` (không lỗi). Danh sách đặt thành hằng s�
 **Cách đã chọn (Claude Code)**: hằng số `DASHBOARD_BCVH` (`server/lib/dashboardQuery.js`). `co_du_lieu` = có ít nhất 1 file đã nạp (`status = 'OK'`)
 với `unit_code` = mã BCVH (file EMPTY không tính là có dữ liệu). Con số của từng BCVH lọc theo `receiver_code` (BC nhận) = mã BCVH.
 
-### 42. "Bình thường" của một BCVH (PO, 08–09/10/2026)
+### 42. "Bình thường" của một BCVH (PO, 08–09/10/2026) **[ĐÃ BỊ BỎ bởi #76 (DASH-6b): không còn «TB 4 tuần» / «mức bình thường» làm mốc so sánh; API 3e đã xoá.]**
 "Bình thường" = trung bình sản lượng đến của tối đa 4 ngày cùng thứ gần nhất trước ngày xét, cùng khoảng giờ (00:00 đến mốc `as_of`).
 Dữ liệu lịch sử dự kiến ~30 ngày. Không ẩn khi dữ liệu ngắn: tính trên số tuần đang có, trả `so_tuan` (0–4) kèm `it_du_lieu: true` khi `so_tuan < 4`;
 `so_tuan = 0` thì không có so sánh (null).
@@ -299,7 +299,7 @@ Dòng "tổng" chỉ so sánh trên các BCVH có `so_tuan > 0`; `so_tuan` của
 nó trong khoảng lọc có giá trị). Đếm số SHBG khác nhau, không đếm dòng. Khối `tong_hop` của `/quality-mocs`: `du_trang_thai`, `co_xn_tui`, `co_xnd_bd10`,
 `khong_xnd_bd10`, `co_xn_bg` (số và %, mẫu số = sản lượng đến); kiểm: `co_xnd_bd10 + khong_xnd_bd10 = sản lượng`.
 
-### 45. Điểm cần điều hành và ngưỡng (PO, 08–09/10/2026)
+### 45. Điểm cần điều hành và ngưỡng (PO, 08–09/10/2026) **[API 3e đã xoá ở #76; ngưỡng 15% / 25% nay áp cho Dashboard DASH-1 theo mốc tuần trước; loại việc «hàng nặng» đã bỏ.]**
 Hệ thống tự tính từ MỘT đối tượng cấu hình `DASHBOARD_THRESHOLDS` (ADMIN chỉnh được ở ticket sau — cần bảng cấu hình; ticket 3e không làm giao diện/lưu cấu hình):
 - Sản lượng hôm nay lệch so với "bình thường": từ 15% là `trong_ngay`, từ 25% là `xu_ly_ngay`; lệch âm → `san_luong_thap`, dương → `san_luong_cao`.
 - Hàng nặng (khối lượng > `heavy_g`, mặc định 2.500 g, #37): từ 7% sản lượng của BCVH → `hang_nang`, mức `trong_ngay`. **[Đã sửa định nghĩa ở #48 — nay so với tỷ lệ bình thường, tính bằng điểm %.]**
@@ -339,7 +339,7 @@ MANAGER + ADMIN xem; STAFF 403; không token 401 (như các API "Hàng đến" k
   30 ngày ~4,9 s. `/center` gom đường thư + dịch vụ + tổ hợp mốc vào MỘT lần chạy CTE (bản hẹp vật chất hoá) — gọi 3 hàm riêng mất 1,9–2,1 s. Khoảng dài vẫn cần bảng tổng hợp (#35).
 - **Tham số**: khoá lạ → 400; `heavy_g` chỉ ở `/overview` và `/center`. API không sinh câu chữ tiếng Việt (chỉ mã `loai`, `muc`, `don_vi`); giao diện tự ghép câu.
 
-### 48. Sửa định nghĩa điểm "hàng nặng" + sản lượng tối thiểu (PO, 09/10/2026; sửa #45 sau khi xem số liệu mẫu)
+### 48. Sửa định nghĩa điểm "hàng nặng" + sản lượng tối thiểu (PO, 09/10/2026; sửa #45 sau khi xem số liệu mẫu) **[ĐÃ BỊ BỎ bởi #76 (DASH-6b); sàn 50 SHBG nay áp cho mốc tuần trước của Dashboard DASH-1.]**
 PO sửa định nghĩa (không phải lựa chọn của Claude Code):
 1. Điểm `hang_nang` = (tỷ lệ hàng nặng hôm nay) − (tỷ lệ hàng nặng bình thường) ≥ **7 điểm %**, thay cho "tỷ lệ hàng nặng ≥ 7% sản lượng". "Bình thường" = các ngày cùng thứ
    (tối đa 4, cùng khung giờ 00:00 → `as_of`, như #42). `so_tuan = 0` thì không phát sinh điểm này. Ngưỡng 7 vẫn nằm trong `DASHBOARD_THRESHOLDS` (khoá `hang_nang.trong_ngay_diem_pct`).
@@ -527,7 +527,7 @@ Chỉ số MỚI duy nhất ở mức BD10; KHÔNG đổi sản lượng, chưa 
 - **Tải / xuất (KHÔNG đổi)**: `/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` vẫn theo `arrivalsExport.allowedBcvhCodes`: ADMIN / TTVH mọi BCVH; GDVH chỉ BCVH được giao (khác → 403; chưa được giao → `export-scope` rỗng, mọi file 403).
 - **Sửa**: #52 (nay áp cho cả hai chỉ số), #60 (bỏ "phạm vi BCVH theo vai trò"), #67 (phạm vi theo bộ lọc cho mọi vai trò); kéo theo #69 (quyền) và #70 (`ngay_du_lieu_moi_nhat` không còn phụ thuộc BCVH được giao). Đóng backlog 7f5.
 
-### 73. Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (PO chốt 11/10/2026, canvas bản 31 bảng 5 và 7 — DASH-1)
+### 73. Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (PO chốt 11/10/2026, canvas bản 31 bảng 5 và 7 — DASH-1) **[Hàng nặng, TB cùng thứ và mức sản lượng đã sửa bởi #76 (DASH-6b).]**
 - **Endpoint mới** (không đổi `/dashboard/overview|trend|wards-surge|center` của 3e): `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (`server/lib/dashboardDenQuery.js`). Tham số `bcvh` (một mã trong 6 BCVH | `all`, mặc định `all`), `date` (YYYY-MM-DD); `/phuong-xa-tang` thêm `gioi_han` (1..50, mặc định 5). Quyền như `/arrivals`: ADMIN, TTVH, GDVH xem mọi BCVH (#72), STAFF 403; `bcvh_goi_y` = BCVH được giao của GDVH để giao diện chọn sẵn (vai trò khác: rỗng).
 - **"Hôm nay"** của MỖI BCVH = ngày file OK mới nhất của BCVH đó (`latestFileDate`, như #70), hoặc `date`; KHÔNG dùng ngày hệ thống. `den_luc` = `arrival_at` lớn nhất trong ngày của BCVH; "cùng giờ" = 00:00 → `den_luc` của chính BCVH đó. `nap_luc` = `MAX(imported_at)` của file OK (giờ nạp thật, UTC). Phạm vi nhiều BCVH lệch ngày: `ngay_du_lieu` = ngày muộn nhất, `cung_ngay_du_lieu` = false.
 - **Sản lượng**: `buu_gui` = SHBG khác nhau (đếm như #28, `buildCountedCte`); `luot` = tổ hợp (SHBG, BD10, BD8) khác nhau có `arrival_at` trong khoảng (định nghĩa #11, dùng lại riêng cho dashboard). So sánh: hôm qua cùng giờ; TB các ngày cùng thứ (tối đa 4) cùng giờ có file. Ngày so sánh không có file OK → `null` (không trả 0). Tổng nhiều BCVH chỉ so trên các BCVH có mốc so sánh (`so_bcvh`).
@@ -559,6 +559,20 @@ Chi tiết bảng và API: `08_PHAT.md`. Nguồn quy tắc chuẩn: PHAT-0 (nế
 - **Ba chỉnh của PO khi duyệt chặng 1** (13/10/2026): (1) `errors.xlsx?loai_tru=KHONG_DOI` (nhiều mã cách nhau dấu phẩy) bỏ các dòng loại lỗi đó; kết quả commit và đợt nhập tách «lỗi cần sửa» (`loi_can_sua`, `so_loi`) khỏi «không đổi» (`khong_doi`, `so_khong_doi`); (2) ghi chú quá 500 ký tự: cắt còn 500, cảnh báo vàng «Ghi chú bị cắt (tối đa 500 ký tự)», vẫn nhập; (3) tỷ lệ và các API có giờ nhập trả thêm giờ theo múi `Asia/Bangkok` (`*_bangkok`).
 - **Cài đặt chặng 2 (tự quyết, chờ PO duyệt)**: hoàn tác khôi phục trạng thái ngay trước từ lịch sử của các đợt CHƯA hoàn tác (khôi phục cả ghi chú, đợt, giờ nhập); lịch sử của đợt đã hoàn tác không còn được tính; dòng hoàn tác ghi vào `phat_status_history` với `batch_id` của đợt bị hoàn tác; sau hoàn tác các dòng bản kiểm tra của đợt đó được mở khóa và kiểm tra lại (sửa rồi nhập lại được). `so_lieu_den_luc` chỉ tính đợt chưa hoàn tác. Tồn chờ xét lùi tối đa 30 ngày. GDVH chỉ hoàn tác đợt do chính mình nhập.
 
+
+### 76. Hàng đi ngoài thay hàng nặng; bỏ «TB 4 tuần»; đổi mốc đánh giá (PO chốt 14/10/2026 sau khảo sát DASH-6a — DASH-6b chặng 1)
+Căn cứ: `09_DASH6_AUDIT.md`. Sửa/thay #37, #38, #42, #45, #48 và các mục «hàng nặng», «TB cùng thứ», «mức sản lượng» của #73.
+- **Hàng đi ngoài**: SHBG «đi ngoài» = có ÍT NHẤT MỘT dòng (trong toàn bộ dữ liệu đã nạp) mà số hiệu BD8 (cắt khoảng trắng, viết hoa) bằng SHBG (cũng chuẩn hoá). BD8 rỗng không tính. Đếm SHBG khác nhau; mẫu số = số SHBG đến (R2, như «Sản lượng đến»). MỘT định nghĩa duy nhất: `DI_NGOAI_SQL` trong `server/lib/arrivalsQuery.js` (câu `EXISTS` trên CTE `s`, dùng chỉ mục `tracking_no`), dùng cho `/summary`, `/by-route`, `/by-service` và `tong-quan-den`. SHBG «lẫn» (một dòng BD8 = SHBG, một dòng BD8 rỗng hoặc của túi khác) vẫn là đi ngoài (chọn «≥ 1 dòng» thay vì «mọi dòng»: lệch ≤ 0,4 điểm theo khảo sát).
+- **Bỏ «hàng nặng»**: khái niệm, nhãn, ngưỡng (≥ 2.000 g ở dashboard, > 2.500 g ở «Sản lượng đến») và tham số `heavy_g` (gửi nữa → 400 «Tham số không hỗ trợ»). **Giữ** «Khối lượng (kg)» (`khoi_luong_g`), `khoi_luong_tb_g` và tra cứu theo khối lượng. **Xuất Excel không đổi** (không thêm cột).
+- **Hàng đi ngoài chỉ hiển thị** (số, %, chênh theo điểm % so hôm qua và tuần trước), KHÔNG gắn mức, cho đến khi có ≥ 4 tuần dữ liệu thật. Loại việc «hàng nặng tăng ≥ 7 điểm» bị bỏ khỏi «Cần điều hành» (chỉ còn trong API 3e, nay đã xoá).
+- **Bỏ «TB 4 tuần» / «mức bình thường»** làm mốc so sánh trên mọi API: không còn `so_tuan`, `it_du_lieu`, `SO_TUAN_SO_SANH`. Chỉ còn hai mốc, cùng giờ DỮ LIỆU của hôm nay (`den_luc`, không phải đồng hồ máy): **hôm qua** và **cùng thứ tuần trước** (D−7). Nhãn mức «Bình thường» giữ làm tên mức.
+- **Đánh giá mức sản lượng lệch** (ngưỡng 15% / 25% giữ nguyên) CHỈ dùng mốc cùng thứ tuần trước («hôm qua» chỉ hiển thị — khảo sát: báo sai do hiệu ứng thứ trong tuần), với hai điều kiện ở `server/config/dashboard-thresholds.js`: `SAN_SO_SANH_TOI_THIEU = 50` (mốc tuần trước từ 50 bưu gửi trở lên; đúng 50 được xét) và `GIO_BAT_DAU_DANH_GIA = 12` (giờ của `den_luc` từ 12; 11:59:59 chưa). Không đủ → KHÔNG gắn mức: `muc_chi_tiet.san_luong = null`, `danh_gia_san_luong { trang_thai: 'chua_du_du_lieu', ly_do }` với `ly_do` ∈ `thieu_tuan_truoc` | `moc_duoi_san` | `chua_toi_gio` (kiểm theo thứ tự đó). Đủ → `trang_thai: 'da_danh_gia'`, `ly_do: null`. Sửa luôn lỗi khảo sát: hai ngày lẻ (2 bưu gửi) làm 04/10 và 06/10 báo «Xử lý ngay» sai (+136.950% / +126.850%) và dữ liệu dở dang 10/10 (244 bưu gửi tới 10:45) báo «Xử lý ngay» (−86%).
+- **Số chênh có sàn (PO chỉnh 14/10/2026, DASH-6b chặng 2)**: khi mốc so sánh (hôm qua HOẶC tuần trước) có dưới `SAN_SO_SANH_TOI_THIEU` (50) bưu gửi thì `chenh_pct` / `chenh_diem` = `null` (vẫn giữ `gia_tri` / `buu_gui` / `mau_so` của mốc); mốc đúng 50 thì có số. Áp cho `san_luong.so_hom_qua_cung_gio` / `so_tuan_truoc_cung_gio` (mốc = tổng các BCVH có mốc), `theo_bcvh[].so_hom_qua` / `so_tuan_truoc`, `hang_di_ngoai.*.chenh_diem` (sàn tính trên `mau_so` của mốc) và `phuong-xa-tang` (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`; số tuyệt đối `tang_so_hom_qua` và thứ tự xếp không đổi) — RIÊNG phường/xã dùng sàn `SAN_SO_SANH_PHUONG_XA` = 10 (PO chỉnh: phường/xã nhỏ hơn nhiều sản lượng cả BCVH; mốc 9 → null, mốc 10 → có số), còn `SAN_SO_SANH_TOI_THIEU` = 50 giữ cho sản lượng và hàng đi ngoài. Vì vậy không còn số kiểu +4.900%. Mức sản lượng vẫn đánh giá riêng ở `danh_gia_san_luong`.
+- **Khoá API đổi tên hẳn, không giữ khoá cũ** (`tong-quan-den`): `hang_nang` → `hang_di_ngoai { buu_gui, ty_le, mau_so, so_hom_qua_cung_gio, so_tuan_truoc_cung_gio }` (hai mốc: `{ buu_gui, ty_le, mau_so, chenh_diem, so_bcvh }` hoặc `null`; `mau_so` = số bưu gửi đến; bỏ `khong_co_khoi_luong`, `nguong_g`); `san_luong.so_tb_4_tuan_cung_thu` → `san_luong.so_tuan_truoc_cung_gio { gia_tri, chenh_pct, so_bcvh }`; `theo_bcvh[].so_tb_4_tuan { gia_tri, chenh_pct, so_tuan }` → `theo_bcvh[].so_tuan_truoc { gia_tri, chenh_pct }` (thêm `theo_bcvh[].danh_gia_san_luong`); `phuong-xa-tang`: `tb_4_tuan_cung_thu`, `so_tuan`, `lech_so_tb_pct` → `tuan_truoc_cung_gio`, `lech_so_tuan_truoc_pct`; `/summary`, `/by-route`, `/by-service`: `hang_nang`, `ty_le_hang_nang`, `nguong_hang_nang_g` → `hang_di_ngoai`, `ty_le_hang_di_ngoai` (bỏ ngưỡng). `nguong` của `tong-quan-den` echo `DASHBOARD_DEN_THRESHOLDS` mới (bỏ `HANG_NANG_G`, `SO_TUAN_SO_SANH`; thêm `SAN_SO_SANH_TOI_THIEU`, `GIO_BAT_DAU_DANH_GIA`).
+- **Xoá API 3e** (`/dashboard/overview|trend|wards-surge|center`, giao diện không còn gọi; đã grep `src/`, `server/`, `scripts/`, `public/`, `tests/`): `server/lib/dashboardQuery.js` chỉ còn `DASHBOARD_BCVH` và `bcvhNames` (nơi khác dùng); `tests/dashboard-api.test.js` (21 ca) bị xoá, riêng ca `/quality-mocs` (phần bổ sung của 3b) chuyển sang `tests/quality-mocs.test.js`. Các ca đối chiếu chéo `/center` trong `bd10-api`, `bd10-trang-thai`, `arrivals-source`, `roles`, `tivi` được bỏ hoặc chuyển sang `/summary` / `/quality-mocs`; khối `chat_luong` của `/center` (#61) không còn ở đâu ngoài `/quality-mocs`. Allowlist TIVI (#74) không đổi.
+- **Mốc «cùng giờ» (Việc 0)**: mã đã đúng — hôm qua và tuần trước cắt theo `den_luc` của hôm nay (`windowFilter(ma, ngày, cut)`, `cut` = giờ của `MAX(arrival_at)`), không dùng đồng hồ máy. «−89,7% so hôm qua cùng giờ» lúc 10:45 là số thật: 244 bưu gửi hôm nay (dữ liệu dở dang) so với 2.359 hôm qua tới 10:45 (cả ngày 3.616). Không sửa mã, thêm ca test khoá hành vi.
+- **Đối chiếu bản sao DB dev** (533140, 01–10/10/2026, chỉ đọc, đã xoá): tỷ lệ đi ngoài theo ngày KHỚP từng ngày với khảo sát (749/3.631 … 967/3.616; 01→09/10 30.308 SHBG, 6.540 đi ngoài = 21,6%), `tong-quan-den.hang_di_ngoai` = đếm trực tiếp. Mức sản lượng theo quy tắc mới: 08/10 và 09/10 «Bình thường» (đủ điều kiện); 01–03, 05, 07/10 thiếu tuần trước; 04/10 và 06/10 mốc dưới 50; 10/10 chưa tới 12:00 — không ngày nào còn «Xử lý ngay» sai.
+- **Chưa làm (ngoài phạm vi)**: giao diện (chặng 2 — đổi khoá và nhãn ở `DailyOpsDashboard`, `TiviView`, `ArrivalsOverview`, `ArrivalsRoutesServices`); ngày lễ/nghỉ làm mốc; ngưỡng cho hàng đi ngoài (chờ ≥ 4 tuần dữ liệu thật).
 
 ## Drift phát hiện
 _(chưa có)_

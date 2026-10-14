@@ -33,7 +33,7 @@ function BcvhComparisonTable({ filters, bcvhList }) {
               san_luong: sumRes.data.san_luong,
               tui_kien: sumRes.data.tui_kien,
               khoi_luong_g: sumRes.data.khoi_luong_g,
-              hang_nang: sumRes.data.hang_nang,
+              hang_di_ngoai: sumRes.data.hang_di_ngoai,
               du_trang_thai: qualRes.data.tong_hop.du_trang_thai.so_buu_gui
             });
           }
@@ -61,7 +61,7 @@ function BcvhComparisonTable({ filters, bcvhList }) {
               <th className="px-4 py-3 text-right">Sản lượng đến</th>
               <th className="px-4 py-3 text-right">Túi/kiện</th>
               <th className="px-4 py-3 text-right">Khối lượng (kg)</th>
-              <th className="px-4 py-3 text-right">Hàng nặng</th>
+              <th className="px-4 py-3 text-right">Hàng đi ngoài</th>
               <th className="px-4 py-3 text-right">Đủ trạng thái (SHBG, BD8, BD10)</th>
             </tr>
           </thead>
@@ -72,7 +72,7 @@ function BcvhComparisonTable({ filters, bcvhList }) {
                 <td className="px-4 py-3 text-right font-bold text-orange-500">{row.san_luong.toLocaleString('vi-VN')}</td>
                 <td className="px-4 py-3 text-right">{row.tui_kien.toLocaleString('vi-VN')}</td>
                 <td className="px-4 py-3 text-right">{(row.khoi_luong_g / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1})}</td>
-                <td className="px-4 py-3 text-right">{row.hang_nang.toLocaleString('vi-VN')}</td>
+                <td className="px-4 py-3 text-right">{row.hang_di_ngoai.toLocaleString('vi-VN')}</td>
                 <td className="px-4 py-3 text-right">{row.du_trang_thai.toLocaleString('vi-VN')}</td>
               </tr>
             ))}
@@ -155,10 +155,10 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
           <div className="card-soft p-4 flex flex-col justify-center bg-rose-50 border-l-4 border-rose-500">
             <div className="flex items-center gap-2 mb-1">
               <AlertOctagon className="w-4 h-4 text-rose-500" />
-              <span className="text-xs text-rose-600 font-semibold uppercase">Hàng nặng</span>
+              <span className="text-xs text-rose-600 font-semibold uppercase">Hàng đi ngoài</span>
             </div>
-            <span className="text-2xl font-bold text-rose-600 mt-1">{sum.hang_nang.toLocaleString('vi-VN')}</span>
-            <span className="text-xs text-rose-400 mt-1">Tỉ trọng: {sum.ty_le_hang_nang.toLocaleString('vi-VN')}%</span>
+            <span className="text-2xl font-bold text-rose-600 mt-1">{sum.hang_di_ngoai.toLocaleString('vi-VN')}</span>
+            <span className="text-xs text-rose-400 mt-1">Tỉ trọng: {sum.ty_le_hang_di_ngoai.toLocaleString('vi-VN')}%</span>
           </div>
         </div>
       ) : (

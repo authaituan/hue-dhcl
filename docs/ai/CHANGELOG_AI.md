@@ -4,6 +4,28 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-14] - DASH-6b sửa nhỏ 1: chú thích khối «Phường/xã tăng mạnh» (`DailyOpsDashboard.jsx`) bỏ chữ «trung bình 4 tuần cùng thứ» → «cùng thứ tuần trước (cùng giờ)», thêm ý chip chỉ hiện số BG khi hôm qua quá ít; sửa chú thích mã `wardChangeChip` (sàn phường/xã 10). Không đổi logic.
+
+---
+
+## [2026-10-14] - DASH-6b chặng 2: số chênh có sàn 50 + nối giao diện khoá mới (DASH-6b)
+
+- Backend (PO chỉnh sau duyệt chặng 1): `chenh_pct` / `chenh_diem` = `null` khi mốc (hôm qua hoặc tuần trước) dưới 50 bưu gửi, vẫn giữ giá trị mốc — `server/lib/dashboardDenQuery.js` (`pctVsMoc`): sản lượng (tổng và từng BCVH), `hang_di_ngoai`, `phuong-xa-tang` (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`). Quyết định #76. Test: sửa `dashboard-den.test.js` (mốc nhỏ → null), thêm 1 ca mốc 49 → null / 50 → có số ở `dashboard-den-danh-gia.test.js`. `npm test` 304 ca pass.
+- PO chỉnh sau duyệt chặng 2: phường/xã dùng sàn riêng `SAN_SO_SANH_PHUONG_XA` = 10 (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`); `SAN_SO_SANH_TOI_THIEU` = 50 chỉ còn cho sản lượng và hàng đi ngoài. Test: mốc 9 → null, mốc 10 → có số (`dashboard-den-danh-gia.test.js`, `dashboard-den.test.js`). `npm test` 305 ca.
+- Giao diện (chỉ đổi khoá và chữ): `DailyOpsDashboard.jsx` (thẻ «Hàng đi ngoài», «so tuần trước», cột «SO TUẦN TRƯỚC», dòng phường/xã, chip phường/xã khi mốc dưới sàn, hàm `formatSoSanh`, `lyDoChuaDanhGia`), `TiviView.jsx` (thẻ «Hàng đi ngoài», chữ so hôm qua), `ArrivalsOverview.jsx`, `ArrivalsRoutesServices.jsx` («Hàng đi ngoài», biểu đồ «Còn lại / Hàng đi ngoài»). Không đổi bố cục, màu, font, kích thước.
+
+---
+
+## [2026-10-14] - «Hàng đi ngoài» thay «hàng nặng», bỏ «TB 4 tuần», đổi mốc đánh giá: backend + test + tài liệu (DASH-6b, chặng 1)
+
+- `server/lib/arrivalsQuery.js`: `DI_NGOAI_SQL` (SHBG có ≥ 1 dòng BD8 chuẩn hoá = SHBG; BD8 rỗng không tính) thay `heavy_g`/`HEAVY_THRESHOLD_G_*`/`parseHeavyG`; `/summary`, `/by-route`, `/by-service` trả `hang_di_ngoai`, `ty_le_hang_di_ngoai` (bỏ `hang_nang`, `ty_le_hang_nang`, `nguong_hang_nang_g`); `heavy_g` gửi lên → 400. `server/lib/phat.js`, `server/routes/arrivals.js`: bỏ `heavyG`/`heavy_g`.
+- `server/lib/dashboardDenQuery.js`, `server/config/dashboard-thresholds.js`: bỏ `HANG_NANG_G`, `SO_TUAN_SO_SANH`, TB 4 tuần, `so_tuan`, `it_du_lieu`; hai mốc cùng giờ dữ liệu (hôm qua, cùng thứ tuần trước); `danhGiaSanLuong` (sàn `SAN_SO_SANH_TOI_THIEU = 50`, `GIO_BAT_DAU_DANH_GIA = 12`, `chua_du_du_lieu` + lý do `thieu_tuan_truoc|moc_duoi_san|chua_toi_gio`); `hang_di_ngoai` chỉ hiển thị; đổi khoá API theo bảng ánh xạ (`04_DECISIONS.md` #76). Việc 0: mốc «cùng giờ» đã theo giờ dữ liệu, không sửa mã.
+- Xoá API 3e (`/dashboard/overview|trend|wards-surge|center`; `server/lib/dashboardQuery.js` chỉ còn `DASHBOARD_BCVH`, `bcvhNames`) và `tests/dashboard-api.test.js`; ca `/quality-mocs` chuyển sang `tests/quality-mocs.test.js`. `scripts/survey-bd10.js` + test: đổi chữ «hàng nặng» → «hàng đi ngoài» (không đổi logic).
+- Test: `npm test` 23 file, 303 ca, 0 fail (trước 318: −21 ca 3e, sửa ~30 khối ở `arrivals-api`, `dashboard-den`, `bd10-api`, `bd10-trang-thai`, `arrivals-source`, `arrivals-reload`, `roles`, `tivi`, `arrivals-export`, thêm `tests/dashboard-den-danh-gia.test.js` 6 ca (vào script `test`), ca đi ngoài / đánh giá thuần ở `dashboard-den` và `arrivals-api`). Đối chiếu bản sao DB dev (533140, 01–10/10): tỷ lệ đi ngoài theo ngày khớp khảo sát DASH-6a từng ngày; bản sao đã xoá.
+- Docs: quyết định #76 (đánh dấu #37, #38, #42, #45, #48, #73), `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`, `05_BACKLOG.md`. **Giao diện chưa đổi (chặng 2)**: `src/` còn đọc khoá cũ nên màn «Sản lượng đến» và Dashboard/tivi lỗi/trống cho tới khi làm chặng 2 — không triển khai riêng chặng 1.
+
+---
+
 ## [2026-10-13] - Module «Xử lý và tỷ lệ phát»: backend (PHAT-1, chặng 1–2)
 
 - **Chặng 1** (đã commit 9303605): `server/config/phat.js` (hằng số: 5 trạng thái, 6 khung giờ, 4 nhóm chờ, giới hạn, SHBG, bảng chuyển bất thường, mã lỗi), `server/lib/phat.js` (lược đồ `phat_*`, chuẩn hoá, kiểm tra từng dòng, biên tập, nhập đợt), `server/lib/phatFile.js` (đọc xlsx/csv, dựng file mẫu và file lỗi), `server/routes/phat.js`; `server/db.js` tạo bảng + dọn bản kiểm tra hết hạn; `dashboardDenQuery.js` chỉ thêm export `bcvhContext`, `windowFilter`, `runCounted`. API: `GET /phat/template`, `POST /phat/drafts`, `GET /phat/drafts/:id[/rows]`, `PATCH|DELETE /phat/drafts/:id/rows`, `POST …/fill`, `POST …/assign-list`, `GET …/errors.xlsx`, `POST …/commit`.

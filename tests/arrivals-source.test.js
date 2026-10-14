@@ -269,16 +269,6 @@ test('quality-mocs: khoảng rỗng không chia cho 0; BD10 trống thuộc nhó
   assert.equal((await api(`/api/arrivals/quality-mocs?${R_0405}`)).status, 401);
 });
 
-test('dashboard /center: chat_luong.tong_hop.theo_nguon khớp /quality-mocs cùng khoảng; trường cũ còn nguyên', async () => {
-  const c = (await api(`/api/arrivals/dashboard/center?from=2026-10-04&to=2026-10-05`, 'ttvh')).body;
-  const m = (await api(`/api/arrivals/quality-mocs?from=2026-10-04&to=2026-10-05`, 'ttvh')).body;
-  assert.deepEqual(c.chat_luong.tong_hop.theo_nguon, m.tong_hop.theo_nguon);
-  assert.deepEqual(c.chat_luong.tong_hop.du_trang_thai_theo_nguon, m.tong_hop.du_trang_thai_theo_nguon);
-  assert.equal(c.chat_luong.san_luong, m.san_luong);
-  assert.deepEqual(c.chat_luong.tong_hop.du_trang_thai, m.tong_hop.du_trang_thai);
-  assert.deepEqual(c.chat_luong.to_hop, m.to_hop);
-});
-
 test('/meta: tiêu chí bd10 có ghi chú và tỷ lệ bị loại; tiêu chí khác không đổi', async () => {
   const meta = (await api('/api/arrivals/meta', 'ttvh')).body;
   const b = meta.date_bases.find((x) => x.key === 'bd10');
@@ -345,14 +335,8 @@ test('chua_nhan_tai_bcvh CÔNG KHAI (#72): mọi vai trò xem số của BCVH đ
     (await api(`/api/arrivals/summary?${q2}&receiver_code=${BC}`, 'admin')).body.chua_nhan_tai_bcvh, 'GDVH chưa được giao = ADMIN, cả object');
   const sl = async (who) => (await api(`/api/arrivals/summary?${q2}`, who)).body.san_luong;
   assert.equal(await sl('gdvhBc2'), await sl('ttvh'));
-  // /dashboard/center cùng quy tắc
-  const c = async (who) => (await api(`/api/arrivals/dashboard/center?${q2}`, who)).body.chua_nhan_tai_bcvh;
-  assert.equal((await c('ttvh')).tong, 4);
-  assert.equal((await c('gdvhBc')).tong, 4);
-  assert.equal((await c('gdvhBc2')).tong, 4);
-  assert.equal((await c('gdvhNone')).tong, 4);
-  assert.deepEqual(Object.keys(await c('ttvh')), ['tong', 'cu_nhat_ngay', 'theo_tuoi', 'theo_ngay_lap']);
-  assert.equal((await api(`/api/arrivals/dashboard/center?${q2}`, 'staff')).status, 403);
+  assert.deepEqual(Object.keys((await api(`/api/arrivals/summary?${q2}`, 'ttvh')).body.chua_nhan_tai_bcvh), ['tong', 'cu_nhat_ngay', 'theo_tuoi', 'theo_ngay_lap']);
+  assert.equal((await api(`/api/arrivals/summary?${q2}`, 'staff')).status, 403);
 });
 
 test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang, công khai mọi BCVH (#72), STAFF 403 / không token 401', async () => {

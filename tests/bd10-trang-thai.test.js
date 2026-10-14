@@ -1,7 +1,7 @@
 // ==========================================
 // Test SANLUONG-4a9:
 //  - #68 (đổi #60): "chưa nhận tại BCVH" loại bưu gửi mà BD10 của dòng đại diện là BD10 rỗng hoặc BD10 LẬP ĐI — áp ở /summary,
-//    /not-received, /dashboard/center, /exceptions (cùng một truy vấn).
+//    /not-received, /exceptions (cùng một truy vấn).
 //  - #69: GET /api/arrivals/bd10-trang-thai/theo-ngay và /theo-buu-cuc-lap.
 //  - #71: số bưu gửi (SHBG khác nhau) theo ô ở hai API /bd10-trang-thai/*.
 //  - #70: ngày dữ liệu mới nhất và "đã chờ" tính theo ngày file OK mới nhất CỦA TỪNG BCVH (M: 09/10, M2: 05/10, M3: chưa có file).
@@ -179,11 +179,10 @@ test('#68 chưa nhận: loại BD10 lập đi và BD10 rỗng (theo dòng đại
   const l = (await api(`/api/arrivals/not-received?from=2026-10-01&to=2026-10-09&receiver_code=${M}`, 'ttvh')).body;
   assert.deepEqual(l.items.map((i) => i.tracking_no), [shbg(906), shbg(904), shbg(901)], 'cũ nhất trước');
   assert.equal(l.pagination.total, 3);
-  // Cùng một định nghĩa ở /exceptions và /dashboard/center
+  // Cùng một định nghĩa ở /exceptions
   const ex = (await api('/api/arrivals/exceptions?from=2026-10-01&to=2026-10-09&receiver_code=533140', 'admin')).body;
   assert.equal(ex.theo_ly_do.CHUA_NHAN_TAI_BCVH, 3);
-  const c = (await api('/api/arrivals/dashboard/center?from=2026-10-01&to=2026-10-09', 'admin')).body.chua_nhan_tai_bcvh;
-  assert.equal(c.tong, 4, '3 của M + NR7 của M2');
+  assert.equal((await api('/api/arrivals/summary?from=2026-10-01&to=2026-10-09', 'admin')).body.chua_nhan_tai_bcvh.tong, 4, '3 của M + NR7 của M2');
   // Xuất Excel dùng notReceivedList -> cùng số
   assert.equal(exp.countNotReceived(ctx.db, exp.parseExportParams({ receiver_code: M, from: '2026-10-01', to: '2026-10-09' })), 3);
 });
@@ -354,8 +353,8 @@ test('#70 BD10 đến không XNĐ: theo_tuoi, tuoi của danh sách và bộ l�
   assert.deepEqual((await list('&tuoi=0-1')).map((i) => i.ngay), ['2026-10-05']);
   assert.deepEqual((await list('&tuoi=2')).map((i) => i.ngay), ['2026-10-03']);
   assert.deepEqual((await list('&tuoi=3%2B')).map((i) => i.ngay), ['2026-10-04', '2026-10-06']);
-  const c = (await api(`/api/arrivals/dashboard/center?${RANGE}`, 'ttvh')).body.bd10_den_khong_xnd.theo_tuoi;
-  assert.deepEqual(c, { '0-1': 1, '2': 1, '3+': 2 }, '/dashboard/center cùng quy tắc');
+  const c = (await api(`/api/arrivals/summary?${RANGE}`, 'ttvh')).body.bd10_den_khong_xnd.theo_tuoi;
+  assert.deepEqual(c, { '0-1': 1, '2': 1, '3+': 2 }, '/summary cùng quy tắc');
 });
 
 // ---------------- #71: số bưu gửi theo ô ----------------

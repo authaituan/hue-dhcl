@@ -241,8 +241,8 @@ test('tách theo ngày + nạp: 9 file đúng tên, đủ dòng, cột thừa / 
   const missing = getMissingBatches(ctx.db, { today: '2026-10-10' });
   assert.equal(missing.length, 9);
   assert.ok(missing.every((x) => x.file_count === 1));
-  const ov = (await api('/api/arrivals/dashboard/overview')).body;
-  assert.equal(ov.date, '2026-10-09');
+  const ov = (await api('/api/arrivals/dashboard/tong-quan-den')).body;
+  assert.equal(ov.ngay_du_lieu, '2026-10-09');
 
   // Nạp lại thư mục: "đã nạp", không đổi gì
   const again = await importArrivalDirectory(ctx.db, out);
