@@ -2,6 +2,19 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5e: Hẹn giờ tự động nạp file từ SFTP (đường nạp chính hằng ngày)
+
+- **Mới** `server/lib/sftpScheduler.js` (`startSftpScheduler`/`stopSftpScheduler`/`docTrangThaiSftp`, lập lịch thuần, đồng hồ + kết nối + nạp tiêm được) và `server/lib/sftpConnect.js` (nơi duy nhất nạp `ssh2-sftp-client`, nạp lười, ghim vân tay). `server/index.js`: gắn hẹn giờ sau `app.listen` trong try/catch; MẶC ĐỊNH TẮT, chỉ `SFTP_SYNC_ENABLED=1` mới bật, KHÔNG chạy trong test (`NODE_TEST_CONTEXT`); sai cấu hình → một dòng log nêu tên biến, không khởi động, máy chủ không sập; lượt đầu sau 30 giây; tắt gọn khi SIGTERM/SIGINT (chỉ khi đang bật).
+- **Chu kỳ** `SFTP_SYNC_INTERVAL_MINUTES` (mặc định 10, tối thiểu 2), `SFTP_SYNC_MAX_FILES` (mặc định 5) + dùng lại `SFTP_*`, `SFTP_SYNC_DAYS`, `SFTP_STABLE_SECONDS`. Chống chạy chồng: khoá trong tiến trình + khoá DB (script chạy tay đang chạy → hẹn giờ bỏ qua và ghi nhận).
+- **Ổn định không chờ trong lượt**: bảng mới `sftp_source_files` (thu_muc, ten_file, kich_thuoc, mtime, lan_dau_thay, lan_cuoi_thay, so_lan_giu_nguyen, giu_nguyen_tu, con_tren_nguon); file ổn định khi giữ nguyên qua ≥ 2 lượt cách nhau ≥ `SFTP_STABLE_SECONDS`; giữ cả file đã biến mất. Lõi `sftpSync.js`: chế độ `oDinh: 'BANG'`, `capNhatNguon`, `ghiLuotThatBai`, nhường vòng lặp giữa hai file (`setImmediate`), `huy()`.
+- **Lỗi**: mạng / thư mục → ghi vào lượt, thử lại chu kỳ sau; **xác thực / vân tay sai → TẠM DỪNG** đến khi khởi động lại (tránh NAS chặn IP); lỗi lạ → thử lại, ghi đầy đủ.
+- **Đổi hành vi 5c-1 (PO duyệt)**: file mã LẠ (không thuộc 6 BCVH) → `BO_QUA` + `MA_LA`, không tải, không nạp (cả script chạy tay lẫn hẹn giờ). Ca test đổi: `tests/sftp-sync.test.js` ca «mã LẠ…» (trước: nạp + gắn nhãn; nay: bỏ qua, không tải); script in cảnh báo mới.
+- **Test**: `tests/sftp-scheduler.test.js` (mới, 25 ca, đồng hồ/`client` giả, DB tạm) + `tests/sftp-sync.test.js` 31 → 35 ca (BANG, source_files, nhường, huỷ, ghiLuotThatBai; ca mã lạ viết lại); đã thêm file test vào `npm test`.
+- **Số đo** (dữ liệu giả): 5 file × 5.000 dòng, độ trễ vòng lặp lớn nhất ≈ 140 ms (xem `15_SFTP_SCHEDULER.md` mục 9; DB thật chậm hơn ~10×). **Triển khai NAS** (chỉ kiểm tra): compose KHÔNG truyền `SFTP_*` vào container (cần `env_file`/`environment` — ticket triển khai), `ssh2-sftp-client` có trong ảnh, `network_mode: host`, `TZ=Asia/Ho_Chi_Minh`.
+- Docs: `15_SFTP_SCHEDULER.md`, `13_SFTP_SYNC.md`, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `.env.example`. Chưa làm: API / màn quản trị («Nạp dữ liệu nguồn»), nút «Lấy lại», nạp lịch sử (5d), sửa Docker/compose.
+
+---
+
 ## [2026-10-15] - SANLUONG-5c-1: Nhiều BCVH chung một thư mục nguồn
 
 - PO xác nhận file của mọi BCVH nằm CÙNG một thư mục (`/CSV_Report_533140`), tên chỉ đổi mã đơn vị. **Bỏ** quy tắc «mã trong tên file ≠ mã trong tên thư mục thì `BO_QUA` (`KHAC_MA_THU_MUC`)»: `server/lib/sftpSync.js`, `server/lib/sftpFiles.js` (`locMuc` không còn nhận tên thư mục, bỏ `canhBao.khacMaThuMuc` và hàm `maTuTenThuMuc`), `scripts/sftp-probe.js`. Mã đơn vị lấy từ TÊN FILE. Không giữ cảnh báo thay thế (mix mã là bình thường); thay bằng thống kê theo mã.

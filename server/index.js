@@ -73,6 +73,26 @@ if (fs.existsSync(clientBuildPath)) {
 // Mọi yêu cầu còn lại: trang 404 (trình duyệt) hoặc 404 JSON (API).
 app.use(security.sendNotFound);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server hue-dhcl đang chạy tại http://localhost:${PORT}`);
 });
+
+// ==========================================
+// Hẹn giờ tự động nạp file từ SFTP (SANLUONG-5e, docs/ai/15_SFTP_SCHEDULER.md). MẶC ĐỊNH TẮT: chỉ chạy khi SFTP_SYNC_ENABLED=1 và cấu hình đủ;
+// không chạy trong test / harness (NODE_TEST_CONTEXT). Sai cấu hình -> một dòng log, hẹn giờ không khởi động, máy chủ vẫn chạy. Không bao giờ ném lỗi.
+// ==========================================
+try {
+  const sched = require('./lib/sftpScheduler');
+  sched.startSftpScheduler({ db: require('./db'), env: process.env });
+  if (sched.docTrangThaiSftp().trangThai === sched.TT.CHO) {
+    // Tắt gọn: huỷ hẹn giờ, đợi file đang nạp xong, rồi đóng máy chủ (chỉ đăng ký khi hẹn giờ đang bật, để không đổi cách tắt mặc định).
+    const tatGon = () => {
+      sched.stopSftpScheduler().catch(() => {}).finally(() => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); });
+    };
+    process.once('SIGTERM', tatGon);
+    process.once('SIGINT', tatGon);
+    server.on('close', () => { sched.stopSftpScheduler().catch(() => {}); });
+  }
+} catch (err) {
+  console.error('[sftp-sync] Không khởi động được hẹn giờ:', err && err.message);
+}
