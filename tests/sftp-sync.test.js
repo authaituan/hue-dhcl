@@ -339,18 +339,100 @@ test('tải về lệch kích thước so với danh sách -> LOI KICH_THUOC_LEC
   assert.ok(tmpSach());
 });
 
-test('mã trong tên file khác mã trong tên thư mục CSV_Report_<mã>: BO_QUA, KHÔNG tải, KHÔNG nạp', async () => {
-  const sai = ten('535470', '2026-10-14');
-  const dung = ten('533140', '2026-10-14');
-  const src = nguonGia({ [D1]: { [sai]: f(csv('535470', '2026-10-14')), [dung]: f(csv('533140', '2026-10-14')) } });
+test('một thư mục chứa file của NHIỀU mã (SANLUONG-5c-1): cả ba mã được nạp, không còn KHAC_MA_THU_MUC; mã lấy từ TÊN FILE; thống kê theo mã', async () => {
+  const a1 = ten('533140', '2026-10-14', '162011');
+  const a2 = ten('535470', '2026-10-14', '162011');
+  const a3 = ten('537220', '2026-10-14', '162011');
+  const src = nguonGia({ [D1]: { [a1]: f(csv('533140', '2026-10-14')), [a2]: f(csv('535470', '2026-10-14')), [a3]: f(csv('537220', '2026-10-14')) } });
+  const kq = await chay(src); // D1 = /CSV_Report_533140: tên thư mục mang mã 533140 nhưng KHÔNG còn là điều kiện lọc
+  assert.deepEqual(kq.files.map((x) => [x.maDonVi, x.ketQua]), [['533140', 'DA_NAP'], ['535470', 'DA_NAP'], ['537220', 'DA_NAP']]);
+  assert.ok(!JSON.stringify(kq).includes('KHAC_MA_THU_MUC'));
+  assert.equal(kq.dem.daNap, 3);
+  assert.deepEqual(rows('SELECT unit_code, source FROM arrival_import_files ORDER BY unit_code').map((x) => [x.unit_code, x.source]), [['533140', 'SFTP'], ['535470', 'SFTP'], ['537220', 'SFTP']]);
+  assert.deepEqual(rows('SELECT DISTINCT receiver_code FROM arrival_items ORDER BY receiver_code').map((x) => x.receiver_code), ['533140', '535470', '537220']);
+  // thống kê theo mã: đủ 6 BCVH, mã chưa có file hiện 0
+  assert.deepEqual(Object.keys(kq.theoMa).sort(), ['533140', '535470', '535790', '536250', '537015', '537220']);
+  assert.equal(kq.theoMa['533140'].daNap, 1);
+  assert.equal(kq.theoMa['537220'].tong, 1);
+  assert.deepEqual(kq.theoMa['535790'], { tong: 0, daNap: 0, sapNap: 0, daCo: 0, chuaOnDinh: 0, rong: 0, loi: 0, boQua: 0, laMa: false });
+  assert.equal(kq.dem.maLa, 0);
+  // lượt sau: cả ba DA_CO
+  const kq2 = await chay(nguonGia({ [D1]: { [a1]: f(csv('533140', '2026-10-14')), [a2]: f(csv('535470', '2026-10-14')), [a3]: f(csv('537220', '2026-10-14')) } }));
+  assert.deepEqual(kq2.files.map((x) => x.ketQua), ['DA_CO', 'DA_CO', 'DA_CO']);
+  assert.deepEqual([kq2.theoMa['533140'].daCo, kq2.theoMa['535470'].daCo, kq2.theoMa['537220'].daCo], [1, 1, 1]);
+});
+
+test('thứ tự nạp: ngày/giờ trong tên tăng dần, CÙNG thời điểm thì theo mã tăng dần; lặp lại cho kết quả giống nhau; không phụ thuộc thứ tự liệt kê', async () => {
+  const ds = [
+    ten('537220', '2026-10-14', '162011'), ten('533140', '2026-10-14', '162011'), ten('535470', '2026-10-14', '162011'),
+    ten('535470', '2026-10-13', '162011'), ten('533140', '2026-10-14', '093012')
+  ];
+  const mong = [ten('535470', '2026-10-13', '162011'), ten('533140', '2026-10-14', '093012'), ten('533140', '2026-10-14', '162011'), ten('535470', '2026-10-14', '162011'), ten('537220', '2026-10-14', '162011')];
+  const thuTu = [];
+  for (const sx of [ds, [...ds].reverse()]) {
+    ctx.db.prepare('DELETE FROM arrival_items').run(); ctx.db.prepare('DELETE FROM arrival_import_files').run();
+    const files = { [D1]: Object.fromEntries(sx.map((n) => [n, f(csv(n.slice(8, 14), ngayTen(n)))])) };
+    const src = nguonGia(files);
+    await chay(src, { options: { toiDa: 10 } });
+    thuTu.push(src.calls.get.map((g) => g.slice(g.lastIndexOf('/') + 1)));
+    assert.deepEqual(rows('SELECT file_name FROM arrival_import_files ORDER BY id').map((x) => x.file_name), mong);
+  }
+  assert.deepEqual(thuTu[0], mong);
+  assert.deepEqual(thuTu[1], mong);
+});
+
+test('--toi-da và «từ ngày» áp dụng chung cho mọi mã: N file cũ nhất (theo ngày/giờ rồi mã) bất kể mã', async () => {
+  const x = [ten('537220', '2026-10-12', '093012'), ten('533140', '2026-10-13', '093012'), ten('535470', '2026-10-13', '093012'), ten('533140', '2026-10-14', '093012'), ten('537220', '2026-10-10', '093012')];
+  const src = nguonGia({ [D1]: Object.fromEntries(x.map((n) => [n, f(csv(n.slice(8, 14), ngayTen(n)))])) });
+  const kq = await chay(src, { options: { toiDa: 2, tuNgay: '2026-10-11' } });
+  assert.deepEqual(src.calls.get.map((g) => g.slice(g.lastIndexOf('/') + 1)), [x[0], x[1]], 'hai file cũ nhất trong cửa sổ, kể cả khác mã');
+  assert.equal(byName(kq)[x[2]].maLoi, 'VUOT_TOI_DA');
+  assert.equal(byName(kq)[x[3]].maLoi, 'VUOT_TOI_DA');
+  assert.equal(byName(kq)[x[4]], undefined, 'ngoài «từ ngày»: không ghi từng file');
+  assert.deepEqual([kq.theoMa['537220'].tong, kq.theoMa['537220'].daNap, kq.theoMa['537220'].boQua], [2, 1, 1], 'file trước «từ ngày» tính vào bỏ qua theo mã');
+  assert.deepEqual([kq.theoMa['533140'].daNap, kq.theoMa['533140'].boQua], [1, 1]);
+  assert.deepEqual([kq.theoMa['535470'].daNap, kq.theoMa['535470'].boQua], [0, 1]);
+});
+
+test('mã LẠ (không có trong 6 BCVH): importer KHÔNG kiểm danh mục nên vẫn nạp — lõi nạp theo importer và gắn nhãn MA_LA để PO thấy', async () => {
+  const la = ten('999999', '2026-10-14');
+  const ok = ten('533140', '2026-10-14');
+  const src = nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')), [ok]: f(csv('533140', '2026-10-14')) } });
   const kq = await chay(src);
-  assert.equal(byName(kq)[sai].ketQua, 'BO_QUA');
-  assert.equal(byName(kq)[sai].maLoi, 'KHAC_MA_THU_MUC');
-  assert.deepEqual(src.calls.get, [`${D1}/${dung}`]);
-  // thư mục không theo mẫu CSV_Report_<mã>: không đối chiếu
-  const src2 = nguonGia({ '/du-lieu': { [sai]: f(csv('535470', '2026-10-14')) } });
-  assert.equal(byName(await chay(src2, { dirs: ['/du-lieu'] }))[sai].ketQua, 'DA_NAP');
-  // ngày không có thật trong tên
+  assert.equal(byName(kq)[la].ketQua, 'DA_NAP');
+  assert.equal(byName(kq)[la].maLoi, 'MA_LA');
+  assert.match(byName(kq)[la].chiTiet, /chưa có trong danh mục 6 BCVH/);
+  assert.equal(byName(kq)[ok].maLoi ?? null, null);
+  assert.equal(kq.theoMa['999999'].laMa, true);
+  assert.equal(kq.theoMa['999999'].daNap, 1);
+  assert.equal(kq.dem.maLa, 1);
+  assert.equal(rows('SELECT unit_code FROM arrival_import_files WHERE file_name = ?', la)[0].unit_code, '999999', 'importer ghi mã lạ vào lịch sử nạp');
+  assert.equal(rows('SELECT ma_loi FROM sftp_sync_files WHERE ten_file = ?', la)[0].ma_loi, 'MA_LA');
+  assert.equal(S.maThoat(kq), 0, 'mã lạ không làm lượt thất bại');
+  // chạy khô cũng báo trước
+  ctx.db.prepare('DELETE FROM arrival_items').run(); ctx.db.prepare('DELETE FROM arrival_import_files').run();
+  const kq2 = await chay(nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')) } }), { options: { dryRun: true } });
+  assert.equal(byName(kq2)[la].ketQua, 'WOULD_IMPORT');
+  assert.equal(byName(kq2)[la].maLoi, 'MA_LA');
+  assert.equal(kq2.theoMa['999999'].sapNap, 1);
+  assert.equal(dem('arrival_import_files'), 0);
+  // danh mục tiêm vào (maDaBiet) quyết định thế nào là «lạ»
+  const kq3 = await chay(nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')) } }), { options: { dryRun: true, maDaBiet: ['999999'] } });
+  assert.equal(byName(kq3)[la].maLoi ?? null, null);
+  assert.deepEqual(Object.keys(kq3.theoMa), ['999999']);
+});
+
+test('ghi nhận hành vi importer (không sửa): mã đơn vị lấy từ TÊN FILE, KHÔNG so với cột BC_nhan_BG trong nội dung', async () => {
+  const sai = ten('535470', '2026-10-14');
+  await chay(nguonGia({ [D1]: { [sai]: f(csv('533140', '2026-10-14')) } })); // tên 535470, nội dung nhận 533140
+  assert.equal(rows('SELECT unit_code FROM arrival_import_files WHERE file_name = ?', sai)[0].unit_code, '535470');
+  assert.equal(rows('SELECT DISTINCT receiver_code FROM arrival_items')[0].receiver_code, '533140');
+});
+
+test('thư mục không theo mẫu CSV_Report_<mã> và ngày không có thật trong tên', async () => {
+  const x = ten('535470', '2026-10-14');
+  const src2 = nguonGia({ '/du-lieu': { [x]: f(csv('535470', '2026-10-14')) } });
+  assert.equal(byName(await chay(src2, { dirs: ['/du-lieu'] }))[x].ketQua, 'DA_NAP');
   const lo = 'HangDen_533140_20261340_093012.csv';
   const kq3 = await chay(nguonGia({ [D1]: { [lo]: f(csv('533140', '2026-10-14')) } }), { options: { tuNgay: '2000-01-01' } });
   assert.equal(byName(kq3)[lo].maLoi, 'NGAY_KHONG_HOP_LE');

@@ -47,27 +47,30 @@ test('lọc thư mục: giữ file đúng mẫu; bỏ #recycle, tên bắt đầ
   assert.equal(kq.boQua.tong, entries.length - 2);
   assert.deepEqual(kq.boQua.theoLyDo, { recycle: 2, an: 2, khong_phai_file: 2, khac_mau: 6 });
   assert.equal(kq.boQua.tenMau.length, 5, 'tối đa 5 tên');
-  assert.deepEqual(kq.canhBao, { khacMaThuMuc: 0, ngayKhongHopLe: 0 });
+  assert.deepEqual(kq.canhBao, { ngayKhongHopLe: 0 });
   assert.equal(kq.khop[0].mtime, 1760400000000);
   assert.equal(kq.khop[0].khoa, '20261014093012');
 });
 
-test('lọc thư mục: cảnh báo mã khác thư mục / ngày không hợp lệ; tên lạ được che ký tự điều khiển; danh sách rỗng', () => {
-  const kq = F.locMuc([e('HangDen_535470_20261014_093012.csv'), e('HangDen_533140_20261399_093012.csv'), e('a\u0007b\nc.txt')], '/CSV_Report_533140');
-  assert.equal(kq.khop.length, 2);
-  assert.deepEqual(kq.canhBao, { khacMaThuMuc: 1, ngayKhongHopLe: 1 });
+test('lọc thư mục: file của NHIỀU mã trong cùng một thư mục đều được giữ (mã thư mục không còn là điều kiện lọc); cảnh báo ngày không hợp lệ; tên lạ được che; danh sách rỗng', () => {
+  const kq = F.locMuc([e('HangDen_535470_20261014_093012.csv'), e('HangDen_533140_20261399_093012.csv'), e('HangDen_537220_20261014_093012.csv'), e('a\u0007b\nc.txt')]);
+  assert.deepEqual(kq.khop.map((x) => x.maDonVi), ['535470', '533140', '537220']);
+  assert.deepEqual(kq.canhBao, { ngayKhongHopLe: 1 });
   assert.equal(kq.boQua.tenMau[0], 'a?b?c.txt');
-  assert.deepEqual(F.locMuc([], '/x').khop, []);
-  assert.deepEqual(F.locMuc(null, '').boQua.tong, 0);
-  // thư mục không theo mẫu CSV_Report_<mã>: không đối chiếu mã
-  assert.equal(F.locMuc([e('HangDen_535470_20261014_093012.csv')], '/du-lieu').canhBao.khacMaThuMuc, 0);
+  assert.deepEqual(F.locMuc([]).khop, []);
+  assert.deepEqual(F.locMuc(null).boQua.tong, 0);
+  assert.ok(!('khacMaThuMuc' in kq.canhBao) && F.maTuTenThuMuc === undefined, 'quy tắc mã thư mục đã bỏ (SANLUONG-5c-1)');
 });
 
-test('mã đơn vị từ tên thư mục CSV_Report_<mã>', () => {
-  assert.equal(F.maTuTenThuMuc('/CSV_Report_533140'), '533140');
-  assert.equal(F.maTuTenThuMuc('/CSV_Report_535470/'), '535470');
-  assert.equal(F.maTuTenThuMuc('CSV_Report_536250'), '536250');
-  for (const bad of ['/du-lieu', '/CSV_Report_', '/CSV_Report_abc', '/x/CSV_Report_1/con', '']) assert.equal(F.maTuTenThuMuc(bad), null, bad);
+test('thống kê theo mã đơn vị: mã đã biết không có file vẫn được liệt kê (0 file); mã lạ được đánh dấu; sắp theo giá trị số', () => {
+  const kq = F.locMuc([e('HangDen_535470_20261014_093012.csv'), e('HangDen_533140_20261013_093012.csv'), e('HangDen_533140_20261014_093012.csv', 5, 7), e('HangDen_99_20261014_093012.csv')]);
+  const tk = F.thongKeTheoMa(kq.khop, ['533140', '535470', '537220']);
+  assert.deepEqual(tk.map((x) => [x.ma, x.soFile, x.laMa]), [['99', 1, true], ['533140', 2, false], ['535470', 1, false], ['537220', 0, false]]);
+  assert.equal(tk[1].moiNhat.name, 'HangDen_533140_20261014_093012.csv');
+  assert.equal(tk[3].moiNhat, null);
+  assert.equal(F.soSanhMa('99', '533140') < 0, true);
+  assert.equal(F.soSanhMa('533140', '535470') < 0, true);
+  assert.equal(F.soSanhMa('533140', '533140'), 0);
 });
 
 test('tóm tắt: số file, mới nhất / cũ nhất theo tên, file ≤ 3 KB', () => {

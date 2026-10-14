@@ -10,12 +10,15 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const F = require('./sftpFiles');
+const { VALID_BCVH_CODES } = require('./userBcvh');
 const { importArrivalFile, FILE_NAME_RE } = require('./arrivalsImport');
 
 const KHOA_PHUT = 30; // lượt chưa kết thúc bắt đầu cách đây < 30 phút = đang chạy; quá thế = treo
 const MAC_DINH = Object.freeze({ soNgay: 3, onDinhGiay: 60, toiDa: 5 });
 const KET_QUA = Object.freeze({ DA_NAP: 'DA_NAP', DA_CO: 'DA_CO', CHUA_ON_DINH: 'CHUA_ON_DINH', EMPTY: 'EMPTY', LOI: 'LOI', BO_QUA: 'BO_QUA', WOULD_IMPORT: 'WOULD_IMPORT' });
 const KET_QUA_LIST = Object.values(KET_QUA);
+// Importer KHÔNG kiểm mã đơn vị với danh mục BCVH (lấy mã từ tên file, nạp mọi mã) — nên mã lạ vẫn được nạp; lõi chỉ gắn nhãn để PO thấy.
+const MA_LA_GHI_CHU = (ma) => `Mã đơn vị ${F.tenAnToan(ma, 12)} chưa có trong danh mục 6 BCVH — importer vẫn nạp (không kiểm mã); cần PO xem lại`;
 
 // ------------------------------------------
 // Lược đồ «lượt lấy» (idempotent; gọi từ server/db.js và từ scripts/sftp-sync.js khi mở DB ghi)
@@ -46,7 +49,7 @@ function ensureSftpSyncSchema(db) {
       ket_qua TEXT NOT NULL CHECK (ket_qua IN (${KET_QUA_LIST.map((k) => `'${k}'`).join(', ')})),
       so_dong INTEGER,                     -- số dòng importer đọc được (NULL nếu không nạp)
       thoi_gian_ms INTEGER,                -- thời gian tải + nạp một file
-      ma_loi TEXT,                         -- mã ngắn (vd REJECTED, KHAC_MA_THU_MUC, VUOT_TOI_DA); không có nội dung dữ liệu
+      ma_loi TEXT,                         -- mã ngắn (vd REJECTED, MA_LA, VUOT_TOI_DA); không có nội dung dữ liệu
       chi_tiet TEXT                        -- câu ngắn đã che (cảnh báo / lý do importer); có thể NULL
     );
     CREATE INDEX IF NOT EXISTS ix_sftp_files_run ON sftp_sync_files(run_id);
@@ -165,28 +168,34 @@ function batDauLuot(db, now, trigger) {
 // ------------------------------------------
 // Lõi
 // ------------------------------------------
-const choNguoc = (a, b) => (a.khoa < b.khoa ? -1 : a.khoa > b.khoa ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : a.thuMuc < b.thuMuc ? -1 : 1);
+// Thứ tự nạp: ngày/giờ trong tên tăng dần; cùng thời điểm thì theo mã đơn vị tăng dần (lượt lặp lại cho kết quả giống nhau); rồi tên, thư mục.
+const choNguoc = (a, b) => (a.khoa < b.khoa ? -1 : a.khoa > b.khoa ? 1 : F.soSanhMa(a.maDonVi, b.maDonVi) || (a.name < b.name ? -1 : a.name > b.name ? 1 : a.thuMuc < b.thuMuc ? -1 : a.thuMuc > b.thuMuc ? 1 : 0));
 
 /**
  * Một lượt đồng bộ.
  *  client: { list(thuMuc) -> [{type,name,size,modifyTime}], get(duongDanTuXa, duongDanCucBo) } (ssh2-sftp-client thoả; người gọi tự end()).
  *  db: handle better-sqlite3 (chạy khô: có thể mở readonly — hàm KHÔNG ghi gì khi dryRun). dirs: ['/CSV_Report_533140', …].
  *  now: () => Date. sleep: (ms) => Promise. tmpDir: thư mục gốc cho tệp tạm (mặc định os.tmpdir()).
- *  options: { dryRun, tuNgay ('YYYY-MM-DD'), soNgay (mặc định 3), onDinhGiay (60), toiDa (5), trigger ('MANUAL'), importFn (mặc định importArrivalFile), bimat: [chuỗi cần che], log(fn) }
- * Trả { biKhoa, runId, tuNgay, dryRun, dem: {…}, files: [{thuMuc, tenFile, ketQua, soDong, thoiGianMs, maLoi, chiTiet}], loiThuMuc: [{thuMuc, ma, nhom, thongBao}] }.
+ *  options: { dryRun, tuNgay ('YYYY-MM-DD'), soNgay (mặc định 3), onDinhGiay (60), toiDa (5), trigger ('MANUAL'), importFn (mặc định importArrivalFile), maDaBiet (mặc định 6 BCVH), bimat: [chuỗi cần che], log(fn) }
+ * Một thư mục có thể chứa file của NHIỀU mã đơn vị (mã lấy từ TÊN FILE, như importer); `toiDa` và «từ ngày» áp dụng chung cho mọi mã.
+ * Trả { biKhoa, runId, tuNgay, dryRun, dem: {…, maLa}, theoMa: {mã: {tong, daNap, sapNap, daCo, chuaOnDinh, rong, loi, boQua, laMa}}, files: [{thuMuc, tenFile, maDonVi, ketQua, soDong, thoiGianMs, maLoi, chiTiet}], loiThuMuc: [{thuMuc, ma, nhom, thongBao}] }.
  */
 async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), tmpDir = os.tmpdir(), options = {} }) {
   const o = {
     dryRun: false, soNgay: MAC_DINH.soNgay, onDinhGiay: MAC_DINH.onDinhGiay, toiDa: MAC_DINH.toiDa, trigger: 'MANUAL',
-    importFn: importArrivalFile, bimat: [], log: () => {}, ...options
+    importFn: importArrivalFile, maDaBiet: VALID_BCVH_CODES, bimat: [], log: () => {}, ...options
   };
   const batDau = now();
   const tuNgay = o.tuNgay || congNgay(ngayBangkok(batDau), -o.soNgay);
   const ketQua = {
     biKhoa: false, runId: null, tuNgay, dryRun: !!o.dryRun,
-    dem: { tongListKe: 0, daNap: 0, daCo: 0, chuaOnDinh: 0, rong: 0, boQuaKhac: 0, loi: 0, wouldImport: 0 },
-    files: [], loiThuMuc: []
+    dem: { tongListKe: 0, daNap: 0, daCo: 0, chuaOnDinh: 0, rong: 0, boQuaKhac: 0, loi: 0, wouldImport: 0, maLa: 0 },
+    theoMa: {}, files: [], loiThuMuc: []
   };
+  // Thống kê theo mã đơn vị: mã đã biết luôn có mặt (kể cả 0 file) để thấy BCVH nào chưa có file; mã lạ xuất hiện khi gặp.
+  const moTa = (ma) => (ketQua.theoMa[ma] = ketQua.theoMa[ma] || { tong: 0, daNap: 0, sapNap: 0, daCo: 0, chuaOnDinh: 0, rong: 0, loi: 0, boQua: 0, laMa: !o.maDaBiet.includes(ma) });
+  for (const ma of o.maDaBiet) moTa(ma);
+  const COT = { DA_NAP: 'daNap', WOULD_IMPORT: 'sapNap', DA_CO: 'daCo', CHUA_ON_DINH: 'chuaOnDinh', EMPTY: 'rong', LOI: 'loi', BO_QUA: 'boQua' };
 
   // ---- khoá + ghi lượt (không làm gì khi chạy khô)
   if (o.dryRun) {
@@ -201,6 +210,7 @@ async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = 
   const ghiFile = db && !o.dryRun ? db.prepare('INSERT INTO sftp_sync_files (run_id, thu_muc, ten_file, ket_qua, so_dong, thoi_gian_ms, ma_loi, chi_tiet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)') : null;
   const ghiLoiChung = [];
   const them = (r) => {
+    moTa(r.maDonVi)[COT[r.ketQua]]++;
     ketQua.files.push(r);
     if (ghiFile) ghiFile.run(ketQua.runId, r.thuMuc, r.tenFile, r.ketQua, r.soDong ?? null, r.thoiGianMs ?? null, r.maLoi ?? null, r.chiTiet ?? null);
     o.log(`${r.ketQua}  ${r.thuMuc}/${r.tenFile}${r.soDong != null ? `  ${r.soDong} dòng` : ''}${r.thoiGianMs != null ? `  ${r.thoiGianMs} ms` : ''}${r.maLoi ? `  [${r.maLoi}]` : ''}`);
@@ -244,15 +254,14 @@ async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = 
     for (const dir of lan2.keys()) {
       const entries2 = lan2.get(dir);
       ketQua.dem.tongListKe += entries2.length;
-      const l = F.locMuc(entries2, dir);
+      const l = F.locMuc(entries2);
       ketQua.dem.boQuaKhac += l.boQua.tong;
-      const ma = F.maTuTenThuMuc(dir);
       const on = F.fileOnDinh(lan1.get(dir).filter((e) => e.type === '-'), entries2.filter((e) => e.type === '-'));
       const onDinh = new Set(on.onDinh);
       for (const f of l.khop) {
-        const base = { thuMuc: dir, tenFile: f.name };
-        if (f.ngay < tuNgay) { ketQua.dem.boQuaKhac++; continue; } // ngoài cửa sổ «từ ngày»: chỉ đếm, không ghi từng file
-        if (ma && f.maDonVi !== ma) { ketQua.dem.boQuaKhac++; them({ ...base, ketQua: KET_QUA.BO_QUA, maLoi: 'KHAC_MA_THU_MUC', chiTiet: 'Mã đơn vị trong tên file khác mã trong tên thư mục — không nạp' }); continue; }
+        const base = { thuMuc: dir, tenFile: f.name, maDonVi: f.maDonVi };
+        moTa(f.maDonVi).tong++;
+        if (f.ngay < tuNgay) { ketQua.dem.boQuaKhac++; moTa(f.maDonVi).boQua++; continue; } // ngoài cửa sổ «từ ngày»: chỉ đếm, không ghi từng file
         if (!f.ngayHopLe) { ketQua.dem.boQuaKhac++; them({ ...base, ketQua: KET_QUA.BO_QUA, maLoi: 'NGAY_KHONG_HOP_LE', chiTiet: 'Ngày/giờ trong tên file không có thật — không nạp' }); continue; }
         const co = daNapStmt.get(f.name);
         if (co) {
@@ -280,11 +289,16 @@ async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = 
     const duocNap = canNap.slice(0, o.toiDa);
     for (const f of canNap.slice(o.toiDa)) {
       ketQua.dem.boQuaKhac++;
-      them({ thuMuc: f.thuMuc, tenFile: f.name, ketQua: KET_QUA.BO_QUA, maLoi: 'VUOT_TOI_DA', chiTiet: `Vượt giới hạn ${o.toiDa} file mỗi lượt — để lần sau` });
+      them({ thuMuc: f.thuMuc, tenFile: f.name, maDonVi: f.maDonVi, ketQua: KET_QUA.BO_QUA, maLoi: 'VUOT_TOI_DA', chiTiet: `Vượt giới hạn ${o.toiDa} file mỗi lượt — để lần sau` });
     }
 
     if (o.dryRun) {
-      for (const f of duocNap) { ketQua.dem.wouldImport++; them({ thuMuc: f.thuMuc, tenFile: f.name, ketQua: KET_QUA.WOULD_IMPORT, chiTiet: `${f.size} byte — sẽ tải và nạp (chạy khô: không làm gì)` }); }
+      for (const f of duocNap) {
+        ketQua.dem.wouldImport++;
+        const la = !o.maDaBiet.includes(f.maDonVi);
+        if (la) ketQua.dem.maLa++;
+        them({ thuMuc: f.thuMuc, tenFile: f.name, maDonVi: f.maDonVi, ketQua: KET_QUA.WOULD_IMPORT, maLoi: la ? 'MA_LA' : null, chiTiet: `${f.size} byte — sẽ tải và nạp (chạy khô: không làm gì)${la ? `. ${MA_LA_GHI_CHU(f.maDonVi)}` : ''}` });
+      }
     } else if (duocNap.length) {
       thuMucTam = fs.mkdtempSync(path.join(tmpDir, `hue-dhcl-sftp-${crypto.randomBytes(4).toString('hex')}-`));
       for (const f of duocNap) await napMotFile({ f, client, db, o, ketQua, thuMucTam, them, ghiLoiChung });
@@ -305,7 +319,8 @@ async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = 
 }
 
 async function napMotFile({ f, client, db, o, ketQua, thuMucTam, them, ghiLoiChung }) {
-  const base = { thuMuc: f.thuMuc, tenFile: f.name };
+  const base = { thuMuc: f.thuMuc, tenFile: f.name, maDonVi: f.maDonVi };
+  const la = !o.maDaBiet.includes(f.maDonVi);
   const t0 = process.hrtime.bigint();
   const ms = () => Number((process.hrtime.bigint() - t0) / 1000000n);
   let cucBo = null;
@@ -323,9 +338,11 @@ async function napMotFile({ f, client, db, o, ketQua, thuMucTam, them, ghiLoiChu
     const chiTiet = lamSach([r.warning, r.error].filter(Boolean).join(' | '), o.bimat) || null;
     if (r.status === 'OK' || r.status === 'EMPTY') {
       if (r.alreadyImported) { ketQua.dem.daCo++; them({ ...base, ketQua: KET_QUA.DA_CO, soDong: r.rowCount ?? null, thoiGianMs: ms(), chiTiet: 'Đã được nạp trước đó (importer)' }); return; }
-      if (r.status === 'EMPTY') { ketQua.dem.rong++; them({ ...base, ketQua: KET_QUA.EMPTY, soDong: 0, thoiGianMs: ms(), chiTiet: chiTiet || 'Importer ghi nhận đợt rỗng (chỉ BOM / chỉ tiêu đề)' }); return; }
+      const ghiLa = la ? MA_LA_GHI_CHU(f.maDonVi) : null;
+      if (la) ketQua.dem.maLa++;
+      if (r.status === 'EMPTY') { ketQua.dem.rong++; them({ ...base, ketQua: KET_QUA.EMPTY, soDong: 0, thoiGianMs: ms(), maLoi: la ? 'MA_LA' : null, chiTiet: [chiTiet || 'Importer ghi nhận đợt rỗng (chỉ BOM / chỉ tiêu đề)', ghiLa].filter(Boolean).join('. ') }); return; }
       ketQua.dem.daNap++;
-      them({ ...base, ketQua: KET_QUA.DA_NAP, soDong: r.rowCount ?? null, thoiGianMs: ms(), chiTiet });
+      them({ ...base, ketQua: KET_QUA.DA_NAP, soDong: r.rowCount ?? null, thoiGianMs: ms(), maLoi: la ? 'MA_LA' : null, chiTiet: [chiTiet, ghiLa].filter(Boolean).join('. ') || null });
       return;
     }
     // REJECTED / CONFLICT / SKIPPED_NAME
