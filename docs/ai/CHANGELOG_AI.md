@@ -2,6 +2,17 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5b: Công cụ thử kết nối SFTP chỉ đọc (nhánh feat/sanluong-5b-sftp-probe)
+
+- **Điều kiện bắt đầu**: `ssh2-sftp-client` 12.1.1 (trên `ssh2` 1.17.0) PO đã cài sẵn vào `package.json` / `package-lock.json`; hai file này KHÔNG sửa trong ticket.
+- **Mới** `scripts/sftp-probe.js`: `--show-fingerprint` (in vân tay SHA256 của khoá máy chủ; từ chối khoá ở bước trao đổi khoá nên không gửi tên / mật khẩu) và chế độ thường (bắt buộc khớp `SFTP_HOSTKEY_SHA256`, rồi chỉ LIỆT KÊ các thư mục trong `SFTP_DIRS`: tên, kích thước, mtime; tóm tắt; tuỳ chọn `--gioi-han`, `--on-dinh`). Chỉ gọi `connect`/`list`/`end`; không tải file, không nạp, không mở DB. Mã thoát 0–6 (bảng ở `12_SFTP_PROBE.md`).
+- **Mới** `server/lib/sftpFiles.js`: hàm thuần (tên file, lọc `#recycle`/ẩn/lạ, tóm tắt, `fileOnDinh`, vân tay `SHA256:`/hex, đọc cấu hình, phân loại lỗi, che bí mật) — SANLUONG-5c dùng lại.
+- **Test** `tests/sftp-probe.test.js` (mới, 20 ca, không mạng): tên file, lọc, ổn định, vân tay, cấu hình thiếu biến, mã thoát, kiểm tĩnh «không có lệnh ghi». Đã thêm vào cuối script `npm test` ở `package.json` (theo yêu cầu PO; không đổi dependencies / lock): `npm test` 338 → 358 ca (357 pass, 1 skip).
+- `.env.example`: thêm TÊN `SFTP_HOST`, `SFTP_PORT`, `SFTP_USER`, `SFTP_PASSWORD`, `SFTP_DIRS`, `SFTP_HOSTKEY_SHA256` (giá trị trống). Docs: `12_SFTP_PROBE.md` (cách PO chạy, mã thoát), `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`.
+- **Chưa làm**: tải file, nạp, bảng theo dõi, bộ hẹn giờ (SANLUONG-5c…5f, `11_SFTP_AUDIT.md`). Script CHƯA được chạy với NAS thật (người làm không có mạng tới NAS).
+
+---
+
 ## [2026-10-14] - PHAT-3b-1: Tỷ lệ 4 trạng thái còn lại trong xếp hạng BCVH (backend)
 
 - `server/lib/phatDashboard.js`: mỗi phần tử `xep_hang_bcvh` thêm `theo_trang_thai{PKTC, CHUYEN_HOAN, LAC_HUONG, CHUA_CO_TT: {nhan, so, ty_le}}` (cùng khoá/dạng với khối cấp tổng, mẫu số = `mau_so` của BCVH); `nguong.san_xep_hang_bcvh` = `SAN_XEP_HANG_BCVH` (50). `chua_du_du_lieu` không đổi (không có tỷ lệ). Chỉ thêm khoá; quyền, xếp hạng, sàn không đổi; `/api/phat/ty-le` không đổi.
