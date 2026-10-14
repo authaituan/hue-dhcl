@@ -2,6 +2,18 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - PHAT-2b-1: backend hoàn tác / lịch sử có lọc — xem trước hoàn tác, số cảnh báo của đợt, lọc, `nguoi_nhap_lua_chon`
+
+Quyết định: `04_DECISIONS.md` #78. Không đụng `src/`, `data/`, `.env`.
+- `server/lib/phat.js`:
+  - `phat_batches.so_canh_bao INTEGER` (NULL được; trong `CREATE TABLE` và `themCot` idempotent). `nhapDot` đếm dòng được nhập có `canh_bao` trước khi `mark` xoá nó (`da-chon` chỉ đếm dòng được chọn), ghi vào đợt, trả `so_canh_bao` trong phản hồi commit. Đợt cũ giữ NULL.
+  - Tách `phanTichHoanTac` (dòng lịch sử, số xoá / khôi phục, đợt «vướng» + chi tiết) dùng chung cho `hoanTacDot` và `xemTruocHoanTac` (mới, chỉ đọc, trong một giao dịch đọc). `hoanTacDot` giữ nguyên hành vi; 409 «bị chặn» thêm `dot_vuong_chi_tiet`, 409 «đã hoàn tác» thêm `hoan_tac_luc_bangkok`, `hoan_tac_boi` (`loiDaHoanTac`, `nguoiTheoId`).
+  - `docLocDot` (đọc `tu_ngay`, `den_ngay`, `nguoi_nhap`, `trang_thai`; sai/lặp → 400) và `dsDot` nhận `loc`: ngày đổi sang khoảng UTC `[tu, den)` theo Bangkok (UTC+7); phần tử thêm `so_canh_bao` (sau `so_khong_doi`). Giữ từ phiên trước: `dsDot` trả `nguoi_nhap_lua_chon` (`[{id, hrm_code, full_name}]`, theo BCVH đang chọn / được xem, không theo `page`/`size`/bộ lọc, sắp theo tên `localeCompare('vi')`, người không còn trong `users` xếp cuối).
+- `server/routes/phat.js`: `GET /api/phat/batches/:id/undo-preview` (quyền và thứ tự như `/undo` qua `layDotHoanTac` dùng chung); `/batches` nhận 4 tham số lọc; chữ 403 theo hành động (`CHU_403`, thêm `'hoan-tac'`): `/undo` và `/undo-preview` nói «hoàn tác».
+- `tests/phat.test.js`: sửa 3 ca bị chạm (khoá cột `phat_batches` trong ca lược đồ, khoá phần tử `/batches`, ca migration thêm kiểm `so_canh_bao` NULL); +5 ca cuối file: `nguoi_nhap_lua_chon`, số cảnh báo (hop-le / da-chon / không cảnh báo / đợt cũ NULL), `undo-preview` (khớp `/undo` thật, không ghi gì — chụp toàn bộ bảng `phat_*`, đợt bị chặn, đợt đã hoàn tác, 409 trường cũ + mới), quyền và chữ 403 của cả hai điểm cuối, lọc (biên ngày Bangkok kể cả đợt 23:30 UTC, `nguoi_nhap`, `trang_thai`, kết hợp, 400).
+- `docs/ai/08_PHAT.md`, `04_DECISIONS.md` (#78), `00_SNAPSHOT.md` cập nhật.
+- Kết quả: `npm test` 320/320 đạt (23 file); `npm run build` xong.
+
 ## [2026-10-14] - Giao diện «Xử lý và tỷ lệ phát» (PHAT-2: Đợt B - Màn 14, 15, 16)
 
 - **Màn 14: Bước 1. Tải file mẫu để biên soạn** (`src/components/phat/PhatTemplateView.jsx`):
