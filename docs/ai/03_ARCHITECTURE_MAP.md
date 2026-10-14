@@ -36,6 +36,7 @@ src/
   components/dashboard/ # ChartWidget + editor/ (ChartWidgetModal, SystemWidgetModal, WidgetToolbar, DashboardEditorToolbar, ConfirmModal)
 scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thống cũ vào data/hue-dhcl.db (06_DEPLOYMENT.md mục 5)
 scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
+scripts/sftp-probe.js        # thử kết nối SFTP CHỈ ĐỌC: vân tay khoá máy chủ + liệt kê tên/kích thước/mtime (SANLUONG-5b; chưa tải/nạp; docs/ai/12_SFTP_PROBE.md)
 scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
 scripts/rederive-arrival.js  # tính lại arrival_at/basis/date theo R2 cho dữ liệu đã nạp (chạy thử mặc định, --apply ghi 1 transaction; #59)
 scripts/survey-bd10-den.js  # khảo sát CHỈ ĐỌC "BD10 đến không XNĐ" theo định nghĩa mã BD10 [lập 6][nhận 6] (SANLUONG-4a5)
