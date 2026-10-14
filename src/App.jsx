@@ -8,6 +8,7 @@ import UserAdminView from './components/UserAdminView';
 import ArrivalsView from './components/arrivals/ArrivalsView';
 import DailyOpsDashboard from './components/arrivals/DailyOpsDashboard';
 import TiviView from './components/TiviView';
+import ProcessingDeliveryView from './components/phat/ProcessingDeliveryView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
@@ -220,6 +221,10 @@ export default function App() {
 
           {activeTab === 'network' && isViewer && (
             <NetworkListView />
+          )}
+
+          {activeTab === 'processing' && isViewer && (
+            <ProcessingDeliveryView authUser={authUser} />
           )}
 
           {activeTab === 'useradmin' && isAdmin && (

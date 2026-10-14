@@ -26,7 +26,7 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
   if (isViewer) {
     navItems.push({ id: 'ops_today', label: 'Điều hành hôm nay', icon: Gauge, title: 'Cần điều hành ngay hôm nay' });
     navItems.push({ id: 'arrivals', label: 'Sản lượng đến', icon: Package, title: 'Dữ liệu sản lượng đến' });
-    navItems.push({ id: 'processing', label: 'Xử lý và tỷ lệ phát', icon: Activity, disabled: true });
+    navItems.push({ id: 'processing', label: 'Xử lý và tỷ lệ phát', icon: Activity, title: 'Xử lý và tỷ lệ phát' });
     navItems.push({ id: 'network', label: 'Quản lý mạng lưới', icon: Network });
   }
 

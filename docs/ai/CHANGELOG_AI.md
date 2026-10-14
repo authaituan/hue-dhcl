@@ -2,6 +2,21 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - Giao diện «Xử lý và tỷ lệ phát» (PHAT-2: Đợt A - Menu + Màn 13)
+
+- **Màn 13** (`src/components/phat/ProcessingDeliveryView.jsx`):
+  - Bộ chọn BCVH và Ngày đến: đồng bộ tự động với ngày dữ liệu từ API `GET /api/phat/ty-le`.
+  - Dòng thông tin mẫu số: hiển thị số bưu gửi đến, trạng thái lấy từ lần nhập mới nhất và giờ Bangkok mốc tính.
+  - 5 Thẻ chỉ số trạng thái (PTC, PKTC, Chuyển hoàn, Lạc hướng, Chưa có thông tin phát) với tỷ lệ % 1 chữ số thập phân (dấu phẩy), mức cập nhật kết quả phát, số lượng bưu gửi.
+  - Bảng «Theo khung giờ đến BCVH»: 6 khung giờ đến (Trước 10h, 10–12h, 12–14h, 14–16h, 16–18h, Sau 18h) cùng dòng tổng «Cả ngày» chân bảng.
+  - Khối «Các lần nhập gần đây»: kết nối `GET /api/phat/batches`, hiển thị `nhap_boi.full_name` và số lượng nhập/bỏ qua/lỗi; hiển thị hướng dẫn chọn BCVH khi xem Toàn Trung tâm nếu chưa có danh sách đợt.
+  - Hai nút «Tải file mẫu» và «Nhập trạng thái phát»: disabled kèm nhãn «Sắp có» (chuẩn bị cho Đợt B).
+- **Menu & Điều hướng** (`Sidebar.jsx`, `Header.jsx`, `App.jsx`):
+  - Kích hoạt mục menu «Xử lý và tỷ lệ phát» (bỏ `disabled: true`), hiển thị cho ADMIN, TTVH, GDVH.
+  - Tích hợp tiêu đề vào Header và điều hướng nội dung chính trong App.
+- **Kiểm thử**: npm test: 305 ca, 304 pass, 1 skip; npm run build thành công.
+- Nghiệm thu có điều kiện Đợt A: (1) Khối các lần nhập gần đây hiện nguyên văn thông báo lỗi tiếng Việt của máy chủ kèm nút «Thử lại»; (2) Khi chưa có đợt nhập thay «số liệu tính đến —» bằng «Chưa có số liệu phát»; (3) Đặt 2 hằng số ngưỡng màu NGUONG_PTC_DAT (82%) và NGUONG_CHUA_CO_TT_CANH_BAO (10%), tô xám trung tính bảng khung giờ khi chưa có số liệu; (4) Sửa dòng kiểm thử changelog.
+
 ---
 
 ## [2026-10-14] - DASH-6b sửa nhỏ 1: chú thích khối «Phường/xã tăng mạnh» (`DailyOpsDashboard.jsx`) bỏ chữ «trung bình 4 tuần cùng thứ» → «cùng thứ tuần trước (cùng giờ)», thêm ý chip chỉ hiện số BG khi hôm qua quá ít; sửa chú thích mã `wardChangeChip` (sàn phường/xã 10). Không đổi logic.

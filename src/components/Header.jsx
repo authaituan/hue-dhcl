@@ -8,6 +8,7 @@ export default function Header({ activeTab }) {
       case 'dashboard': return 'Dashboard';
       case 'ops_today': return 'Điều hành hôm nay';
       case 'arrivals': return 'Sản lượng đến';
+      case 'processing': return 'Xử lý và tỷ lệ phát';
       case 'network': return 'Quản lý mạng lưới';
       case 'useradmin': return 'Quản lý người dùng';
       default: return 'Trang chủ';
