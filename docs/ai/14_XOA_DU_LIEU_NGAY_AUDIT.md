@@ -100,6 +100,17 @@ Với ngày file D của BCVH X: các file SFTP có `file_date = D` (sáng ≈ 0
 | 5 | **5g-5 Hoàn tác từ thùng rác + dọn** | Khôi phục một lô từ bảng thùng rác; dọn sau N ngày; sửa `bd10Share` memo | 5g-3 |
 Thứ tự: 5g-1 → 5g-2 → 5g-3 → 5g-4 → 5g-5. «Thay thế» chỉ ADMIN (`requireAdmin`, `server/auth.js:148`); khoá với đồng bộ: dùng chung `batDauLuot`/`luotDangChay` (`sftpSync.js:161-183`) — **lưu ý** cột `trigger` có `CHECK ('MANUAL','TIMER')` nên lượt «thay thế» phải ghi là `MANUAL` kèm ghi chú (hoặc ticket mở rộng CHECK).
 
+> **Cập nhật SANLUONG-5g-1 (đã làm mục 7.3):** `server/lib/arrivalsImport.js` nay có `chuanBiFile(filePath, { source })` (bất đồng bộ, không nhận `db`) và `ghiFileDaChuanBi(db, daChuanBi, { ghiTuChoi, source })` (đồng bộ); `importArrivalFile` = hai hàm này nối nhau, hành vi không đổi (`04_DECISIONS.md` #81). Cách gọi trong giao dịch ngoài (dành cho 5g-3):
+> ```js
+> const moi = [];                                   // 1) async, NGOÀI giao dịch: đọc + kiểm tra mọi file thay thế
+> for (const p of cacFileMoi) { const d = await chuanBiFile(p, { source: 'SFTP' }); if (d.ketLuan !== 'READY') throw new Error(d.error || d.ketLuan); moi.push(d); }
+> db.transaction(() => {                            // 2) đồng bộ, MỘT giao dịch: xóa cũ rồi ghi mới
+>   /* DELETE … (5g-3) */
+>   for (const d of moi) { const r = ghiFileDaChuanBi(db, d, { ghiTuChoi: false }); if (r.status !== 'OK' && r.status !== 'EMPTY') throw new Error(r.error); }
+> })();                                             // ném lỗi ở bất kỳ chỗ nào -> hoàn tác toàn bộ, dữ liệu cũ còn nguyên
+> ```
+> `ghiTuChoi: false` để file mới không hợp lệ không để lại bản ghi `REJECTED` / `CONFLICT`.
+
 ## 8. Dữ liệu nhập tay cũ (`_235959`)
 - **Truy được:** có — dòng → `import_file_id` → `arrival_import_files` (`file_name` kết thúc `_235959`, `file_time = '23:59:59'`, `source = 'MANUAL'` khi nạp bằng `scripts/import-arrivals.js`, vốn không truyền `source`). `unit_code` và `file_date` có sẵn; `arrival_date` của dòng chính là ngày trong tên (do script tách chọn theo R2). *Lưu ý:* file SFTP nạp tay bằng `import-arrivals.js` cũng có `source = 'MANUAL'`; muốn phân biệt phải dùng mẫu giờ/tên. **Chưa chắc** trên DB thật.
 - **«Thay thế ngày D của BCVH X» xóa những gì:** mọi dòng thuộc `S(X, D)` — tức dòng của file `_235959` ngày D **và** dòng của các file SFTP sáng/chiều ngày D nếu đã nạp (kể cả phần chiều tối ngày D−1 trong file sáng D). **Không** xóa dòng của file D+1 (phần tối ngày D nằm ở đó). Nạp lại: hai file SFTP ngày D.

@@ -357,40 +357,47 @@ function summarize(items) {
   };
 }
 
+/** Đọc file một lần: băm, kích thước, có phải file rỗng / chỉ BOM không. Tách riêng để bộ nhớ của file thô được giải phóng trước khi phân tích CSV. */
+function docVaBam(filePath) {
+  const buf = fs.readFileSync(filePath);
+  const isBomOnly = buf.length === 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
+  return { sha256: crypto.createHash('sha256').update(buf).digest('hex'), kichThuoc: buf.length, rong: buf.length === 0 || isBomOnly };
+}
+
 /**
- * Nạp 1 file CSV. Trả { fileName, status, alreadyImported?, rowCount, inserted, ignored, error?, warning?, stats? }.
- * status: OK | EMPTY | REJECTED | CONFLICT | SKIPPED_NAME (sai mẫu tên, không ghi DB).
+ * SANLUONG-5g-1 — NỬA «CHUẨN BỊ» của nạp một file: BẤT ĐỒNG BỘ, KHÔNG nhận `db`, KHÔNG truy cập DB (không tạo bảng, không ghi, không đọc).
+ * Đọc + kiểm tra file (tên, mã, BOM / rỗng, tiêu đề cột, từng dòng, khoảng ngày hợp lý), tính sha256 / kích thước / số dòng / cảnh báo, và trả đối tượng «đã chuẩn bị»:
+ *   {
+ *     fileName,
+ *     ketLuan: 'SKIPPED_NAME' | 'EMPTY_FILE' (0 byte hoặc chỉ BOM) | 'READY' (đọc được, có thể ghi) | 'REJECTED' (từ chối, kèm `error`),
+ *     trangThaiDuKien: 'SKIPPED_NAME' | 'EMPTY' | 'OK' | 'REJECTED'  (READY: 'OK' nếu có dòng, 'EMPTY' nếu chỉ có tiêu đề),
+ *     parsed: { unitCode, fileDate, fileTime } | null,
+ *     meta: { unit_code, file_name, file_date, file_time, file_size, sha256, source } | null,
+ *     rowCount, items (các dòng đã chuẩn hoá, CHƯA có import_file_id), warning, extraColumns, stats, error
+ *   }
+ * Bộ nhớ: file thô chỉ được giữ trong lúc băm (`docVaBam`), rồi giải phóng; mảng bản ghi CSV thô (`records`) chỉ sống trong hàm này và bị bỏ sau khi chuẩn hoá;
+ * đối tượng trả về chỉ giữ `items` (đã chuẩn hoá, cỡ ~ số dòng × 16 trường chữ) và `stats`. Với file ~700 KB (~2.300 dòng) là vài MB; file lớn gấp N lần thì cỡ N lần
+ * (importer không đặt giới hạn kích thước — như trước). Lỗi ĐỌC FILE (không tồn tại, không có quyền) ném ra ngoài như cũ; lỗi nội dung → ketLuan 'REJECTED'.
  */
-async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
+async function chuanBiFile(filePath, { source = 'MANUAL' } = {}) {
   const fileName = path.basename(filePath);
   const parsed = parseFileName(fileName);
-  if (!parsed) return { fileName, status: 'SKIPPED_NAME', error: 'Tên file không đúng mẫu HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv' };
-
-  const buf = fs.readFileSync(filePath);
-  const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
-  const meta = { unit_code: parsed.unitCode, file_name: fileName, file_date: parsed.fileDate, file_time: parsed.fileTime, file_size: buf.length, sha256, source };
-
-  const accepted = db.prepare("SELECT * FROM arrival_import_files WHERE file_name = ? AND status IN ('OK', 'EMPTY')").get(fileName);
-  if (accepted) {
-    if (accepted.sha256 === sha256) {
-      return { fileName, status: accepted.status, alreadyImported: true, rowCount: accepted.row_count, inserted: 0, ignored: 0 };
-    }
-    const error = `Trùng tên với file đã nạp (id ${accepted.id}) nhưng khác nội dung — không nạp, cần ADMIN kiểm tra`;
-    recordFile(db, meta, { status: 'CONFLICT', error });
-    return { fileName, status: 'CONFLICT', error, rowCount: 0, inserted: 0, ignored: 0 };
+  if (!parsed) {
+    return { fileName, ketLuan: 'SKIPPED_NAME', trangThaiDuKien: 'SKIPPED_NAME', parsed: null, meta: null, rowCount: 0, items: [], warning: null, extraColumns: 0, stats: null,
+      error: 'Tên file không đúng mẫu HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv' };
   }
 
-  const isBomOnly = buf.length === 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
-  if (buf.length === 0 || isBomOnly) {
-    recordFile(db, meta, { status: 'EMPTY' });
-    return { fileName, status: 'EMPTY', rowCount: 0, inserted: 0, ignored: 0 };
-  }
+  const { sha256, kichThuoc, rong } = docVaBam(filePath);
+  const meta = { unit_code: parsed.unitCode, file_name: fileName, file_date: parsed.fileDate, file_time: parsed.fileTime, file_size: kichThuoc, sha256, source };
+  const base = { fileName, parsed, meta, rowCount: 0, items: [], warning: null, extraColumns: 0, stats: null, error: null };
+  if (rong) return { ...base, ketLuan: 'EMPTY_FILE', trangThaiDuKien: 'EMPTY' };
 
   try {
-    const records = await readCsvRecords(filePath);
+    let records = await readCsvRecords(filePath);
     if (!records.length) throw new ArrivalFileError('File không có dòng tiêu đề');
     const { index: columnIndex, extraColumns } = resolveHeader(records[0]);
     const items = records.slice(1).map((r, i) => toItem(r, i + 2, columnIndex));
+    records = null; // bản ghi CSV thô không còn cần
 
     // Kiểm tra hợp lý: arrival_at trong [file_date - 3 ngày, file_date + 1 ngày].
     const lo = addDays(parsed.fileDate, -RANGE_DAYS_BEFORE);
@@ -404,11 +411,60 @@ async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
       if (ratio > MAX_OUT_OF_RANGE_RATIO) throw new ArrivalFileError(`${msg} (> ${MAX_OUT_OF_RANGE_RATIO * 100}%)`);
       warning = msg;
     }
+    return { ...base, ketLuan: 'READY', trangThaiDuKien: items.length ? 'OK' : 'EMPTY', rowCount: items.length, items, warning, extraColumns, stats: summarize(items) };
+  } catch (err) {
+    const error = err instanceof ArrivalFileError ? err.message : `Lỗi hệ thống: ${err.code || err.name || 'ERROR'}`;
+    return { ...base, ketLuan: 'REJECTED', trangThaiDuKien: 'REJECTED', error };
+  }
+}
 
-    const cols = [...TEXT_FIELDS, ...TIME_FIELDS, 'weight_g', 'arrival_at', 'arrival_at_basis', 'arrival_date',
-      'arrival_evidence_count', 'bag_date', 'bd10_date', 'item_date', 'ward_key'];
-    const ins = db.prepare(`INSERT OR IGNORE INTO arrival_items (import_file_id, ${cols.join(', ')}) VALUES (@import_file_id, ${cols.map((c) => '@' + c).join(', ')})`);
+const GHI_COT = [...TEXT_FIELDS, ...TIME_FIELDS, 'weight_g', 'arrival_at', 'arrival_at_basis', 'arrival_date',
+  'arrival_evidence_count', 'bag_date', 'bd10_date', 'item_date', 'ward_key'];
 
+/**
+ * SANLUONG-5g-1 — NỬA «GHI» của nạp một file: ĐỒNG BỘ (không async / await / Promise), nhận `db`. Làm đúng phần ghi trước đây của `importArrivalFile`:
+ * kiểm idempotent theo tên + sha256, `CONFLICT` khi cùng tên khác nội dung, ghi `arrival_import_files`, `INSERT OR IGNORE` các dòng, đếm `inserted` / `ignored`,
+ * cập nhật `ward_bdx_map`. Trả cùng dạng giá trị như `importArrivalFile`.
+ *
+ * GỌI ĐƯỢC BÊN TRONG GIAO DỊCH NGOÀI (vd `db.transaction(() => { …; ghiFileDaChuanBi(db, x); … })()`): phần ghi dòng nằm trong `db.transaction`
+ * của better-sqlite3, vốn tự dùng SAVEPOINT khi đã ở trong giao dịch (kể cả giao dịch mở bằng `BEGIN` tay) và chỉ BEGIN / COMMIT khi đứng một mình —
+ * nên hàm này không bao giờ tự commit giao dịch ngoài; giao dịch ngoài hoàn tác thì phần ghi cũng hoàn tác. Ghi bản ghi file `CONFLICT` / `EMPTY` /
+ * `REJECTED` là câu lệnh đơn, nằm trong giao dịch ngoài nếu có.
+ *
+ * options.ghiTuChoi (mặc định true = HÀNH VI CŨ): có ghi bản ghi `REJECTED` (file không hợp lệ hoặc lỗi lúc ghi) và `CONFLICT` vào `arrival_import_files` không.
+ * Đặt false để KHÔNG ghi gì cho file bị từ chối (chức năng «Thay thế» sau này); kết quả trả về vẫn có `status: 'REJECTED' | 'CONFLICT'` và `error`.
+ * Lỗi bất ngờ lúc ghi dòng được bắt và trả `status: 'REJECTED'` (như cũ) — phần ghi dở của file đó đã được hoàn tác bằng savepoint.
+ * options.source: ghi đè `meta.source` (mặc định lấy từ chuanBiFile).
+ */
+function ghiFileDaChuanBi(db, daChuanBi, { ghiTuChoi = true, source = null } = {}) {
+  const { fileName, parsed } = daChuanBi;
+  if (daChuanBi.ketLuan === 'SKIPPED_NAME') return { fileName, status: 'SKIPPED_NAME', error: daChuanBi.error };
+  const meta = source ? { ...daChuanBi.meta, source } : daChuanBi.meta;
+
+  const accepted = db.prepare("SELECT * FROM arrival_import_files WHERE file_name = ? AND status IN ('OK', 'EMPTY')").get(fileName);
+  if (accepted) {
+    if (accepted.sha256 === meta.sha256) {
+      return { fileName, status: accepted.status, alreadyImported: true, rowCount: accepted.row_count, inserted: 0, ignored: 0 };
+    }
+    const error = `Trùng tên với file đã nạp (id ${accepted.id}) nhưng khác nội dung — không nạp, cần ADMIN kiểm tra`;
+    if (ghiTuChoi) recordFile(db, meta, { status: 'CONFLICT', error });
+    return { fileName, status: 'CONFLICT', error, rowCount: 0, inserted: 0, ignored: 0 };
+  }
+
+  if (daChuanBi.ketLuan === 'EMPTY_FILE') {
+    recordFile(db, meta, { status: 'EMPTY' });
+    return { fileName, status: 'EMPTY', rowCount: 0, inserted: 0, ignored: 0 };
+  }
+
+  const tuChoi = (error) => {
+    if (ghiTuChoi) recordFile(db, meta, { status: 'REJECTED', error });
+    return { fileName, status: 'REJECTED', error, rowCount: 0, inserted: 0, ignored: 0 };
+  };
+  if (daChuanBi.ketLuan === 'REJECTED') return tuChoi(daChuanBi.error);
+
+  try {
+    const { items, warning } = daChuanBi;
+    const ins = db.prepare(`INSERT OR IGNORE INTO arrival_items (import_file_id, ${GHI_COT.join(', ')}) VALUES (@import_file_id, ${GHI_COT.map((c) => '@' + c).join(', ')})`);
     const result = db.transaction(() => {
       const status = items.length ? 'OK' : 'EMPTY';
       const fileId = recordFile(db, meta, { status, row_count: items.length, warning });
@@ -419,13 +475,20 @@ async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
       const wardsAdded = refreshWardMap(db, items.map((i) => i.ward_name));
       return { status, inserted, ignored, wardsAdded };
     })();
-
-    return { fileName, unitCode: parsed.unitCode, rowCount: items.length, warning, extraColumns, stats: summarize(items), ...result };
+    return { fileName, unitCode: parsed.unitCode, rowCount: items.length, warning, extraColumns: daChuanBi.extraColumns, stats: daChuanBi.stats, ...result };
   } catch (err) {
-    const error = err instanceof ArrivalFileError ? err.message : `Lỗi hệ thống: ${err.code || err.name || 'ERROR'}`;
-    recordFile(db, meta, { status: 'REJECTED', error });
-    return { fileName, status: 'REJECTED', error, rowCount: 0, inserted: 0, ignored: 0 };
+    return tuChoi(err instanceof ArrivalFileError ? err.message : `Lỗi hệ thống: ${err.code || err.name || 'ERROR'}`);
   }
+}
+
+/**
+ * Nạp 1 file CSV (chữ ký và giá trị trả về KHÔNG đổi): = `await chuanBiFile(...)` rồi `ghiFileDaChuanBi(...)`.
+ * Trả { fileName, status, alreadyImported?, rowCount, inserted, ignored, error?, warning?, stats? }.
+ * status: OK | EMPTY | REJECTED | CONFLICT | SKIPPED_NAME (sai mẫu tên, không ghi DB).
+ */
+async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
+  const daChuanBi = await chuanBiFile(filePath, { source });
+  return ghiFileDaChuanBi(db, daChuanBi, { source });
 }
 
 /** Nạp mọi file đúng mẫu tên trong thư mục, tuần tự theo (ngày, giờ) trong tên file. */
@@ -476,6 +539,6 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
-  ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, importArrivalDirectory, getMissingBatches,
+  ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, chuanBiFile, ghiFileDaChuanBi, importArrivalDirectory, getMissingBatches,
   refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
 };
