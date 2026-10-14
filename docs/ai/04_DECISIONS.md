@@ -602,5 +602,12 @@ Căn cứ: khảo sát PHAT-3a (`10_PHAT3_AUDIT.md`) — Dashboard còn khung «
 - **Số đo `ton_cho`** (dữ liệu giả, `PHAT_PERF=1`): ~320 ms mỗi BCVH, `/ty-le` gộp 6 BCVH ~2,2 s, endpoint mới ~75 ms — nên `ton_cho` không vào endpoint này.
 - **Chưa làm (ngoài phạm vi)**: giao diện (PHAT-3c); tivi + xếp hạng phường/xã + loại việc phát (PHAT-3d); đổi màn 13 sang lấy ngưỡng từ máy chủ; màn chỉnh ngưỡng; so cùng giờ / tuần trước cho PTC.
 
+### 80. Xếp hạng BCVH kèm tỷ lệ 4 trạng thái còn lại; `nguong.san_xep_hang_bcvh` (PO duyệt Bảng 19 — PHAT-3b-1, backend)
+Căn cứ: Bảng 19 trên Dashboard cần thêm cột theo từng BCVH: Phát không thành công, Chuyển hoàn, Lạc hướng, Chưa có thông tin phát. Chi tiết API: `08_PHAT.md` mục 4. Chỉ THÊM khoá; quyền, quy tắc xếp hạng, sàn và các khoá cũ không đổi.
+- **`xep_hang_bcvh[].theo_trang_thai`**: `{PKTC, CHUYEN_HOAN, LAC_HUONG, CHUA_CO_TT}`, mỗi khoá `{nhan, so, ty_le}` — đúng tên khoá và dạng của khối `theo_trang_thai` cấp tổng; mẫu số = `mau_so` của BCVH đó (mẫu số của `ptc`). Lấy từ cùng `dungTyLe` nên khớp `/api/phat/ty-le` cùng BCVH, cùng ngày.
+- **`chua_du_du_lieu[]`**: giữ `{bcvh, ten, mau_so, ly_do}`, không thêm tỷ lệ. **`nguong.san_xep_hang_bcvh`** = `SAN_XEP_HANG_BCVH` (50, `phatConfig.js`).
+- **Tự quyết**: khối chỉ có 4 trạng thái (PTC không lặp lại vì đã có ở `ptc`; số PTC của từng BCVH không có trong phần tử xếp hạng — nếu giao diện cần số tuyệt đối thì thêm sau); thứ tự khoá cũ giữ nguyên, `theo_trang_thai` nằm cuối.
+- **Chưa làm**: giao diện Bảng 19 (PHAT-3c).
+
 ## Drift phát hiện
 _(chưa có)_
