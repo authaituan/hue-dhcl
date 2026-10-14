@@ -16,6 +16,8 @@ const { VALID_BCVH_CODES } = require('./userBcvh');
 
 const { QueryParamError, DATE_RE, validYmd } = aq;
 const LY_DO = Object.freeze({ CHUA_NHAP: 'chua_nhap', DUOI_SAN: 'duoi_san' });
+// 4 trạng thái còn lại ngoài PTC (đã có ở khoá `ptc`), thêm vào từng phần tử xếp hạng (PHAT-3b-1).
+const TT_KHAC = Object.freeze(['PKTC', 'CHUYEN_HOAN', 'LAC_HUONG', 'CHUA_CO_TT']);
 
 /** Tham số: bcvh (một mã trong 6 BCVH | all, mặc định all), ngay (YYYY-MM-DD, mặc định ngày file OK mới nhất của từng BCVH). Tham số lạ / lặp -> 400. */
 function parseParams(query) {
@@ -47,7 +49,7 @@ function xepHang(rows, names) {
   let hang = 0;
   return ok.map((r, i) => {
     if (i === 0 || r.ptc !== ok[i - 1].ptc) hang = i + 1;
-    return { bcvh: r.ma, ten: names.get(r.ma), mau_so: r.mau_so, ptc: r.ptc, hang };
+    return { bcvh: r.ma, ten: names.get(r.ma), mau_so: r.mau_so, ptc: r.ptc, hang, theo_trang_thai: r.khac };
   });
 }
 
@@ -78,6 +80,7 @@ function ketQuaPhat(db, codes, p) {
     // Dưới sàn xét TRƯỚC: mẫu số nhỏ thì «chưa nhập» không còn là lý do để bắt nhập; mẫu số 0 (BCVH chưa có hàng đến) cũng là dưới sàn.
     const xet = per.map((r) => ({
       ma: r.ma, mau_so: r.ty_le.mau_so, ptc: r.ty_le.theo_trang_thai.PTC.ty_le,
+      khac: Object.fromEntries(TT_KHAC.map((m) => [m, r.ty_le.theo_trang_thai[m]])), // cùng dạng {nhan, so, ty_le} và cùng mẫu số với `ptc`
       ly_do: r.ty_le.mau_so < CF.SAN_XEP_HANG_BCVH ? LY_DO.DUOI_SAN : (r.co_tt === 0 ? LY_DO.CHUA_NHAP : null)
     }));
     xep = xepHang(xet, names);
@@ -96,7 +99,7 @@ function ketQuaPhat(db, codes, p) {
     co_so_lieu_phat: coSoLieu,
     so_lieu_den_luc: coSoLieu ? nhapLuc : null,
     so_lieu_den_luc_bangkok: coSoLieu ? P.gioBangkok(nhapLuc) : null,
-    nguong: { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO },
+    nguong: { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO, san_xep_hang_bcvh: CF.SAN_XEP_HANG_BCVH },
     xep_hang_bcvh: xep,
     chua_du_du_lieu: chuaDu
   };

@@ -294,7 +294,8 @@ test('cờ cấp tổng: đúng khi ít nhất một BCVH có số liệu trong 
 test('hai ngưỡng màu có trong phản hồi (lấy từ hằng số máy chủ), kể cả khi không có số liệu', async () => {
   for (const qs of ['', `?bcvh=${M}`, `?bcvh=${M4}`, '?ngay=2026-10-10']) {
     const b = (await kq(qs)).body;
-    assert.deepEqual(b.nguong, { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO }, qs);
+    assert.deepEqual(b.nguong, { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO, san_xep_hang_bcvh: CF.SAN_XEP_HANG_BCVH }, qs);
+    assert.equal(b.nguong.san_xep_hang_bcvh, 50);
   }
 });
 
@@ -306,9 +307,36 @@ test('xếp hạng BCVH: PTC giảm dần; đồng hạng cùng hạng; sàn m�
     [M, 2, 0.6, 60], // đồng hạng với M5 (36/60 = 33/55), hòa theo mã BCVH
     [M5, 2, 0.6, 55]
   ]);
-  assert.deepEqual(Object.keys(b.xep_hang_bcvh[0]), ['bcvh', 'ten', 'mau_so', 'ptc', 'hang']);
+  assert.deepEqual(Object.keys(b.xep_hang_bcvh[0]), ['bcvh', 'ten', 'mau_so', 'ptc', 'hang', 'theo_trang_thai'], 'khoá cũ giữ nguyên tên + thứ tự, chỉ thêm theo_trang_thai');
   assert.ok(typeof b.xep_hang_bcvh[0].ten === 'string' && b.xep_hang_bcvh[0].ten);
   assert.ok(!b.xep_hang_bcvh.some((x) => x.bcvh === M3), 'M3 PTC 100% nhưng mẫu số 49 < 50 -> không xếp hạng');
+});
+
+test('xếp hạng: mỗi phần tử có số + tỷ lệ 4 trạng thái còn lại, cùng tên khoá và mẫu số với khối cấp tổng; 5 tỷ lệ cộng lại = 1; khớp /ty-le', async () => {
+  const b = (await kq('')).body;
+  const tong = Object.keys(b.theo_trang_thai);
+  assert.deepEqual(tong, ['PTC', 'PKTC', 'CHUYEN_HOAN', 'CHUA_CO_TT', 'LAC_HUONG']);
+  for (const x of b.xep_hang_bcvh) {
+    assert.deepEqual(Object.keys(x.theo_trang_thai).sort(), tong.filter((k) => k !== 'PTC').sort(), 'đúng 4 trạng thái còn lại (PTC đã có ở `ptc`)');
+    for (const [k, v] of Object.entries(x.theo_trang_thai)) assert.deepEqual(Object.keys(v), Object.keys(b.theo_trang_thai[k]), `${k}: cùng dạng {nhan, so, ty_le}`);
+    const sum = x.ptc + Object.values(x.theo_trang_thai).reduce((a, v) => a + v.ty_le, 0);
+    assert.ok(Math.abs(sum - 1) < 0.0005, `${x.bcvh}: tổng 5 tỷ lệ = ${sum}`);
+    const so = Object.values(x.theo_trang_thai).reduce((a, v) => a + v.so, 0);
+    // khớp /ty-le cùng BCVH, cùng ngày (ngày «hôm nay» của BCVH)
+    const t = (await call(`/api/phat/ty-le?bcvh=${x.bcvh}`, 'admin')).body;
+    assert.equal(t.mau_so, x.mau_so);
+    assert.equal(t.theo_trang_thai.PTC.so + so, x.mau_so, `${x.bcvh}: số 5 trạng thái cộng = mẫu số`);
+    assert.equal(t.theo_trang_thai.PTC.ty_le, x.ptc);
+    for (const [k, v] of Object.entries(x.theo_trang_thai)) assert.deepEqual(v, t.theo_trang_thai[k], `${x.bcvh} ${k}`);
+  }
+  // số cụ thể của M (36 PTC, 6 PKTC, 3 chuyển hoàn, 3 lạc hướng, 12 chưa có / 60)
+  const m = b.xep_hang_bcvh.find((x) => x.bcvh === M);
+  assert.deepEqual(Object.fromEntries(Object.entries(m.theo_trang_thai).map(([k, v]) => [k, [v.so, v.ty_le]])), { PKTC: [6, 0.1], CHUYEN_HOAN: [3, 0.05], LAC_HUONG: [3, 0.05], CHUA_CO_TT: [12, 0.2] });
+  // M2: 45 PTC, 5 chưa có / 50
+  const m2 = b.xep_hang_bcvh.find((x) => x.bcvh === M2);
+  assert.deepEqual([m2.theo_trang_thai.CHUA_CO_TT.so, m2.theo_trang_thai.CHUA_CO_TT.ty_le, m2.theo_trang_thai.PKTC.so], [5, 0.1, 0]);
+  // 1 BCVH trong phạm vi: vẫn null
+  assert.equal((await kq(`?bcvh=${M}`)).body.xep_hang_bcvh, null);
 });
 
 test('chưa đủ dữ liệu: dưới sàn / chưa nhập ghi lý do, KHÔNG xếp cuối; mẫu số 0 (chưa có file) là dưới sàn', async () => {
@@ -322,7 +350,7 @@ test('chưa đủ dữ liệu: dưới sàn / chưa nhập ghi lý do, KHÔNG x�
   assert.equal(byCode[M4].mau_so, 80);
   assert.equal(byCode[M6].ly_do, 'duoi_san');
   assert.equal(byCode[M6].mau_so, 0);
-  assert.deepEqual(Object.keys(byCode[M4]), ['bcvh', 'ten', 'mau_so', 'ly_do']);
+  assert.deepEqual(Object.keys(byCode[M4]), ['bcvh', 'ten', 'mau_so', 'ly_do'], 'KHÔNG có tỷ lệ');
   assert.equal(b.xep_hang_bcvh.length + b.chua_du_du_lieu.length, 6, 'mỗi BCVH nằm đúng một danh sách');
   assert.ok(b.xep_hang_bcvh.every((x) => x.hang >= 1 && x.hang <= 3));
   assert.deepEqual(Object.values(PD.LY_DO).sort(), ['chua_nhap', 'duoi_san']);

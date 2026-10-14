@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - PHAT-3b-1: Tỷ lệ 4 trạng thái còn lại trong xếp hạng BCVH (backend)
+
+- `server/lib/phatDashboard.js`: mỗi phần tử `xep_hang_bcvh` thêm `theo_trang_thai{PKTC, CHUYEN_HOAN, LAC_HUONG, CHUA_CO_TT: {nhan, so, ty_le}}` (cùng khoá/dạng với khối cấp tổng, mẫu số = `mau_so` của BCVH); `nguong.san_xep_hang_bcvh` = `SAN_XEP_HANG_BCVH` (50). `chua_du_du_lieu` không đổi (không có tỷ lệ). Chỉ thêm khoá; quyền, xếp hạng, sàn không đổi; `/api/phat/ty-le` không đổi.
+- `tests/phat-dashboard.test.js`: +1 ca (338 ca; trước 337): 4 khoá đúng tên/dạng, `ptc` + 4 tỷ lệ ≈ 1, khớp `/ty-le` cùng BCVH cùng ngày, số cụ thể của hai BCVH giả, 1 BCVH → `xep_hang_bcvh` vẫn `null`; ca ngưỡng kiểm `san_xep_hang_bcvh`; ca khoá phần tử kiểm khoá cũ giữ tên/thứ tự.
+- Docs: `08_PHAT.md` mục 4, `04_DECISIONS.md` #80, `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-14] - PHAT-3b: Backend kết quả phát cho Dashboard «Điều hành hôm nay»
 
 - **Endpoint mới** `GET /api/arrivals/dashboard/ket-qua-phat?bcvh=&ngay=` (`server/routes/arrivals.js` — middleware `phatScope` + route; `server/lib/phatDashboard.js` — `parseParams`, `ketQuaPhat`). Trả `mau_so`, 5 trạng thái (số + tỷ lệ), `ptc`, `muc_cap_nhat`, `co_so_lieu_phat`, `so_lieu_den_luc` (+ `_bangkok`), `nguong{ptc_dat, chua_co_tt_canh_bao}`, `xep_hang_bcvh`, `chua_du_du_lieu`. ADMIN, TTVH, GDVH đều xem đủ mọi BCVH như 3 endpoint dashboard «đến» (#72); STAFF và TIVI 403 (TIVI không vào allowlist). Không khung giờ, không `ton_cho`.
