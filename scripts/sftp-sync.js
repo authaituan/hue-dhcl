@@ -118,7 +118,7 @@ async function main() {
       const lieu = m.tong === 0 ? 'không có file nào trong thư mục' : `khớp ${m.tong} · ${cot} ${args.chayThat ? m.daNap : m.sapNap} · đã có ${m.daCo} · chưa ổn định ${m.chuaOnDinh} · rỗng ${m.rong} · bỏ qua ${m.boQua} · lỗi ${m.loi}`;
       log(`  ${ma}${m.laMa ? ' (MÃ LẠ — chưa có trong danh mục 6 BCVH)' : ''}: ${lieu}`);
     }
-    if (kq.dem.maLa) log(`  CẢNH BÁO: ${kq.dem.maLa} file có mã đơn vị lạ — importer vẫn nạp mọi mã (không kiểm danh mục); xem cột ma_loi = MA_LA.`);
+    if (kq.dem.maLa) log(`  CẢNH BÁO: ${kq.dem.maLa} file có mã đơn vị lạ (không thuộc 6 BCVH) — BỎ QUA, không tải, không nạp (ma_loi = MA_LA).`);
     const d = kq.dem;
     log(`\nTổng kết${kq.runId ? ` (lượt #${kq.runId})` : ' (chạy khô, không ghi lượt)'}: liệt kê ${d.tongListKe} mục · ${args.chayThat ? `đã nạp ${d.daNap}` : `sẽ nạp ${d.wouldImport}`} · đã có ${d.daCo} · chưa ổn định ${d.chuaOnDinh} · rỗng ${d.rong} · bỏ qua ${d.boQuaKhac} · lỗi ${d.loi}`);
     const ma = S.maThoat(kq);

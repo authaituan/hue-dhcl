@@ -394,32 +394,118 @@ test('--toi-da và «từ ngày» áp dụng chung cho mọi mã: N file cũ nh�
   assert.deepEqual([kq.theoMa['535470'].daNap, kq.theoMa['535470'].boQua], [0, 1]);
 });
 
-test('mã LẠ (không có trong 6 BCVH): importer KHÔNG kiểm danh mục nên vẫn nạp — lõi nạp theo importer và gắn nhãn MA_LA để PO thấy', async () => {
+test('mã LẠ (không thuộc 6 BCVH): BO_QUA + MA_LA, KHÔNG tải, KHÔNG nạp (SANLUONG-5e đổi hành vi của 5c-1); hiện trong thống kê theo mã', async () => {
   const la = ten('999999', '2026-10-14');
   const ok = ten('533140', '2026-10-14');
   const src = nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')), [ok]: f(csv('533140', '2026-10-14')) } });
   const kq = await chay(src);
-  assert.equal(byName(kq)[la].ketQua, 'DA_NAP');
+  assert.equal(byName(kq)[la].ketQua, 'BO_QUA');
   assert.equal(byName(kq)[la].maLoi, 'MA_LA');
-  assert.match(byName(kq)[la].chiTiet, /chưa có trong danh mục 6 BCVH/);
-  assert.equal(byName(kq)[ok].maLoi ?? null, null);
-  assert.equal(kq.theoMa['999999'].laMa, true);
-  assert.equal(kq.theoMa['999999'].daNap, 1);
+  assert.match(byName(kq)[la].chiTiet, /không thuộc 6 BCVH/);
+  assert.equal(byName(kq)[ok].ketQua, 'DA_NAP');
+  assert.deepEqual(src.calls.get, [`${D1}/${ok}`], 'không tải file mã lạ');
+  assert.equal(rows('SELECT 1 FROM arrival_import_files WHERE file_name = ?', la).length, 0, 'không nạp, không có «BCVH ma» trong lịch sử nạp');
+  assert.equal(rows('SELECT DISTINCT receiver_code FROM arrival_items').length, 1);
+  assert.deepEqual([kq.theoMa['999999'].laMa, kq.theoMa['999999'].tong, kq.theoMa['999999'].boQua, kq.theoMa['999999'].daNap], [true, 1, 1, 0]);
   assert.equal(kq.dem.maLa, 1);
-  assert.equal(rows('SELECT unit_code FROM arrival_import_files WHERE file_name = ?', la)[0].unit_code, '999999', 'importer ghi mã lạ vào lịch sử nạp');
-  assert.equal(rows('SELECT ma_loi FROM sftp_sync_files WHERE ten_file = ?', la)[0].ma_loi, 'MA_LA');
+  assert.equal(rows('SELECT ma_loi, ket_qua FROM sftp_sync_files WHERE ten_file = ?', la)[0].ma_loi, 'MA_LA');
   assert.equal(S.maThoat(kq), 0, 'mã lạ không làm lượt thất bại');
-  // chạy khô cũng báo trước
+  // chạy khô cũng chỉ báo BO_QUA/MA_LA (không WOULD_IMPORT)
   ctx.db.prepare('DELETE FROM arrival_items').run(); ctx.db.prepare('DELETE FROM arrival_import_files').run();
   const kq2 = await chay(nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')) } }), { options: { dryRun: true } });
-  assert.equal(byName(kq2)[la].ketQua, 'WOULD_IMPORT');
+  assert.equal(byName(kq2)[la].ketQua, 'BO_QUA');
   assert.equal(byName(kq2)[la].maLoi, 'MA_LA');
-  assert.equal(kq2.theoMa['999999'].sapNap, 1);
-  assert.equal(dem('arrival_import_files'), 0);
+  assert.equal(kq2.dem.wouldImport, 0);
   // danh mục tiêm vào (maDaBiet) quyết định thế nào là «lạ»
   const kq3 = await chay(nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')) } }), { options: { dryRun: true, maDaBiet: ['999999'] } });
-  assert.equal(byName(kq3)[la].maLoi ?? null, null);
+  assert.equal(byName(kq3)[la].ketQua, 'WOULD_IMPORT');
   assert.deepEqual(Object.keys(kq3.theoMa), ['999999']);
+  // mã lạ đã lỡ nằm trong lịch sử nạp từ trước thì vẫn là MA_LA (kiểm mã đứng trước kiểm «đã có»)
+  await importArrivalFile(ctx.db, (() => { const p = path.join(tmpRoot, la); fs.writeFileSync(p, csv('999999', '2026-10-14')); return p; })(), { source: 'SFTP' });
+  const kq4 = await chay(nguonGia({ [D1]: { [la]: f(csv('999999', '2026-10-14')) } }));
+  assert.equal(byName(kq4)[la].maLoi, 'MA_LA');
+});
+
+test('chế độ BANG (hẹn giờ): MỘT lần liệt kê, KHÔNG chờ; ổn định xét qua bảng sftp_source_files giữa các lượt; file đổi thì xét lại', async () => {
+  const a = ten('533140', '2026-10-14');
+  let buf = csv('533140', '2026-10-14');
+  const files = { [D1]: { [a]: f(buf, 1000) } };
+  const luot = async (t, extra = {}) => { const src = nguonGia(files); const kq = await chay(src, { now: () => new Date(t), options: { oDinh: 'BANG', onDinhGiay: 60, ...extra } }); kq.src = src; return kq; };
+  const T0 = Date.parse('2026-10-14T05:00:00Z');
+
+  let kq = await luot(T0); // lần đầu thấy
+  assert.equal(byName(kq)[a].ketQua, 'CHUA_ON_DINH');
+  assert.deepEqual(kq.ngu, [], 'không chờ trong lượt');
+  assert.equal(kq.src.calls.list.length, 1, 'một lần liệt kê');
+  assert.equal(kq.src.calls.get.length, 0);
+  let r = rows('SELECT * FROM sftp_source_files')[0];
+  assert.deepEqual([r.thu_muc, r.ten_file, r.kich_thuoc, r.mtime, r.so_lan_giu_nguyen, r.con_tren_nguon], [D1, a, buf.length, 1000, 0, 1]);
+  assert.equal(r.lan_dau_thay, new Date(T0).toISOString());
+
+  files[D1][a] = f(buf = csv('533140', '2026-10-14', 4), 2000); // đổi giữa hai lượt
+  kq = await luot(T0 + 10 * 60000);
+  assert.equal(byName(kq)[a].ketQua, 'CHUA_ON_DINH', 'đổi kích thước / mtime -> bắt đầu đếm lại');
+  r = rows('SELECT * FROM sftp_source_files')[0];
+  assert.deepEqual([r.kich_thuoc, r.so_lan_giu_nguyen, r.giu_nguyen_tu, r.lan_dau_thay], [buf.length, 0, new Date(T0 + 10 * 60000).toISOString(), new Date(T0).toISOString()]);
+
+  kq = await luot(T0 + 10 * 60000 + 30000); // giữ nguyên nhưng mới 30 giây < 60 giây
+  assert.equal(byName(kq)[a].ketQua, 'CHUA_ON_DINH', 'chưa đủ SFTP_STABLE_SECONDS');
+  assert.equal(rows('SELECT so_lan_giu_nguyen FROM sftp_source_files')[0].so_lan_giu_nguyen, 1);
+
+  kq = await luot(T0 + 20 * 60000); // giữ nguyên qua 2 lượt cách nhau ≥ 60 giây
+  assert.equal(byName(kq)[a].ketQua, 'DA_NAP');
+  assert.equal(dem('arrival_import_files'), 1);
+  assert.equal(rows('SELECT so_lan_giu_nguyen FROM sftp_source_files')[0].so_lan_giu_nguyen, 2);
+});
+
+test('sftp_source_files giữ file đã biến mất khỏi nguồn (con_tren_nguon = 0, lan_cuoi_thay = lần cuối thấy); xuất hiện lại thì được cập nhật', async () => {
+  const a = ten('533140', '2026-10-14', '093012');
+  const b = ten('535470', '2026-10-14', '093012');
+  const files = { [D1]: { [a]: f(csv('533140', '2026-10-14')), [b]: f(csv('535470', '2026-10-14')) } };
+  const luot = (t) => chay(nguonGia(files), { now: () => new Date(t), options: { oDinh: 'BANG', dryRun: false, toiDa: 0 + 5 } });
+  const T0 = Date.parse('2026-10-14T05:00:00Z');
+  await luot(T0);
+  const luuB = files[D1][b];
+  delete files[D1][b];
+  await luot(T0 + 600000);
+  const rb = rows('SELECT * FROM sftp_source_files WHERE ten_file = ?', b)[0];
+  assert.equal(rb.con_tren_nguon, 0);
+  assert.equal(rb.lan_cuoi_thay, new Date(T0).toISOString(), 'lần cuối thấy giữ nguyên');
+  assert.equal(rows('SELECT con_tren_nguon FROM sftp_source_files WHERE ten_file = ?', a)[0].con_tren_nguon, 1);
+  files[D1][b] = luuB;
+  await luot(T0 + 1200000);
+  const rb2 = rows('SELECT * FROM sftp_source_files WHERE ten_file = ?', b)[0];
+  assert.deepEqual([rb2.con_tren_nguon, rb2.lan_cuoi_thay], [1, new Date(T0 + 1200000).toISOString()]);
+  assert.equal(dem('sftp_source_files'), 2);
+  // chạy khô KHÔNG ghi sftp_source_files
+  ctx.db.prepare('DELETE FROM sftp_source_files').run();
+  await chay(nguonGia(files), { options: { oDinh: 'BANG', dryRun: true } });
+  assert.equal(dem('sftp_source_files'), 0);
+});
+
+test('nhường vòng lặp giữa hai file (nhuong) và dừng trước file kế tiếp khi huy() = true', async () => {
+  const t = ['2026-10-12', '2026-10-13', '2026-10-14'].map((d) => ten('533140', d));
+  const mk = () => nguonGia({ [D1]: Object.fromEntries(t.map((x, i) => [x, f(csv('533140', ['2026-10-12', '2026-10-13', '2026-10-14'][i]))])) });
+  let nhuong = 0;
+  let kq = await chay(mk(), { options: { nhuong: async () => { nhuong++; } } });
+  assert.equal(nhuong, 3, 'sau mỗi file');
+  assert.equal(kq.dem.daNap, 3);
+  // huỷ sau file đầu
+  ctx.db.prepare('DELETE FROM arrival_items').run(); ctx.db.prepare('DELETE FROM arrival_import_files').run();
+  let da = false;
+  kq = await chay(mk(), { options: { nhuong: async () => { da = true; }, huy: () => da } });
+  assert.equal(kq.dem.daNap, 1);
+  assert.equal(kq.daHuy, true);
+  assert.ok(rows('SELECT finished_at FROM sftp_sync_runs ORDER BY id DESC')[0].finished_at, 'lượt vẫn được đóng');
+  assert.ok(tmpSach());
+});
+
+test('ghiLuotThatBai: ghi một lượt đã kết thúc, loi = 1, ghi chú đã che bí mật và số dài', () => {
+  const id = S.ghiLuotThatBai(ctx.db, NOW, 'TIMER', `không nối được với ${'7'.repeat(20)} mat-khau-gia`, ['mat-khau-gia']);
+  const r = rows('SELECT * FROM sftp_sync_runs WHERE id = ?', id)[0];
+  assert.deepEqual([r.trigger, r.loi, r.dry_run], ['TIMER', 1, 0]);
+  assert.ok(r.finished_at);
+  assert.ok(!/\d{15,}/.test(r.ghi_chu_loi) && !r.ghi_chu_loi.includes('mat-khau-gia'));
 });
 
 test('ghi nhận hành vi importer (không sửa): mã đơn vị lấy từ TÊN FILE, KHÔNG so với cột BC_nhan_BG trong nội dung', async () => {
