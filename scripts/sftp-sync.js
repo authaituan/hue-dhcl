@@ -111,6 +111,14 @@ async function main() {
     if (kq.luotDangChay) log(`Lưu ý: đang có lượt thật #${kq.luotDangChay} chạy (chạy khô vẫn an toàn vì không ghi gì).`);
     for (const t of kq.loiThuMuc) loi(`LỖI [${t.nhom}] thư mục ${F.tenAnToan(t.thuMuc, 120)}: ${t.thongBao}`);
     if (kq.loiChung) loi(`LỖI lượt: ${kq.loiChung}`);
+    log('\nTheo mã đơn vị (mã lấy từ TÊN FILE; một thư mục có thể chứa nhiều mã):');
+    const cot = args.chayThat ? 'đã nạp' : 'sẽ nạp';
+    for (const ma of Object.keys(kq.theoMa).sort(F.soSanhMa)) {
+      const m = kq.theoMa[ma];
+      const lieu = m.tong === 0 ? 'không có file nào trong thư mục' : `khớp ${m.tong} · ${cot} ${args.chayThat ? m.daNap : m.sapNap} · đã có ${m.daCo} · chưa ổn định ${m.chuaOnDinh} · rỗng ${m.rong} · bỏ qua ${m.boQua} · lỗi ${m.loi}`;
+      log(`  ${ma}${m.laMa ? ' (MÃ LẠ — chưa có trong danh mục 6 BCVH)' : ''}: ${lieu}`);
+    }
+    if (kq.dem.maLa) log(`  CẢNH BÁO: ${kq.dem.maLa} file có mã đơn vị lạ — importer vẫn nạp mọi mã (không kiểm danh mục); xem cột ma_loi = MA_LA.`);
     const d = kq.dem;
     log(`\nTổng kết${kq.runId ? ` (lượt #${kq.runId})` : ' (chạy khô, không ghi lượt)'}: liệt kê ${d.tongListKe} mục · ${args.chayThat ? `đã nạp ${d.daNap}` : `sẽ nạp ${d.wouldImport}`} · đã có ${d.daCo} · chưa ổn định ${d.chuaOnDinh} · rỗng ${d.rong} · bỏ qua ${d.boQuaKhac} · lỗi ${d.loi}`);
     const ma = S.maThoat(kq);

@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5c-1: Nhiều BCVH chung một thư mục nguồn
+
+- PO xác nhận file của mọi BCVH nằm CÙNG một thư mục (`/CSV_Report_533140`), tên chỉ đổi mã đơn vị. **Bỏ** quy tắc «mã trong tên file ≠ mã trong tên thư mục thì `BO_QUA` (`KHAC_MA_THU_MUC`)»: `server/lib/sftpSync.js`, `server/lib/sftpFiles.js` (`locMuc` không còn nhận tên thư mục, bỏ `canhBao.khacMaThuMuc` và hàm `maTuTenThuMuc`), `scripts/sftp-probe.js`. Mã đơn vị lấy từ TÊN FILE. Không giữ cảnh báo thay thế (mix mã là bình thường); thay bằng thống kê theo mã.
+- **Thống kê theo mã** (`kq.theoMa`; `thongKeTheoMa`/`soSanhMa` ở `sftpFiles.js`): `scripts/sftp-sync.js` in mỗi mã — khớp / sẽ nạp (đã nạp) / đã có / chưa ổn định / rỗng / bỏ qua / lỗi; 6 BCVH luôn có mặt (0 file = «không có file nào trong thư mục»); `scripts/sftp-probe.js` in số file mỗi mã.
+- **Thứ tự nạp**: ngày/giờ trong tên tăng dần, cùng thời điểm thì mã tăng dần (ổn định giữa các lượt). `--toi-da` và «từ ngày» chung cho mọi mã.
+- **Mã lạ**: importer lấy `unit_code` từ tên file, không có danh sách BCVH hợp lệ và không so với `BC_nhan_BG` trong nội dung (`arrivalsImport.js:180-189, 371`) nên NẠP IM LẶNG mã lạ. Lõi sync nạp theo importer nhưng gắn `ma_loi = MA_LA` + ghi chú, `dem.maLa`, cảnh báo ở cuối lượt; mã thoát không đổi. Cần PO quyết có từ chối mã lạ không (`13_SFTP_SYNC.md` mục 9). Importer KHÔNG sửa.
+- Test: `tests/sftp-sync.test.js` 26 → 31 ca (bỏ ca `KHAC_MA_THU_MUC`; thêm: 3 mã chung thư mục, thứ tự theo ngày/giờ rồi mã, `--toi-da`/«từ ngày» chung mọi mã, mã lạ, ghi nhận hành vi importer, thư mục không theo mẫu + ngày sai); `tests/sftp-probe.test.js` 21 ca (2 ca đổi theo quy tắc đã bỏ: lọc thư mục không còn `khacMaThuMuc`; thay ca `maTuTenThuMuc` bằng ca thống kê theo mã). Docs: `13_SFTP_SYNC.md` (mục 9 mới), `12_SFTP_PROBE.md`, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-15] - SANLUONG-5c (sửa trước khi commit): file ≤ 3 byte đi qua importer
 
 - `server/lib/sftpSync.js`: bỏ nhánh «≤ 3 byte → `EMPTY` không tải» (và hằng `MAX_BOM_BYTES`). Sau kiểm tra ổn định, file ≤ 3 byte (chỉ BOM / 0 byte) vẫn được tải và đưa cho `importArrivalFile`, importer ghi đợt `EMPTY` vào `arrival_import_files`; lượt sau là `DA_CO`. Điều kiện «đã nạp» giữ nguyên (`OK`/`EMPTY`). Lý do: không ghi `EMPTY` thì `getMissingBatches` báo thiếu đợt cho ngày có file chiều chỉ-BOM.

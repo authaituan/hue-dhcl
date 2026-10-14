@@ -49,28 +49,20 @@ function phanTichTen(ten) {
   };
 }
 
-/** '/CSV_Report_533140' -> '533140'; thư mục không theo mẫu `CSV_Report_<mã>` -> null. */
-function maTuTenThuMuc(tenThuMuc) {
-  return (/(?:^|[\\/])CSV_Report_(\d+)\/?$/.exec(String(tenThuMuc)) || [])[1] || null;
-}
-
 /** Che ký tự điều khiển và cắt ngắn để in tên lạ ra màn hình an toàn. */
 const tenAnToan = (s, max = 80) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?').slice(0, max);
 
 /**
  * Lọc kết quả liệt kê MỘT thư mục. entries: [{ type: 'd' | '-' | 'l', name, size, modifyTime (ms) }] (dạng của ssh2-sftp-client.list).
- * tenThuMuc: tên thư mục (để đối chiếu mã đơn vị trong tên `CSV_Report_<mã>`; không khớp mẫu thì bỏ qua việc đối chiếu).
- * Trả { khop: [{ name, size, mtime, maDonVi, ngay, gio, khoa, ngayHopLe }], boQua: { tong, theoLyDo, tenMau }, canhBao: { khacMaThuMuc, ngayKhongHopLe } }.
+ * Mã đơn vị lấy từ TÊN FILE; một thư mục có thể chứa file của nhiều mã (SANLUONG-5c-1) — tên thư mục `CSV_Report_<mã>` KHÔNG còn là điều kiện lọc.
+ * Trả { khop: [{ name, size, mtime, maDonVi, ngay, gio, khoa, ngayHopLe }], boQua: { tong, theoLyDo, tenMau }, canhBao: { ngayKhongHopLe } }.
  * Bỏ qua: '#recycle', tên bắt đầu bằng '.', mục không phải file thường (thư mục con, liên kết), tên không khớp mẫu. tenMau tối đa 5 tên.
  */
-function locMuc(entries, tenThuMuc = '') {
-  // (mã đơn vị trong tên thư mục `CSV_Report_<mã>` — xem maTuTenThuMuc)
-  const maThuMuc = maTuTenThuMuc(tenThuMuc);
+function locMuc(entries) {
   const khop = [];
   const theoLyDo = { recycle: 0, an: 0, khong_phai_file: 0, khac_mau: 0 };
   const tenMau = [];
   const boQua = (ly, name) => { theoLyDo[ly]++; if (tenMau.length < 5) tenMau.push(tenAnToan(name)); };
-  let khacMaThuMuc = 0;
   let ngayKhongHopLe = 0;
   for (const e of entries || []) {
     const name = String(e.name);
@@ -79,12 +71,11 @@ function locMuc(entries, tenThuMuc = '') {
     if (e.type !== '-') { boQua('khong_phai_file', name); continue; }
     const p = phanTichTen(name);
     if (!p) { boQua('khac_mau', name); continue; }
-    if (maThuMuc && p.maDonVi !== maThuMuc) khacMaThuMuc++;
     if (!p.ngayHopLe) ngayKhongHopLe++;
     khop.push({ name, size: Number(e.size) || 0, mtime: Number(e.modifyTime) || 0, ...p });
   }
   const tong = Object.values(theoLyDo).reduce((a, b) => a + b, 0);
-  return { khop, boQua: { tong, theoLyDo, tenMau }, canhBao: { khacMaThuMuc, ngayKhongHopLe } };
+  return { khop, boQua: { tong, theoLyDo, tenMau }, canhBao: { ngayKhongHopLe } };
 }
 
 /** Tóm tắt danh sách file khớp: số file, mới nhất / cũ nhất theo (ngày, giờ) TRONG TÊN, số file ≤ 3 KB. */
@@ -94,6 +85,21 @@ function tomTat(khop) {
   const pick = (f) => ({ name: f.name, size: f.size, mtime: f.mtime });
   return { soFile: khop.length, moiNhat: pick(sx[sx.length - 1]), cuNhat: pick(sx[0]), soFileNho: khop.filter((f) => f.size <= NGUONG_FILE_NHO).length };
 }
+
+/**
+ * Thống kê file khớp mẫu THEO MÃ ĐƠN VỊ: [{ ma, soFile, laMa (true nếu mã không có trong maDaBiet), moiNhat: {name, mtime} | null }], sắp mã tăng dần.
+ * maDaBiet: danh sách mã BCVH đã biết — mã đã biết nhưng không có file vẫn được liệt kê (soFile 0) để thấy BCVH nào chưa có file.
+ */
+function thongKeTheoMa(khop, maDaBiet = []) {
+  const m = new Map(maDaBiet.map((ma) => [ma, []]));
+  for (const f of khop) { if (!m.has(f.maDonVi)) m.set(f.maDonVi, []); m.get(f.maDonVi).push(f); }
+  return [...m.entries()].sort(([a], [b]) => soSanhMa(a, b)).map(([ma, fs]) => ({
+    ma, soFile: fs.length, laMa: !maDaBiet.includes(ma), moiNhat: fs.length ? tomTat(fs).moiNhat : null
+  }));
+}
+
+/** So sánh mã đơn vị theo giá trị số (ngắn trước, cùng độ dài thì theo chữ). */
+const soSanhMa = (a, b) => (a.length - b.length) || (a < b ? -1 : a > b ? 1 : 0);
 
 // ------------------------------------------
 // Quy tắc «file ổn định» (dùng lại cho 5c): một file chỉ được coi là ghi xong khi kích thước VÀ mtime không đổi
@@ -267,6 +273,6 @@ const dinhDangDungLuong = (b) => `${b.toLocaleString('en-US')} B (${(b / 1024).t
 
 module.exports = {
   FILE_NAME_RE, NGUONG_FILE_NHO, MA_THOAT, MAX_THU_MUC, CauHinhLoi,
-  phanTichTen, maTuTenThuMuc, locMuc, tomTat, fileOnDinh, tinhVanTay, chuanHoaVanTay, taoKiemTraKhoa, docCauHinh, docThamSo, phanLoaiLoi, anBiMat, tenAnToan,
+  phanTichTen, locMuc, tomTat, thongKeTheoMa, soSanhMa, fileOnDinh, tinhVanTay, chuanHoaVanTay, taoKiemTraKhoa, docCauHinh, docThamSo, phanLoaiLoi, anBiMat, tenAnToan,
   dinhDangMtime, dinhDangDungLuong, pad
 };

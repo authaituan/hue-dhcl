@@ -51,7 +51,7 @@ Remove-Item Env:SFTP_PASSWORD, Env:SFTP_USER
 (Hoặc đặt các biến vào `.env` ở thư mục repo — `.env` đã nằm trong `.gitignore`. Mật khẩu có ký tự đặc biệt nên đặt trong dấu nháy.)
 
 ## 4. Kết quả in ra, mỗi thư mục
-Số file khớp mẫu; file mới nhất và cũ nhất **theo tên** (kèm kích thước, mtime theo giờ Asia/Bangkok); số file ≤ 3 KB (có thể chỉ có tiêu đề hoặc chỉ BOM); số mục bị bỏ qua theo lý do (`#recycle`, tên bắt đầu bằng `.`, không phải file thường, tên không khớp mẫu) kèm tối đa 5 tên ví dụ; cảnh báo nếu mã đơn vị trong tên file khác mã trong tên thư mục `CSV_Report_<mã>`, hoặc ngày/giờ trong tên không có thật.
+Số file khớp mẫu; file mới nhất và cũ nhất **theo tên** (kèm kích thước, mtime theo giờ Asia/Bangkok); số file ≤ 3 KB (có thể chỉ có tiêu đề hoặc chỉ BOM); số mục bị bỏ qua theo lý do (`#recycle`, tên bắt đầu bằng `.`, không phải file thường, tên không khớp mẫu) kèm tối đa 5 tên ví dụ; **thống kê theo mã đơn vị** (một thư mục có thể chứa file của nhiều BCVH — SANLUONG-5c-1; mã đã biết chưa có file hiện «chưa có file», mã lạ được đánh dấu); cảnh báo nếu ngày/giờ trong tên không có thật. (Quy tắc cũ «mã trong tên file khác mã trong tên thư mục» đã bỏ.)
 
 ## 5. Mã thoát
 | Mã | Nghĩa | Thường do |

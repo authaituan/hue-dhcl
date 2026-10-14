@@ -13,6 +13,7 @@
 'use strict';
 const SftpClient = require('ssh2-sftp-client');
 const F = require('../server/lib/sftpFiles');
+const { VALID_BCVH_CODES } = require('../server/lib/userBcvh');
 
 try { process.loadEnvFile(); } catch (e) { /* không có .env: dùng biến môi trường hệ thống */ }
 
@@ -71,7 +72,9 @@ function inThuMuc(dir, kq, gioiHan) {
     log(`  cũ nhất  (theo tên): ${t.cuNhat.name}  mtime ${F.dinhDangMtime(t.cuNhat.mtime)}`);
   }
   log(`  file ≤ 3 KB (có thể chỉ có tiêu đề / BOM): ${t.soFileNho}`);
-  if (kq.canhBao.khacMaThuMuc) log(`  CẢNH BÁO: ${kq.canhBao.khacMaThuMuc} file có mã đơn vị khác mã trong tên thư mục`);
+  for (const m of F.thongKeTheoMa(kq.khop, VALID_BCVH_CODES)) {
+    log(`  mã ${m.ma}: ${m.soFile} file${m.laMa ? ' (MÃ LẠ — chưa có trong danh mục 6 BCVH)' : ''}${m.moiNhat ? `, mới nhất ${m.moiNhat.name}` : m.laMa ? '' : ' (chưa có file)'}`);
+  }
   if (kq.canhBao.ngayKhongHopLe) log(`  CẢNH BÁO: ${kq.canhBao.ngayKhongHopLe} file khớp mẫu nhưng ngày/giờ trong tên không hợp lệ`);
   log(`  mục bị bỏ qua: ${kq.boQua.tong} (#recycle ${kq.boQua.theoLyDo.recycle}, tên bắt đầu bằng "." ${kq.boQua.theoLyDo.an}, không phải file thường ${kq.boQua.theoLyDo.khong_phai_file}, tên không khớp mẫu ${kq.boQua.theoLyDo.khac_mau})`);
   if (kq.boQua.tenMau.length) log(`    ví dụ (tối đa 5): ${kq.boQua.tenMau.join(' | ')}`);
@@ -107,7 +110,7 @@ async function chayThuong(cfg, args) {
     for (const dir of cfg.dirs) {
       try {
         const entries = await choToiDa(sftp.list(dir), LIET_KE_GIAY, `Liệt kê ${F.tenAnToan(dir, 60)}`);
-        const kq = F.locMuc(entries, dir);
+        const kq = F.locMuc(entries);
         lanDau.set(dir, kq.khop);
         inThuMuc(dir, kq, args.gioiHan);
       } catch (err) {
@@ -122,7 +125,7 @@ async function chayThuong(cfg, args) {
       await ngu(args.onDinhGiay);
       for (const [dir, truoc] of lanDau) {
         try {
-          const kq = F.locMuc(await choToiDa(sftp.list(dir), LIET_KE_GIAY, 'Liệt kê lần 2'), dir);
+          const kq = F.locMuc(await choToiDa(sftp.list(dir), LIET_KE_GIAY, 'Liệt kê lần 2'));
           const r = F.fileOnDinh(truoc, kq.khop, { khoangGiay: args.onDinhGiay, toiThieuGiay: args.onDinhGiay });
           log(`  [${F.tenAnToan(dir, 120)}] ổn định ${r.onDinh.length}, chưa ổn định ${r.chuaOnDinh.length} (mới xuất hiện ${r.moiXuatHien.length}), biến mất ${r.bienMat.length}`);
           for (const c of r.chuaOnDinh.slice(0, 5)) log(`    chưa ổn định: ${F.tenAnToan(c.name)} (${c.lyDo})`);
