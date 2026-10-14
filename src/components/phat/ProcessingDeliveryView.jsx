@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, AlertCircle, FileSpreadsheet, UploadCloud } from 'lucide-react';
+import { RefreshCw, AlertCircle, FileSpreadsheet, UploadCloud, ChevronRight, ArrowLeft } from 'lucide-react';
 import { apiFetchJson } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
+import PhatTemplateView from './PhatTemplateView';
+import PhatDraftView from './PhatDraftView';
+import PhatCommitResultView from './PhatCommitResultView';
 
-// Hai ngưỡng tô màu tạm của ticket PHAT-2 (Đợt A)
+// Hai ngưỡng tô màu tạm của ticket PHAT-2
 export const NGUONG_PTC_DAT = 0.82; // PTC >= 82% màu xanh (#059669), dưới 82% màu vàng/cam hổ phách (#b45309)
 export const NGUONG_CHUA_CO_TT_CANH_BAO = 0.10; // Chưa có thông tin phát >= 10% màu đỏ đậm (#991b1b)
 
 // Định dạng tỷ lệ dạng 0..1 sang chuỗi % một chữ số thập phân dùng dấu phẩy (vd: 0.86 -> 86,0%)
-// Không ép tổng 100% theo đúng chốt của ticket.
 export function formatRatePercent(r) {
   if (r === null || r === undefined || isNaN(r)) return '—';
   return `${(r * 100).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
@@ -34,8 +36,21 @@ function parseBangkokTime(str) {
   };
 }
 
+// Đọc tham số ?ban-kiem-tra=<id> từ URL (Chốt 6: KHÔNG dùng localStorage)
+function readUrlDraftId() {
+  const sp = new URLSearchParams(window.location.search);
+  return sp.get('ban-kiem-tra') || null;
+}
+
 export default function ProcessingDeliveryView({ authUser }) {
-  // Mặc định chọn BCVH đầu tiên (533140 - Thuận Hóa) để khớp với bản vẽ mẫu Màn 13
+  // Chế độ xem: 'overview' (Màn 13: Xử lý và tỷ lệ phát) | 'import' (Màn 14, 15, 16: Quy trình nhập)
+  const initialDraftId = readUrlDraftId();
+  const [viewMode, setViewMode] = useState(initialDraftId ? 'import' : 'overview');
+  const [currentStep, setCurrentStep] = useState(initialDraftId ? 2 : 1);
+  const [draftId, setDraftId] = useState(initialDraftId);
+  const [commitData, setCommitData] = useState(null);
+
+  // Mặc định chọn BCVH đầu tiên (533140 - Thuận Hóa)
   const [selectedBcvh, setSelectedBcvh] = useState('533140');
   const [selectedDate, setSelectedDate] = useState('');
   
@@ -48,7 +63,19 @@ export default function ProcessingDeliveryView({ authUser }) {
   const [batchesError, setBatchesError] = useState(null); // { status, message }
   const [batchesNotice, setBatchesNotice] = useState(null);
 
-  // 1. Tải dữ liệu tỷ lệ phát
+  // Cập nhật id bản kiểm tra vào URL query ?ban-kiem-tra=<id>
+  const handleSelectDraftId = useCallback((id) => {
+    const url = new URL(window.location.href);
+    if (id) {
+      url.searchParams.set('ban-kiem-tra', id);
+    } else {
+      url.searchParams.delete('ban-kiem-tra');
+    }
+    window.history.replaceState(null, '', url.toString());
+    setDraftId(id);
+  }, []);
+
+  // 1. Tải dữ liệu tỷ lệ phát (Màn 13)
   const loadTyLe = useCallback(async (bcvh, date) => {
     setLoading(true);
     setTyLeError(null);
@@ -60,7 +87,6 @@ export default function ProcessingDeliveryView({ authUser }) {
       const res = await apiFetchJson(`/api/phat/ty-le?${params.toString()}`);
       if (res.ok) {
         setTyLeData(res.data);
-        // Nếu ban đầu chưa chọn ngày, đồng bộ ô chọn ngày theo ngày API trả về
         if (!date && res.data?.ngay) {
           setSelectedDate(res.data.ngay);
         }
@@ -68,7 +94,7 @@ export default function ProcessingDeliveryView({ authUser }) {
         setTyLeError(res.error || 'Không tải được dữ liệu tỷ lệ phát');
         setTyLeData(null);
       }
-    } catch (err) {
+    } catch (_) {
       setTyLeError('Lỗi kết nối khi tải dữ liệu tỷ lệ phát');
       setTyLeData(null);
     } finally {
@@ -76,7 +102,7 @@ export default function ProcessingDeliveryView({ authUser }) {
     }
   }, []);
 
-  // 2. Tải danh sách đợt nhập gần đây
+  // 2. Tải danh sách đợt nhập gần đây (Màn 13)
   const loadBatches = useCallback(async (bcvh) => {
     setBatchesLoading(true);
     setBatchesError(null);
@@ -92,18 +118,16 @@ export default function ProcessingDeliveryView({ authUser }) {
         }
       } else {
         setBatches([]);
-        // Chốt 4: nếu chọn «Toàn Trung tâm» và API không hỗ trợ / không nhận
         if (bcvh === 'all' && (res.status === 400 || res.status === 403)) {
           setBatchesNotice('Chọn một BCVH để xem các lần nhập');
         } else {
-          // Điểm 1: Hiện nguyên văn thông báo tiếng Việt từ máy chủ
           setBatchesError({
             status: res.status,
             message: res.error || 'Lỗi khi tải danh sách đợt nhập'
           });
         }
       }
-    } catch (err) {
+    } catch (_) {
       setBatches([]);
       setBatchesError({
         status: 0,
@@ -114,13 +138,14 @@ export default function ProcessingDeliveryView({ authUser }) {
     }
   }, []);
 
-  // Kích hoạt nạp dữ liệu khi đổi bcvh hoặc ngày
   useEffect(() => {
-    loadTyLe(selectedBcvh, selectedDate);
-    loadBatches(selectedBcvh);
-  }, [selectedBcvh, selectedDate, loadTyLe, loadBatches]);
+    if (viewMode === 'overview') {
+      loadTyLe(selectedBcvh, selectedDate);
+      loadBatches(selectedBcvh);
+    }
+  }, [viewMode, selectedBcvh, selectedDate, loadTyLe, loadBatches]);
 
-  // Phân tích các mốc thời gian
+  // Phân tích các mốc thời gian Màn 13
   const hasPhatData = Boolean(tyLeData?.so_lieu_den_luc_bangkok);
   const timeInfo = parseBangkokTime(tyLeData?.so_lieu_den_luc_bangkok);
   const displayDateStr = tyLeData?.ngay
@@ -130,10 +155,8 @@ export default function ProcessingDeliveryView({ authUser }) {
   const mauSo = tyLeData?.mau_so ?? 0;
   const theoTT = tyLeData?.theo_trang_thai || {};
 
-  // Hàm xác định màu cho ô tỷ lệ trong bảng «Theo khung giờ đến»
-  // Điểm 3: Khi chưa có đợt nhập nào (hasPhatData = false), mọi ô tỷ lệ tô màu xám trung tính, không xanh/đỏ
   const getCellColor = (field, rate) => {
-    if (!hasPhatData) return '#6b7280'; // xám trung tính khi chưa có đợt nhập
+    if (!hasPhatData) return '#6b7280';
     if (rate === null || rate === undefined) return '#9ca3af';
 
     switch (field) {
@@ -152,6 +175,122 @@ export default function ProcessingDeliveryView({ authUser }) {
     }
   };
 
+  // Xử lý khi commit thành công từ Bước 2
+  const handleCommitSuccess = (commitResult) => {
+    setCommitData(commitResult);
+    setCurrentStep(3);
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIEW 2: QUY TRÌNH NHẬP (MÀN 14, 15, 16)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (viewMode === 'import') {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+        {/* Thanh Stepper & Breadcrumb chung cho cả 3 bước (Khớp 3 canvas) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('overview');
+                handleSelectDraftId(null);
+              }}
+              className="text-gray-500 hover:text-orange-600 cursor-pointer flex items-center gap-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Xử lý và tỷ lệ phát</span>
+            </button>
+            <span className="text-gray-300">›</span>
+            <span className="text-gray-800">Nhập trạng thái phát</span>
+          </div>
+
+          {/* Stepper (3 viên thuốc: 1 Tải file mẫu, 2 Kiểm tra dữ liệu, 3 Kết quả nhập) */}
+          <div className="flex items-center gap-2 text-xs font-bold">
+            {/* Bước 1 */}
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${
+                currentStep === 1
+                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              1 Tải file mẫu
+            </button>
+
+            {/* Bước 2 */}
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${
+                currentStep === 2
+                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              2 Kiểm tra dữ liệu
+            </button>
+
+            {/* Bước 3 */}
+            <button
+              type="button"
+              onClick={() => commitData && setCurrentStep(3)}
+              disabled={!commitData}
+              className={`px-3.5 py-1.5 rounded-full transition-colors ${
+                currentStep === 3
+                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  : commitData
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
+                    : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+              }`}
+            >
+              3 Kết quả
+            </button>
+          </div>
+        </div>
+
+        {/* Nội dung tương ứng theo bước */}
+        {currentStep === 1 && (
+          <PhatTemplateView
+            selectedBcvh={selectedBcvh}
+            onNavigateStep={(step) => setCurrentStep(step)}
+          />
+        )}
+
+        {currentStep === 2 && (
+          <PhatDraftView
+            selectedBcvh={selectedBcvh}
+            draftId={draftId}
+            onSelectDraftId={handleSelectDraftId}
+            onCommitSuccess={handleCommitSuccess}
+          />
+        )}
+
+        {currentStep === 3 && (
+          <PhatCommitResultView
+            commitData={commitData}
+            draftId={draftId}
+            onBackToDraft={() => setCurrentStep(2)}
+            onUploadOther={() => {
+              handleSelectDraftId(null);
+              setCurrentStep(2);
+            }}
+            onViewOverview={() => {
+              setViewMode('overview');
+              handleSelectDraftId(null);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIEW 1: MÀN 13 TỔNG QUAN (XỬ LÝ VÀ TỶ LỆ PHÁT)
+  // ══════════════════════════════════════════════════════════════════════════
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-5">
       {/* ── THANH ĐIỀU HƯỚNG TRÊN CÙNG: TIÊU ĐỀ & BỘ ĐIỀU KHIỂN ──────────────── */}
@@ -162,7 +301,7 @@ export default function ProcessingDeliveryView({ authUser }) {
           </h1>
         </div>
 
-        {/* Cụm công cụ: Ngày, BCVH, Nút thao tác Đợt B (disabled) */}
+        {/* Cụm công cụ: Ngày, BCVH, Nút thao tác chuyển sang Đợt B */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Bộ chọn Ngày đến */}
           <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-xs">
@@ -202,37 +341,35 @@ export default function ProcessingDeliveryView({ authUser }) {
             }}
             disabled={loading}
             title="Tải lại số liệu"
-            className="p-2 text-gray-500 hover:text-orange-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-orange-50 transition-colors disabled:opacity-50"
+            className="p-2 text-gray-500 hover:text-orange-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-orange-50 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* Nút «Tải file mẫu» (disabled kèm nhãn «Sắp có», không modal) */}
+          {/* Nút «Tải file mẫu» -> chuyển sang Bước 1 */}
           <button
             type="button"
-            disabled
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 text-gray-400 font-medium text-xs rounded-lg cursor-not-allowed select-none"
-            title="Tính năng thuộc Đợt B (Quy trình nhập trạng thái)"
+            onClick={() => {
+              setViewMode('import');
+              setCurrentStep(1);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-orange-600" />
             <span>Tải file mẫu</span>
-            <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.2 rounded font-semibold ml-0.5">
-              Sắp có
-            </span>
           </button>
 
-          {/* Nút «Nhập trạng thái phát» (disabled kèm nhãn «Sắp có», không modal) */}
+          {/* Nút «Nhập trạng thái phát» -> chuyển sang Bước 2 */}
           <button
             type="button"
-            disabled
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-400/50 border border-transparent text-white font-medium text-xs rounded-lg cursor-not-allowed select-none shadow-sm"
-            title="Tính năng thuộc Đợt B (Quy trình nhập trạng thái)"
+            onClick={() => {
+              setViewMode('import');
+              setCurrentStep(2);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span>Nhập trạng thái phát</span>
-            <span className="text-[10px] bg-white/30 text-white px-1.5 py-0.2 rounded font-semibold ml-0.5">
-              Sắp có
-            </span>
           </button>
         </div>
       </div>
@@ -240,12 +377,12 @@ export default function ProcessingDeliveryView({ authUser }) {
       {/* ── LỖI NẾU CÓ KHI TẢI TỶ LỆ ────────────────────────────────────────── */}
       {tyLeError && (
         <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-medium">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+          <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
           <span>{tyLeError}</span>
         </div>
       )}
 
-      {/* ── THÔNG TIN MẪU SỐ & MỐC TÍNH (ĐIỂM 2: «Chưa có số liệu phát») ─────── */}
+      {/* ── THÔNG TIN MẪU SỐ & MỐC TÍNH ────────────────────────────────────── */}
       <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm text-xs text-gray-600 leading-relaxed">
         <span>Mẫu số là số bưu gửi (SHBG) đến BCVH ngày {displayDateStr}, mỗi SHBG tính một lần: </span>
         <strong className="text-gray-900 font-bold">{formatInt(mauSo)}</strong>.
@@ -259,7 +396,7 @@ export default function ProcessingDeliveryView({ authUser }) {
 
       {/* ── 5 THẺ CHỈ SỐ TRẠNG THÁI (GRID 5 CỘT) ────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {/* THẺ 1: PHÁT THÀNH CÔNG (PTC) - Nổi bật khung đậm viền đen bo góc */}
+        {/* THẺ 1: PHÁT THÀNH CÔNG (PTC) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-900 flex flex-col justify-between min-h-[148px]">
           <div>
             <div className="text-[11px] font-bold text-gray-800 tracking-wide uppercase">
@@ -279,7 +416,6 @@ export default function ProcessingDeliveryView({ authUser }) {
               {formatInt(theoTT.PTC?.so)} / {formatInt(mauSo)} bưu gửi
             </div>
           </div>
-          {/* Điểm 2: Thay «số liệu tính đến —» bằng «Chưa có số liệu phát» */}
           <div className="text-[11px] text-gray-500 font-medium mt-2 pt-2 border-t border-gray-100">
             Mức cập nhật kết quả phát{' '}
             <strong className="text-gray-800 font-bold">
@@ -561,7 +697,6 @@ export default function ProcessingDeliveryView({ authUser }) {
               </p>
             </div>
 
-            {/* Điểm 1: Xử lý lỗi, thông báo máy chủ và nút «Thử lại» */}
             {batchesLoading ? (
               <div className="py-8 text-center text-xs text-gray-400">
                 Đang tải lịch sử nhập...
@@ -595,7 +730,6 @@ export default function ProcessingDeliveryView({ authUser }) {
               <div className="space-y-3.5">
                 {batches.map((item) => {
                   const itemTime = parseBangkokTime(item.nhap_luc_bangkok);
-                  // Chỉ hiện nhap_boi.full_name, không kèm hrm_code
                   const nguoiNhap = item.nhap_boi?.full_name || 'Người dùng';
 
                   return (
@@ -623,7 +757,7 @@ export default function ProcessingDeliveryView({ authUser }) {
           <div className="pt-4 mt-4 border-t border-gray-100">
             <span
               className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer underline underline-offset-2"
-              title="Xem toàn bộ lịch sử chi tiết sẽ được mở ở Đợt B"
+              title="Xem toàn bộ lịch sử chi tiết sẽ được mở ở ticket sau"
             >
               Xem toàn bộ lịch sử
             </span>

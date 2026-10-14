@@ -2,6 +2,31 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - Giao diện «Xử lý và tỷ lệ phát» (PHAT-2: Đợt B - Màn 14, 15, 16)
+
+- **Màn 14: Bước 1. Tải file mẫu để biên soạn** (`src/components/phat/PhatTemplateView.jsx`):
+  - Form chọn BCVH, ngày đến (từ – đến), phạm vi («Chỉ bưu gửi chưa có trạng thái» / «Tất cả bưu gửi kèm trạng thái hiện có»).
+  - Tải file mẫu Excel qua `GET /api/phat/template?bcvh=&from=&to=&scope=` (Content-Type `.xlsx`).
+  - Khung hướng dẫn cấu trúc file, 5 nhãn trạng thái và mẹo biên soạn nhanh.
+- **Màn 15: Bước 2. Kiểm tra dữ liệu trước khi nhập** (`src/components/phat/PhatDraftView.jsx`):
+  - Tải file mới (`POST /api/phat/drafts`) hoặc chọn từ danh sách bản kiểm tra chưa hết hạn của người dùng (`GET /api/phat/drafts?bcvh=`). Lưu id ở `?ban-kiem-tra=<id>` (không dùng localStorage).
+  - Xóa bản kiểm tra (`DELETE /api/phat/drafts/:id`) có hộp xác nhận, chặn bấm đúp, làm mới danh sách.
+  - Xử lý lỗi 404 khi mở bản kiểm tra của người khác hoặc đã hết hạn, hiện thông báo rõ và đưa về danh sách.
+  - 4 Thẻ chỉ số tổng hợp (Hợp lệ, Bỏ qua, Lỗi, Lỗi theo loại), 5 tab lọc, dropdown lọc loại lỗi.
+  - Lưới dữ liệu dòng: sửa trạng thái inline (`PATCH /rows`), xóa dòng đã chọn (`DELETE /rows`), điền trạng thái hàng loạt (`POST /fill`), tải file lỗi (`errors.xlsx?loai_tru=KHONG_DOI`). Cột «Trạng thái hiện có» chỉ hiện nhãn; cột «Kết quả kiểm tra» hiện nguyên văn `chi_tiet_loi`/`ly_do` từ máy chủ.
+  - Khối «Gán nhanh bằng danh sách SHBG» (`POST /assign-list`).
+  - Thanh đáy xác nhận nhập dòng hợp lệ/dòng đã chọn (`POST /commit`) có hộp thoại xác nhận số dòng dự kiến, chặn bấm đúp, khoá nút khi đang gọi API.
+- **Màn 16: Bước 3. Kết quả nhập** (`src/components/phat/PhatCommitResultView.jsx`):
+  - Banner xanh xác nhận số dòng và giờ nhập (`so_nhap`, `nhap_luc_bangkok`).
+  - Bảng tỷ lệ phát Trước / Sau / Chênh cho 5 trạng thái (chênh lệch % 1 chữ số thập phân có dấu +/-).
+  - Khối chưa nhập (dòng lỗi, dòng trống), nút tải file lỗi, nút quay lại bảng kiểm tra, nút nhập file khác, nút xem tỷ lệ phát.
+- **Điều phối** (`src/components/phat/ProcessingDeliveryView.jsx`):
+  - Mở khóa 2 nút «Tải file mẫu» và «Nhập trạng thái phát» trên Màn 13 để chuyển vào quy trình nhập.
+  - Thanh Stepper 3 bước đồng bộ trạng thái, hỗ trợ quay lại Màn 13 qua breadcrumb.
+- **Kiểm thử**: `npm test` 315 ca (314 pass, 1 skip CLI); `npm run build` thành công.
+
+---
+
 ## [2026-10-14] - Giao diện «Xử lý và tỷ lệ phát» (PHAT-2: Đợt A - Menu + Màn 13)
 
 - **Màn 13** (`src/components/phat/ProcessingDeliveryView.jsx`):
