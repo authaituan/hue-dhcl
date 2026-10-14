@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import { apiFetch } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
+import CustomDatePicker from '../common/CustomDatePicker';
 
 export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
   const [bcvh, setBcvh] = useState(selectedBcvh && selectedBcvh !== 'all' ? selectedBcvh : '533140');
@@ -108,20 +109,18 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-600 block">Ngày đến, từ</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                onChange={(val) => setFromDate(val)}
+                placeholder="dd/mm/yyyy"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-600 block">đến</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                onChange={(val) => setToDate(val)}
+                placeholder="dd/mm/yyyy"
               />
             </div>
           </div>

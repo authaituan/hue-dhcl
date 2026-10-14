@@ -4,6 +4,7 @@ import { apiFetchJson } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
 import { formatInt, formatRatePercent } from './ProcessingDeliveryView';
 import PhatCancelBatchDialog from './PhatCancelBatchDialog';
+import CustomDatePicker from '../common/CustomDatePicker';
 
 // Kiểm tra định dạng ngày dd/mm/yyyy hợp lệ
 function isValidDateDMY(str) {
@@ -95,21 +96,9 @@ export default function PhatHistoryView({ onBack, authUser }) {
   }, []);
 
   // Kiểm tra tính hợp lệ của hai ô ngày
-  const validateDateRange = useCallback((fromStr, toStr) => {
-    const f = fromStr.trim();
-    const t = toStr.trim();
-    if (f && !isValidDateDMY(f)) {
-      return '«Nhập từ ngày» không hợp lệ (định dạng dd/mm/yyyy, ví dụ 01/10/2026)';
-    }
-    if (t && !isValidDateDMY(t)) {
-      return '«đến ngày» không hợp lệ (định dạng dd/mm/yyyy, ví dụ 14/10/2026)';
-    }
-    if (f && t) {
-      const fromYmd = dmyToYmd(f);
-      const toYmd = dmyToYmd(t);
-      if (fromYmd > toYmd) {
-        return '«Nhập từ ngày» không được sau «đến ngày»';
-      }
+  const validateDateRange = useCallback((fromVal, toVal) => {
+    if (fromVal && toVal && fromVal > toVal) {
+      return '«Nhập từ ngày» không được sau «đến ngày»';
     }
     return null;
   }, []);
@@ -137,10 +126,8 @@ export default function PhatHistoryView({ onBack, authUser }) {
       params.set('size', '20');
       params.set('page', String(pageVal || 1));
 
-      const ymdFrom = dmyToYmd(fromVal);
-      const ymdTo = dmyToYmd(toVal);
-      if (ymdFrom) params.set('tu_ngay', ymdFrom);
-      if (ymdTo) params.set('den_ngay', ymdTo);
+      if (fromVal) params.set('tu_ngay', fromVal);
+      if (toVal) params.set('den_ngay', toVal);
 
       if (userVal) params.set('nguoi_nhap', userVal);
       if (statusVal) params.set('trang_thai', statusVal);
@@ -247,7 +234,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
           className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>← Về Xử lý và tỷ lệ phát</span>
+          <span>Về Xử lý và tỷ lệ phát</span>
         </button>
       </div>
 
@@ -393,17 +380,13 @@ export default function PhatHistoryView({ onBack, authUser }) {
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Nhập từ ngày
             </label>
-            <input
-              type="text"
+            <CustomDatePicker
               placeholder="dd/mm/yyyy"
               value={filterFromDate}
-              onChange={(e) => {
-                setFilterFromDate(e.target.value);
+              onChange={(val) => {
+                setFilterFromDate(val);
                 setPage(1);
               }}
-              className={`w-full text-xs font-semibold text-gray-800 bg-white border rounded-xl p-2.5 focus:outline-none focus:ring-2 ${
-                dateError ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-orange-500'
-              }`}
             />
           </div>
 
@@ -412,17 +395,13 @@ export default function PhatHistoryView({ onBack, authUser }) {
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               đến ngày
             </label>
-            <input
-              type="text"
+            <CustomDatePicker
               placeholder="dd/mm/yyyy"
               value={filterToDate}
-              onChange={(e) => {
-                setFilterToDate(e.target.value);
+              onChange={(val) => {
+                setFilterToDate(val);
                 setPage(1);
               }}
-              className={`w-full text-xs font-semibold text-gray-800 bg-white border rounded-xl p-2.5 focus:outline-none focus:ring-2 ${
-                dateError ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-orange-500'
-              }`}
             />
           </div>
 

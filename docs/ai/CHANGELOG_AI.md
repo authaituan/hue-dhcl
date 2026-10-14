@@ -2,6 +2,23 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - DATE-1: Ô chọn ngày dùng chung dd/mm/yyyy + sửa mũi tên đôi
+
+- **Thành phần dùng chung `CustomDatePicker.jsx`** (`src/components/arrivals/CustomDatePicker.jsx`, re-export tại `src/components/common/CustomDatePicker.jsx`):
+  - Mở rộng hỗ trợ nhập và hiển thị ngày chuẩn `dd/mm/yyyy`, người dùng có thể gõ tay trực tiếp hoặc bấm icon lịch mở popup lịch chọn trực quan.
+  - Kiểm tra hợp lệ phía client: ngày có thật trong tháng/năm (xử lý cả năm nhuận tháng 2: 28/29 ngày, tháng 30/31 ngày, bắt lỗi ngày không có thật như 31/02), kiểm tra giới hạn `min`/`max`.
+  - Hỗ trợ 2 chế độ dữ liệu: chuỗi `YYYY-MM-DD` (cho các màn Phát) và đối tượng `Date` (cho màn Sản lượng đến `ArrivalsFilters`), không làm thay đổi tham số gửi API của các màn hình.
+  - Lịch chọn ngày thuần React với giao diện tiếng Việt (tuần T2..CN, tiêu đề Tháng m/yyyy), không phụ thuộc vào datepicker gốc của trình duyệt.
+- **Thay thế tại các màn hình**:
+  - Màn 13: `src/components/phat/ProcessingDeliveryView.jsx` (ô «Ngày đến:» dùng CustomDatePicker không viền tích hợp trong thanh công cụ, hiển thị `dd/mm/yyyy`, giữ nguyên `selectedDate` dạng `YYYY-MM-DD`).
+  - Màn 14: `src/components/phat/PhatTemplateView.jsx` (2 ô «Ngày đến, từ» và «đến» dùng CustomDatePicker, giữ nguyên ngày mặc định cố định `2026-10-02` và `2026-10-03`).
+  - Màn 17: `src/components/phat/PhatHistoryView.jsx` (2 ô lọc «Nhập từ ngày» và «đến ngày» dùng CustomDatePicker, liên kết YYYY-MM-DD với API).
+  - Màn Sản lượng đến: `src/components/arrivals/ArrivalsFilters.jsx` (CustomDatePicker hỗ trợ gõ tay dd/mm/yyyy kèm chọn lịch, giữ nguyên Date object và định dạng gửi API).
+- **Sửa lỗi mũi tên đôi**:
+  - `src/components/phat/PhatHistoryView.jsx`: bỏ ký tự «←» trong chữ ở nút quay về, chỉ giữ biểu tượng `ArrowLeft` («Về Xử lý và tỷ lệ phát»).
+
+---
+
 ## [2026-10-14] - PHAT-2b-2: Giao diện Lịch sử nhập, Hủy đợt nhập, nhãn cảnh báo (Bảng 17 & 18)
 
 - **Màn Lịch sử nhập** (`src/components/phat/PhatHistoryView.jsx` - Bảng 17):
