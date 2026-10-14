@@ -1,8 +1,8 @@
-# 📮 Module «Xử lý và tỷ lệ phát» (PHAT-1, PHAT-1b, PHAT-2b-1: backend)
+# 📮 Module «Xử lý và tỷ lệ phát» (PHAT-1, PHAT-1b, PHAT-2b-1, PHAT-3b: backend)
 
 > Nguồn quy tắc chuẩn: PHAT-0 (PO chốt 13/10/2026). File này tóm tắt quy tắc, bảng và API **đã làm ở PHAT-1** (chặng 1 và 2).
-> Quyết định đi kèm: `04_DECISIONS.md` #75, #77 (quyền sở hữu bản kiểm tra, PHAT-1b), #78 (xem trước hoàn tác, lịch sử có lọc, số cảnh báo của đợt, PHAT-2b-1). Không có dữ liệu thật (SHBG, BD8, BD10) trong file này.
-> Chưa làm: giao diện (PHAT-2), nối Dashboard / tivi (PHAT-3).
+> Quyết định đi kèm: `04_DECISIONS.md` #75, #77 (quyền sở hữu bản kiểm tra, PHAT-1b), #78 (xem trước hoàn tác, lịch sử có lọc, số cảnh báo của đợt, PHAT-2b-1), #79 (kết quả phát cho Dashboard, PHAT-3b). Không có dữ liệu thật (SHBG, BD8, BD10) trong file này.
+> Chưa làm: nối giao diện Dashboard (PHAT-3c) và tivi (PHAT-3d).
 
 ## 1. Quy tắc cốt lõi
 1. **Mẫu số** = «Sản lượng đến» đã có: SHBG đến BCVH ngày D (quy tắc R2, loại trùng) — dùng đúng `buildCountedCte` như `tong-quan-den` của dashboard. Tỷ lệ luôn khớp `san_luong.buu_gui` cùng ngày (có test so khớp).
@@ -83,5 +83,14 @@ STAFF, TIVI bị chặn từ cổng nhập (403, trước cả bước 1). Mọi
 - Khung giờ đến theo `arrival_at`: trước 10h, 10–12h, 12–14h, 14–16h, 16–18h, sau 18h.
 - `ton_cho`: SHBG chưa có thông tin phát, chia theo (mốc − giờ đến), mốc = giờ đến lớn nhất của ngày xét (cùng quy ước DASH-1): dưới 2 giờ, 2–4 giờ (gồm đúng 2 giờ), trên 4 giờ (gồm đúng 4 giờ); đến từ ngày trước = qua ngày (xét lùi tối đa 30 ngày).
 
+**`GET /api/arrivals/dashboard/ket-qua-phat?bcvh=<mã|all>&ngay=YYYY-MM-DD`** (PHAT-3b, #79) — kết quả phát đã sẵn sàng hiển thị cho Dashboard «Điều hành hôm nay». Nằm cạnh 3 endpoint dashboard «đến» (`routes/arrivals.js`, tính toán ở `server/lib/phatDashboard.js`); dùng lại `demNgay` + `dungTyLe` của `/ty-le` nên mẫu số, 5 trạng thái và `muc_cap_nhat` luôn khớp `/ty-le` và `san_luong.buu_gui`. **KHÔNG** có khung giờ và `ton_cho` (đắt, chưa cần); `/ty-le` giữ nguyên.
+- **Quyền**: ADMIN, TTVH, **GDVH đều xem ĐỦ mọi BCVH** (giống 3 endpoint dashboard «đến», #72; không giới hạn theo `user_bcvh`, GDVH chưa được giao BCVH nào vẫn có dữ liệu, xin `bcvh` bất kỳ trong 6 BCVH đều được) — vì xếp hạng cần so sánh các BCVH với nhau. Giới hạn theo BCVH được giao KHÔNG đổi ở `/api/phat/*` (nhập, hủy, lịch sử, bản kiểm tra). STAFF 403; **TIVI 403** (không có trong allowlist `tivi.js`; để PHAT-3d). Không có `bcvh` hoặc `all` = cả 6 BCVH. Tham số lạ / lặp / sai → 400 (tên tham số ngày là `ngay`, không phải `date`).
+- **Trả**: `bcvh, pham_vi[mã], ngay, cung_ngay, mau_so, theo_trang_thai{PTC,PKTC,CHUYEN_HOAN,CHUA_CO_TT,LAC_HUONG:{nhan,so,ty_le}}, ptc (= theo_trang_thai.PTC.ty_le), muc_cap_nhat, co_so_lieu_phat, so_lieu_den_luc, so_lieu_den_luc_bangkok, nguong{ptc_dat, chua_co_tt_canh_bao}, xep_hang_bcvh, chua_du_du_lieu`.
+- **Ngày**: không có `ngay` → «hôm nay» = ngày file OK mới nhất **của từng BCVH** (như `tong-quan-den`, #70); `ngay` trong phản hồi = ngày muộn nhất, `cung_ngay=false` khi lệch ngày. PTC tính trên **cả mẫu số** (PHAT-0).
+- **Cờ theo ngày (sửa lỗi khảo sát PHAT-3a mục 2)**: `co_so_lieu_phat` = ngày đó có ít nhất một SHBG **đến ngày đó** đã có dòng trạng thái (kể cả dòng đã đổi về `CHUA_CO_TT`); `so_lieu_den_luc` (+ `_bangkok`) = `MAX(phat_status_current.nhap_luc)` của chính các SHBG ấy, **`null` khi `co_so_lieu_phat` sai**. Ngày chưa ai nhập không còn ra giờ của đợt ngày khác (`/ty-le` vẫn như cũ). Hoàn tác khôi phục `nhap_luc` cũ nên giờ luôn đúng sau hoàn tác. Cấp tổng: đúng khi ít nhất một BCVH trong phạm vi có số liệu ở ngày của nó; giờ = muộn nhất trong số đó.
+- **Xếp hạng BCVH**: chỉ khi phạm vi có **từ 2 BCVH** (ngược lại `xep_hang_bcvh` và `chua_du_du_lieu` đều `null`; mọi vai trò xem đủ các BCVH đủ điều kiện). `xep_hang_bcvh[{bcvh, ten, mau_so, ptc, hang}]` theo PTC giảm dần; đồng hạng cùng hạng (1, 2, 2, 4), hòa thì theo mã BCVH. BCVH có **mẫu số < `SAN_XEP_HANG_BCVH` (50)** hoặc **chưa có SHBG nào của ngày có trạng thái** vào `chua_du_du_lieu[{bcvh, ten, mau_so, ly_do}]`, `ly_do` = `duoi_san` | `chua_nhap` (xét `duoi_san` trước; BCVH chưa có file nào có mẫu số 0 → `duoi_san`) — KHÔNG xếp cuối. Mỗi BCVH nằm đúng một trong hai mảng.
+- **Hằng số máy chủ** (`server/lib/phatConfig.js`, TẠM, PO chốt 14/10/2026): `NGUONG_PTC_DAT = 0.82`, `NGUONG_CHUA_CO_TT_CANH_BAO = 0.10` (trả ở `nguong`; màn 13 vẫn dùng bản hằng số riêng trong giao diện, đổi sang lấy từ máy chủ ở PHAT-3c), `SAN_XEP_HANG_BCVH = 50`, `SAN_XEP_HANG_PHUONG_XA = 10` (chỉ khai báo, chưa dùng — PHAT-3d).
+- **Hiệu năng** (dữ liệu giả 6 BCVH × 31 ngày × 4.000 SHBG, `PHAT_PERF=1 node --test tests/phat-dashboard.test.js`): endpoint này ~70–80 ms cho 6 BCVH; `ton_cho` ~320 ms mỗi BCVH và `/ty-le` gộp 6 BCVH ~2,2 s — lý do `ton_cho` không vào endpoint (nếu đưa vào dashboard gọi mỗi 60 giây thì cần bộ nhớ đệm; better-sqlite3 chạy đồng bộ nên truy vấn chậm chặn mọi yêu cầu khác).
+
 ## 5. Chưa làm (để sau)
-Diễn biến theo mốc nhập; phát trong ngày / sau 1 / 2 ngày; giờ phát; endpoint cho TIVI; mọi giao diện (PHAT-2, PHAT-3); nhập tay từng SHBG; nguồn tự động; danh mục lý do; ADMIN sửa «số liệu tính đến lúc».
+Diễn biến theo mốc nhập; phát trong ngày / sau 1 / 2 ngày; giờ phát; endpoint cho TIVI (PHAT-3d); giao diện Dashboard (PHAT-3c) và tivi (PHAT-3d); xếp hạng phường/xã (PHAT-3d); bộ nhớ đệm cho `ton_cho` nếu sau này đưa vào dashboard; nhập tay từng SHBG; nguồn tự động; danh mục lý do; ADMIN sửa «số liệu tính đến lúc».

@@ -566,18 +566,26 @@ function soLieuDenLuc(db, codes) {
   return { so_lieu_den_luc: t || null, so_lieu_den_luc_bangkok: gioBangkok(t) };
 }
 
-/** SHBG đến ngày `day` của MỘT BCVH, đếm theo (giờ đến, trạng thái hiện tại; chưa có = CHUA_CO_TT). Trả { tong: {mã: n}, khung: {mã khung: {mã: n}} }. */
+/**
+ * SHBG đến ngày `day` của MỘT BCVH, đếm theo (giờ đến, trạng thái hiện tại; chưa có = CHUA_CO_TT). Trả { tong: {mã: n}, khung: {mã khung: {mã: n}},
+ * co_tt, nhap_luc_max }: co_tt = số SHBG của NGÀY NÀY có dòng trạng thái (kể cả dòng đã đổi về CHUA_CO_TT); nhap_luc_max = giờ nhập (UTC ISO) mới nhất
+ * trong các dòng đó, null nếu co_tt = 0 — gắn với đúng ngày, không lấy giờ đợt nhập của ngày khác (PHAT-3b).
+ */
 function demNgay(db, bcvh, day) {
   const rows = den.runCounted(db, den.windowFilter(bcvh, day, '23:59:59'),
-    `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n ${MAU_JOIN} GROUP BY h, tt`, { bcvh });
+    `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(p.shbg) AS co, MAX(p.nhap_luc) AS nl ${MAU_JOIN} GROUP BY h, tt`, { bcvh });
   const tong = zeroMap();
   const khung = Object.fromEntries(C.KHUNG_GIO_DEN.map((k) => [k.ma, zeroMap()]));
+  let coTt = 0;
+  let nhapLucMax = null;
   for (const r of rows) {
     tong[r.tt] += r.n;
+    coTt += r.co;
+    if (r.nl && (!nhapLucMax || r.nl > nhapLucMax)) nhapLucMax = r.nl;
     const k = C.KHUNG_GIO_DEN.find((x) => r.h >= x.tu && (x.den === null || r.h < x.den));
     if (k) khung[k.ma][r.tt] += r.n;
   }
-  return { tong, khung };
+  return { tong, khung, co_tt: coTt, nhap_luc_max: nhapLucMax };
 }
 
 /** so: {mã trạng thái: số SHBG} -> mẫu số, 5 nhóm (số + tỷ lệ), mức cập nhật = 100% trừ tỷ lệ «Chưa có thông tin phát». */
@@ -955,5 +963,6 @@ function hoanTacDot(db, batch, user) {
 module.exports = {
   PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
   kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
-  demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot
+  demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot,
+  demNgay, dungTyLe, tonCho, zeroMap, congMap // dùng chung với phatDashboard.js (PHAT-3b)
 };
