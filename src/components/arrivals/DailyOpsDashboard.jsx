@@ -48,7 +48,7 @@ export function lyDoChuaDanhGia(dg) {
 // loai: 'moi_co' (không có tỉ lệ so sánh) | 'bang' (bằng 0, không mũi tên) | 'giam' (xanh) | 'tang_cao' (tăng từ 20%, đỏ) | 'tang' (vàng).
 export function wardChangeChip(item) {
   const tang = item.tang_so_hom_qua ?? 0; // số BG tăng/giảm so hôm qua
-  const pct = item.tang_so_hom_qua_pct;   // null = mới có (hôm qua 0) hoặc mốc hôm qua dưới sàn 50 BG (DASH-6b: chỉ hiện số BG, không %)
+  const pct = item.tang_so_hom_qua_pct;   // null = mới có (hôm qua 0) hoặc mốc hôm qua dưới sàn phường/xã (SAN_SO_SANH_PHUONG_XA = 10 BG, DASH-6b: chỉ hiện số BG, không %)
   if (pct === null || pct === undefined) {
     if (!item.hom_qua) return { loai: 'moi_co', text: 'mới có' };
     if (tang === 0) return { loai: 'bang', text: '— 0 BG' };
@@ -895,7 +895,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             Phường/xã sản lượng đến tăng mạnh nhất hôm nay
           </h3>
           <p className="text-xs text-[#78716c] mt-0.5">
-            Chỉ tính sản lượng đến. Ba cột: hôm kia, hôm qua, hôm nay (cột cam đỏ). BG = bưu gửi. Chip bên phải: tăng so với hôm qua (đỏ nếu từ 20% trở lên, vàng nếu thấp hơn, xanh nếu giảm). Dòng nhỏ: so với trung bình 4 tuần cùng thứ.
+            Chỉ tính sản lượng đến. Ba cột: hôm kia, hôm qua, hôm nay (cột cam đỏ). BG = bưu gửi. Chip bên phải: tăng so với hôm qua (đỏ nếu từ 20% trở lên, vàng nếu thấp hơn, xanh nếu giảm; hôm qua quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).
           </p>
         </div>
 

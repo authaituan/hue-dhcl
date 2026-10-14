@@ -4,6 +4,10 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-14] - DASH-6b sửa nhỏ 1: chú thích khối «Phường/xã tăng mạnh» (`DailyOpsDashboard.jsx`) bỏ chữ «trung bình 4 tuần cùng thứ» → «cùng thứ tuần trước (cùng giờ)», thêm ý chip chỉ hiện số BG khi hôm qua quá ít; sửa chú thích mã `wardChangeChip` (sàn phường/xã 10). Không đổi logic.
+
+---
+
 ## [2026-10-14] - DASH-6b chặng 2: số chênh có sàn 50 + nối giao diện khoá mới (DASH-6b)
 
 - Backend (PO chỉnh sau duyệt chặng 1): `chenh_pct` / `chenh_diem` = `null` khi mốc (hôm qua hoặc tuần trước) dưới 50 bưu gửi, vẫn giữ giá trị mốc — `server/lib/dashboardDenQuery.js` (`pctVsMoc`): sản lượng (tổng và từng BCVH), `hang_di_ngoai`, `phuong-xa-tang` (`tang_so_hom_qua_pct`, `lech_so_tuan_truoc_pct`). Quyết định #76. Test: sửa `dashboard-den.test.js` (mốc nhỏ → null), thêm 1 ca mốc 49 → null / 50 → có số ở `dashboard-den-danh-gia.test.js`. `npm test` 304 ca pass.
