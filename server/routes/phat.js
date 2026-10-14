@@ -3,6 +3,9 @@
 // hoàn tác đợt, danh sách đợt, tỷ lệ.
 // Quyền NHẬP (file mẫu, bản kiểm tra, commit): ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán trong user_bcvh (chưa gán -> 403); STAFF, TIVI -> 403
 // (TIVI bị chặn bởi allowlist trong authRequired). Dùng đúng exp.allowedBcvhCodes của 3c-3.
+// Bản kiểm tra thuộc NGƯỜI TẠO (PHAT-1b, #77): người tạo đọc / sửa / tải file lỗi / commit khi VẪN được nhập BCVH đó; ADMIN, TTVH chỉ XEM bản của
+// người khác (GET draft, rows; 403 khi sửa / commit / tải file lỗi); người khác -> 404 (không lộ sự tồn tại). DELETE /drafts/:id (xoá cả bản): người tạo
+// hoặc ADMIN, TTVH (mọi bản); không đụng đợt nhập, trạng thái, lịch sử, hoàn tác.
 // Hoàn tác đợt: ADMIN, TTVH, hoặc chính người nhập (và vẫn được phép với BCVH đó). Danh sách đợt: chỉ đợt của BCVH mình được phép.
 // Xem TỶ LỆ: ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF, TIVI 403 (TIVI sẽ được cho phép ở PHAT-3).
 // Mọi thao tác ghi vào nhật ký bảo mật; KHÔNG ghi nội dung dòng dữ liệu (SHBG, ghi chú).
@@ -57,9 +60,21 @@ function kiemTraBcvh(req, raw, hanhDong = 'nhap') {
   return bcvh;
 }
 
-function layDraft(req) {
+const laQuanLy = (user) => user.role === ROLES.ADMIN || user.role === ROLES.TTVH;
+const KHONG_TIM_BAN = 'Không tìm thấy bản kiểm tra (có thể đã hết hạn sau 7 ngày). Hãy tải file lên lại.';
+
+/**
+ * Bản kiểm tra thuộc người tạo. chiXem: điểm cuối chỉ đọc (GET draft, rows) — ADMIN, TTVH được xem bản của người khác; xoa: DELETE bản — ADMIN, TTVH xoá được mọi bản.
+ * Thứ tự: không có / không phải của mình (và không phải quản lý xem) -> 404; ADMIN, TTVH sửa bản người khác -> 403;
+ * rồi quyền BCVH (người tạo bị bỏ gán BCVH -> 403, mất quyền ngay).
+ */
+function layDraft(req, { chiXem = false, xoa = false } = {}) {
   const d = P.layBanKiemTra(db, req.params.id);
-  if (!d) throw new PhatError(404, 'Không tìm thấy bản kiểm tra (có thể đã hết hạn sau 7 ngày). Hãy tải file lên lại.');
+  if (!d) throw new PhatError(404, KHONG_TIM_BAN);
+  if (d.user_id !== req.user.id) {
+    if (!laQuanLy(req.user)) throw new PhatError(404, KHONG_TIM_BAN);
+    if (!chiXem && !xoa) throw new PhatError(403, 'Bản kiểm tra này của người khác: ADMIN, TTVH chỉ xem được, không sửa hay nhập thay');
+  }
   kiemTraBcvh(req, d.bcvh);
   return d;
 }
@@ -131,13 +146,32 @@ router.post('/phat/drafts', authRequired, nhapGuard, nhanFileTho, wrap(async (re
   res.status(201).json(tomTat(draft, { tong_hop: th }));
 }, 'draft-create'));
 
+// PHAT-1b — danh sách bản kiểm tra CHƯA hết hạn của người gọi theo BCVH, mới nhất trước (không trả nội dung dòng).
+// ADMIN, TTVH thêm tat_ca=1 để xem của mọi người. GDVH gửi tat_ca=1 -> 403.
+router.get('/phat/drafts', authRequired, nhapGuard, wrap(async (req, res) => {
+  for (const k of Object.keys(req.query)) if (!['bcvh', 'tat_ca'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  const bcvh = kiemTraBcvh(req, req.query.bcvh);
+  const rawT = req.query.tat_ca;
+  if (Array.isArray(rawT) || (rawT !== undefined && !['', '0', '1'].includes(String(rawT).trim()))) throw new PhatError(400, 'Tham số "tat_ca" chỉ nhận 1 (xem của mọi người) hoặc 0');
+  const tatCa = rawT !== undefined && String(rawT).trim() === '1';
+  if (tatCa && !laQuanLy(req.user)) throw new PhatError(403, 'Chỉ ADMIN, TTVH được xem bản kiểm tra của mọi người (tat_ca=1)');
+  res.json({ items: P.dsBanKiemTra(db, { bcvh, user: req.user, tatCa }) });
+}, 'draft-list'));
+
 router.get('/phat/drafts/:id', authRequired, nhapGuard, wrap(async (req, res) => {
-  const d = layDraft(req);
+  const d = layDraft(req, { chiXem: true });
   res.json(tomTat(d, { tong_hop: P.tongHop(db, d.id) }));
 }, 'draft-get'));
 
+router.delete('/phat/drafts/:id', authRequired, nhapGuard, wrap(async (req, res) => {
+  const d = layDraft(req, { xoa: true });
+  const soDong = P.xoaBanKiemTra(db, d.id);
+  audit(req, 'phat_draft_delete', { bcvh: d.bcvh, draft_id: d.id, rows: soDong, cua_nguoi_khac: d.user_id !== req.user.id });
+  res.json({ id: d.id, da_xoa: true, so_dong: soDong });
+}, 'draft-remove'));
+
 router.get('/phat/drafts/:id/rows', authRequired, nhapGuard, wrap(async (req, res) => {
-  const d = layDraft(req);
+  const d = layDraft(req, { chiXem: true });
   for (const k of Object.keys(req.query)) if (!['ket_qua', 'ma_loi', 'q', 'canh_bao', 'page', 'size'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
   res.json(P.dsDong(db, d, req.query));
 }, 'draft-rows'));
