@@ -68,7 +68,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/auth/me` — tài khoản hiện tại `{ id, hrm_code, full_name, role, tivi_scope, token_het_han }` (#74) | mọi vai trò (kể cả TIVI) | `routes/auth.js` |
 | `GET /api/phat/template?bcvh=&from=&to=&scope=chua\|tat-ca` — file `.xlsx` mỗi SHBG một dòng (#75) | nhập: ADMIN, TTVH, GDVH (theo BCVH được gán) | `routes/phat.js`, `lib/phatFile.js` |
 | `POST /api/phat/drafts?bcvh=&ten_file=` (thân = file thô ≤ 10 MB) · `GET /api/phat/drafts?bcvh=[&tat_ca=1]` (danh sách bản của tôi — PHAT-1b) · `GET\|DELETE /api/phat/drafts/:id` · `GET …/rows?ket_qua=&ma_loi=&q=&canh_bao=&page=&size=` · `PATCH\|DELETE …/rows` · `POST …/fill` · `POST …/assign-list` · `GET …/errors.xlsx[?loai_tru=]` · `POST …/commit` — bản kiểm tra, biên tập, nhập từng phần | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
-| `GET /api/phat/batches?bcvh=&page=&size=` · `POST /api/phat/batches/:id/undo` — danh sách đợt nhập (chỉ BCVH được phép) · hoàn tác (ADMIN, TTVH, chính người nhập; 409 nếu đợt sau đã đổi SHBG) | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
+| `GET /api/phat/batches?bcvh=&page=&size=[&tu_ngay=&den_ngay=&nguoi_nhap=&trang_thai=]` · `GET /api/phat/batches/:id/undo-preview` · `POST /api/phat/batches/:id/undo` — danh sách đợt nhập có lọc (chỉ BCVH được phép; kèm `nguoi_nhap_lua_chon`, `so_canh_bao`) · xem trước hoàn tác (không ghi) · hoàn tác (ADMIN, TTVH, chính người nhập; 409 nếu đợt sau đã đổi SHBG) — #78 | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
 | `GET /api/phat/ty-le?bcvh=<mã\|all>&ngay=` — mẫu số, 5 nhóm trạng thái, `muc_cap_nhat`, `so_lieu_den_luc` (+ `_bangkok`), `theo_khung_gio_den[6]`, `ton_cho` | ADMIN, TTVH, GDVH (mọi BCVH) | `routes/phat.js`, `lib/phat.js` |
 | `GET/POST /api/users`, `PUT /api/users/:id`, `.../reset-password`, `.../deactivate`, `.../reactivate`, `GET/PUT /api/users/:id/bcvh` (gán BCVH cho GDVH) | ADMIN | `routes/users.js` |
 | `GET /api/users/search?q=` | ADMIN | `routes/users.js` |
@@ -135,7 +135,7 @@ Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`, `TIV
 | `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (#73) | ✔ | ✔ | ✔ | 403 | ✔ `bcvh` ép theo phạm vi; chưa có phạm vi → 403 |
 | `GET /api/auth/me` | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `/api/phat/template`, `/phat/drafts*`, `/phat/batches` (nhập, danh sách đợt) | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được gán (chưa gán → 403) | 403 | 403 |
-| `POST /api/phat/batches/:id/undo` | ✔ | ✔ | chỉ đợt do mình nhập, BCVH còn được gán | 403 | 403 |
+| `GET …/batches/:id/undo-preview`, `POST /api/phat/batches/:id/undo` | ✔ | ✔ | chỉ đợt do mình nhập, BCVH còn được gán | 403 | 403 |
 | `GET /api/phat/ty-le` | ✔ | ✔ | ✔ mọi BCVH (#72) | 403 | 403 (PHAT-3 sẽ mở qua dashboard) |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
 (`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).

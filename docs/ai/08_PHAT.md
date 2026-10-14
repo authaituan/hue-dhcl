@@ -1,7 +1,7 @@
-# 📮 Module «Xử lý và tỷ lệ phát» (PHAT-1, PHAT-1b: backend)
+# 📮 Module «Xử lý và tỷ lệ phát» (PHAT-1, PHAT-1b, PHAT-2b-1: backend)
 
 > Nguồn quy tắc chuẩn: PHAT-0 (PO chốt 13/10/2026). File này tóm tắt quy tắc, bảng và API **đã làm ở PHAT-1** (chặng 1 và 2).
-> Quyết định đi kèm: `04_DECISIONS.md` #75, #77 (quyền sở hữu bản kiểm tra, PHAT-1b). Không có dữ liệu thật (SHBG, BD8, BD10) trong file này.
+> Quyết định đi kèm: `04_DECISIONS.md` #75, #77 (quyền sở hữu bản kiểm tra, PHAT-1b), #78 (xem trước hoàn tác, lịch sử có lọc, số cảnh báo của đợt, PHAT-2b-1). Không có dữ liệu thật (SHBG, BD8, BD10) trong file này.
 > Chưa làm: giao diện (PHAT-2), nối Dashboard / tivi (PHAT-3).
 
 ## 1. Quy tắc cốt lõi
@@ -33,7 +33,7 @@ Một dòng chỉ ghi **một** mã lỗi, theo thứ tự: `SAI_DINH_DANG` > `T
 ## 3. Bảng (`server/lib/phat.js` tự tạo khi khởi động; idempotent, thêm cột cho DB cũ)
 | Bảng | Nội dung |
 |---|---|
-| `phat_batches` | Đợt nhập: bcvh, user_id, `nhap_luc`, ten_file, sha256, so_nhap, so_bo_qua, **so_loi** (lỗi cần sửa), **so_khong_doi**, trang_thai (`da_nhap`/`da_hoan_tac`), hoan_tac_luc, hoan_tac_boi, draft_id |
+| `phat_batches` | Đợt nhập: bcvh, user_id, `nhap_luc`, ten_file, sha256, so_nhap, so_bo_qua, **so_loi** (lỗi cần sửa), **so_khong_doi**, trang_thai (`da_nhap`/`da_hoan_tac`), hoan_tac_luc, hoan_tac_boi, draft_id, **so_canh_bao** (PHAT-2b-1: số dòng được nhập có cảnh báo vàng, ghi lúc commit; `NULL` = không rõ — xem mục 4) |
 | `phat_status_current` | Trạng thái hiện tại, khóa (bcvh, shbg): trang_thai, ghi_chu, batch_id, nhap_luc, `gio_phat` (trống) |
 | `phat_status_history` | Mỗi lần ghi: trang_thai, trang_thai_truoc (rỗng = chưa có), ghi_chu, batch_id, nhap_luc. Hoàn tác thêm dòng mang `batch_id` của đợt bị hoàn tác |
 | `phat_drafts`, `phat_draft_rows` | Bản kiểm tra (hết hạn sau 7 ngày, dọn khi khởi động và khi truy cập) và các dòng của nó |
@@ -59,10 +59,23 @@ STAFF, TIVI bị chặn từ cổng nhập (403, trước cả bước 1). Mọi
 | `GET /drafts/:id` · `GET /drafts/:id/rows?ket_qua=&ma_loi=&q=&canh_bao=&page=&size=` | Tổng hợp · danh sách dòng (size ≤ 200) |
 | `PATCH /drafts/:id/rows` `{rows:[{id,trang_thai?,ghi_chu?}]}` · `DELETE …/rows` `{ids}` hoặc `{filter}` · `POST …/fill` `{trang_thai, ids\|filter}` · `POST …/assign-list` `{trang_thai, shbg:[…]}` | Biên tập; kiểm tra lại dòng bị ảnh hưởng (kể cả hết trùng khi xoá bớt); dòng `DA_NHAP` khóa |
 | `GET /drafts/:id/errors.xlsx[?loai_tru=KHONG_DOI]` | File lỗi cùng cấu trúc file mẫu + «Số dòng trong file gốc», «Lý do lỗi»; nhập lại thẳng được. `loai_tru`: danh sách mã lỗi (phẩy) bỏ khỏi file |
-| `POST /drafts/:id/commit` `{mode:"hop-le"}` hoặc `{mode:"da-chon", ids}` | Một giao dịch, kiểm tra lại từng dòng tại thời điểm commit, chỉ ghi dòng vẫn hợp lệ. Trả `batch_id, nhap_luc, nhap_luc_bangkok, so_nhap, khong_ghi, loi_can_sua, khong_doi, bo_qua_trong, ty_le_truoc, ty_le_sau, tong_hop`. Không còn dòng nào → 400 (không tạo đợt) |
-| `GET /batches?bcvh=&page=&size=` | Danh sách đợt (ai, giờ UTC + Bangkok, tên file, sha256, số nhập/bỏ qua/lỗi/không đổi, đã hoàn tác chưa, `co_quyen_hoan_tac`). Chỉ BCVH được phép |
-| `POST /batches/:id/undo` | Hoàn tác đợt. ADMIN, TTVH, hoặc chính người nhập (còn được phép với BCVH). **409** (kèm `so_shbg_vuong`, `dot_vuong`) nếu đợt sau chưa hoàn tác đã đổi SHBG của đợt này. Khôi phục trạng thái ngay trước (kể cả ghi chú, đợt, giờ nhập; xoá nếu trước đó chưa có), ghi lịch sử, mở khóa dòng bản kiểm tra |
+| `POST /drafts/:id/commit` `{mode:"hop-le"}` hoặc `{mode:"da-chon", ids}` | Một giao dịch, kiểm tra lại từng dòng tại thời điểm commit, chỉ ghi dòng vẫn hợp lệ. Trả `batch_id, nhap_luc, nhap_luc_bangkok, so_nhap, so_canh_bao, khong_ghi, loi_can_sua, khong_doi, bo_qua_trong, ty_le_truoc, ty_le_sau, tong_hop`. Không còn dòng nào → 400 (không tạo đợt) |
+| `GET /batches?bcvh=&page=&size=[&tu_ngay=&den_ngay=&nguoi_nhap=&trang_thai=]` | Danh sách đợt (ai, giờ UTC + Bangkok, tên file, sha256, số nhập/bỏ qua/lỗi/không đổi, **`so_canh_bao`**, đã hoàn tác chưa, `co_quyen_hoan_tac`). Bộ lọc xem dưới bảng. Chỉ BCVH được phép. **PHAT-2b-1:** thêm `nguoi_nhap_lua_chon: [{id, hrm_code, full_name}]` ngang hàng `items`/`pagination` — người nhập khác nhau (mỗi người một lần) của MỌI đợt thuộc BCVH đang chọn (hoặc mọi BCVH người gọi được xem khi bỏ trống / `all`), kể cả đợt đã hoàn tác; KHÔNG phụ thuộc `page`/`size` hay bộ lọc khác; sắp theo `full_name` (so sánh tiếng Việt), người không còn trong bảng `users` (tên rỗng) xếp cuối. GDVH chỉ thấy người nhập thuộc BCVH được giao (kể cả người khác nhập vào BCVH đó); BCVH không được phép → 403, không trả trường này. Để giao diện lọc theo người nhập mà không gọi API quản lý người dùng |
+| `GET /batches/:id/undo-preview` | **PHAT-2b-1.** Xem trước hoàn tác, KHÔNG ghi gì. Quyền và thứ tự kiểm đúng như `/undo` (404 → 403 BCVH → 403 chủ sở hữu). Chi tiết dưới bảng |
+| `POST /batches/:id/undo` | Hoàn tác đợt. ADMIN, TTVH, hoặc chính người nhập (còn được phép với BCVH). **409** «bị chặn» (kèm `so_shbg_vuong`, `dot_vuong`, **`dot_vuong_chi_tiet`**) nếu đợt sau chưa hoàn tác đã đổi SHBG của đợt này; **409** «đã hoàn tác» (kèm `hoan_tac_luc`, **`hoan_tac_luc_bangkok`**, **`hoan_tac_boi`**). Khôi phục trạng thái ngay trước (kể cả ghi chú, đợt, giờ nhập; xoá nếu trước đó chưa có), ghi lịch sử, mở khóa dòng bản kiểm tra |
 | `GET /ty-le?bcvh=<mã\|all>&ngay=YYYY-MM-DD` | ADMIN, TTVH, GDVH (mọi BCVH, #72); STAFF, TIVI 403 |
+
+**`so_canh_bao` của đợt** (PHAT-2b-1): lúc commit, máy chủ đếm số dòng ĐƯỢC NHẬP có `canh_bao` khác rỗng (chuyển bất thường, ghi chú bị cắt) TRƯỚC khi xoá `canh_bao` của dòng, rồi ghi vào đợt. `mode: "da-chon"` chỉ đếm các dòng được chọn và còn hợp lệ. `0` = đợt không có cảnh báo; **`NULL` (`null` trong JSON) = không rõ**: đợt có trước khi thêm cột, KHÔNG tính ngược (giao diện hiện «không rõ», không hiện 0). Có trong phần tử của `GET /batches` và phản hồi commit.
+
+**Bộ lọc `GET /batches`** (đều tuỳ chọn, giá trị rỗng = không lọc, kết hợp bằng VÀ; quyền xem theo BCVH, sắp xếp mới nhất trước, `page`/`size` ≤ 200 giữ nguyên; `pagination` đếm theo kết quả đã lọc; `nguoi_nhap_lua_chon` KHÔNG theo bộ lọc):
+- `tu_ngay`, `den_ngay`: `YYYY-MM-DD`, tính theo GIỜ NHẬP `Asia/Bangkok` (UTC+7), gồm cả ngày đầu và ngày cuối (đợt 23:30 UTC ngày 30/09 là 06:30 ngày 01/10 Bangkok). `tu_ngay` sau `den_ngay` → 400.
+- `nguoi_nhap`: id người dùng (lấy từ `nguoi_nhap_lua_chon`); id không có đợt nào → danh sách rỗng, không phải 400.
+- `trang_thai`: `da_nhap` | `da_hoan_tac`.
+- Giá trị sai hoặc lặp tham số → 400 tiếng Việt nêu tên tham số; tham số lạ → 400. Không có `draft_id` trong phần tử.
+
+**`GET /batches/:id/undo-preview`** trả `{ batch_id, bcvh, trang_thai, so_nhap, so_se_khoi_phuc, so_se_xoa_trang_thai, co_the_hoan_tac, ly_do_khong_the, so_shbg_vuong, dot_vuong_chi_tiet:[{id, nhap_luc, nhap_luc_bangkok, nhap_boi:{id,hrm_code,full_name}, so_nhap}] }`. Dùng chung `phanTichHoanTac` (`server/lib/phat.js`) với `/undo`: cùng truy vấn «vướng» và cùng cách đếm (`so_se_xoa_trang_thai` = dòng lịch sử của đợt có `trang_thai_truoc` rỗng; `so_se_khoi_phuc` = phần còn lại).
+- `ly_do_khong_the`: `null` (làm được) | `BI_CHAN` (có đợt sau CHƯA hoàn tác đã đổi cùng SHBG; `dot_vuong_chi_tiet` tăng dần theo id; vẫn trả hai số khôi phục / xoá của đợt này) | `DA_HOAN_TAC` (kèm `hoan_tac_luc`, `hoan_tac_luc_bangkok`, `hoan_tac_boi`; các số `so_se_*`, `so_shbg_vuong` = 0, `dot_vuong_chi_tiet` = `[]`).
+- Chữ 403 của `/undo` và `/undo-preview` nói «hoàn tác» (không còn «nhập kết quả phát»).
 
 **`GET /ty-le`** trả: `bcvh, ngay, cung_ngay, mau_so, theo_trang_thai{PTC,PKTC,CHUYEN_HOAN,CHUA_CO_TT,LAC_HUONG: {nhan, so, ty_le}}, muc_cap_nhat, so_lieu_den_luc, so_lieu_den_luc_bangkok, theo_khung_gio_den[6]{ma, nhan, so_den, theo_trang_thai, muc_cap_nhat}, ton_cho{moc_tinh_den, tong, theo_nhom[4]{ma, nhan, so}}`.
 - Không có `ngay`: «hôm nay» = ngày file OK mới nhất **của từng BCVH** (#70); `all` gộp các BCVH có dữ liệu, `cung_ngay=false` khi lệch ngày.

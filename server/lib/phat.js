@@ -42,7 +42,8 @@ function ensurePhatSchema(db) {
       trang_thai TEXT NOT NULL DEFAULT 'da_nhap' CHECK (trang_thai IN (${sqlList(Object.values(C.TRANG_THAI_DOT))})),
       hoan_tac_luc TEXT,
       hoan_tac_boi TEXT,
-      draft_id TEXT
+      draft_id TEXT,
+      so_canh_bao INTEGER                -- số dòng được nhập có cảnh báo vàng lúc commit; NULL = không rõ (đợt có trước PHAT-2b-1, không tính ngược)
     );
     CREATE INDEX IF NOT EXISTS ix_phat_batches_bcvh ON phat_batches(bcvh, nhap_luc);
     CREATE INDEX IF NOT EXISTS ix_phat_batches_draft ON phat_batches(draft_id);
@@ -108,6 +109,7 @@ function ensurePhatSchema(db) {
   // Bảng đã tạo ở chặng 1 (DB có sẵn) thiếu cột mới: thêm, idempotent.
   themCot(db, 'phat_batches', 'so_khong_doi', 'INTEGER NOT NULL DEFAULT 0');
   themCot(db, 'phat_draft_rows', 'ghi_chu_bi_cat', 'INTEGER NOT NULL DEFAULT 0');
+  themCot(db, 'phat_batches', 'so_canh_bao', 'INTEGER'); // NULL được: đợt cũ giữ NULL
 }
 
 function themCot(db, bang, cot, ddl) {
@@ -709,8 +711,10 @@ function nhapDot(db, draft, user, body) {
     const soBoQua = dem('').get(draft.id, KET_QUA.BO_QUA_TRONG).n;
     const soKhongDoi = dem('AND ma_loi = ?').get(draft.id, KET_QUA.LOI, MA_LOI.KHONG_DOI).n;
     const soLoi = dem('AND ma_loi <> ?').get(draft.id, KET_QUA.LOI, MA_LOI.KHONG_DOI).n; // lỗi CẦN SỬA (không tính «không đổi»)
-    const batchId = Number(db.prepare(`INSERT INTO phat_batches (bcvh, user_id, nhap_luc, ten_file, sha256, so_nhap, so_bo_qua, so_loi, so_khong_doi, draft_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(draft.bcvh, user.id, nhapLuc, draft.ten_file, draft.sha256, ungVien.length, soBoQua, soLoi, soKhongDoi, draft.id).lastInsertRowid);
+    // Số cảnh báo vàng của các dòng ĐƯỢC NHẬP (đếm trước khi `mark` xoá canh_bao; 'da-chon' chỉ gồm các dòng được chọn và còn hợp lệ).
+    const soCanhBao = ungVien.filter((r) => r.canh_bao !== null && r.canh_bao !== undefined).length;
+    const batchId = Number(db.prepare(`INSERT INTO phat_batches (bcvh, user_id, nhap_luc, ten_file, sha256, so_nhap, so_bo_qua, so_loi, so_khong_doi, draft_id, so_canh_bao)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(draft.bcvh, user.id, nhapLuc, draft.ten_file, draft.sha256, ungVien.length, soBoQua, soLoi, soKhongDoi, draft.id, soCanhBao).lastInsertRowid);
 
     const cur = db.prepare('SELECT trang_thai FROM phat_status_current WHERE bcvh = ? AND shbg = ?');
     const up = db.prepare(SQL_UPSERT_CURRENT);
@@ -724,7 +728,7 @@ function nhapDot(db, draft, user, body) {
       mark.run(batchId, r.id);
     }
     const sau = ngay.map((d) => tyLeNgay(db, draft.bcvh, d));
-    return { ghi: true, batchId, nhapLuc, soNhap: ungVien.length, khongGhi, truoc, sau };
+    return { ghi: true, batchId, nhapLuc, soNhap: ungVien.length, soCanhBao, khongGhi, truoc, sau };
   })();
 
   const th = tongHop(db, draft.id);
@@ -732,7 +736,7 @@ function nhapDot(db, draft, user, body) {
     throw new PhatError(400, 'Không có dòng hợp lệ nào để nhập. Dòng lỗi và dòng trống được giữ lại trong bản kiểm tra.', { khong_ghi: ketQua.khongGhi.slice(0, 200), tong_hop: th });
   }
   return {
-    batch_id: ketQua.batchId, nhap_luc: ketQua.nhapLuc, nhap_luc_bangkok: gioBangkok(ketQua.nhapLuc), so_nhap: ketQua.soNhap,
+    batch_id: ketQua.batchId, nhap_luc: ketQua.nhapLuc, nhap_luc_bangkok: gioBangkok(ketQua.nhapLuc), so_nhap: ketQua.soNhap, so_canh_bao: ketQua.soCanhBao,
     so_khong_ghi: ketQua.khongGhi.length, khong_ghi: ketQua.khongGhi.slice(0, 200),
     // Còn lại trong bản kiểm tra: «lỗi cần sửa» tách khỏi «không đổi» (không đổi = trùng trạng thái hiện có, không cần sửa gì)
     loi_can_sua: th.loi_can_sua, khong_doi: th.khong_doi, bo_qua_trong: th.bo_qua_trong,
@@ -751,19 +755,77 @@ function layDot(db, id) {
 
 const nguoi = (id, hrm, ten) => (id ? { id, hrm_code: hrm || null, full_name: ten || null } : null);
 
-/** codes: BCVH người gọi được xem; user: để tính co_quyen_hoan_tac (chỉ phần quyền, vẫn có thể bị 409 vì đợt sau đã đổi SHBG). */
-function dsDot(db, { codes, page, size, user }) {
+const MUI_GIO_LECH_MS = 7 * 3600000; // Asia/Bangkok = UTC+7, không có giờ mùa hè (C.MUI_GIO)
+const ngayHopLe = (v) => { const m = aq.DATE_RE.exec(v); return !!m && aq.validYmd(+m[1], +m[2], +m[3]); };
+
+/**
+ * Đọc bộ lọc lịch sử từ query (PHAT-2b-1): tu_ngay, den_ngay (YYYY-MM-DD theo giờ nhập Asia/Bangkok, gồm cả hai đầu), nguoi_nhap (id người dùng),
+ * trang_thai ('da_nhap' | 'da_hoan_tac'). Giá trị rỗng = không lọc; giá trị sai / lặp tham số -> 400. Trả { tuLuc, denLuc (UTC ISO, [tu, den)), nguoi, trangThai }.
+ */
+function docLocDot(query) {
+  const q = query || {};
+  const lay = (k) => {
+    const v = q[k];
+    if (v === undefined || v === null) return '';
+    if (Array.isArray(v) || typeof v !== 'string') throw new PhatError(400, `Tham số "${k}" chỉ nhận một giá trị`);
+    return v.trim();
+  };
+  const loc = { tuLuc: null, denLuc: null, nguoi: null, trangThai: null };
+  const ngay = {};
+  for (const k of ['tu_ngay', 'den_ngay']) {
+    const v = lay(k);
+    if (!v) continue;
+    if (!ngayHopLe(v)) throw new PhatError(400, `Tham số "${k}" phải là ngày hợp lệ dạng YYYY-MM-DD (ví dụ 2026-10-14)`);
+    ngay[k] = v;
+  }
+  if (ngay.tu_ngay && ngay.den_ngay && ngay.tu_ngay > ngay.den_ngay) throw new PhatError(400, 'Tham số "tu_ngay" không được sau "den_ngay"');
+  // 00:00:00 Bangkok của ngày d = d 00:00 UTC trừ 7 giờ. Khoảng nửa mở [tu, den): đợt lúc 23:30 UTC ngày d-1 là 06:30 Bangkok ngày d.
+  const dauNgayUtc = (d, cong = 0) => new Date(Date.parse(`${d}T00:00:00Z`) + cong * 86400000 - MUI_GIO_LECH_MS).toISOString().slice(0, 19) + 'Z';
+  if (ngay.tu_ngay) loc.tuLuc = dauNgayUtc(ngay.tu_ngay);
+  if (ngay.den_ngay) loc.denLuc = dauNgayUtc(ngay.den_ngay, 1);
+  const nn = lay('nguoi_nhap');
+  if (nn) {
+    if (nn.length > 64 || /[\u0000-\u001f]/.test(nn)) throw new PhatError(400, 'Tham số "nguoi_nhap" phải là id người dùng (lấy từ "nguoi_nhap_lua_chon")');
+    loc.nguoi = nn;
+  }
+  const tt = lay('trang_thai');
+  if (tt) {
+    if (!Object.values(C.TRANG_THAI_DOT).includes(tt)) throw new PhatError(400, `Tham số "trang_thai" phải là một trong: ${Object.values(C.TRANG_THAI_DOT).join(', ')}`);
+    loc.trangThai = tt;
+  }
+  return loc;
+}
+
+/** codes: BCVH người gọi được xem; user: để tính co_quyen_hoan_tac (chỉ phần quyền, vẫn có thể bị 409 vì đợt sau đã đổi SHBG); loc: kết quả docLocDot (tuỳ chọn). */
+function dsDot(db, { codes, page, size, user, loc = {} }) {
   const j = JSON.stringify(codes);
-  const total = db.prepare('SELECT COUNT(*) AS n FROM phat_batches WHERE bcvh IN (SELECT value FROM json_each(@j))').get({ j }).n;
+  const where = ['b.bcvh IN (SELECT value FROM json_each(@j))'];
+  const prm = { j };
+  if (loc.tuLuc) { where.push('b.nhap_luc >= @tu'); prm.tu = loc.tuLuc; }
+  if (loc.denLuc) { where.push('b.nhap_luc < @den'); prm.den = loc.denLuc; }
+  if (loc.nguoi) { where.push('b.user_id = @nn'); prm.nn = loc.nguoi; }
+  if (loc.trangThai) { where.push('b.trang_thai = @tt'); prm.tt = loc.trangThai; }
+  const w = where.join(' AND ');
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM phat_batches b WHERE ${w}`).get(prm).n;
   const rows = db.prepare(`SELECT b.*, u.hrm_code AS nhap_hrm, u.full_name AS nhap_ten, h.hrm_code AS ht_hrm, h.full_name AS ht_ten
     FROM phat_batches b LEFT JOIN users u ON u.id = b.user_id LEFT JOIN users h ON h.id = b.hoan_tac_boi
-    WHERE b.bcvh IN (SELECT value FROM json_each(@j)) ORDER BY b.nhap_luc DESC, b.id DESC LIMIT @lim OFFSET @off`)
-    .all({ j, lim: size, off: (page - 1) * size });
+    WHERE ${w} ORDER BY b.nhap_luc DESC, b.id DESC LIMIT @lim OFFSET @off`)
+    .all({ ...prm, lim: size, off: (page - 1) * size });
   const quanLy = user.role === 'ADMIN' || user.role === 'TTVH';
+  // Danh sách người nhập để giao diện lọc (PHAT-2b-1): theo `codes` (BCVH đang chọn / được phép), KHÔNG theo trang hay bộ lọc khác; gồm cả đợt đã hoàn tác.
+  const nguoiNhap = db.prepare(`SELECT b.user_id AS id, u.hrm_code AS hrm, u.full_name AS ten
+    FROM phat_batches b LEFT JOIN users u ON u.id = b.user_id WHERE b.bcvh IN (SELECT value FROM json_each(@j)) GROUP BY b.user_id`).all({ j })
+    .map((r) => nguoi(r.id, r.hrm, r.ten))
+    .sort((a, b) => (!a.full_name - !b.full_name) // người đã bị xoá khỏi bảng users (không có tên) xếp cuối
+      || String(a.full_name || '').localeCompare(String(b.full_name || ''), 'vi')
+      || String(a.hrm_code || '').localeCompare(String(b.hrm_code || ''), 'vi')
+      || String(a.id).localeCompare(String(b.id)));
   return {
+    nguoi_nhap_lua_chon: nguoiNhap,
     items: rows.map((b) => ({
       id: b.id, bcvh: b.bcvh, nhap_luc: b.nhap_luc, nhap_luc_bangkok: gioBangkok(b.nhap_luc), nhap_boi: nguoi(b.user_id, b.nhap_hrm, b.nhap_ten),
       ten_file: b.ten_file, sha256: b.sha256, so_nhap: b.so_nhap, so_bo_qua: b.so_bo_qua, so_loi: b.so_loi, so_khong_doi: b.so_khong_doi,
+      so_canh_bao: b.so_canh_bao === undefined ? null : b.so_canh_bao, // NULL = không rõ (đợt cũ)
       trang_thai: b.trang_thai, hoan_tac_luc: b.hoan_tac_luc, hoan_tac_luc_bangkok: gioBangkok(b.hoan_tac_luc), hoan_tac_boi: nguoi(b.hoan_tac_boi, b.ht_hrm, b.ht_ten),
       co_quyen_hoan_tac: b.trang_thai === C.TRANG_THAI_DOT.DA_NHAP && (quanLy || b.user_id === user.id)
     })),
@@ -774,6 +836,61 @@ function dsDot(db, { codes, page, size, user }) {
 const SQL_UPSERT_CURRENT = `INSERT INTO phat_status_current (bcvh, shbg, trang_thai, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @g, @bt, @n)
   ON CONFLICT(bcvh, shbg) DO UPDATE SET trang_thai = excluded.trang_thai, ghi_chu = excluded.ghi_chu, batch_id = excluded.batch_id, nhap_luc = excluded.nhap_luc`;
 const SQL_INSERT_HISTORY = `INSERT INTO phat_status_history (bcvh, shbg, trang_thai, trang_thai_truoc, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @tt, @g, @bt, @n)`;
+
+/** Người theo id (nhap_boi / hoan_tac_boi dùng chung); không còn trong bảng users -> chỉ có id. */
+function nguoiTheoId(db, id) {
+  if (!id) return null;
+  const u = db.prepare('SELECT hrm_code, full_name FROM users WHERE id = ?').get(id);
+  return nguoi(id, u && u.hrm_code, u && u.full_name);
+}
+
+/**
+ * Phân tích hoàn tác MỘT đợt chưa hoàn tác (dùng chung cho `hoanTacDot` và `xemTruocHoanTac`, để xem trước luôn khớp thao tác thật):
+ * các dòng lịch sử của đợt, số SHBG sẽ xoá trạng thái (trang_thai_truoc rỗng) / khôi phục, và «vướng» = đợt khác CHƯA hoàn tác đã đổi cùng SHBG sau đợt này.
+ * vuong.dot = id các đợt vướng (tăng dần); vuong.chi_tiet = như dot_vuong_chi_tiet của API. Chỉ đọc.
+ */
+function phanTichHoanTac(db, b) {
+  const rows = db.prepare('SELECT * FROM phat_status_history WHERE batch_id = ? ORDER BY id').all(b.id);
+  const soXoa = rows.filter((r) => r.trang_thai_truoc === null).length;
+  const v = db.prepare(`SELECT DISTINCT h.shbg AS shbg, h.batch_id AS batch_id FROM phat_status_history x
+    JOIN phat_status_history h ON h.bcvh = x.bcvh AND h.shbg = x.shbg AND h.id > x.id AND h.batch_id <> x.batch_id
+    LEFT JOIN phat_batches pb ON pb.id = h.batch_id
+    WHERE x.batch_id = @b AND COALESCE(pb.trang_thai, 'da_nhap') = 'da_nhap'`).all({ b: b.id });
+  const dot = [...new Set(v.map((x) => x.batch_id))].sort((x, y) => x - y);
+  const chiTiet = dot.length ? db.prepare(`SELECT p.id, p.nhap_luc, p.so_nhap, p.user_id, u.hrm_code AS hrm, u.full_name AS ten FROM phat_batches p LEFT JOIN users u ON u.id = p.user_id
+    WHERE p.id IN (SELECT value FROM json_each(@j)) ORDER BY p.id`).all({ j: JSON.stringify(dot) }).map((p) => ({
+    id: p.id, nhap_luc: p.nhap_luc, nhap_luc_bangkok: gioBangkok(p.nhap_luc), nhap_boi: nguoi(p.user_id, p.hrm, p.ten), so_nhap: p.so_nhap
+  })) : [];
+  return { rows, soXoa, soKhoiPhuc: rows.length - soXoa, vuong: { so_shbg: new Set(v.map((x) => x.shbg)).size, dot, chi_tiet: chiTiet } };
+}
+
+/** 409 «đã hoàn tác» (dùng cho hoanTacDot): kèm giờ (UTC + Bangkok) và người hoàn tác. */
+const loiDaHoanTac = (db, b) => new PhatError(409, 'Đợt nhập này đã được hoàn tác trước đó',
+  { hoan_tac_luc: b.hoan_tac_luc, hoan_tac_luc_bangkok: gioBangkok(b.hoan_tac_luc), hoan_tac_boi: nguoiTheoId(db, b.hoan_tac_boi) });
+
+/**
+ * Xem trước hoàn tác (không ghi gì): cho giao diện biết hoàn tác đợt này sẽ khôi phục / xoá bao nhiêu SHBG và vì sao không làm được.
+ * Quyền kiểm ở route như `/undo`. Đợt đã hoàn tác: các số = 0 (lịch sử của đợt đã chứa cả dòng hoàn tác nên không đếm lại).
+ */
+function xemTruocHoanTac(db, batch) {
+  return db.transaction(() => {
+    const b = db.prepare('SELECT * FROM phat_batches WHERE id = ?').get(batch.id);
+    if (!b) throw new PhatError(404, 'Không tìm thấy đợt nhập');
+    const out = { batch_id: b.id, bcvh: b.bcvh, trang_thai: b.trang_thai, so_nhap: b.so_nhap };
+    if (b.trang_thai === C.TRANG_THAI_DOT.DA_HOAN_TAC) {
+      return {
+        ...out, so_se_khoi_phuc: 0, so_se_xoa_trang_thai: 0, co_the_hoan_tac: false, ly_do_khong_the: 'DA_HOAN_TAC', so_shbg_vuong: 0, dot_vuong_chi_tiet: [],
+        hoan_tac_luc: b.hoan_tac_luc, hoan_tac_luc_bangkok: gioBangkok(b.hoan_tac_luc), hoan_tac_boi: nguoiTheoId(db, b.hoan_tac_boi)
+      };
+    }
+    const pt = phanTichHoanTac(db, b);
+    const biChan = pt.vuong.dot.length > 0;
+    return {
+      ...out, so_se_khoi_phuc: pt.soKhoiPhuc, so_se_xoa_trang_thai: pt.soXoa, co_the_hoan_tac: !biChan, ly_do_khong_the: biChan ? 'BI_CHAN' : null,
+      so_shbg_vuong: pt.vuong.so_shbg, dot_vuong_chi_tiet: pt.vuong.chi_tiet
+    };
+  })();
+}
 
 /**
  * Hoàn tác một đợt (quyền kiểm ở route). Chỉ khi KHÔNG có đợt nào khác CHƯA hoàn tác đã thay đổi các SHBG của đợt này SAU nó: nếu có -> 409
@@ -787,18 +904,11 @@ function hoanTacDot(db, batch, user) {
   return db.transaction(() => {
     const b = db.prepare('SELECT * FROM phat_batches WHERE id = ?').get(batch.id);
     if (!b) throw new PhatError(404, 'Không tìm thấy đợt nhập');
-    if (b.trang_thai === C.TRANG_THAI_DOT.DA_HOAN_TAC) throw new PhatError(409, 'Đợt nhập này đã được hoàn tác trước đó', { hoan_tac_luc: b.hoan_tac_luc });
-    const rows = db.prepare('SELECT * FROM phat_status_history WHERE batch_id = ? ORDER BY id').all(b.id);
-
-    const vuong = db.prepare(`SELECT DISTINCT h.shbg AS shbg, h.batch_id AS batch_id FROM phat_status_history x
-      JOIN phat_status_history h ON h.bcvh = x.bcvh AND h.shbg = x.shbg AND h.id > x.id AND h.batch_id <> x.batch_id
-      LEFT JOIN phat_batches pb ON pb.id = h.batch_id
-      WHERE x.batch_id = @b AND COALESCE(pb.trang_thai, 'da_nhap') = 'da_nhap'`).all({ b: b.id });
-    if (vuong.length) {
-      const shbgs = new Set(vuong.map((v) => v.shbg));
-      const dots = [...new Set(vuong.map((v) => v.batch_id))].sort((x, y) => x - y);
-      throw new PhatError(409, `Không thể hoàn tác: ${shbgs.size} SHBG của đợt này đã được thay đổi bởi đợt nhập sau (đợt ${dots.join(', ')}). Hãy hoàn tác các đợt sau trước.`,
-        { so_shbg_vuong: shbgs.size, dot_vuong: dots });
+    if (b.trang_thai === C.TRANG_THAI_DOT.DA_HOAN_TAC) throw loiDaHoanTac(db, b);
+    const { rows, vuong } = phanTichHoanTac(db, b);
+    if (vuong.dot.length) {
+      throw new PhatError(409, `Không thể hoàn tác: ${vuong.so_shbg} SHBG của đợt này đã được thay đổi bởi đợt nhập sau (đợt ${vuong.dot.join(', ')}). Hãy hoàn tác các đợt sau trước.`,
+        { so_shbg_vuong: vuong.so_shbg, dot_vuong: vuong.dot, dot_vuong_chi_tiet: vuong.chi_tiet });
     }
 
     const ngay = ngayLienQuan(db, b.bcvh, rows.map((r) => r.shbg));
@@ -845,5 +955,5 @@ function hoanTacDot(db, batch, user) {
 module.exports = {
   PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
   kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
-  demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, dsDot, hoanTacDot
+  demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot
 };

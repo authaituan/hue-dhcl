@@ -14,7 +14,7 @@ const Database = require('better-sqlite3'); // nạp TRƯỚC khi harness thay t
 const { startTestServer, waitForServer, cleanupDbFiles, closeServer } = require('./helpers/serverHarness');
 const { seedUser, loginAs } = require('./helpers/fixtures');
 const { importArrivalFile, EXPECTED_HEADER } = require('../server/lib/arrivalsImport');
-const { replaceAssignedBcvh } = require('../server/lib/userBcvh');
+const { replaceAssignedBcvh, VALID_BCVH_CODES } = require('../server/lib/userBcvh');
 const C = require('../server/config/phat');
 const P = require('../server/lib/phat');
 
@@ -169,7 +169,7 @@ test('lược đồ phat_*: đủ bảng, cột gio_phat chừa trống, ràng b
   assert.deepEqual(tables, ['phat_batches', 'phat_draft_rows', 'phat_drafts', 'phat_status_current', 'phat_status_history']);
   const cols = (t) => ctx.db.prepare(`PRAGMA table_info(${t})`).all().map((x) => x.name);
   assert.ok(cols('phat_status_current').includes('gio_phat'));
-  assert.deepEqual(cols('phat_batches'), ['id', 'bcvh', 'user_id', 'nhap_luc', 'ten_file', 'sha256', 'so_nhap', 'so_bo_qua', 'so_loi', 'so_khong_doi', 'trang_thai', 'hoan_tac_luc', 'hoan_tac_boi', 'draft_id']);
+  assert.deepEqual(cols('phat_batches'), ['id', 'bcvh', 'user_id', 'nhap_luc', 'ten_file', 'sha256', 'so_nhap', 'so_bo_qua', 'so_loi', 'so_khong_doi', 'trang_thai', 'hoan_tac_luc', 'hoan_tac_boi', 'draft_id', 'so_canh_bao']);
   assert.ok(cols('phat_draft_rows').includes('ghi_chu_bi_cat'));
   for (const c of ['id', 'bcvh', 'shbg', 'trang_thai', 'trang_thai_truoc', 'ghi_chu', 'batch_id', 'nhap_luc']) assert.ok(cols('phat_status_history').includes(c), c);
   for (const c of ['draft_id', 'so_dong_goc', 'shbg', 'trang_thai_file', 'ket_qua', 'ma_loi', 'chi_tiet_loi', 'canh_bao']) assert.ok(cols('phat_draft_rows').includes(c), c);
@@ -742,6 +742,8 @@ test('migration: DB có sẵn bảng chặng 1 (thiếu cột mới) được th
   const cols = (t) => old.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
   assert.ok(cols('phat_batches').includes('so_khong_doi') && cols('phat_draft_rows').includes('ghi_chu_bi_cat'));
   assert.deepEqual({ ...old.prepare('SELECT so_loi, so_khong_doi FROM phat_batches').get() }, { so_loi: 7, so_khong_doi: 0 });
+  assert.ok(cols('phat_batches').includes('so_canh_bao'));
+  assert.equal(old.prepare('SELECT so_canh_bao FROM phat_batches').get().so_canh_bao, null, 'đợt cũ: so_canh_bao = NULL (không rõ), không tính ngược');
   old.close();
 });
 
@@ -837,7 +839,7 @@ test('danh sách đợt nhập: chỉ BCVH được phép; ai, giờ (UTC + Bang
   assert.equal(a.pagination.total, dbCount(M2));
   assert.deepEqual(a.items.slice(0, 2).map((x) => x.id), [G1.batch_id, F1.batch_id], 'mới nhất trước');
   const g = a.items[0];
-  assert.deepEqual(Object.keys(g), ['id', 'bcvh', 'nhap_luc', 'nhap_luc_bangkok', 'nhap_boi', 'ten_file', 'sha256', 'so_nhap', 'so_bo_qua', 'so_loi', 'so_khong_doi',
+  assert.deepEqual(Object.keys(g), ['id', 'bcvh', 'nhap_luc', 'nhap_luc_bangkok', 'nhap_boi', 'ten_file', 'sha256', 'so_nhap', 'so_bo_qua', 'so_loi', 'so_khong_doi', 'so_canh_bao',
     'trang_thai', 'hoan_tac_luc', 'hoan_tac_luc_bangkok', 'hoan_tac_boi', 'co_quyen_hoan_tac']);
   assert.deepEqual([g.bcvh, g.ten_file, g.so_nhap, g.trang_thai, g.hoan_tac_boi], [M2, 'G.xlsx', 1, 'da_nhap', null]);
   assert.deepEqual(g.nhap_boi, { id: st.ids.ttvh, hrm_code: 'PH_TTVH', full_name: 'PH_TTVH' });
@@ -1264,4 +1266,291 @@ test('PHAT-1b xoá bản đã có dòng DA_NHAP: đợt nhập, trạng thái, l
   const sau = cur();
   if (truoc) assert.deepEqual([sau.trang_thai, sau.ghi_chu, sau.batch_id], [truoc.trang_thai, truoc.ghi_chu, truoc.batch_id], 'khôi phục trạng thái ngay trước');
   else assert.equal(sau, undefined, 'trước đó chưa có -> xoá trạng thái');
+});
+
+// ---------------- PHAT-2b-1: nguoi_nhap_lua_chon ----------------
+test('PHAT-2b-1 danh sách đợt: nguoi_nhap_lua_chon — người nhập khác nhau theo BCVH đang chọn, sắp theo tên, không theo trang, GDVH không thấy người của BCVH khác', async () => {
+  const ds = (who, qs = '') => call('GET', `/api/phat/batches${qs}`, who);
+  const them = (userId, bcvh, trangThai) => ctx.db.prepare(`INSERT INTO phat_batches (bcvh, user_id, nhap_luc, ten_file, so_nhap, trang_thai) VALUES (?, ?, '2026-10-10T01:00:00Z', 'nn.xlsx', 1, ?)`)
+    .run(bcvh, userId, trangThai);
+  // Hai người nhập chỉ có ở một BCVH: Bình ở M2 (nhập 2 đợt), Ân ở M (chỉ có đợt đã hoàn tác -> vẫn được kể)
+  const binh = seedUser(ctx.db, { hrmCode: 'PH_NN_BINH', fullName: 'Bình Test', role: 'GDVH', password: 'Gdvh@123' });
+  const an = seedUser(ctx.db, { hrmCode: 'PH_NN_AN', fullName: 'Ân Test', role: 'GDVH', password: 'Gdvh@123' });
+  them(binh, M2, 'da_nhap'); them(binh, M2, 'da_nhap'); them(an, M, 'da_hoan_tac');
+
+  const lay = (res) => res.body.nguoi_nhap_lua_chon;
+  const ids = (res) => lay(res).map((x) => x.id);
+  const tuDb = (codes) => ctx.db.prepare(`SELECT DISTINCT b.user_id AS id FROM phat_batches b WHERE b.bcvh IN (${codes.map(() => '?').join(',')})`).all(...codes).map((r) => r.id).sort();
+
+  // Quản lý, đúng một BCVH
+  const m2 = await ds('admin', `?bcvh=${M2}`);
+  assert.equal(m2.status, 200);
+  assert.deepEqual([...ids(m2)].sort(), tuDb([M2]), 'đúng tập người nhập của BCVH đang chọn, mỗi người một lần');
+  assert.ok(ids(m2).includes(binh) && !ids(m2).includes(an));
+  assert.deepEqual(Object.keys(lay(m2)[0]), ['id', 'hrm_code', 'full_name']);
+  assert.deepEqual(lay(m2).find((x) => x.id === binh), { id: binh, hrm_code: 'PH_NN_BINH', full_name: 'Bình Test' });
+  const ten = lay(m2).map((x) => x.full_name);
+  assert.deepEqual(ten, [...ten].sort((x, y) => x.localeCompare(y, 'vi')), 'sắp theo full_name');
+
+  // Không theo phân trang: size=1 trang 2 vẫn đủ danh sách
+  const trang = await ds('admin', `?bcvh=${M2}&page=2&size=1`);
+  assert.equal(trang.body.items.length, 1);
+  assert.deepEqual(lay(trang), lay(m2));
+
+  // Không chọn BCVH / all: mọi BCVH được phép; Ân (M, đợt đã hoàn tác) và Bình (M2) đều có, ân đứng trước bình
+  const tat = await ds('admin', '?size=1');
+  assert.deepEqual([...ids(tat)].sort(), tuDb([M, M2]));
+  assert.ok(ids(tat).indexOf(an) < ids(tat).indexOf(binh) && ids(tat).indexOf(an) >= 0);
+  assert.deepEqual(lay(await ds('admin', '?bcvh=all')), lay(tat));
+
+  // GDVH chỉ thấy người nhập thuộc BCVH được giao (kể cả người khác nhập vào BCVH đó), không thấy BCVH khác
+  const gM = await ds('gdvhM');
+  assert.deepEqual([...ids(gM)].sort(), tuDb([M]));
+  assert.ok(ids(gM).includes(an) && !ids(gM).includes(binh));
+  const gM2 = await ds('gdvhM2');
+  assert.deepEqual([...ids(gM2)].sort(), tuDb([M2]));
+  assert.ok(ids(gM2).includes(binh) && !ids(gM2).includes(an));
+  assert.ok(ids(gM2).includes(st.ids.ttvh), 'GDVH thấy cả người nhập khác (TTVH) vào BCVH của mình');
+  assert.deepEqual(lay(await ds('gdvhM2', `?bcvh=${M2}`)), lay(gM2));
+  // BCVH không được phép: 403, không trả danh sách
+  const cam = await ds('gdvhM2', `?bcvh=${M}`);
+  assert.equal(cam.status, 403);
+  assert.equal(cam.body.nguoi_nhap_lua_chon, undefined);
+  assert.equal((await ds('gdvhNone')).body.nguoi_nhap_lua_chon, undefined);
+  // BCVH chưa có đợt nào: danh sách rỗng
+  const trong = ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches WHERE bcvh = ?');
+  const chua = VALID_BCVH_CODES.find((c) => trong.get(c).n === 0);
+  if (chua) assert.deepEqual(lay(await ds('admin', `?bcvh=${chua}`)), []);
+});
+
+// =====================================================================================================================
+// PHAT-2b-1: số cảnh báo của đợt, xem trước hoàn tác, 409 giàu thông tin, lọc lịch sử, chữ 403 «hoàn tác».
+// Mỗi ca dọn trạng thái M2 trước (SQL, như ca tỷ lệ ở trên) để SHBG sh(21..27) chưa có trạng thái.
+// =====================================================================================================================
+const sachM2 = () => ctx.db.exec(`DELETE FROM phat_status_current WHERE bcvh = '${M2}'; DELETE FROM phat_status_history WHERE bcvh = '${M2}';
+  UPDATE phat_batches SET trang_thai = 'da_hoan_tac' WHERE bcvh = '${M2}' AND trang_thai = 'da_nhap'`);
+const GHI_CHU_DAI = 'g'.repeat(600); // > 500 ký tự: cảnh báo «Ghi chú bị cắt»
+const batchItem = async (id, who = 'admin', bcvh = M2) => (await call('GET', `/api/phat/batches?bcvh=${bcvh}&size=200`, who)).body.items.find((x) => x.id === id);
+
+test('PHAT-2b-1 số cảnh báo của đợt: đếm lúc nhập (trước khi xoá canh_bao), mode da-chon chỉ đếm dòng được chọn, đợt cũ NULL; có trong /batches và phản hồi commit', async () => {
+  sachM2();
+  // hop-le: 1 dòng có cảnh báo (ghi chú dài), 1 dòng không
+  const A = await nhapM2('admin', [[sh(21), 'Phát thành công', GHI_CHU_DAI], [sh(22), 'Phát thành công', 'ngắn']], 'cb-a.xlsx');
+  assert.deepEqual([A.so_nhap, A.so_canh_bao, batchRow(A.batch_id).so_canh_bao], [2, 1, 1]);
+  assert.equal((await batchItem(A.batch_id)).so_canh_bao, 1);
+  // sau khi nhập canh_bao của dòng bị xoá, nhưng số của đợt vẫn giữ
+  assert.equal((await rowsOf(A.draft.id, 'admin', '&canh_bao=1')).length, 0);
+
+  // không cảnh báo -> 0 (không phải NULL)
+  const B = await nhapM2('admin', [[sh(23), 'Phát thành công', null]], 'cb-b.xlsx');
+  assert.deepEqual([B.so_canh_bao, batchRow(B.batch_id).so_canh_bao, (await batchItem(B.batch_id)).so_canh_bao], [0, 0, 0]);
+
+  // chuyển bất thường cũng là cảnh báo: sh(21) PTC -> Chuyển hoàn
+  const Cc = await nhapM2('ttvh', [[sh(21), 'Chuyển hoàn', null]], 'cb-c.xlsx');
+  assert.equal(Cc.so_canh_bao, 1);
+
+  // da-chon: 2 dòng cảnh báo + 1 dòng thường trong file, chỉ chọn 1 dòng cảnh báo + 1 dòng thường
+  const up = await upload('admin', M2, await xlsxBuf([[sh(24), 'Phát thành công', GHI_CHU_DAI], [sh(25), 'Phát thành công', GHI_CHU_DAI], [sh(26), 'Phát thành công', null]]), 'cb-d.xlsx');
+  assert.equal(up.body.tong_hop.canh_bao, 2);
+  const L = byLine(await rowsOf(up.body.id));
+  const D = await call('POST', `/api/phat/drafts/${up.body.id}/commit`, 'admin', { mode: 'da-chon', ids: [L[2].id, L[4].id] });
+  assert.equal(D.status, 200, JSON.stringify(D.body));
+  assert.deepEqual([D.body.so_nhap, D.body.so_canh_bao], [2, 1], 'chỉ đếm dòng được nhập');
+  assert.equal(batchRow(D.body.batch_id).so_canh_bao, 1);
+  // nhập tiếp dòng còn lại (có cảnh báo): đợt mới đếm riêng
+  const E = await call('POST', `/api/phat/drafts/${up.body.id}/commit`, 'admin', { mode: 'hop-le' });
+  assert.deepEqual([E.body.so_nhap, E.body.so_canh_bao], [1, 1]);
+
+  // đợt cũ (có trước khi thêm cột): NULL = không rõ, KHÔNG tính ngược
+  const cu = Number(ctx.db.prepare(`INSERT INTO phat_batches (bcvh, user_id, nhap_luc, so_nhap) VALUES (?, ?, '2026-09-01T00:00:00Z', 5)`).run(M2, st.ids.admin).lastInsertRowid);
+  assert.equal(batchRow(cu).so_canh_bao, null);
+  const it = await batchItem(cu);
+  assert.equal(it.so_canh_bao, null);
+  assert.ok('so_canh_bao' in it, 'khoá có mặt, giá trị null');
+});
+
+/** Chụp toàn bộ nội dung các bảng phat_* (để chứng minh một điểm cuối không ghi gì). */
+const chupPhat = () => JSON.stringify(['phat_batches', 'phat_status_current', 'phat_status_history', 'phat_drafts', 'phat_draft_rows']
+  .map((t) => ctx.db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()));
+const NGUOI = (key, hrm) => ({ id: st.ids[key], hrm_code: hrm, full_name: hrm });
+
+test('PHAT-2b-1 undo-preview: khớp /undo thật, không ghi gì, đợt bị chặn có dot_vuong_chi_tiet, 409 giữ trường cũ và thêm trường mới, đợt đã hoàn tác', async () => {
+  sachM2();
+  const X = await nhapM2('admin', [[sh(21), 'Phát thành công', 'a'], [sh(22), 'Phát không thành công', null]], 'pv-x.xlsx');
+  const Y = await nhapM2('ttvh', [[sh(21), 'Chuyển hoàn', 'b'], [sh(23), 'Phát thành công', null]], 'pv-y.xlsx');
+  assert.equal(Y.so_canh_bao, 1, 'PTC → Chuyển hoàn');
+  const pv = (who, id) => call('GET', `/api/phat/batches/${id}/undo-preview`, who);
+
+  // Đợt Y (mới nhất): hoàn tác được; 1 SHBG khôi phục (sh(21) về PTC của X), 1 xoá (sh(23) trước đó chưa có)
+  const truoc = chupPhat();
+  const py = await pv('admin', Y.batch_id);
+  assert.equal(py.status, 200, JSON.stringify(py.body));
+  assert.deepEqual(py.body, {
+    batch_id: Y.batch_id, bcvh: M2, trang_thai: 'da_nhap', so_nhap: 2, so_se_khoi_phuc: 1, so_se_xoa_trang_thai: 1,
+    co_the_hoan_tac: true, ly_do_khong_the: null, so_shbg_vuong: 0, dot_vuong_chi_tiet: []
+  });
+  // Đợt X: bị chặn bởi Y (sh(21)); cả 2 SHBG của X trước đó chưa có trạng thái -> 2 xoá, 0 khôi phục
+  const px = await pv('admin', X.batch_id);
+  assert.equal(px.status, 200);
+  const yRow = batchRow(Y.batch_id);
+  assert.deepEqual(px.body, {
+    batch_id: X.batch_id, bcvh: M2, trang_thai: 'da_nhap', so_nhap: 2, so_se_khoi_phuc: 0, so_se_xoa_trang_thai: 2,
+    co_the_hoan_tac: false, ly_do_khong_the: 'BI_CHAN', so_shbg_vuong: 1,
+    dot_vuong_chi_tiet: [{ id: Y.batch_id, nhap_luc: yRow.nhap_luc, nhap_luc_bangkok: P.gioBangkok(yRow.nhap_luc), nhap_boi: NGUOI('ttvh', 'PH_TTVH'), so_nhap: 2 }]
+  });
+  assert.equal(chupPhat(), truoc, 'xem trước không ghi gì (mọi bảng phat_* nguyên vẹn)');
+
+  // 409 của /undo: giữ dot_vuong, so_shbg_vuong; thêm dot_vuong_chi_tiet (giống hệt xem trước)
+  const chan = await undo('admin', X.batch_id);
+  assert.equal(chan.status, 409);
+  assert.deepEqual([chan.body.so_shbg_vuong, chan.body.dot_vuong], [1, [Y.batch_id]]);
+  assert.deepEqual(chan.body.dot_vuong_chi_tiet, px.body.dot_vuong_chi_tiet);
+  assert.match(chan.body.error, /1 SHBG của đợt này đã được thay đổi bởi đợt nhập sau/);
+
+  // /undo thật của Y cho đúng số xem trước đã báo
+  const uy = await undo('admin', Y.batch_id);
+  assert.equal(uy.status, 200, JSON.stringify(uy.body));
+  assert.deepEqual([uy.body.so_khoi_phuc, uy.body.so_xoa_trang_thai, uy.body.so_hoan_tac], [py.body.so_se_khoi_phuc, py.body.so_se_xoa_trang_thai, py.body.so_nhap]);
+
+  // Y đã hoàn tác: xem trước báo DA_HOAN_TAC kèm giờ, người hoàn tác; số = 0
+  const py2 = await pv('ttvh', Y.batch_id);
+  assert.equal(py2.status, 200);
+  const yh = batchRow(Y.batch_id);
+  assert.deepEqual(py2.body, {
+    batch_id: Y.batch_id, bcvh: M2, trang_thai: 'da_hoan_tac', so_nhap: 2, so_se_khoi_phuc: 0, so_se_xoa_trang_thai: 0,
+    co_the_hoan_tac: false, ly_do_khong_the: 'DA_HOAN_TAC', so_shbg_vuong: 0, dot_vuong_chi_tiet: [],
+    hoan_tac_luc: yh.hoan_tac_luc, hoan_tac_luc_bangkok: P.gioBangkok(yh.hoan_tac_luc), hoan_tac_boi: NGUOI('admin', 'PH_ADMIN')
+  });
+  // 409 «đã hoàn tác»: giữ hoan_tac_luc, thêm giờ Bangkok và người hoàn tác
+  const lai = await undo('admin', Y.batch_id);
+  assert.equal(lai.status, 409);
+  assert.match(lai.body.error, /đã được hoàn tác trước đó/);
+  assert.deepEqual([lai.body.hoan_tac_luc, lai.body.hoan_tac_luc_bangkok, lai.body.hoan_tac_boi],
+    [yh.hoan_tac_luc, P.gioBangkok(yh.hoan_tac_luc), NGUOI('admin', 'PH_ADMIN')]);
+
+  // Y đã hoàn tác không còn chặn X: xem trước X hoàn tác được, số khớp /undo thật
+  const px2 = await pv('admin', X.batch_id);
+  assert.deepEqual([px2.body.co_the_hoan_tac, px2.body.ly_do_khong_the, px2.body.so_shbg_vuong, px2.body.dot_vuong_chi_tiet], [true, null, 0, []]);
+  const ux = await undo('admin', X.batch_id);
+  assert.deepEqual([ux.body.so_khoi_phuc, ux.body.so_xoa_trang_thai], [px2.body.so_se_khoi_phuc, px2.body.so_se_xoa_trang_thai]);
+
+  // Hai đợt cùng vướng một SHBG: dot_vuong_chi_tiet đủ cả hai, tăng dần theo id, nhập bởi người khác nhau
+  const P1 = await nhapM2('admin', [[sh(24), 'Phát thành công', null]], 'pv-p1.xlsx');
+  const P2 = await nhapM2('gdvhM2', [[sh(24), 'Phát không thành công', null]], 'pv-p2.xlsx');
+  const P3 = await nhapM2('ttvh', [[sh(24), 'Phát thành công', null]], 'pv-p3.xlsx');
+  const p1 = await pv('admin', P1.batch_id);
+  assert.deepEqual([p1.body.ly_do_khong_the, p1.body.so_shbg_vuong, p1.body.dot_vuong_chi_tiet.map((d) => d.id)], ['BI_CHAN', 1, [P2.batch_id, P3.batch_id]]);
+  assert.deepEqual(p1.body.dot_vuong_chi_tiet.map((d) => d.nhap_boi.id), [st.ids.gdvhM2, st.ids.ttvh]);
+  assert.deepEqual((await undo('admin', P1.batch_id)).body.dot_vuong, [P2.batch_id, P3.batch_id]);
+  for (const b of [P3, P2, P1]) assert.equal((await undo('admin', b.batch_id)).status, 200);
+});
+
+test('PHAT-2b-1 undo-preview và /undo: quyền và thứ tự kiểm như nhau (404, 403 BCVH, 403 chủ sở hữu); chữ 403 nói «hoàn tác»', async () => {
+  sachM2();
+  const D = await nhapM2('gdvhM2', [[sh(25), 'Phát thành công', null]], 'q-d.xlsx');
+  const pv = (who, id) => call('GET', `/api/phat/batches/${id}/undo-preview`, who);
+  const truoc = chupPhat();
+
+  for (const lenh of [pv, undo]) {
+    const ten = lenh === pv ? 'undo-preview' : 'undo';
+    assert.equal((await lenh(undefined, D.batch_id)).status, 401, `${ten} không đăng nhập`);
+    for (const who of ['staff', 'tivi']) assert.equal((await lenh(who, D.batch_id)).status, 403, `${ten} ${who}`);
+    for (const bad of ['99999999', 'abc', '1.5', '0', '-1']) assert.equal((await lenh('admin', bad)).status, 404, `${ten} ${bad}`);
+    assert.equal((await lenh('gdvhM2', '99999999')).status, 404, `${ten}: 404 trước mọi kiểm quyền`);
+    // GDVH của BCVH khác: 403 BCVH (hoàn tác, không phải «nhập kết quả phát»)
+    const khac = await lenh('gdvhM', D.batch_id);
+    assert.equal(khac.status, 403, ten);
+    assert.match(khac.body.error, /hoàn tác/, ten);
+    assert.doesNotMatch(khac.body.error, /nhập kết quả phát/, ten);
+    // GDVH chưa gán BCVH nào
+    const chua = await lenh('gdvhNone', D.batch_id);
+    assert.equal(chua.status, 403, ten);
+    assert.match(chua.body.error, /chưa được gán BCVH nào nên chưa hoàn tác được/, ten);
+    assert.doesNotMatch(chua.body.error, /nhập kết quả phát/, ten);
+    // Cùng BCVH nhưng không phải người nhập: 403 chủ sở hữu
+    const nguoiKhac = await lenh('gdvhM2b', D.batch_id);
+    assert.equal(nguoiKhac.status, 403, ten);
+    assert.match(nguoiKhac.body.error, /Chỉ ADMIN, TTVH hoặc chính người nhập/, ten);
+  }
+  assert.equal(chupPhat(), truoc, 'mọi lệnh bị từ chối không đổi gì');
+
+  // Người nhập đã bị bỏ gán BCVH: cả hai đều 403 (BCVH), kèm chữ «hoàn tác»
+  replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, []);
+  for (const lenh of [pv, undo]) {
+    const r = await lenh('gdvhM2', D.batch_id);
+    assert.equal(r.status, 403);
+    assert.match(r.body.error, /hoàn tác/);
+  }
+  replaceAssignedBcvh(ctx.db, st.ids.gdvhM2, [M2]);
+
+  // Được phép: chính người nhập, ADMIN, TTVH
+  for (const who of ['gdvhM2', 'admin', 'ttvh']) assert.equal((await pv(who, D.batch_id)).status, 200, who);
+  assert.equal((await call('GET', `/api/phat/batches/${D.batch_id}/undo-preview?x=1`, 'admin')).status, 400, 'tham số lạ');
+  assert.equal((await undo('gdvhM2', D.batch_id)).status, 200);
+  // Chữ 403 của các điểm cuối khác không đổi
+  assert.match((await call('GET', `/api/phat/template?bcvh=${M}&from=2026-10-02&to=2026-10-02`, 'gdvhM2')).body.error, /chỉ được nhập kết quả phát cho BCVH được giao/);
+});
+
+test('PHAT-2b-1 lọc lịch sử: tu_ngay / den_ngay theo giờ Bangkok (gồm hai đầu), nguoi_nhap, trang_thai, kết hợp, giá trị sai 400', async () => {
+  const X3 = VALID_BCVH_CODES.find((c) => c !== M && c !== M2);
+  const them = (userId, nhapLuc, trangThai) => Number(ctx.db.prepare(`INSERT INTO phat_batches (bcvh, user_id, nhap_luc, ten_file, so_nhap, trang_thai) VALUES (?, ?, ?, 'loc.xlsx', 1, ?)`)
+    .run(X3, userId, nhapLuc, trangThai).lastInsertRowid);
+  const { admin, ttvh } = st.ids;
+  const a = them(admin, '2026-09-30T23:30:00Z', 'da_nhap'); // Bangkok 01/10 06:30 (UTC vẫn là 30/09)
+  const b = them(ttvh, '2026-10-01T16:59:59Z', 'da_hoan_tac'); // Bangkok 01/10 23:59:59
+  const c = them(admin, '2026-10-01T17:00:00Z', 'da_nhap'); // Bangkok 02/10 00:00:00
+  const d = them(ttvh, '2026-10-02T16:59:59Z', 'da_nhap'); // Bangkok 02/10 23:59:59
+  const e = them(admin, '2026-10-02T17:00:00Z', 'da_hoan_tac'); // Bangkok 03/10 00:00:00
+  const ds = (qs, who = 'admin') => call('GET', `/api/phat/batches?bcvh=${X3}${qs}`, who);
+  const ids = async (qs, who) => { const r = await ds(qs, who); assert.equal(r.status, 200, `${qs}: ${JSON.stringify(r.body)}`); return r.body.items.map((x) => x.id).sort((x, y) => x - y); };
+  const hop = (...x) => x.sort((p, q) => p - q);
+
+  assert.deepEqual(await ids(''), hop(a, b, c, d, e), 'không lọc: đủ');
+  // Ngày theo Bangkok: đợt 23:30 UTC (30/09) thuộc 01/10 theo Bangkok
+  assert.deepEqual(await ids('&tu_ngay=2026-10-01&den_ngay=2026-10-01'), hop(a, b), 'một ngày: gồm cả đầu 06:30 và cuối 23:59:59');
+  assert.deepEqual(await ids('&tu_ngay=2026-09-30&den_ngay=2026-09-30'), [], 'đợt 23:30 UTC 30/09 KHÔNG thuộc ngày 30/09 Bangkok');
+  assert.deepEqual(await ids('&tu_ngay=2026-10-02&den_ngay=2026-10-02'), hop(c, d), '00:00:00 Bangkok vào ngày mới; 23:59:59 còn trong ngày');
+  assert.deepEqual(await ids('&tu_ngay=2026-10-03'), [e], 'chỉ tu_ngay (mở phía sau)');
+  assert.deepEqual(await ids('&den_ngay=2026-10-01'), hop(a, b), 'chỉ den_ngay (mở phía trước), gồm cả ngày cuối');
+  assert.deepEqual(await ids('&tu_ngay=2026-10-01&den_ngay=2026-10-03'), hop(a, b, c, d, e));
+  assert.deepEqual(await ids('&tu_ngay=2026-10-04'), []);
+  // người nhập, trạng thái
+  assert.deepEqual(await ids(`&nguoi_nhap=${admin}`), hop(a, c, e));
+  assert.deepEqual(await ids(`&nguoi_nhap=${ttvh}`), hop(b, d));
+  assert.deepEqual(await ids('&nguoi_nhap=khong-co-nguoi-nay'), [], 'id không có: rỗng, không phải 400');
+  assert.deepEqual(await ids('&trang_thai=da_hoan_tac'), hop(b, e));
+  assert.deepEqual(await ids('&trang_thai=da_nhap'), hop(a, c, d));
+  // kết hợp
+  assert.deepEqual(await ids(`&tu_ngay=2026-10-01&den_ngay=2026-10-02&nguoi_nhap=${admin}&trang_thai=da_nhap`), hop(a, c), 'a (01/10 Bangkok) và c (02/10) đều của admin, đã nhập; e đã hoàn tác và sang 03/10');
+  assert.deepEqual(await ids(`&tu_ngay=2026-10-02&den_ngay=2026-10-02&nguoi_nhap=${admin}&trang_thai=da_nhap`), [c]);
+  assert.deepEqual(await ids(`&tu_ngay=2026-10-02&nguoi_nhap=${ttvh}&trang_thai=da_hoan_tac`), []);
+  assert.deepEqual(await ids('&tu_ngay=&den_ngay=&nguoi_nhap=&trang_thai='), hop(a, b, c, d, e), 'giá trị rỗng = không lọc');
+  // phân trang theo kết quả lọc; nguoi_nhap_lua_chon KHÔNG theo bộ lọc
+  const trang = (await ds('&trang_thai=da_nhap&size=2&page=2')).body;
+  assert.deepEqual([trang.pagination.total, trang.pagination.total_pages, trang.items.length], [3, 2, 1]);
+  assert.deepEqual((await ds(`&nguoi_nhap=${admin}`)).body.nguoi_nhap_lua_chon.map((x) => x.id).sort(), [admin, ttvh].sort());
+  // sắp xếp giữ nguyên: mới nhất trước
+  assert.deepEqual((await ds('')).body.items.map((x) => x.id), [e, d, c, b, a]);
+  // quyền xem theo BCVH không bị bộ lọc vượt qua
+  assert.equal((await ds('&tu_ngay=2026-10-01', 'gdvhM2')).status, 403);
+  assert.equal((await ds(`&nguoi_nhap=${admin}`, 'staff')).status, 403);
+  assert.equal((await call('GET', `/api/phat/batches?bcvh=${M2}&nguoi_nhap=${admin}&tu_ngay=2026-10-01`, 'gdvhM2')).status, 200);
+
+  // giá trị sai -> 400 tiếng Việt, nêu tên tham số
+  const sai = [
+    ['&tu_ngay=2026-13-01', /"tu_ngay".*YYYY-MM-DD/], ['&tu_ngay=abc', /"tu_ngay"/], ['&tu_ngay=2026-02-30', /"tu_ngay"/], ['&tu_ngay=2026-10-1', /"tu_ngay"/],
+    ['&den_ngay=2026-10-01T00:00:00', /"den_ngay"/], ['&den_ngay=01/10/2026', /"den_ngay"/],
+    ['&tu_ngay=2026-10-02&den_ngay=2026-10-01', /"tu_ngay" không được sau "den_ngay"/],
+    ['&trang_thai=xyz', /"trang_thai".*da_nhap, da_hoan_tac/], ['&trang_thai=DA_NHAP', /"trang_thai"/],
+    ['&nguoi_nhap=a&nguoi_nhap=b', /"nguoi_nhap"/], ['&trang_thai=da_nhap&trang_thai=da_hoan_tac', /"trang_thai"/], ['&tu_ngay=2026-10-01&tu_ngay=2026-10-02', /"tu_ngay"/],
+    [`&nguoi_nhap=${'x'.repeat(65)}`, /"nguoi_nhap"/],
+    ['&hoi=1', /Tham số không hỗ trợ: "hoi"/], ['&draft_id=1', /Tham số không hỗ trợ: "draft_id"/], ['&size=201', /"size"/], ['&page=0', /"page"/]
+  ];
+  for (const [qs, re] of sai) {
+    const r = await ds(qs);
+    assert.equal(r.status, 400, qs);
+    assert.match(r.body.error, re, qs);
+  }
+  // phần tử /batches không có draft_id
+  assert.equal('draft_id' in (await ds('')).body.items[0], false);
 });

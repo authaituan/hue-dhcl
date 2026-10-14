@@ -43,15 +43,22 @@ function wrap(fn, label) {
 const nhapGuard = requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH);
 const xemGuard = requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH); // xem tỷ lệ: mọi BCVH (#72), không theo BCVH được giao
 
+// Chữ 403 theo hành động: 'nhap' (mặc định), 'xem' danh sách đợt, 'hoan-tac' (hoàn tác / xem trước hoàn tác — PHAT-2b-1)
+const CHU_403 = {
+  nhap: { chua_gan: 'nhập được kết quả phát', ngoai: 'Bạn chỉ được nhập kết quả phát cho BCVH được giao' },
+  xem: { chua_gan: 'xem được danh sách đợt nhập', ngoai: 'Bạn chỉ được xem các đợt nhập của BCVH được giao' },
+  'hoan-tac': { chua_gan: 'hoàn tác được đợt nhập', ngoai: 'Bạn chỉ được hoàn tác đợt nhập của BCVH được giao' }
+};
 const thieuQuyen = (req, hanhDong) => {
   const duoc = exp.allowedBcvhCodes(db, req.user);
+  const chu = CHU_403[hanhDong] || CHU_403.nhap;
   if (req.user.role === ROLES.GDVH && !duoc.length) {
-    return new PhatError(403, `Tài khoản chưa được gán BCVH nào nên chưa ${hanhDong === 'xem' ? 'xem được danh sách đợt nhập' : 'nhập được kết quả phát'}. Liên hệ quản trị viên để được gán BCVH.`);
+    return new PhatError(403, `Tài khoản chưa được gán BCVH nào nên chưa ${chu.chua_gan}. Liên hệ quản trị viên để được gán BCVH.`);
   }
-  return new PhatError(403, hanhDong === 'xem' ? 'Bạn chỉ được xem các đợt nhập của BCVH được giao' : 'Bạn chỉ được nhập kết quả phát cho BCVH được giao');
+  return new PhatError(403, chu.ngoai);
 };
 
-/** BCVH phải thuộc 6 BCVH (400) và người gọi được nhập (hanhDong 'nhap') / xem đợt nhập ('xem') cho BCVH đó (403). */
+/** BCVH phải thuộc 6 BCVH (400) và người gọi được nhập (hanhDong 'nhap') / xem đợt nhập ('xem') / hoàn tác ('hoan-tac') cho BCVH đó (403). */
 function kiemTraBcvh(req, raw, hanhDong = 'nhap') {
   const bcvh = Array.isArray(raw) ? '' : String(raw ?? '').trim();
   if (!bcvh) throw new PhatError(400, 'Thiếu tham số "bcvh" (mã của một trong 6 BCVH)');
@@ -235,7 +242,7 @@ router.post('/phat/drafts/:id/commit', authRequired, nhapGuard, wrap(async (req,
 // Việc 4, 5 — danh sách đợt nhập, hoàn tác
 // ------------------------------------------
 router.get('/phat/batches', authRequired, nhapGuard, wrap(async (req, res) => {
-  for (const k of Object.keys(req.query)) if (!['bcvh', 'page', 'size'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  for (const k of Object.keys(req.query)) if (!['bcvh', 'page', 'size', 'tu_ngay', 'den_ngay', 'nguoi_nhap', 'trang_thai'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
   const duoc = exp.allowedBcvhCodes(db, req.user);
   const raw = Array.isArray(req.query.bcvh) ? '' : String(req.query.bcvh ?? '').trim();
   let codes;
@@ -249,15 +256,26 @@ router.get('/phat/batches', authRequired, nhapGuard, wrap(async (req, res) => {
   const size = req.query.size === undefined || req.query.size === '' ? C.GIOI_HAN.TRANG_MAC_DINH : Number(req.query.size);
   if (!Number.isInteger(page) || page < 1) throw new PhatError(400, 'Tham số "page" phải là số nguyên ≥ 1');
   if (!Number.isInteger(size) || size < 1 || size > C.GIOI_HAN.TRANG_TOI_DA) throw new PhatError(400, `Tham số "size" phải là số nguyên 1..${C.GIOI_HAN.TRANG_TOI_DA}`);
-  res.json(P.dsDot(db, { codes, page, size, user: req.user }));
+  res.json(P.dsDot(db, { codes, page, size, user: req.user, loc: P.docLocDot(req.query) }));
 }, 'batches'));
 
-router.post('/phat/batches/:id/undo', authRequired, nhapGuard, wrap(async (req, res) => {
+/** Đợt nhập cho hoàn tác / xem trước: 404 → 403 BCVH (vẫn phải được phép với BCVH của đợt) → 403 chủ sở hữu (ADMIN, TTVH, hoặc chính người nhập). */
+function layDotHoanTac(req) {
   const b = P.layDot(db, req.params.id);
   if (!b) throw new PhatError(404, 'Không tìm thấy đợt nhập');
-  kiemTraBcvh(req, b.bcvh); // vẫn phải được phép với BCVH của đợt (GDVH bị bỏ gán thì không hoàn tác được)
-  const quanLy = req.user.role === ROLES.ADMIN || req.user.role === ROLES.TTVH;
-  if (!quanLy && b.user_id !== req.user.id) throw new PhatError(403, 'Chỉ ADMIN, TTVH hoặc chính người nhập đợt này mới được hoàn tác');
+  kiemTraBcvh(req, b.bcvh, 'hoan-tac'); // GDVH bị bỏ gán thì không hoàn tác được
+  if (!laQuanLy(req.user) && b.user_id !== req.user.id) throw new PhatError(403, 'Chỉ ADMIN, TTVH hoặc chính người nhập đợt này mới được hoàn tác');
+  return b;
+}
+
+// PHAT-2b-1 — xem trước hoàn tác (không ghi gì): quyền và thứ tự kiểm đúng như /undo.
+router.get('/phat/batches/:id/undo-preview', authRequired, nhapGuard, wrap(async (req, res) => {
+  for (const k of Object.keys(req.query)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  res.json(P.xemTruocHoanTac(db, layDotHoanTac(req)));
+}, 'undo-preview'));
+
+router.post('/phat/batches/:id/undo', authRequired, nhapGuard, wrap(async (req, res) => {
+  const b = layDotHoanTac(req);
   const kq = P.hoanTacDot(db, b, req.user);
   audit(req, 'phat_undo', { bcvh: b.bcvh, batch_id: b.id, rows: kq.so_hoan_tac });
   res.json(kq);
