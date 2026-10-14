@@ -2,6 +2,19 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - PHAT-3b: Backend kết quả phát cho Dashboard «Điều hành hôm nay»
+
+- **Endpoint mới** `GET /api/arrivals/dashboard/ket-qua-phat?bcvh=&ngay=` (`server/routes/arrivals.js` — middleware `phatScope` + route; `server/lib/phatDashboard.js` — `parseParams`, `ketQuaPhat`). Trả `mau_so`, 5 trạng thái (số + tỷ lệ), `ptc`, `muc_cap_nhat`, `co_so_lieu_phat`, `so_lieu_den_luc` (+ `_bangkok`), `nguong{ptc_dat, chua_co_tt_canh_bao}`, `xep_hang_bcvh`, `chua_du_du_lieu`. ADMIN, TTVH, GDVH đều xem đủ mọi BCVH như 3 endpoint dashboard «đến» (#72); STAFF và TIVI 403 (TIVI không vào allowlist). Không khung giờ, không `ton_cho`.
+- **Cờ theo ngày**: `co_so_lieu_phat` / `so_lieu_den_luc` chỉ xét SHBG đến đúng ngày xem; ngày chưa ai nhập → `false` / `null` (sửa lỗi khảo sát PHAT-3a: `/ty-le` mượn giờ của đợt ngày khác). `phat.js` `demNgay` trả thêm `co_tt`, `nhap_luc_max` (thêm hai cột vào cùng truy vấn, số khác không đổi); export thêm `demNgay`, `dungTyLe`, `tonCho`, `zeroMap`, `congMap`.
+- **Hằng số máy chủ** `server/lib/phatConfig.js` (TẠM, PO chốt 14/10/2026): `NGUONG_PTC_DAT = 0.82`, `NGUONG_CHUA_CO_TT_CANH_BAO = 0.10`, `SAN_XEP_HANG_BCVH = 50`, `SAN_XEP_HANG_PHUONG_XA = 10` (chưa dùng).
+- **Xếp hạng**: PTC giảm dần trên cả mẫu số, chỉ khi phạm vi ≥ 2 BCVH; mẫu số < 50 (`duoi_san`) hoặc chưa nhập trong ngày (`chua_nhap`) → `chua_du_du_lieu`, không xếp cuối.
+- **Test** `tests/phat-dashboard.test.js` (mới, 17 ca; thêm vào script `npm test` ở `package.json`): quyền 5 vai trò + GDVH có/không gán, ngày có/không số liệu, sàn 49/50, BCVH chưa nhập, thứ tự + đồng hạng, ngưỡng, `/ty-le` không đổi, 1 ca đo hiệu năng `PHAT_PERF=1` (dữ liệu giả 6 BCVH × 31 ngày × 4.000 SHBG): `ton_cho` ~320 ms/BCVH, `/ty-le` gộp 6 BCVH ~2,2 s, endpoint mới ~75 ms.
+- **Docs**: `08_PHAT.md` mục 4 (endpoint, hằng số, cờ theo ngày), `04_DECISIONS.md` #79, `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`, `10_PHAT3_AUDIT.md` (một dòng «PHAT-3b đã làm»).
+- **Chưa làm**: giao diện Dashboard (PHAT-3c); tivi, xếp hạng phường/xã, loại việc phát (PHAT-3d); màn 13 vẫn dùng hằng số ngưỡng riêng trong giao diện.
+- **Sửa theo PO (phương án A, cùng ngày)**: GDVH xem ĐỦ mọi BCVH ở endpoint này — bỏ giới hạn theo `user_bcvh` trong `phatScope` (`server/routes/arrivals.js`), GDVH chưa được giao BCVH nào vẫn có dữ liệu, xin `bcvh` bất kỳ đều được, xếp hạng đủ các BCVH đủ điều kiện. Lý do: giống #72, xếp hạng cần so sánh các BCVH. Phân quyền `/api/phat/*` (nhập, hủy, lịch sử, bản kiểm tra) KHÔNG đổi. Test: viết lại ca «quyền GDVH» và ca xếp hạng GDVH; thêm kiểm `/api/phat/batches` vẫn 403 với GDVH ngoài BCVH được giao (vẫn 17 ca).
+
+---
+
 ## [2026-10-14] - DATE-1: Ô chọn ngày dùng chung dd/mm/yyyy + sửa mũi tên đôi
 
 - **Thành phần dùng chung `CustomDatePicker.jsx`** (`src/components/arrivals/CustomDatePicker.jsx`, re-export tại `src/components/common/CustomDatePicker.jsx`):

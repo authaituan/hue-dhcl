@@ -6,7 +6,8 @@ const q = require('../lib/arrivalsQuery');
 const exp = require('../lib/arrivalsExport');
 const bd10 = require('../lib/bd10Query');
 const den = require('../lib/dashboardDenQuery');
-const { getAssignedBcvh } = require('../lib/userBcvh');
+const { getAssignedBcvh, VALID_BCVH_CODES } = require('../lib/userBcvh');
+const phatDash = require('../lib/phatDashboard');
 const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 
@@ -94,6 +95,22 @@ function dashScope(req, res, next) {
 router.get('/arrivals/dashboard/tong-quan-den', dashScope, handle((req) => den.tongQuanDen(db, req.dashQuery, goiY(req)), 'dashboard-tong-quan-den'));
 router.get('/arrivals/dashboard/viec-can-lam', dashScope, handle((req) => den.viecCanLam(db, req.dashQuery, goiY(req)), 'dashboard-viec-can-lam'));
 router.get('/arrivals/dashboard/phuong-xa-tang', dashScope, handle((req) => den.phuongXaTang(db, req.dashQuery, goiY(req)), 'dashboard-phuong-xa-tang'));
+
+// Kết quả phát cho Dashboard «Điều hành hôm nay» (PHAT-3b, #79). Chỉ ADMIN, TTVH, GDVH: STAFF 403 (viewerGuard), TIVI 403 (allowlist, tivi.js — tivi để PHAT-3d).
+// Phạm vi: ADMIN, TTVH, GDVH đều xem ĐỦ 6 BCVH như 3 endpoint dashboard «đến» (#72) — không giới hạn theo user_bcvh (xếp hạng cần so sánh các BCVH);
+// GDVH chưa được giao BCVH nào vẫn có dữ liệu. Giới hạn theo BCVH được giao chỉ còn ở NHẬP / HỦY / LỊCH SỬ / BẢN KIỂM TRA của /api/phat/* (routes/phat.js).
+// Không có `bcvh` (hoặc `all`) = cả 6 BCVH.
+function phatScope(req, res, next) {
+  try {
+    req.phatParams = phatDash.parseParams(req.query);
+  } catch (err) {
+    if (err instanceof q.QueryParamError) return res.status(400).json({ error: err.message });
+    return next(err);
+  }
+  req.phatCodes = req.phatParams.bcvh === 'all' ? VALID_BCVH_CODES : [req.phatParams.bcvh];
+  next();
+}
+router.get('/arrivals/dashboard/ket-qua-phat', phatScope, handle((req) => phatDash.ketQuaPhat(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));
