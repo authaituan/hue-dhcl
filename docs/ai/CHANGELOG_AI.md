@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5g-1: Tách importer thành chuanBiFile (async, không đụng DB) + ghiFileDaChuanBi (đồng bộ)
+
+- `server/lib/arrivalsImport.js` (PO cho phép, chỉ ticket này): `importArrivalFile` tách đôi — `chuanBiFile(filePath, { source })` (bất đồng bộ, KHÔNG nhận `db`: đọc + kiểm tra tên / BOM / tiêu đề / từng dòng / khoảng ngày, băm, đếm; trả đối tượng «đã chuẩn bị» `ketLuan` READY / EMPTY_FILE / REJECTED / SKIPPED_NAME) và `ghiFileDaChuanBi(db, daChuanBi, { ghiTuChoi, source })` (ĐỒNG BỘ: idempotent theo tên + sha256, `CONFLICT`, ghi file + `INSERT OR IGNORE` + `ward_bdx_map`). Gọi được BÊN TRONG giao dịch ngoài (savepoint của better-sqlite3, không tự commit, hoàn tác theo giao dịch ngoài). `options.ghiTuChoi=false` tắt ghi `REJECTED` / `CONFLICT`. `importArrivalFile` giữ nguyên chữ ký và hành vi (= await `chuanBiFile` + `ghiFileDaChuanBi`). Xuất thêm hai hàm.
+- **Test** `tests/arrivals-import-split.test.js` (mới, 16 ca; đã thêm vào `npm test`): tương đương với bản chụp trước thay đổi `tests/helpers/arrivalsImport.truoc-5g1.js` (giá trị trả về + thứ tự khoá + nội dung 3 bảng; file hợp lệ / rỗng / chỉ BOM / chỉ tiêu đề / trùng dòng / nạp lại / CONFLICT / REJECTED / tên sai / ISO + Mỹ + NULL / thư mục / file không tồn tại), `chuanBiFile` không đụng DB, `ghiFileDaChuanBi` đồng bộ, lồng giao dịch (hoàn tác, 2 file một giao dịch, `BEGIN` tay, lỗi giữa chừng), `ghiTuChoi`. Không sửa test cũ nào.
+- Docs: `04_DECISIONS.md` #81, `14_XOA_DU_LIEU_NGAY_AUDIT.md` (mục 7.3), `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Chưa làm: xem trước / thay thế / thùng rác / API / giao diện (5g-2, 5g-3…).
+
+---
+
 ## [2026-10-15] - SANLUONG-5e: Hẹn giờ tự động nạp file từ SFTP (đường nạp chính hằng ngày)
 
 - **Mới** `server/lib/sftpScheduler.js` (`startSftpScheduler`/`stopSftpScheduler`/`docTrangThaiSftp`, lập lịch thuần, đồng hồ + kết nối + nạp tiêm được) và `server/lib/sftpConnect.js` (nơi duy nhất nạp `ssh2-sftp-client`, nạp lười, ghim vân tay). `server/index.js`: gắn hẹn giờ sau `app.listen` trong try/catch; MẶC ĐỊNH TẮT, chỉ `SFTP_SYNC_ENABLED=1` mới bật, KHÔNG chạy trong test (`NODE_TEST_CONTEXT`); sai cấu hình → một dòng log nêu tên biến, không khởi động, máy chủ không sập; lượt đầu sau 30 giây; tắt gọn khi SIGTERM/SIGINT (chỉ khi đang bật).

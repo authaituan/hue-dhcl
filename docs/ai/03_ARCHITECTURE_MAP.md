@@ -15,7 +15,7 @@ server/
   lib/orgImport.js      # resolveOrCreateOrgChain: tạo/cập nhật Tỉnh -> BĐX -> Bưu cục khi import mạng lưới
   lib/dashboardSources.js   # whitelist nguồn/nhóm/bộ lọc của Dashboard động + computeWidgetData + buildMeta
   lib/dashboardDefaults.js  # bộ ô mặc định + seed/reset
-  lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV, ánh xạ phường→BĐX, getMissingBatches
+  lib/arrivalsImport.js # "Hàng đến": schema + nạp 1 file / 1 thư mục CSV (importArrivalFile = chuanBiFile async không đụng DB + ghiFileDaChuanBi đồng bộ, gọi được trong giao dịch ngoài — #81), ánh xạ phường→BĐX, getMissingBatches
   lib/arrivalsQuery.js  # "Hàng đến": NƠI DUY NHẤT cài quy tắc đếm sản lượng (buildCountedCte) + kiểm tham số + các truy vấn API
   lib/arrivalsExport.js # xuất Excel dữ liệu thô "Hàng đến" của 1 BCVH (9 cột chuỗi, ghi luồng theo lô), phạm vi theo vai trò
   lib/bd10Query.js      # chỉ số "BD10 đến không XNĐ" (đơn vị BD10 tính lúc truy vấn): stats, list, splitQuery — #67
