@@ -6,6 +6,7 @@ import PhatTemplateView from './PhatTemplateView';
 import PhatDraftView from './PhatDraftView';
 import PhatCommitResultView from './PhatCommitResultView';
 import PhatHistoryView from './PhatHistoryView';
+import CustomDatePicker from '../common/CustomDatePicker';
 
 // Hai ngưỡng tô màu tạm của ticket PHAT-2
 export const NGUONG_PTC_DAT = 0.82; // PTC >= 82% màu xanh (#059669), dưới 82% màu vàng/cam hổ phách (#b45309)
@@ -312,14 +313,14 @@ export default function ProcessingDeliveryView({ authUser }) {
         {/* Cụm công cụ: Ngày, BCVH, Nút thao tác chuyển sang Đợt B */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Bộ chọn Ngày đến */}
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-xs">
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm text-xs">
             <span className="font-semibold text-gray-500 whitespace-nowrap">Ngày đến:</span>
-            <input
+            <CustomDatePicker
               id="phat-date-input"
-              type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-xs font-bold text-gray-800 bg-transparent border-none focus:outline-none cursor-pointer"
+              onChange={(newVal) => setSelectedDate(newVal)}
+              borderless
+              className="w-28"
             />
           </div>
 
