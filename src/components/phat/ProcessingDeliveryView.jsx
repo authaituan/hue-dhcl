@@ -5,6 +5,7 @@ import { BCVH_LIST } from '../../constants/bcvh';
 import PhatTemplateView from './PhatTemplateView';
 import PhatDraftView from './PhatDraftView';
 import PhatCommitResultView from './PhatCommitResultView';
+import PhatHistoryView from './PhatHistoryView';
 
 // Hai ngưỡng tô màu tạm của ticket PHAT-2
 export const NGUONG_PTC_DAT = 0.82; // PTC >= 82% màu xanh (#059669), dưới 82% màu vàng/cam hổ phách (#b45309)
@@ -180,6 +181,13 @@ export default function ProcessingDeliveryView({ authUser }) {
     setCommitData(commitResult);
     setCurrentStep(3);
   };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIEW 3: LỊCH SỬ NHẬP (BẢNG 17 & BẢNG 18)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (viewMode === 'history') {
+    return <PhatHistoryView onBack={() => setViewMode('overview')} authUser={authUser} />;
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // VIEW 2: QUY TRÌNH NHẬP (MÀN 14, 15, 16)
@@ -734,15 +742,27 @@ export default function ProcessingDeliveryView({ authUser }) {
 
                   return (
                     <div key={item.id} className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                      <div className="text-xs font-bold text-gray-900">
-                        Số liệu tính đến {itemTime ? itemTime.dateTimeShort : item.nhap_luc_bangkok}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-bold text-gray-900">
+                          Số liệu tính đến {itemTime ? itemTime.fullDateTime : item.nhap_luc_bangkok}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {item.so_canh_bao > 0 && (
+                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
+                              {item.so_canh_bao} cảnh báo
+                            </span>
+                          )}
+                          {item.trang_thai === 'da_hoan_tac' && (
+                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200 rounded-full">
+                              Đã hủy
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-gray-600 mt-1 leading-relaxed">
                         <span className="font-medium text-gray-800">{nguoiNhap}</span>
                         {' · '}
                         nhập {formatInt(item.so_nhap)}
-                        {' · '}
-                        bỏ qua {formatInt(item.so_bo_qua)}
                         {' · '}
                         lỗi {formatInt(item.so_loi)}
                       </div>
@@ -755,12 +775,13 @@ export default function ProcessingDeliveryView({ authUser }) {
 
           {/* Dòng liên kết xem toàn bộ lịch sử */}
           <div className="pt-4 mt-4 border-t border-gray-100">
-            <span
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer underline underline-offset-2"
-              title="Xem toàn bộ lịch sử chi tiết sẽ được mở ở ticket sau"
+            <button
+              type="button"
+              onClick={() => setViewMode('history')}
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer flex items-center gap-1 underline underline-offset-2"
             >
-              Xem toàn bộ lịch sử
-            </span>
+              <span>Xem toàn bộ lịch sử →</span>
+            </button>
           </div>
         </div>
       </div>

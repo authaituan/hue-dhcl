@@ -2,6 +2,28 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-14] - PHAT-2b-2: Giao diện Lịch sử nhập, Hủy đợt nhập, nhãn cảnh báo (Bảng 17 & 18)
+
+- **Màn Lịch sử nhập** (`src/components/phat/PhatHistoryView.jsx` - Bảng 17):
+  - Bộ lọc: BCVH (mặc định tất cả BCVH được xem), «Nhập từ ngày» và «đến ngày» (ô text dd/mm/yyyy, mặc định để trống, kiểm tra hợp lệ phía client trước khi gọi API; đổi sang YYYY-MM-DD khi gọi), «Người nhập» (danh sách `nguoi_nhap_lua_chon` từ API), «Trạng thái» (Tất cả / Đã nhập / Đã hủy), nút «Xóa lọc». Đổi bộ lọc tự về trang 1.
+  - Bảng đợt nhập: Đợt (#id), Giờ nhập (giờ Bangkok), Người nhập, BCVH (tên), Tên file, Đã nhập, Lỗi, Cảnh báo (nhãn vàng `{n} cảnh báo` khi n > 0, «Không có» khi n = 0, «Không rõ» khi n là null), Trạng thái («Đã nhập» xanh, «Đã hủy» xám kèm «Hủy bởi {tên}, {giờ}»), Thao tác. Không có cột «Để trống», «Không đổi».
+  - Thao tác: Nút «Hủy đợt nhập» (viền đỏ) khi `trang_thai='da_nhap'` và `co_quyen_hoan_tac=true`, khoá khi đang kiểm tra; hiện «Chỉ ADMIN, TTVH hoặc người nhập» khi không có quyền; đợt đã hủy để trống.
+  - Phân trang: hiển thị size=20 tường minh, «Hiển thị a trên b đợt · «Không rõ» là đợt nhập trước khi hệ thống lưu số cảnh báo», nút Trước / Sau và «Trang x / y».
+- **Hộp thoại Hủy đợt nhập** (`src/components/phat/PhatCancelBatchDialog.jsx` - Bảng 18 A–D):
+  - Trạng thái kiểm tra: hiện «Đang kiểm tra…» khi gọi `GET /api/phat/batches/:id/undo-preview`, chặn bấm đúp.
+  - Trạng thái A (Xác nhận): thông tin đợt nhập, tổng bưu gửi sẽ đổi, số khôi phục trạng thái cũ, số xóa trạng thái về Chưa có thông tin phát; hai nút «Không hủy» và «Hủy đợt nhập này» (đỏ, chặn bấm đúp, khoá khi đang gửi).
+  - Trạng thái B (Bị chặn): khi có đợt sau đã đổi cùng bưu gửi (từ preview hoặc nhận HTTP 409 khi bấm hủy), hiển thị số bưu gửi vướng và bảng `dot_vuong_chi_tiet` (Đợt, Giờ nhập, Người nhập, Đã nhập), nút «Đóng».
+  - Trạng thái C (Đã hủy trước đó): khi đợt đã được hủy (từ preview hoặc nhận HTTP 409), hiển thị thông tin người và giờ đã hủy, nút «Làm mới danh sách».
+  - Trạng thái D (Thành công): HTTP 200 đóng hộp thoại, hiển thị banner xanh trên trang lịch sử với số lượng khôi phục, số lượng xóa trạng thái, bảng tỷ lệ Trước/Sau/Chênh theo ngày đang chọn, chip ngày tự xuống dòng, giới hạn 31 ngày, dòng thông báo ngày chạm. Làm mới danh sách đợt nhập giữ nguyên bộ lọc và trang hiện tại.
+  - Xử lý lỗi 403, 404, 500: hiện nguyên câu máy chủ trả, có nút Đóng.
+- **Màn 13: Cập nhật khối Các lần nhập gần đây** (`src/components/phat/ProcessingDeliveryView.jsx` - Bảng 18 Ô E):
+  - Tiêu đề dòng «Số liệu tính đến {HH:mm dd/mm/yyyy}», nhãn vàng `{n} cảnh báo` khi n > 0 (bỏ qua khi 0 hoặc null), chip xám «Đã hủy» khi đã hủy.
+  - Dòng phụ: `{người} · nhập N · lỗi K` (đã bỏ phần «bỏ qua»). Không có nút hủy ở màn 13.
+  - Link «Xem toàn bộ lịch sử →» điều hướng sang màn Lịch sử nhập.
+- **Tuân thủ UI**: Không sử dụng chữ «hoàn tác» trong chuỗi giao diện hiển thị; không dùng localStorage.
+
+---
+
 ## [2026-10-14] - PHAT-2b-1: backend hoàn tác / lịch sử có lọc — xem trước hoàn tác, số cảnh báo của đợt, lọc, `nguoi_nhap_lua_chon`
 
 Quyết định: `04_DECISIONS.md` #78. Không đụng `src/`, `data/`, `.env`.
