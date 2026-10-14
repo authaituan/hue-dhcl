@@ -63,6 +63,13 @@ test('lọc thư mục: cảnh báo mã khác thư mục / ngày không hợp l�
   assert.equal(F.locMuc([e('HangDen_535470_20261014_093012.csv')], '/du-lieu').canhBao.khacMaThuMuc, 0);
 });
 
+test('mã đơn vị từ tên thư mục CSV_Report_<mã>', () => {
+  assert.equal(F.maTuTenThuMuc('/CSV_Report_533140'), '533140');
+  assert.equal(F.maTuTenThuMuc('/CSV_Report_535470/'), '535470');
+  assert.equal(F.maTuTenThuMuc('CSV_Report_536250'), '536250');
+  for (const bad of ['/du-lieu', '/CSV_Report_', '/CSV_Report_abc', '/x/CSV_Report_1/con', '']) assert.equal(F.maTuTenThuMuc(bad), null, bad);
+});
+
 test('tóm tắt: số file, mới nhất / cũ nhất theo tên, file ≤ 3 KB', () => {
   const kq = F.locMuc([
     e('HangDen_533140_20261013_150011.csv', 3072, 1000), e('HangDen_533140_20261014_093012.csv', 410000, 3000),

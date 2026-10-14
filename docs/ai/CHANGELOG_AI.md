@@ -2,6 +2,25 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5c (sửa trước khi commit): file ≤ 3 byte đi qua importer
+
+- `server/lib/sftpSync.js`: bỏ nhánh «≤ 3 byte → `EMPTY` không tải» (và hằng `MAX_BOM_BYTES`). Sau kiểm tra ổn định, file ≤ 3 byte (chỉ BOM / 0 byte) vẫn được tải và đưa cho `importArrivalFile`, importer ghi đợt `EMPTY` vào `arrival_import_files`; lượt sau là `DA_CO`. Điều kiện «đã nạp» giữ nguyên (`OK`/`EMPTY`). Lý do: không ghi `EMPTY` thì `getMissingBatches` báo thiếu đợt cho ngày có file chiều chỉ-BOM.
+- `tests/sftp-sync.test.js`: ca file 3 byte viết lại (tải; importer ghi `EMPTY`; lượt sau `DA_CO`; `getMissingBatches` không báo thiếu đợt), +ca đối chứng (không nạp file BOM → bị báo thiếu), +ca file 0–3 byte còn đổi → `CHUA_ON_DINH` không tải (nay 26 ca). Docs: `13_SFTP_SYNC.md`.
+
+---
+
+## [2026-10-15] - SANLUONG-5c: Lõi đồng bộ SFTP chạy tay (quét → tải → nạp lần lượt)
+
+- **Mới** `server/lib/sftpSync.js`: `syncSftpOnce({ client, db, dirs, now, sleep, tmpDir, options })` (client tiêm vào, chỉ `list`/`get`; KHÔNG nạp thư viện SFTP), lược đồ `sftp_sync_runs` + `sftp_sync_files` (`ensureSftpSyncSchema`, gọi từ `server/db.js`), khoá chống chạy chồng 30 phút (lượt treo được đóng), tệp tạm `os.tmpdir()/hue-dhcl-sftp-*/<tên gốc>` luôn xoá, tên tệp kiểm chặt.
+- **Quy tắc chọn file**: chỉ `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv` (bỏ `DuBao_*`, `#recycle`, `.x`, lạ); ≥ «từ ngày» (mặc định hôm nay − `SFTP_SYNC_DAYS`=3, Bangkok); mã khác thư mục → không nạp; đã có trong `arrival_import_files` (OK/EMPTY) → `DA_CO` không tải; hai lần liệt kê cách `SFTP_STABLE_SECONDS`=60 giây phải cùng kích thước + mtime; ≤ 3 byte: xem mục «sửa trước khi commit» ở trên; nạp cũ→mới, tối đa `--toi-da`=5. Không nạp đè file cùng tên.
+- **Mới** `scripts/sftp-sync.js`: mặc định CHẠY KHÔ (DB chỉ-đọc, không ghi gì); `--chay-that`, `--tu-ngay=yyyymmdd`, `--toi-da=N`, `--on-dinh=GIÂY`; bắt buộc ghim vân tay; mã thoát 0–7 (7 = đang có lượt khác); chỗ duy nhất mở DB (theo `scripts/import-arrivals.js`).
+- `server/lib/sftpFiles.js`: thêm `maTuTenThuMuc`. `server/db.js`: +1 khối gọi `ensureSftpSyncSchema`. Importer `arrivalsImport.js` KHÔNG sửa.
+- **Test** `tests/sftp-sync.test.js` (mới, 26 ca, client giả, DB tạm) + 1 ca ở `tests/sftp-probe.test.js`; đã thêm `tests/sftp-sync.test.js` vào script `npm test`. `.env.example`: thêm `SFTP_SYNC_DAYS`, `SFTP_STABLE_SECONDS`. Docs: `13_SFTP_SYNC.md`, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`.
+- **Đo** (dữ liệu giả, DB tạm): nạp 2.300 dòng ≈ 60–80 ms.
+- **Chưa làm / điều chưa chắc**: hẹn giờ (5e), giao diện (5f), nạp lịch sử (5d); chưa chạy với NAS thật; (đã xử lý ở mục sửa phía trên).
+
+---
+
 ## [2026-10-15] - SANLUONG-5b: Công cụ thử kết nối SFTP chỉ đọc (nhánh feat/sanluong-5b-sftp-probe)
 
 - **Điều kiện bắt đầu**: `ssh2-sftp-client` 12.1.1 (trên `ssh2` 1.17.0) PO đã cài sẵn vào `package.json` / `package-lock.json`; hai file này KHÔNG sửa trong ticket.

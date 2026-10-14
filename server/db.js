@@ -116,6 +116,13 @@ try {
   console.error('[db] Lỗi tạo bảng dữ liệu Hàng đến:', err.message);
 }
 
+// «Lượt lấy» SFTP (sftp_sync_runs, sftp_sync_files) — SANLUONG-5c. Idempotent; schema ở server/lib/sftpSync.js (không nạp thư viện SFTP).
+try {
+  require('./lib/sftpSync').ensureSftpSyncSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng sftp_sync_*:', err.message);
+}
+
 // ==========================================
 // Gán GDVH ↔ BCVH (user_bcvh). Idempotent. Schema đặt trong server/lib/userBcvh.js.
 // ==========================================

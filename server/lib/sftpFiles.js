@@ -49,6 +49,11 @@ function phanTichTen(ten) {
   };
 }
 
+/** '/CSV_Report_533140' -> '533140'; thư mục không theo mẫu `CSV_Report_<mã>` -> null. */
+function maTuTenThuMuc(tenThuMuc) {
+  return (/(?:^|[\\/])CSV_Report_(\d+)\/?$/.exec(String(tenThuMuc)) || [])[1] || null;
+}
+
 /** Che ký tự điều khiển và cắt ngắn để in tên lạ ra màn hình an toàn. */
 const tenAnToan = (s, max = 80) => String(s).replace(/[\u0000-\u001f\u007f]/g, '?').slice(0, max);
 
@@ -59,7 +64,8 @@ const tenAnToan = (s, max = 80) => String(s).replace(/[\u0000-\u001f\u007f]/g, '
  * Bỏ qua: '#recycle', tên bắt đầu bằng '.', mục không phải file thường (thư mục con, liên kết), tên không khớp mẫu. tenMau tối đa 5 tên.
  */
 function locMuc(entries, tenThuMuc = '') {
-  const maThuMuc = (/(?:^|[\\/])CSV_Report_(\d+)\/?$/.exec(String(tenThuMuc)) || [])[1] || null;
+  // (mã đơn vị trong tên thư mục `CSV_Report_<mã>` — xem maTuTenThuMuc)
+  const maThuMuc = maTuTenThuMuc(tenThuMuc);
   const khop = [];
   const theoLyDo = { recycle: 0, an: 0, khong_phai_file: 0, khac_mau: 0 };
   const tenMau = [];
@@ -261,6 +267,6 @@ const dinhDangDungLuong = (b) => `${b.toLocaleString('en-US')} B (${(b / 1024).t
 
 module.exports = {
   FILE_NAME_RE, NGUONG_FILE_NHO, MA_THOAT, MAX_THU_MUC, CauHinhLoi,
-  phanTichTen, locMuc, tomTat, fileOnDinh, tinhVanTay, chuanHoaVanTay, taoKiemTraKhoa, docCauHinh, docThamSo, phanLoaiLoi, anBiMat, tenAnToan,
+  phanTichTen, maTuTenThuMuc, locMuc, tomTat, fileOnDinh, tinhVanTay, chuanHoaVanTay, taoKiemTraKhoa, docCauHinh, docThamSo, phanLoaiLoi, anBiMat, tenAnToan,
   dinhDangMtime, dinhDangDungLuong, pad
 };
