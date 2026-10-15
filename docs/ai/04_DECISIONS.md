@@ -639,5 +639,12 @@ Căn cứ: #81 (importer đã tách), #82 (xem trước); chi tiết `16_THAY_TH
 - **Test không phụ thuộc môi trường** (bổ sung theo yêu cầu PO 15/10/2026): `server/index.js` nạp `.env` bằng `process.loadEnvFile()` khi harness `require` nó (nạp SAU khi file test bắt đầu), nên test cụm SFTP cách ly `SFTP_*` cả ở đầu file lẫn ngay sau `startTestServer` và đặt nguồn mặc định CẤM MẠNG (`tests/helpers/khongMang.js`).
 - **Chưa làm**: hoàn tác từ thùng rác (5g-5), giao diện (5g-4), chạy với NAS / DB thật.
 
+### 84. Xem trước trả «mất thật» và tính mức cảnh báo / khoá / phát theo mất thật (SANLUONG-5g-3b)
+Căn cứ: #82 (xem trước theo cận trên), #83 (lõi thay tính mất thật). Giao diện (5g-4) chỉ gọi xem trước nên xem trước phải cho cùng con số và mức như lõi.
+- `tinhMatThat` chuyển về `thayTheXemTruoc.js` (xuất ra), `thayTheThucHien.js` nhập lại — MỘT nguồn; hành vi `thayTheNgay` không đổi.
+- Xem trước THÊM `so_sanh.shbg_mat_that`, `ty_le_mat_that`, `shbg_mau_mat_that` (6 ký tự đầu, tối đa 20), `canh_bao.can_dong_y_mat`; GIỮ `shbg_chi_o_cu`, `ty_le_mat`, `shbg_mau_chi_o_cu` (cận trên). ĐỔI NGHĨA có kiểm soát: `canh_bao.muc`, `canh_bao.khoa_mac_dinh`, `phat` tính theo mất thật (đúng 5 % vẫn `CAN_XAC_NHAN`). Không đổi tên / xóa trường.
+- `shbg_mau_chi_o_cu` (trường cũ) vẫn trả SHBG đầy đủ cho ADMIN theo yêu cầu «giữ nguyên»; mọi trường MỚI chỉ có 6 ký tự đầu. Nếu PO muốn rút gọn cả trường cũ → ticket riêng (giao diện có thể đang dựa vào).
+- Chi tiết: `15_THAY_THE_NGAY_XEM_TRUOC.md` mục 9.
+
 ## Drift phát hiện
 _(chưa có)_

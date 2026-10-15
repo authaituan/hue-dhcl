@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5g-3b: Xem trước trả «mất thật» (và mức cảnh báo theo mất thật)
+
+- `server/lib/thayTheXemTruoc.js`: nhận `tinhMatThat` (chuyển từ `thayTheThucHien.js`, xuất ra; `thayTheThucHien.js` nhập lại, hành vi `thayTheNgay` không đổi). `xemTruocThayThe` THÊM `so_sanh.shbg_mat_that`, `ty_le_mat_that`, `shbg_mau_mat_that` (6 ký tự đầu, tối đa 20), `canh_bao.can_dong_y_mat`; giữ nguyên `shbg_chi_o_cu` / `ty_le_mat` / `shbg_mau_chi_o_cu` (cận trên). ĐỔI NGHĨA: `canh_bao.muc`, `canh_bao.khoa_mac_dinh`, `phat` theo mất thật (đúng 5 % vẫn `CAN_XAC_NHAN`). `scripts/thay-the-xem-truoc.js` in `MẤT THẬT n (x%) — mức CẬN TRÊN m (y%)`.
+- Test `tests/thay-the-xem-truoc.test.js` 27 → 34 ca: 2 ca cũ cập nhật (khoá `canh_bao` / `so_sanh` có thêm trường), 7 ca mới (cứu bởi file D+1 → `AN_TOAN` dù cận trên 20 %; đúng 5 % / hơn 5 %; BCVH khác không cứu; `phat` theo mất thật; đối chiếu với `thayTheNgay` chạy khô; không SHBG đầy đủ ở trường mới; đo thời gian trên DB giả ~153.500 dòng ≈ 110–130 ms). Docs: `15_…` mục 9, `16_…`, `04_DECISIONS.md` #84, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-15] - SANLUONG-5g-3: THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (xóa + nạp lại, sao lưu, thùng rác, khoá, nhật ký)
 
 - **Mới** `server/lib/thayTheThucHien.js` (`thayTheNgay`, `ensureThayTheSchema`, `donThungRac`, `donSaoLuu`; không nạp thư viện SFTP, không mở DB), route **`POST /api/arrivals/thay-the/thuc-hien`** (chỉ ADMIN; `SECURITY_LOG` không SHBG), script **`scripts/thay-the-ngay.js`** (khô mặc định; thật cần `--chay-that` + `--xac-nhan=<mã>:<ngày>` + `--dong-y-mat` nếu mất thật; mã thoát 0–11). Bảng mới (UTC) `thay_the_nhat_ky`, `thung_rac_file`, `thung_rac_dong` (tạo ở `server/db.js`; không đổi bảng hiện có). Hằng số mới ở `server/config/thay-the.js` (30 ngày thùng rác, 5 bản sao lưu, đệm 32 MiB).
