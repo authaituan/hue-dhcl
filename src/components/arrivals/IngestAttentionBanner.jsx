@@ -5,6 +5,7 @@ import { getVnTodayYmd, addDaysYmd } from '../../utils/sourceIngest';
 
 export default function IngestAttentionBanner({ isAdmin, onNavigateNapNguon }) {
   const [attentionCount, setAttentionCount] = useState(0);
+  const [daXemXetCount, setDaXemXetCount] = useState(0);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -25,6 +26,10 @@ export default function IngestAttentionBanner({ isAdmin, onNavigateNapNguon }) {
             (item) => item && typeof item === 'object' && item.trang_thai !== 'NGUON_CHUA_CO_FILE'
           ).length;
           setAttentionCount(count);
+
+          const rawM = res.data?.tong_hop?.da_xem_xet;
+          const mCount = (typeof rawM === 'number' && !isNaN(rawM) && rawM > 0) ? rawM : 0;
+          setDaXemXetCount(mCount);
         }
       } catch (e) {
         // Lỗi gọi API thì không hiện gì
@@ -46,7 +51,7 @@ export default function IngestAttentionBanner({ isAdmin, onNavigateNapNguon }) {
       <div className="flex items-center gap-2">
         <AlertCircle className="w-4 h-4 text-[#8a5b00] shrink-0" />
         <span>
-          Có <strong>{attentionCount}</strong> đợt cần xử lý trong 7 ngày gần nhất.
+          Có <strong>{attentionCount}</strong> đợt cần xử lý trong 7 ngày gần nhất{daXemXetCount > 0 ? ` · ${daXemXetCount} mục đã xem xét` : ''}.
         </span>
       </div>
 

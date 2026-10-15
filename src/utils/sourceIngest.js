@@ -1,3 +1,5 @@
+import { apiFetchJson } from './api';
+
 // ==========================================
 // TIỆN ÍCH DÙNG CHO «NẠP DỮ LIỆU NGUỒN»
 // ==========================================
@@ -244,6 +246,50 @@ export function getFileResultStyle(ketQua) {
   }
 }
 
+// Tra cứu mục đã xem xét: từ da_xem_xet[] dựng bảng khóa loai|bcvh|ngay|dot (với NGAY, dot là chuỗi rỗng)
+export function buildReviewedLookup(daXemXetList) {
+  const map = {};
+  if (!Array.isArray(daXemXetList)) return map;
+  for (const item of daXemXetList) {
+    if (!item || typeof item !== 'object') continue;
+    const dotKey = item.loai === 'DOT' ? (item.dot || '') : '';
+    const key = `${item.loai}|${item.bcvh}|${item.ngay}|${dotKey}`;
+    map[key] = item;
+  }
+  return map;
+}
+
+// Gọi API đánh dấu đã xem xét
+export async function markReviewedApi({ loai, bcvh, ngay, dot, ghi_chu }) {
+  const payload = {
+    loai,
+    bcvh,
+    ngay
+  };
+  if (loai === 'DOT') {
+    payload.dot = dot;
+  }
+  if (typeof ghi_chu === 'string') {
+    const trimmed = ghi_chu.trim();
+    if (trimmed) {
+      payload.ghi_chu = trimmed.slice(0, 200);
+    }
+  }
+
+  return await apiFetchJson('/api/nap-nguon/da-xem-xet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+// Gọi API bỏ đánh dấu đã xem xét (DELETE)
+export async function unmarkReviewedApi(id) {
+  return await apiFetchJson(`/api/nap-nguon/da-xem-xet/${id}`, {
+    method: 'DELETE'
+  });
+}
+
 // Trích xuất BCVH và ngày từ tên file HangDen_<bcvh>_<yyyymmdd>_<hhmmss>.csv
 export function parseBcvhAndDateFromFilename(filename) {
   if (!filename) return null;
@@ -256,3 +302,5 @@ export function parseBcvhAndDateFromFilename(filename) {
   }
   return null;
 }
+
+
