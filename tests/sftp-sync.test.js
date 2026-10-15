@@ -94,7 +94,9 @@ const tmpSach = () => fs.readdirSync(tmpRoot).filter((n) => n.startsWith('hue-dh
 // ---------- lược đồ ----------
 test('lược đồ: sftp_sync_runs / sftp_sync_files được tạo (qua server/db.js) với đúng cột; idempotent', () => {
   const cols = (t) => ctx.db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
-  assert.deepEqual(cols('sftp_sync_runs'), ['id', 'started_at', 'finished_at', 'trigger', 'dry_run', 'tong_liet_ke', 'da_nap', 'da_co', 'chua_on_dinh', 'rong', 'bo_qua_khac', 'loi', 'ghi_chu_loi']);
+  assert.deepEqual(cols('sftp_sync_runs'), ['id', 'started_at', 'finished_at', 'trigger', 'dry_run', 'tong_liet_ke', 'da_nap', 'da_co', 'chua_on_dinh', 'rong', 'bo_qua_khac', 'loi', 'ghi_chu_loi',
+    // SANLUONG-5f-2 (ngoại lệ có chủ đích): 4 cột THÊM bởi napNguonLay.ensureLuotSchema (qua server/db.js); không đổi cột cũ
+    'loai', 'nguoi_bam_ma', 'nguoi_bam_ten', 'so_o_yeu_cau']);
   assert.deepEqual(cols('sftp_sync_files'), ['id', 'run_id', 'thu_muc', 'ten_file', 'ket_qua', 'so_dong', 'thoi_gian_ms', 'ma_loi', 'chi_tiet']);
   assert.doesNotThrow(() => S.ensureSftpSyncSchema(ctx.db));
   ctx.db.prepare("INSERT INTO sftp_sync_runs (started_at) VALUES ('2026-10-14T00:00:00.000Z')").run();

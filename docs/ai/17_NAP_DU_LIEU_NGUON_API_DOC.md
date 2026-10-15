@@ -45,7 +45,7 @@ Tối đa 62 ngày (400 nếu vượt, `tu > den`, ngày sai, mã BCVH lạ, thi
 Khung chi tiết một ô: `trang_thai`, `ly_do`, `nghi_ngo`, `nguon_co_file`, `tong_ngay` (tổng dòng / trung vị / số mẫu), `file_mong_doi` { `mau_ten` `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv`, `gio_mong_doi`, `an_han_phut` }, `file_db`, `file_nguon`, `thong_tin_nap` (file SFTP `OK` của đợt: tên, nạp lúc, số dòng, thời gian nạp ms từ lần `DA_NAP` gần nhất trong `sftp_sync_files`), `lan_thu_gan_nhat`, `loi` { `ma`, `chi_tiet` đã lọc } và `lich_su` (≤ 20, mới nhất trước, mỗi lần: `lan_id`, `luot_id`, `luc` UTC, `cach_chay`, `ten`, `ket_qua`, `so_dong`, `thoi_gian_ms`, `ma_loi`, `chi_tiet`).
 
 ### 3.4 `GET /api/nap-nguon/luot?trang=&kich_thuoc=` và `GET /api/nap-nguon/luot/:id`
-Danh sách `{ trang, kich_thuoc, tong, so_trang, luot: [{ id, bat_dau, ket_thuc, cach_chay, liet_ke, da_nap, da_co, chua_on_dinh, rong, bo_qua_khac, loi, ket_qua, nguoi, ghi_chu_loi }] }`, mới nhất trước. `ket_qua`: `DANG_CHAY` (chưa kết thúc, < 30 phút), `TREO` (> 30 phút), `CO_LOI` (`loi > 0`), `THANH_CONG`. **`nguoi` luôn `null`** — DB chưa có cột ghi người bấm (5f-2 sẽ bổ sung). Chi tiết: thêm `files: [{id, ten, ket_qua, so_dong, thoi_gian_ms, ma_loi, chi_tiet}]` (KHÔNG trả thư mục nguồn). Lượt không có / là hàng khóa → 404.
+Danh sách `{ trang, kich_thuoc, tong, so_trang, luot: [{ id, bat_dau, ket_thuc, cach_chay, liet_ke, da_nap, da_co, chua_on_dinh, rong, bo_qua_khac, loi, ket_qua, nguoi, ghi_chu_loi }] }`, mới nhất trước. `ket_qua`: `DANG_CHAY` (chưa kết thúc, < 30 phút), `TREO` (> 30 phút), `CO_LOI` (`loi > 0`), `THANH_CONG`. `nguoi` = `{ma, ten}` của người bấm «Lấy ngay» / «Lấy lại» (5f-2, `18_…`), `null` với lượt tự động và hàng cũ; `loai` = `LAY_NGAY` \| `LAY_LAI` \| null; `so_o_yeu_cau`. `luot_gan_nhat` và `dang_chay` (tổng quan) cũng có `loai`, `nguoi`. Chi tiết: thêm `files: [{id, ten, ket_qua, so_dong, thoi_gian_ms, ma_loi, chi_tiet}]` (KHÔNG trả thư mục nguồn). Lượt không có / là hàng khóa → 404.
 
 ## 4. Bảng trạng thái của một ô (đã chốt)
 Đợt: `S` nếu `file_time < 12:00`, `C` nếu `≥ 12:00` (file 11:59:59 → S, 12:00:00 → C). Xét THEO THỨ TỰ, dừng ở quy tắc đầu tiên khớp:
@@ -71,7 +71,7 @@ Ghi chú: file `MANUAL` bị `REJECTED`/`CONFLICT` không làm đổi trạng th
 
 ## 6. Điều tự quyết và giới hạn (cần PO biết)
 - **Mã lạ lưu được**, nhưng chỉ ở hai nơi: `sftp_source_files` (khi HẸN GIỜ đã quét; chỉ file còn trên nguồn) và `sftp_sync_files` (`ma_loi = 'MA_LA'`, ghi bởi mọi lượt thật). Chạy khô hoặc chưa có lượt nào thì không biết. Không thêm bảng.
-- **Người bấm «Tay»**: chưa có sẵn (không có cột) → `nguoi: null`.
+- **Người bấm «Tay»**: có từ 5f-2 (cột `nguoi_bam_ma` / `nguoi_bam_ten`); hàng cũ và lượt tự động → `nguoi: null`.
 - **Giờ chạy kế tiếp** (`luot_ke_tiep_luc`): lấy từ bộ hẹn giờ trong tiến trình (`docTrangThaiSftp().luotKeTiep`), là giờ ƯỚC theo chu kỳ; null khi hẹn giờ tắt / chưa khởi động. Script `sftp-sync.js` (tiến trình khác) không ảnh hưởng con số này.
 - Điều kiện «ngày hôm qua chỉ xét khi cả hai đợt đã có file hoặc giờ chiều đã qua» trong ticket luôn thỏa với mọi ngày quá khứ (giờ chiều của hôm qua đã qua) nên cài đặt = xét mọi ngày `< hôm nay`. Nếu PO muốn thêm điều kiện khác (vd chờ file sáng D+1) thì ghi lại.
 - `so_dong` của một ngày = tổng `row_count` (số dòng đọc được, TRƯỚC khi lọc trùng) của file `OK`/`EMPTY`; phần chiều tối ngày D nằm ở file sáng D+1 nên có thể làm ngày D «ít» hơn thực tế — đó là lý do mẫu so cùng thứ trong tuần.

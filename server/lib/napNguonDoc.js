@@ -54,6 +54,8 @@ const GIO_MONG_DOI = () => ({ sang: CF.GIO_MONG_DOI_SANG, chieu: CF.GIO_MONG_DOI
 const LA_KHOA_THAY_THE_SQL = '(ghi_chu_loi IS NULL OR ghi_chu_loi NOT LIKE @tienTo)';
 const thamKhoa = () => ({ tienTo: `${CF.TIEN_TO_KHOA_THAY_THE}%` });
 const cachChay = (trigger) => (trigger === 'TIMER' ? 'TU_DONG' : 'TAY');
+/** Người bấm (SANLUONG-5f-2): { ma, ten } hoặc null (hàng cũ / lượt tự động không có). */
+const nguoiBam = (r) => (r.nguoi_bam_ma ? { ma: r.nguoi_bam_ma, ten: r.nguoi_bam_ten || null } : null);
 
 /**
  * tuDong: { st: kết quả sftpScheduler.docTrangThaiSftp() | null, soThuMuc: số thư mục nguồn | null } (route tiêm; test tiêm giả).
@@ -67,16 +69,16 @@ function tongQuan({ db, now = new Date(), tuDong = {} }) {
   const luot = st && st.luotGanNhat ? st.luotGanNhat : null;
   const loiLuc = luot && ['CO_LOI', 'LOI_KET_NOI', 'TAM_DUNG', 'LOI_BAT_NGO'].includes(luot.ketQua) ? (luot.luc || null) : null;
 
-  const gan = db.prepare(`SELECT id, started_at, "trigger", loi FROM sftp_sync_runs WHERE finished_at IS NOT NULL AND ${LA_KHOA_THAY_THE_SQL} ORDER BY id DESC LIMIT 1`).get(thamKhoa());
-  const chay = db.prepare(`SELECT id, started_at FROM sftp_sync_runs WHERE finished_at IS NULL AND ${LA_KHOA_THAY_THE_SQL} ORDER BY id DESC`).all(thamKhoa())
+  const gan = db.prepare(`SELECT id, started_at, "trigger", loi, loai, nguoi_bam_ma, nguoi_bam_ten FROM sftp_sync_runs WHERE finished_at IS NOT NULL AND ${LA_KHOA_THAY_THE_SQL} ORDER BY id DESC LIMIT 1`).get(thamKhoa());
+  const chay = db.prepare(`SELECT id, started_at, "trigger", loai, nguoi_bam_ma, nguoi_bam_ten FROM sftp_sync_runs WHERE finished_at IS NULL AND ${LA_KHOA_THAY_THE_SQL} ORDER BY id DESC`).all(thamKhoa())
     .find((r) => now.getTime() - Date.parse(r.started_at) < S.KHOA_PHUT * 60000);
   return {
     tu_dong: {
       bat: trangThai !== 'TAT', trang_thai: trangThai, ly_do_tam_dung: lyDo, loi_luc: loiLuc,
       chu_ky_phut: st && st.chuKyPhut != null ? st.chuKyPhut : null, so_thu_muc: tuDong.soThuMuc ?? null, luot_ke_tiep_luc: st && st.luotKeTiep ? st.luotKeTiep : null
     },
-    luot_gan_nhat: gan ? { id: gan.id, bat_dau: gan.started_at, cach_chay: cachChay(gan.trigger), ket_qua: gan.loi > 0 ? 'CO_LOI' : 'THANH_CONG' } : null,
-    dang_chay: chay ? { id: chay.id, bat_dau: chay.started_at } : null,
+    luot_gan_nhat: gan ? { id: gan.id, bat_dau: gan.started_at, cach_chay: cachChay(gan.trigger), loai: gan.loai || null, nguoi: nguoiBam(gan), ket_qua: gan.loi > 0 ? 'CO_LOI' : 'THANH_CONG' } : null,
+    dang_chay: chay ? { id: chay.id, bat_dau: chay.started_at, cach_chay: cachChay(chay.trigger), loai: chay.loai || null, nguoi: nguoiBam(chay) } : null,
     gio_mong_doi: GIO_MONG_DOI()
   };
 }
@@ -275,13 +277,13 @@ function mot({ db, now = new Date(), bcvh, ngay, dot, bimat = [] }) {
 // 4. Lượt lấy
 // ------------------------------------------
 const hinhLuot = (r, now, bimat) => ({
-  id: r.id, bat_dau: r.started_at, ket_thuc: r.finished_at, cach_chay: cachChay(r.trigger), liet_ke: r.tong_liet_ke, da_nap: r.da_nap, da_co: r.da_co, chua_on_dinh: r.chua_on_dinh,
+  id: r.id, bat_dau: r.started_at, ket_thuc: r.finished_at, cach_chay: cachChay(r.trigger), loai: r.loai || null, so_o_yeu_cau: r.so_o_yeu_cau ?? null, liet_ke: r.tong_liet_ke, da_nap: r.da_nap, da_co: r.da_co, chua_on_dinh: r.chua_on_dinh,
   rong: r.rong, bo_qua_khac: r.bo_qua_khac, loi: r.loi,
   ket_qua: r.finished_at == null ? (now.getTime() - Date.parse(r.started_at) < S.KHOA_PHUT * 60000 ? 'DANG_CHAY' : 'TREO') : (r.loi > 0 ? 'CO_LOI' : 'THANH_CONG'),
-  nguoi: null, // chưa có cột ghi người bấm (5f-2 sẽ bổ sung)
+  nguoi: nguoiBam(r), // SANLUONG-5f-2: { ma, ten } của người bấm «Lấy ngay» / «Lấy lại»; null với lượt tự động và hàng cũ
   ghi_chu_loi: lam(r.ghi_chu_loi, bimat)
 });
-const COT_LUOT = 'id, started_at, finished_at, "trigger", tong_liet_ke, da_nap, da_co, chua_on_dinh, rong, bo_qua_khac, loi, ghi_chu_loi';
+const COT_LUOT = 'id, started_at, finished_at, "trigger", tong_liet_ke, da_nap, da_co, chua_on_dinh, rong, bo_qua_khac, loi, ghi_chu_loi, loai, nguoi_bam_ma, nguoi_bam_ten, so_o_yeu_cau';
 
 function dsLuot({ db, now = new Date(), trang, kichThuoc, bimat = [] }) {
   const so = (v, mac, lo, hi, ten) => {

@@ -130,6 +130,13 @@ try {
   console.error('[db] Lỗi tạo bảng thay_the_* / thung_rac_*:', err.message);
 }
 
+// SANLUONG-5f-2: thêm cột người bấm / loại lượt vào sftp_sync_runs (chỉ ALTER ADD COLUMN, idempotent). Schema ở server/lib/napNguonLay.js.
+try {
+  require('./lib/napNguonLay').ensureLuotSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi thêm cột sftp_sync_runs (5f-2):', err.message);
+}
+
 // ==========================================
 // Gán GDVH ↔ BCVH (user_bcvh). Idempotent. Schema đặt trong server/lib/userBcvh.js.
 // ==========================================

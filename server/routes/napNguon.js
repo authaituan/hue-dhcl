@@ -61,4 +61,32 @@ router.get('/nap-nguon/luot/:id', requireAdmin, xuLy('luot-chi-tiet', (req) => {
   return N.chiTietLuot({ db, now: new Date(), id: req.params.id, bimat: bimatMoiTruong() });
 }));
 
+// ---------- SANLUONG-5f-2: GHI — «Lấy ngay» và «Lấy lại» (chỉ ADMIN; ghi người bấm; việc nạp chạy NỀN, trả 202 ngay) ----------
+// 202 { luot_id, bat_dau } (lay-lai kèm o: [{bcvh, ngay, dot, da_co_nhap_tay}]) · 400 tham số · 409 DANG_CHAY (kèm luot_id nếu là lượt thật) / TAM_DUNG (hẹn giờ tạm dừng vì lỗi xác thực / vân tay: không kết nối) · 503 CHUA_CAU_HINH.
+const L = require('../lib/napNguonLay');
+const ghiLogLay = (req, event, ketQua, extra = {}) => req.app.locals.security.log({ event, ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role, ket_qua: ketQua, ...extra });
+const xuLyGhi = (event, fn) => (req, res) => {
+  try {
+    const kq = fn(req);
+    ghiLogLay(req, event, 'ok', { luot_id: kq.luot_id, so_o: Array.isArray(kq.o) ? kq.o.length : undefined });
+    return res.status(202).json(kq);
+  } catch (err) {
+    if (err instanceof L.LayLoi || err instanceof N.NapNguonLoi) {
+      ghiLogLay(req, event, err.code, err.extra && err.extra.luot_id ? { luot_id: err.extra.luot_id } : {});
+      return res.status(err.httpStatus).json({ error: err.message, ma: err.code, ...(err.extra || {}) });
+    }
+    console.error(`Nap-nguon ${event} error:`, err && err.code ? err.code : (err && err.name));
+    ghiLogLay(req, event, 'LOI_HE_THONG');
+    return res.status(500).json({ error: 'Lỗi hệ thống khi khởi động lượt lấy dữ liệu', ma: 'LOI_HE_THONG' });
+  }
+};
+
+router.post('/nap-nguon/lay-ngay', requireAdmin, xuLyGhi('nap_nguon_lay_ngay', (req) => {
+  const body = req.body === undefined || req.body === null ? {} : req.body;
+  if (typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length) throw new L.LayLoi('THAM_SO_SAI', 'Thân yêu cầu phải là {} (không có trường nào)', 400);
+  return L.layNgay({ db, user: req.user });
+}));
+
+router.post('/nap-nguon/lay-lai', requireAdmin, xuLyGhi('nap_nguon_lay_lai', (req) => L.layLai({ db, user: req.user, body: req.body })));
+
 module.exports = router;

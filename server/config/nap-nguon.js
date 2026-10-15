@@ -16,6 +16,9 @@ module.exports = Object.freeze({
   NGUONG_NHIEU: 2.5,      // > 2,5 × trung vị => NHIEU
   SO_TUAN_MAU: 4,
   TOI_THIEU_NGAY_MAU: 3,
+  // SANLUONG-5f-2: giới hạn của «Lấy ngay» / «Lấy lại»
+  SO_FILE_TOI_DA_LAY_NGAY: 20, // số file tối đa mỗi lần «Lấy ngay» (KHÔNG dùng SFTP_SYNC_MAX_FILES)
+  SO_O_TOI_DA_LAY_LAI: 20,     // số ô (BCVH, ngày, đợt) tối đa mỗi lần «Lấy lại»
   // Phân trang danh sách lượt, lịch sử một ô
   KICH_THUOC_LUOT_MAC_DINH: 20,
   KICH_THUOC_LUOT_TOI_DA: 100,

@@ -193,7 +193,8 @@ const choNguoc = (a, b) => (a.khoa < b.khoa ? -1 : a.khoa > b.khoa ? 1 : F.soSan
  *  now: () => Date. sleep: (ms) => Promise. tmpDir: thư mục gốc cho tệp tạm (mặc định os.tmpdir()).
  *  options: { dryRun, tuNgay ('YYYY-MM-DD'), soNgay (mặc định 3), onDinhGiay (60), toiDa (5), trigger ('MANUAL' | 'TIMER'), importFn (mặc định importArrivalFile), maDaBiet (mặc định 6 BCVH), bimat: [chuỗi cần che], log(fn),
  *    oDinh ('HAI_LAN' mặc định: liệt kê hai lần cách onDinhGiay giây; 'BANG': MỘT lần liệt kê, ổn định xét qua bảng sftp_source_files giữa các lượt — dùng cho hẹn giờ),
- *    nhuong() (mặc định setImmediate: nhường vòng lặp sự kiện giữa hai file), huy() (true = dừng trước file kế tiếp) }
+ *    nhuong() (mặc định setImmediate: nhường vòng lặp sự kiện giữa hai file), huy() (true = dừng trước file kế tiếp),
+ *    luotCoSan (id hàng sftp_sync_runs đã được giữ sẵn bởi người gọi — bỏ qua bước giành khoá; 5f-2) }
  * Một thư mục có thể chứa file của NHIỀU mã đơn vị (mã lấy từ TÊN FILE, như importer); `toiDa` và «từ ngày» áp dụng chung cho mọi mã.
  * Trả { biKhoa, runId, tuNgay, dryRun, dem: {…, maLa}, theoMa: {mã: {tong, daNap, sapNap, daCo, chuaOnDinh, rong, loi, boQua, laMa}}, files: [{thuMuc, tenFile, maDonVi, ketQua, soDong, thoiGianMs, maLoi, chiTiet}], loiThuMuc: [{thuMuc, ma, nhom, thongBao}] }.
  */
@@ -221,9 +222,13 @@ async function syncSftpOnce({ client, db, dirs, now = () => new Date(), sleep = 
     const dang = luotDangChay(db, batDau.getTime());
     if (dang) ketQua.luotDangChay = dang.id; // chỉ để báo; chạy khô không ghi nên không cần chặn
   } else {
-    const k = batDauLuot(db, batDau, o.trigger);
-    if (k.biKhoa) return { ...ketQua, biKhoa: true, luotDangChay: k.luotDangChay };
-    ketQua.runId = k.runId;
+    if (o.luotCoSan != null) {
+      ketQua.runId = o.luotCoSan; // SANLUONG-5f-2: người gọi đã giữ khoá và tạo hàng lượt; hàm này chỉ ghi kết quả vào hàng đó rồi đóng nó
+    } else {
+      const k = batDauLuot(db, batDau, o.trigger);
+      if (k.biKhoa) return { ...ketQua, biKhoa: true, luotDangChay: k.luotDangChay };
+      ketQua.runId = k.runId;
+    }
   }
 
   const ghiFile = db && !o.dryRun ? db.prepare('INSERT INTO sftp_sync_files (run_id, thu_muc, ten_file, ket_qua, so_dong, thoi_gian_ms, ma_loi, chi_tiet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)') : null;
