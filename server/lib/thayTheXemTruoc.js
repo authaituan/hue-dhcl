@@ -325,6 +325,8 @@ async function xemTruocThayThe({ client = null, ketNoi = null, dirs = [], db, bc
 // ---- nguồn mặc định cho route (tiêm được để test): datNguon({ ketNoi, dirs }) hoặc datNguon(null) để dùng cấu hình môi trường
 let nguonGhiDe = null;
 function datNguon(n) { nguonGhiDe = n; }
+/** Thư mục sao lưu do nguồn tiêm (test) quy định; null = mặc định <thư mục DB>/backups. Không đọc cấu hình SFTP, không mạng (dùng cho «Khôi phục», 5g-5). */
+function layThuMucSaoLuu() { return (nguonGhiDe && nguonGhiDe.sauLuuDir) || null; }
 
 /** Nguồn dùng cho route: bản tiêm (test) hoặc cấu hình môi trường SFTP_* (bắt buộc ghim vân tay). Ném XemTruocLoi CHUA_CAU_HINH_SFTP nếu thiếu. Nạp lớp kết nối nơi duy nhất ở đây. */
 function layNguon(env = process.env) {
@@ -338,6 +340,6 @@ function layNguon(env = process.env) {
 }
 
 module.exports = {
-  MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, XemTruocLoi, kiemTraDauVao, kiemTraKhoa, loiNguon, xemTruocThayThe, datNguon, layNguon, chuanHoaShbg,
+  MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, XemTruocLoi, kiemTraDauVao, kiemTraKhoa, loiNguon, xemTruocThayThe, datNguon, layNguon, layThuMucSaoLuu, chuanHoaShbg,
   docPhiaDb, docPhiaPhat, lietKeNguonCuaNgay, tinhSoSanh, mucCanhBaoTheo, tinhMatThat, RONG_TOI_DA_BYTE
 };

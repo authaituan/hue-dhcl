@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5g-5: Nhật ký «Thay thế ngày» (API đọc), khôi phục từ thùng rác, dọn
+
+- **Mới** `server/lib/thayTheNhatKy.js` (lõi đọc), `server/lib/thayTheKhoiPhuc.js` (xem trước chỉ đọc + khôi phục một giao dịch); route `GET /api/arrivals/thay-the/nhat-ky[/:id]`, `POST /api/arrivals/thay-the/khoi-phuc/xem-truoc` và `/thuc-hien` (`server/routes/arrivals.js`, chỉ ADMIN). Khôi phục là BỔ SUNG: `INSERT OR IGNORE` theo khoá nghiệp vụ (id dòng gốc bỏ — đã bị dùng lại), tạo lại file với id gốc hoặc gắn vào bản OK cùng tên; không đụng trạng thái phát / NAS. #87.
+- **Sửa** `server/lib/thayTheThucHien.js` (thêm bảng `thay_the_khoi_phuc`; `giuKhoaChung`; xuất `saoLuu`; regex dọn sao lưu nhận cả `truoc-khoi-phuc_`; gọi `xoaBoNhoBd10Share` sau thay), `server/lib/thayTheXemTruoc.js` (`layThuMucSaoLuu`), `server/lib/arrivalsQuery.js` (khoá memo `bd10Share` thêm `MAX(id)` file + `xoaBoNhoBd10Share`).
+- **Dọn**: xóa `tests/helpers/arrivalsImport.truoc-5g1.js`; `tests/arrivals-import-split.test.js` giữ nguyên kịch bản 7 ca «tương đương», nay so với `chuanBiFile` + `ghiFileDaChuanBi` trên DB thứ hai (biến `REF`).
+- **Test** `tests/thay-the-nhat-ky-khoi-phuc.test.js` (mới, 16 ca; đã thêm vào `npm test`). Docs: `19_THAY_THE_NGAY_NHAT_KY_KHOI_PHUC.md`.
+
+---
+
 ## [2026-10-15] - SANLUONG-5f-2: API GHI «Lấy ngay» và «Lấy lại» (chỉ ADMIN, ghi người bấm)
 
 - **Mới** `server/lib/napNguonLay.js`, route `POST /api/nap-nguon/lay-ngay` và `/lay-lai` (`server/routes/napNguon.js`, `requireAdmin`; 202 + chạy nền; 400 / 409 `DANG_CHAY` `TAM_DUNG` / 503; `SECURITY_LOG` không bí mật), hằng số `SO_FILE_TOI_DA_LAY_NGAY = 20`, `SO_O_TOI_DA_LAY_LAI = 20`. Bảng `sftp_sync_runs` thêm 4 cột nullable (`loai`, `nguoi_bam_ma`, `nguoi_bam_ten`, `so_o_yeu_cau`; chỉ ADD COLUMN, idempotent, `ensureLuotSchema` gọi ở `server/db.js`).
@@ -49,7 +58,7 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 ## [2026-10-15] - SANLUONG-5g-1: Tách importer thành chuanBiFile (async, không đụng DB) + ghiFileDaChuanBi (đồng bộ)
 
 - `server/lib/arrivalsImport.js` (PO cho phép, chỉ ticket này): `importArrivalFile` tách đôi — `chuanBiFile(filePath, { source })` (bất đồng bộ, KHÔNG nhận `db`: đọc + kiểm tra tên / BOM / tiêu đề / từng dòng / khoảng ngày, băm, đếm; trả đối tượng «đã chuẩn bị» `ketLuan` READY / EMPTY_FILE / REJECTED / SKIPPED_NAME) và `ghiFileDaChuanBi(db, daChuanBi, { ghiTuChoi, source })` (ĐỒNG BỘ: idempotent theo tên + sha256, `CONFLICT`, ghi file + `INSERT OR IGNORE` + `ward_bdx_map`). Gọi được BÊN TRONG giao dịch ngoài (savepoint của better-sqlite3, không tự commit, hoàn tác theo giao dịch ngoài). `options.ghiTuChoi=false` tắt ghi `REJECTED` / `CONFLICT`. `importArrivalFile` giữ nguyên chữ ký và hành vi (= await `chuanBiFile` + `ghiFileDaChuanBi`). Xuất thêm hai hàm.
-- **Test** `tests/arrivals-import-split.test.js` (mới, 16 ca; đã thêm vào `npm test`): tương đương với bản chụp trước thay đổi `tests/helpers/arrivalsImport.truoc-5g1.js` (giá trị trả về + thứ tự khoá + nội dung 3 bảng; file hợp lệ / rỗng / chỉ BOM / chỉ tiêu đề / trùng dòng / nạp lại / CONFLICT / REJECTED / tên sai / ISO + Mỹ + NULL / thư mục / file không tồn tại), `chuanBiFile` không đụng DB, `ghiFileDaChuanBi` đồng bộ, lồng giao dịch (hoàn tác, 2 file một giao dịch, `BEGIN` tay, lỗi giữa chừng), `ghiTuChoi`. Không sửa test cũ nào.
+- **Test** `tests/arrivals-import-split.test.js` (mới, 16 ca; đã thêm vào `npm test`): tương đương với bản chụp trước thay đổi `tests/helpers/arrivalsImport.truoc-5g1.js` (đã xóa ở 5g-5, nay so với `chuanBiFile` + `ghiFileDaChuanBi` trên DB thứ hai; giá trị trả về + thứ tự khoá + nội dung 3 bảng; file hợp lệ / rỗng / chỉ BOM / chỉ tiêu đề / trùng dòng / nạp lại / CONFLICT / REJECTED / tên sai / ISO + Mỹ + NULL / thư mục / file không tồn tại), `chuanBiFile` không đụng DB, `ghiFileDaChuanBi` đồng bộ, lồng giao dịch (hoàn tác, 2 file một giao dịch, `BEGIN` tay, lỗi giữa chừng), `ghiTuChoi`. Không sửa test cũ nào.
 - Docs: `04_DECISIONS.md` #81, `14_XOA_DU_LIEU_NGAY_AUDIT.md` (mục 7.3), `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Chưa làm: xem trước / thay thế / thùng rác / API / giao diện (5g-2, 5g-3…).
 
 ---
