@@ -9,6 +9,7 @@ import ArrivalsView from './components/arrivals/ArrivalsView';
 import DailyOpsDashboard from './components/arrivals/DailyOpsDashboard';
 import TiviView from './components/TiviView';
 import ProcessingDeliveryView from './components/phat/ProcessingDeliveryView';
+import ReplaceDayView from './components/arrivals/ReplaceDayView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
@@ -229,6 +230,10 @@ export default function App() {
 
           {activeTab === 'useradmin' && isAdmin && (
             <UserAdminView authUser={authUser} />
+          )}
+
+          {activeTab === 'replace_day' && isAdmin && (
+            <ReplaceDayView authUser={authUser} />
           )}
         </main>
       </div>

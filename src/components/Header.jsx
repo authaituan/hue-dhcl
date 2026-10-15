@@ -11,6 +11,7 @@ export default function Header({ activeTab }) {
       case 'processing': return 'Xử lý và tỷ lệ phát';
       case 'network': return 'Quản lý mạng lưới';
       case 'useradmin': return 'Quản lý người dùng';
+      case 'replace_day': return 'Thay thế ngày';
       default: return 'Trang chủ';
     }
   };
