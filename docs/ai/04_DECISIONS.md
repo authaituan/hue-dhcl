@@ -618,5 +618,15 @@ Căn cứ: khảo sát 5g-0 (`14_XOA_DU_LIEU_NGAY_AUDIT.md` mục 7.3) — `impo
 - **Khác biệt nhỏ, không quan sát được qua giá trị trả về / nội dung DB**: kiểm «đã nạp» (DB) nay chạy SAU khi phân tích file (trước: trước khi phân tích) — file đã nạp / trùng tên bị phân tích lại (vài chục ms); kết quả không đổi. Không đổi lược đồ, `CHECK`, khoá `INSERT OR IGNORE`, nơi gọi (`sftpSync.js`, `scripts/import-arrivals.js`).
 - **Chưa làm** (ngoài phạm vi): xem trước (5g-2), thay thế / thùng rác (5g-3), API / giao diện.
 
+### 82. Xem trước «Thay thế ngày của một BCVH»: ngày theo `file_date`, tập file chọn được, ngưỡng mất SHBG 5 % (PO quyết 14/10/2026 — SANLUONG-5g-2, chỉ đọc)
+Căn cứ: `14_XOA_DU_LIEU_NGAY_AUDIT.md`; importer đã tách (#81). Chi tiết: `15_THAY_THE_NGAY_XEM_TRUOC.md`.
+- **«Ngày» = ngày trong TÊN FILE (`file_date`)**, không phải ngày trong nội dung. Thay (BCVH X, ngày D) sẽ xóa dòng và bản ghi file của MỌI file `unit_code = X`, `file_date = D` (mọi trạng thái, kể cả nhập tay `_235959`); phần chiều tối ngày D ở file sáng D+1 giữ nguyên.
+- **Tập file thay do người dùng chọn**: bản xem trước liệt kê mọi file của (X, D) trên nguồn, mặc định chọn hết; hệ thống không tự đoán file «chuẩn». File ≤ 3 byte ghi `RONG` (không tải); file `REJECTED` hiện rõ và không tính.
+- **Mất SHBG** (SHBG chuẩn hóa `trim().toUpperCase()` có ở dữ liệu cũ nhưng không có ở file mới): nút Thay thế KHÓA mặc định khi mất > 0 (mở ở 5g-3/5g-4 bằng tích đồng ý + gõ lại mã BCVH và ngày); báo ĐỎ khi mất **> 5 %** — `NGUONG_MAT_SHBG_DO = 0.05` ở `server/config/thay-the.js` (**TẠM**, sau này chỉnh được trong module ngưỡng); đúng 5 % vẫn `CAN_XAC_NHAN`. Chặn hẳn (`khong_the_thay`) khi không có file `READY` hoặc không có dữ liệu ở DB lẫn nguồn.
+- **Chỉ đọc**: không ghi DB / nguồn; lõi `server/lib/thayTheXemTruoc.js` không chứa câu lệnh ghi và không nạp thư viện SFTP. Route **`POST /api/arrivals/thay-the/xem-truoc`** chỉ ADMIN (`SECURITY_LOG` một dòng, không SHBG); script `scripts/thay-the-xem-truoc.js` mở DB chỉ-đọc. Chặn khi đang có lượt đồng bộ (409) hoặc bản xem trước khác; lỗi nguồn (xác thực / vân tay / mạng / thư mục) phân loại như hẹn giờ và KHÔNG thử lại.
+- **Mã băm để 5g-3 kiểm lại**: `tap_file_nguon: [{ten, kich_thuoc, sha256}]`; 5g-3 tải lại và từ chối nếu mã băm đổi (không tin bản xem trước).
+- **Trạng thái phát** (`phat_status_current(bcvh, shbg)`, không FK): chỉ đếm SHBG có trạng thái trong tập bị xóa, còn / không còn ở bản mới.
+- **Chưa làm**: xóa, nạp, thùng rác, giao dịch thay thế (5g-3), giao diện (5g-4).
+
 ## Drift phát hiện
 _(chưa có)_
