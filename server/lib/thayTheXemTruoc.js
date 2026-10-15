@@ -124,7 +124,84 @@ function docPhiaPhat(db, bcvh, shbgCu, shbgMoi) {
 // ------------------------------------------
 // Lõi
 // ------------------------------------------
+/**
+ * Liệt kê các thư mục nguồn và giữ file của ĐÚNG (bcvh, ngày): tên khớp mẫu, đúng mã, đúng ngày, ngày có thật; bỏ qua có đếm. Chỉ gọi client.list.
+ * Trả { khop: [{ thuMuc, name, size, mtime, khoa, … }] (sắp theo khoá thời gian rồi tên), boQua, daThay (Set tên), tongMuc }. Lỗi nguồn -> XemTruocLoi. Dùng chung với 5g-3.
+ */
+async function lietKeNguonCuaNgay(ketNoiXong, dirs, bcvh, ngay, bimat = []) {
+  const khop = [];
+  const boQua = { khac_ma: 0, khac_ngay: 0, ngay_khong_hop_le: 0, ten_khac: 0, trung_ten: 0 };
+  const daThay = new Set();
+  let tongMuc = 0;
+  for (const dir of dirs) {
+    let entries;
+    try { entries = await ketNoiXong.list(dir); } catch (err) { throw loiNguon(err, bimat); }
+    tongMuc += entries.length;
+    const l = F.locMuc(entries);
+    boQua.ten_khac += l.boQua.tong;
+    for (const f of l.khop) {
+      if (f.maDonVi !== bcvh) { boQua.khac_ma++; continue; }
+      if (f.ngay !== ngay) { boQua.khac_ngay++; continue; }
+      if (!f.ngayHopLe) { boQua.ngay_khong_hop_le++; continue; }
+      if (daThay.has(f.name)) { boQua.trung_ten++; continue; }
+      daThay.add(f.name);
+      khop.push({ thuMuc: dir, ...f });
+    }
+  }
+  khop.sort((a, b) => (a.khoa < b.khoa ? -1 : a.khoa > b.khoa ? 1 : a.name < b.name ? -1 : 1));
+  return { khop, boQua, daThay, tongMuc };
+}
+
 const khoaDong = (i) => `${i.tracking_no}\u0000${i.bd10_no}\u0000${i.bd8_no}\u0000${i.item_confirmed_at ?? ''}`; // CÙNG khoá duy nhất với importer
+
+/**
+ * So sánh dữ liệu cũ (cu = docPhiaDb) với tập file mới đã chuẩn bị (sanSang: các đối tượng READY của chuanBiFile). Chỉ ĐỌC DB.
+ * Trả { moi: {shbg, theoNgay, dongSauLoc, …}, trungConLai, chiOCu (SHBG chuẩn hoá chỉ có ở cũ, sắp tăng dần — mức CẬN TRÊN của «mất»), chiOMoi, chung, tyLeMat, theoNgayDen }.
+ * Dùng chung với 5g-3 (ở đó tính thêm «mất thật»).
+ */
+function tinhSoSanh(db, cu, sanSang) {
+  const moi = { shbg: new Set(), theoNgay: new Map(), dongSauLoc: 0, khoaDaCo: new Set(), dongTho: 0, tracking: new Set(), mauKhoa: [] };
+  const duyet = [];
+  for (const d of sanSang) {
+    for (const it of d.items) {
+      moi.dongTho++;
+      const s = chuanHoaShbg(it.tracking_no);
+      if (s) moi.shbg.add(s);
+      const k = it.arrival_date ?? null;
+      if (!moi.theoNgay.has(k)) moi.theoNgay.set(k, new Set());
+      if (s) moi.theoNgay.get(k).add(s);
+      const kd = khoaDong(it);
+      if (moi.khoaDaCo.has(kd)) continue; // trùng khoá duy nhất của importer: sẽ bị bỏ qua
+      moi.khoaDaCo.add(kd);
+      moi.dongSauLoc++;
+      duyet.push({ tracking_no: it.tracking_no, kd });
+    }
+  }
+  // dòng mới trùng với dòng CÒN LẠI trong DB (file ngoài tập sẽ bị xoá, vd file sáng ngày kế tiếp): importer cũng bỏ qua
+  let trungConLai = 0;
+  if (duyet.length) {
+    const raw = [...new Set(duyet.map((x) => x.tracking_no))];
+    const conLai = new Set(db.prepare(`SELECT tracking_no, bd10_no, bd8_no, COALESCE(item_confirmed_at, '') AS k FROM arrival_items
+      WHERE tracking_no IN (SELECT value FROM json_each(@j)) AND import_file_id NOT IN (SELECT value FROM json_each(@ids))`)
+      .all({ j: JSON.stringify(raw), ids: cu.ids }).map((r) => `${r.tracking_no}\u0000${r.bd10_no}\u0000${r.bd8_no}\u0000${r.k}`));
+    trungConLai = duyet.filter((x) => conLai.has(x.kd)).length;
+  }
+
+  const chiOCu = [...cu.shbg].filter((s) => !moi.shbg.has(s)).sort();
+  const chiOMoi = [...moi.shbg].filter((s) => !cu.shbg.has(s));
+  const chung = cu.shbg.size - chiOCu.length;
+  const tyLeMat = cu.shbg.size ? Math.round((chiOCu.length / cu.shbg.size) * 10000) / 10000 : 0;
+  const cacNgay = new Set([...cu.theoNgay.keys(), ...moi.theoNgay.keys()]);
+  const theoNgayDen = [...cacNgay].sort((a, b) => (a === null ? 1 : b === null ? -1 : a < b ? -1 : a > b ? 1 : 0))
+    .map((k) => ({ ngay: k, shbg_cu: cu.theoNgay.has(k) ? cu.theoNgay.get(k).shbg.size : 0, shbg_moi: moi.theoNgay.has(k) ? moi.theoNgay.get(k).size : 0 }));
+  return { moi, trungConLai, chiOCu, chiOMoi, chung, tyLeMat, theoNgayDen };
+}
+
+/** Mức cảnh báo theo số SHBG mất / tổng SHBG cũ (so sánh số nguyên: đúng bằng ngưỡng vẫn là CAN_XAC_NHAN). */
+function mucCanhBaoTheo(soMat, tong) {
+  const nguongNguyen = Math.round(CF.NGUONG_MAT_SHBG_DO * 10000);
+  return soMat === 0 ? 'AN_TOAN' : (soMat * 10000 > nguongNguyen * tong ? 'DO' : 'CAN_XAC_NHAN');
+}
 
 /**
  * xemTruocThayThe({ client | ketNoi, dirs, db, bcvh, ngay, tapFile, tmpDir, now, bimat, options })
@@ -152,26 +229,7 @@ async function xemTruocThayThe({ client = null, ketNoi = null, dirs = [], db, bc
       if (typeof ketNoi !== 'function') throw new XemTruocLoi(MA_LOI.CHUA_CAU_HINH_SFTP, 'Chưa có kết nối nguồn SFTP');
       try { ketNoiXong = await ketNoi(); } catch (err) { throw loiNguon(err, bimat); }
     }
-    const khop = [];
-    const boQua = { khac_ma: 0, khac_ngay: 0, ngay_khong_hop_le: 0, ten_khac: 0, trung_ten: 0 };
-    const daThay = new Set();
-    let tongMuc = 0;
-    for (const dir of dirs) {
-      let entries;
-      try { entries = await ketNoiXong.list(dir); } catch (err) { throw loiNguon(err, bimat); }
-      tongMuc += entries.length;
-      const l = F.locMuc(entries);
-      boQua.ten_khac += l.boQua.tong;
-      for (const f of l.khop) {
-        if (f.maDonVi !== bcvh) { boQua.khac_ma++; continue; }
-        if (f.ngay !== ngay) { boQua.khac_ngay++; continue; }
-        if (!f.ngayHopLe) { boQua.ngay_khong_hop_le++; continue; }
-        if (daThay.has(f.name)) { boQua.trung_ten++; continue; }
-        daThay.add(f.name);
-        khop.push({ thuMuc: dir, ...f });
-      }
-    }
-    khop.sort((a, b) => (a.khoa < b.khoa ? -1 : a.khoa > b.khoa ? 1 : a.name < b.name ? -1 : 1));
+    const { khop, boQua, daThay, tongMuc } = await lietKeNguonCuaNgay(ketNoiXong, dirs, bcvh, ngay, bimat);
 
     const duocChon = tapFile === null ? null : new Set(tapFile);
     if (duocChon) for (const t of duocChon) if (!daThay.has(t)) throw new XemTruocLoi(MA_LOI.TAP_FILE_KHONG_HOP_LE, 'Tham số "tap_file" có tên không nằm trong các file của (BCVH, ngày) trên nguồn');
@@ -209,44 +267,9 @@ async function xemTruocThayThe({ client = null, ketNoi = null, dirs = [], db, bc
     }
 
     // ---- so sánh (chỉ tập file đang chọn và READY)
-    const moi = { shbg: new Set(), theoNgay: new Map(), dongSauLoc: 0, khoaDaCo: new Set(), dongTho: 0, tracking: new Set(), mauKhoa: [] };
-    const duyet = [];
-    for (const d of sanSang) {
-      for (const it of d.items) {
-        moi.dongTho++;
-        const s = chuanHoaShbg(it.tracking_no);
-        if (s) moi.shbg.add(s);
-        const k = it.arrival_date ?? null;
-        if (!moi.theoNgay.has(k)) moi.theoNgay.set(k, new Set());
-        if (s) moi.theoNgay.get(k).add(s);
-        const kd = khoaDong(it);
-        if (moi.khoaDaCo.has(kd)) continue; // trùng khoá duy nhất của importer: sẽ bị bỏ qua
-        moi.khoaDaCo.add(kd);
-        moi.dongSauLoc++;
-        duyet.push({ tracking_no: it.tracking_no, kd });
-      }
-    }
-    // dòng mới trùng với dòng CÒN LẠI trong DB (file ngoài tập sẽ bị xoá, vd file sáng ngày kế tiếp): importer cũng bỏ qua
-    let trungConLai = 0;
-    if (duyet.length) {
-      const raw = [...new Set(duyet.map((x) => x.tracking_no))];
-      const conLai = new Set(db.prepare(`SELECT tracking_no, bd10_no, bd8_no, COALESCE(item_confirmed_at, '') AS k FROM arrival_items
-        WHERE tracking_no IN (SELECT value FROM json_each(@j)) AND import_file_id NOT IN (SELECT value FROM json_each(@ids))`)
-        .all({ j: JSON.stringify(raw), ids: cu.ids }).map((r) => `${r.tracking_no}\u0000${r.bd10_no}\u0000${r.bd8_no}\u0000${r.k}`));
-      trungConLai = duyet.filter((x) => conLai.has(x.kd)).length;
-    }
-
-    const chiOCu = [...cu.shbg].filter((s) => !moi.shbg.has(s)).sort();
-    const chiOMoi = [...moi.shbg].filter((s) => !cu.shbg.has(s));
-    const chung = cu.shbg.size - chiOCu.length;
-    const tyLeMat = cu.shbg.size ? Math.round((chiOCu.length / cu.shbg.size) * 10000) / 10000 : 0;
-    const cacNgay = new Set([...cu.theoNgay.keys(), ...moi.theoNgay.keys()]);
-    const theoNgayDen = [...cacNgay].sort((a, b) => (a === null ? 1 : b === null ? -1 : a < b ? -1 : a > b ? 1 : 0))
-      .map((k) => ({ ngay: k, shbg_cu: cu.theoNgay.has(k) ? cu.theoNgay.get(k).shbg.size : 0, shbg_moi: moi.theoNgay.has(k) ? moi.theoNgay.get(k).size : 0 }));
-
-    // ---- mức cảnh báo (so sánh số nguyên: đúng bằng ngưỡng vẫn là CAN_XAC_NHAN)
-    const nguongNguyen = Math.round(CF.NGUONG_MAT_SHBG_DO * 10000);
-    const mucCanhBao = chiOCu.length === 0 ? 'AN_TOAN' : (chiOCu.length * 10000 > nguongNguyen * cu.shbg.size ? 'DO' : 'CAN_XAC_NHAN');
+    const ss = tinhSoSanh(db, cu, sanSang);
+    const { moi, trungConLai, chiOCu, chiOMoi, chung, tyLeMat, theoNgayDen } = ss;
+    const mucCanhBao = mucCanhBaoTheo(chiOCu.length, cu.shbg.size);
     let khongTheThay = false;
     let lyDoKhongTheThay = null;
     if (!sanSang.length) {
@@ -289,4 +312,7 @@ function layNguon(env = process.env) {
   return { ketNoi: () => require('./sftpConnect').ketNoiSftp(cfg), dirs: cfg.dirs, bimat: [cfg.password, cfg.user] };
 }
 
-module.exports = { MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, XemTruocLoi, kiemTraDauVao, kiemTraKhoa, loiNguon, xemTruocThayThe, datNguon, layNguon, chuanHoaShbg };
+module.exports = {
+  MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, XemTruocLoi, kiemTraDauVao, kiemTraKhoa, loiNguon, xemTruocThayThe, datNguon, layNguon, chuanHoaShbg,
+  docPhiaDb, docPhiaPhat, lietKeNguonCuaNgay, tinhSoSanh, mucCanhBaoTheo, RONG_TOI_DA_BYTE
+};

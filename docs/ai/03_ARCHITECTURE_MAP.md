@@ -38,6 +38,8 @@ scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thố
 scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
 server/lib/sftpScheduler.js # (không phải script) hẹn giờ tự động nạp SFTP trong máy chủ — mặc định TẮT, SFTP_SYNC_ENABLED=1 (SANLUONG-5e; docs/ai/15_SFTP_SCHEDULER.md)
 scripts/thay-the-xem-truoc.js # XEM TRƯỚC thay thế ngày của một BCVH (CHỈ ĐỌC; DB readonly, ghim vân tay; SANLUONG-5g-2; docs/ai/15_THAY_THE_NGAY_XEM_TRUOC.md)
+scripts/thay-the-ngay.js # THAY THẾ ngày của một BCVH (khô mặc định; --chay-that + --xac-nhan + --dong-y-mat; SANLUONG-5g-3; docs/ai/16_THAY_THE_NGAY_THUC_HIEN.md)
+server/lib/thayTheThucHien.js # (không phải script) lõi thay thế nguyên khối: khoá, sao lưu, giao dịch, thùng rác, nhật ký (5g-3)
 scripts/sftp-sync.js         # đồng bộ SFTP chạy tay: quét → tải tệp tạm → nạp (source='SFTP'); mặc định chạy khô, --chay-that (SANLUONG-5c; docs/ai/13_SFTP_SYNC.md)
 scripts/sftp-probe.js        # thử kết nối SFTP CHỈ ĐỌC: vân tay khoá máy chủ + liệt kê tên/kích thước/mtime (SANLUONG-5b; chưa tải/nạp; docs/ai/12_SFTP_PROBE.md)
 scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
@@ -64,6 +66,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `arrival_import_files` | Nhật ký nạp file "Hàng đến": tên, mã BC nhận, ngày/giờ file, sha256, số dòng, `status` OK/EMPTY/REJECTED/CONFLICT, lỗi/cảnh báo | — |
 | `sftp_sync_runs`, `sftp_sync_files` | «Lượt lấy» SFTP (SANLUONG-5c, `server/lib/sftpSync.js`, tạo ở `server/db.js`): mỗi lượt chạy tay một dòng (`started_at`, `finished_at`, `trigger` MANUAL/TIMER, bộ đếm, `ghi_chu_loi`) và mỗi file một dòng kết quả (`DA_NAP`/`DA_CO`/`CHUA_ON_DINH`/`EMPTY`/`LOI`/`BO_QUA`/`WOULD_IMPORT`). Khoá chống chạy chồng = lượt chưa `finished_at` < 30 phút. Chi tiết `13_SFTP_SYNC.md` | — |
 | `sftp_source_files` | Danh sách file đang / đã thấy trên nguồn SFTP (SANLUONG-5e, `server/lib/sftpSync.js`): kích thước, mtime, lần đầu / cuối thấy, số lượt giữ nguyên (xét «file ổn định» qua nhiều lượt), `con_tren_nguon` (0 = đã biến mất). Chi tiết `15_SFTP_SCHEDULER.md` | — |
+| `thay_the_nhat_ky`, `thung_rac_file`, `thung_rac_dong` | «Thay thế ngày của một BCVH» (SANLUONG-5g-3, `server/lib/thayTheThucHien.js`, tạo ở `server/db.js`, giờ UTC): nhật ký mỗi lần thay thành công (người, BCVH, ngày, tập file cũ / mới, số dòng, SHBG mất thật, mức cảnh báo, đường dẫn sao lưu, hạn thùng rác); thùng rác = bản sao nguyên văn bản ghi file / dòng bị xóa (cùng `id`, `import_file_id` gốc; `thung_rac_id` = `thay_the_nhat_ky.id`), giữ 30 ngày | — |
 | `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
 | `ward_bdx_map` | Phường/xã (`ward_key`) → BĐX, `source` AUTO/MANUAL | `commune_id` → commune |
 
@@ -110,6 +113,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/exceptions?ly_do=&page=&page_size=` — ngoại lệ phân trang (BD10 sớm, đến lại, chưa nhận tại BCVH, không mốc nào) + `theo_ly_do` | ADMIN | `routes/arrivals.js` |
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
 | `POST /api/arrivals/thay-the/xem-truoc` — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC, 5g-2, #82): thân `{ bcvh, ngay, tap_file? }` → `{ db, nguon, so_sanh, canh_bao, phat, tap_file_nguon }`; 400 tham số, 409 đang có lượt đồng bộ / bản xem trước khác, 502 lỗi nguồn SFTP, 503 chưa cấu hình `SFTP_*` | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheXemTruoc.js`, `config/thay-the.js` |
+| `POST /api/arrivals/thay-the/thuc-hien` — THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (5g-3, #83): thân `{ bcvh, ngay, tap_file?, tap_file_nguon: [{ten, sha256}], xac_nhan: {ma_bcvh, ngay}, dong_y_mat_du_lieu? }` → tóm tắt (số dòng xóa / nạp, mất thật, `nhat_ky_id`, tên tệp sao lưu); 400, 409 (đang có lượt / nguồn đã đổi / cần đồng ý mất dữ liệu / dữ liệu đã đổi), 422, 502, 503, 507, 500; lỗi nào cũng KHÔNG để lại thay đổi | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheThucHien.js`, `lib/thayTheXemTruoc.js` |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất

@@ -11,6 +11,7 @@ const phatDash = require('../lib/phatDashboard');
 const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 const thayThe = require('../lib/thayTheXemTruoc');
+const thayTheThucHien = require('../lib/thayTheThucHien');
 
 const router = express.Router();
 
@@ -202,6 +203,46 @@ router.post('/arrivals/thay-the/xem-truoc', requireAdmin, async (req, res) => {
     console.error('Arrivals thay-the xem-truoc error:', err && err.code ? err.code : (err && err.name));
     ghiLog('LOI_HE_THONG');
     return res.status(500).json({ error: 'Lỗi hệ thống khi xem trước thay thế', ma: 'LOI_HE_THONG' });
+  }
+});
+
+// SANLUONG-5g-3 — THỰC HIỆN «Thay thế ngày của một BCVH» NGUYÊN KHỐI (xóa + nạp lại MỘT giao dịch; sao lưu toàn DB, thùng rác, khoá chung với đồng bộ, nhật ký). Chỉ ADMIN (401 / 403 như xem trước).
+// Thân JSON: { bcvh, ngay, tap_file? (mặc định tất cả), tap_file_nguon: [{ten, sha256}] (lấy từ bản xem trước), xac_nhan: {ma_bcvh, ngay} (gõ lại), dong_y_mat_du_lieu? (true nếu «mất thật» > 0) }; khoá lạ -> 400.
+// Lỗi: 400 tham số / xác nhận sai · 409 đang có lượt đồng bộ hoặc lần thay khác / nguồn đã đổi so với bản xem trước (NGUON_DA_DOI) / thiếu đồng ý mất dữ liệu / dữ liệu đã đổi · 422 file nguồn lỗi hoặc tập mới rỗng
+// · 502 nguồn SFTP · 503 chưa cấu hình · 507 không đủ chỗ sao lưu · 500 sao lưu lỗi hoặc giao dịch hoàn tác. Mọi lỗi đều KHÔNG để lại thay đổi trong DB.
+// Ghi SECURITY_LOG một dòng (ai, BCVH, ngày, kết quả; KHÔNG SHBG, KHÔNG mật khẩu). Phản hồi chỉ có số lượng + tên tệp sao lưu (không đường dẫn).
+router.post('/arrivals/thay-the/thuc-hien', requireAdmin, async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const ghiLog = (ketQua, extra = {}) => req.app.locals.security.log({
+    event: 'arrivals_thay_the_thuc_hien', ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
+    bcvh: typeof body.bcvh === 'string' ? body.bcvh.slice(0, 12) : null, ngay: typeof body.ngay === 'string' ? body.ngay.slice(0, 10) : null, ket_qua: ketQua, ...extra
+  });
+  try {
+    for (const k of Object.keys(body)) {
+      if (!['bcvh', 'ngay', 'tap_file', 'tap_file_nguon', 'xac_nhan', 'dong_y_mat_du_lieu'].includes(k)) throw new thayThe.XemTruocLoi(thayThe.MA_LOI.THAM_SO_SAI, `Tham số không hỗ trợ: "${String(k).slice(0, 40)}"`);
+    }
+    thayThe.kiemTraDauVao({ bcvh: body.bcvh, ngay: body.ngay, tapFile: body.tap_file });
+    if (body.dong_y_mat_du_lieu !== undefined && typeof body.dong_y_mat_du_lieu !== 'boolean') throw new thayThe.XemTruocLoi(thayThe.MA_LOI.THAM_SO_SAI, 'Tham số "dong_y_mat_du_lieu" phải là true / false');
+    const xn = body.xac_nhan;
+    if (xn && typeof xn === 'object' && !Array.isArray(xn) && Object.keys(xn).some((k) => !['ma_bcvh', 'ngay'].includes(k))) throw new thayThe.XemTruocLoi(thayThe.MA_LOI.THAM_SO_SAI, 'Tham số "xac_nhan" chỉ gồm ma_bcvh và ngay');
+    thayTheThucHien.kiemTraDuKien(body.tap_file_nguon);
+    const nguon = thayThe.layNguon();
+    const kq = await thayTheThucHien.thayTheNgay({
+      client: nguon.client || null, ketNoi: nguon.ketNoi, dirs: nguon.dirs, db, bcvh: body.bcvh, ngay: body.ngay, tapFile: body.tap_file ?? null,
+      tapFileNguonDuKien: body.tap_file_nguon, xacNhan: body.xac_nhan, dongYMat: body.dong_y_mat_du_lieu === true, nguoiThucHien: req.user.hrm_code,
+      sauLuuDir: nguon.sauLuuDir || null, bimat: nguon.bimat || []
+    });
+    ghiLog('ok', { nhat_ky_id: kq.nhat_ky_id, so_dong_xoa: kq.so_dong_xoa, so_dong_nap: kq.so_dong_nap, shbg_mat_that: kq.so_sanh.shbg_mat_that, muc: kq.canh_bao.muc });
+    const { duong_dan: _boDuongDan, ...saoLuuRutGon } = kq.sao_luu; // không trả đường dẫn đầy đủ qua API
+    return res.json({ ...kq, sao_luu: saoLuuRutGon });
+  } catch (err) {
+    if (err instanceof thayThe.XemTruocLoi) {
+      ghiLog(err.code);
+      return res.status(err.httpStatus).json({ error: err.message, ma: err.code });
+    }
+    console.error('Arrivals thay-the thuc-hien error:', err && err.code ? err.code : (err && err.name));
+    ghiLog('LOI_HE_THONG');
+    return res.status(500).json({ error: 'Lỗi hệ thống khi thực hiện thay thế (DB không bị thay đổi nếu giao dịch chưa hoàn tất)', ma: 'LOI_HE_THONG' });
   }
 });
 
