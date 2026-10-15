@@ -192,22 +192,8 @@ function kiemTraXacNhan(xacNhan, bcvh, ngay) {
 // Cờ trong bộ nhớ: hai lần thay không chạy cùng lúc.
 let dangThayThe = false;
 
-// ------------------------------------------
-// «Mất thật»: SHBG có ở tập cũ, KHÔNG có ở tập mới VÀ không còn dòng nào ở file NGOÀI tập của cùng BCVH (vd file sáng D+1). Chỉ ĐỌC.
-// chiOCu = mức CẬN TRÊN (chưa trừ file ngoài tập) lấy từ X.tinhSoSanh. So sánh SHBG chuẩn hoá bằng chính hàm của bản xem trước.
-// ------------------------------------------
-function tinhMatThat(db, bcvh, cu, chiOCu) {
-  if (!chiOCu.length) return [];
-  const can = new Set(chiOCu);
-  const conLai = new Set();
-  const dong = db.prepare(`SELECT tracking_no FROM arrival_items WHERE import_file_id IN
-    (SELECT id FROM arrival_import_files WHERE unit_code = @b AND id NOT IN (SELECT value FROM json_each(@ids)))`).pluck().iterate({ b: bcvh, ids: cu.ids });
-  for (const raw of dong) {
-    const s = chuanHoaShbg(raw);
-    if (can.has(s)) { conLai.add(s); if (conLai.size === can.size) break; }
-  }
-  return chiOCu.filter((s) => !conLai.has(s));
-}
+// «Mất thật»: định nghĩa nằm ở X.tinhMatThat (thayTheXemTruoc.js) — xem trước và thay thế dùng CHUNG một nguồn (5g-3b). Hành vi giữ nguyên.
+const { tinhMatThat } = X;
 
 // ------------------------------------------
 // Sao lưu toàn DB (db.backup) — quy ước: <thư mục chứa DB>/backups/, tên truoc-thay-the_<bcvh>_<ngày>_<UTC>.db, giữ SO_BAN_SAO_LUU_GIU bản gần nhất

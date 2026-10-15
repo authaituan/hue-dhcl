@@ -25,8 +25,8 @@ Dùng lại: `chuanBiFile` (5g-1, không `db`), `sftpFiles.locMuc`, `sftpSync.ki
 3. Phía DB: tập file của (X, D) mọi trạng thái (`id`, `file_name`, `source`, `status`, `row_count`, số dòng thực), tổng dòng, dòng `arrival_date` rỗng, SHBG khác nhau (chuẩn hóa `trim().toUpperCase()`), phân bố SHBG theo `arrival_date`.
 4. Phía nguồn: liệt kê các thư mục `SFTP_DIRS`, giữ tên khớp mẫu **đúng mã và đúng ngày**; bỏ `DuBao_*`, `#recycle`, tên lạ, khác mã, khác ngày (đếm vào `nguon.bo_qua`). File ≤ 3 byte → `RONG`, không tải. Các file được chọn: tải về `os.tmpdir()/hue-dhcl-xemtruoc-*/<tên gốc>` → so kích thước → `chuanBiFile` (không `db`) → xóa tệp (kể cả khi lỗi). Kết luận mỗi file: `READY` / `EMPTY_FILE` / `REJECTED` (+ lý do) / `RONG` / `KHONG_CHON`.
 5. So sánh (chỉ file chọn + `READY`): dòng mới sau lọc trùng theo CÙNG khóa duy nhất của importer `(tracking_no, bd10_no, bd8_no, item_confirmed_at)`; dòng mới trùng dữ liệu CÒN LẠI (file ngoài tập, vd file sáng ngày kế tiếp) cũng được đếm (importer sẽ bỏ qua); SHBG cũ / mới / chung / chỉ ở cũ / chỉ ở mới; `ty_le_mat = chỉ_ở_cũ / cũ` (0 khi cũ = 0); bảng `theo_ngay_den`; tối đa 20 SHBG mẫu chỉ ở cũ.
-6. Mức cảnh báo: `AN_TOAN` (mất 0), `CAN_XAC_NHAN` (0 < mất ≤ 5 %, **đúng 5 % vẫn là CAN_XAC_NHAN** — so sánh số nguyên), `DO` (> 5 %). `khoa_mac_dinh = mất > 0`. `khong_the_thay = true` khi không có file `READY` (`KHONG_CO_FILE_HOP_LE`) hoặc không có dữ liệu cả ở DB lẫn nguồn (`KHONG_CO_DU_LIEU`).
-7. Trạng thái phát: bảng **`phat_status_current`**, cột **`bcvh`, `shbg`** (khóa chính `(bcvh, shbg)`, SHBG đã chuẩn hóa viết hoa, không FK) — đếm SHBG của BCVH có trạng thái trong tập SẼ bị xóa, trong đó còn có ở bản mới / không còn. Chỉ đếm, không sửa.
+6. Mức cảnh báo (từ 5g-3b tính theo **mất thật**, xem mục 9; đoạn này mô tả ngưỡng): `AN_TOAN` (mất 0), `CAN_XAC_NHAN` (0 < mất ≤ 5 %, **đúng 5 % vẫn là CAN_XAC_NHAN** — so sánh số nguyên), `DO` (> 5 %). `khoa_mac_dinh = mất > 0`. `khong_the_thay = true` khi không có file `READY` (`KHONG_CO_FILE_HOP_LE`) hoặc không có dữ liệu cả ở DB lẫn nguồn (`KHONG_CO_DU_LIEU`).
+7. Trạng thái phát (từ 5g-3b theo mất thật, mục 9): bảng **`phat_status_current`**, cột **`bcvh`, `shbg`** (khóa chính `(bcvh, shbg)`, SHBG đã chuẩn hóa viết hoa, không FK) — đếm SHBG của BCVH có trạng thái trong tập SẼ bị xóa, trong đó còn có ở bản mới / không còn. Chỉ đếm, không sửa.
 8. Luôn gọi `client.end()` (kể cả khi lỗi), luôn xóa tệp tạm. Không thử lại khi lỗi nguồn.
 
 ## 4. Mã lỗi
@@ -97,3 +97,20 @@ Cách đọc kết quả: xem `[So sánh]` — nếu «CHỈ Ở CŨ» > 0 thì 
 - Xung đột với bộ tự động: chỉ chặn được khi lượt đang chạy ghi khóa DB hoặc hẹn giờ ở trạng thái `DANG_CHAY`; khoảng nhỏ giữa kết nối và ghi khóa của hẹn giờ không được phủ. Xem trước không giữ khóa nên lượt đồng bộ có thể bắt đầu NGAY SAU khi xem trước — 5g-3 phải kiểm lại và giữ khóa.
 - Nguồn có nhiều thư mục `SFTP_DIRS`: tên trùng giữa các thư mục chỉ lấy thư mục đầu (`bo_qua.trung_ten`).
 - File nguồn thay đổi giữa lúc xem trước và lúc thay: 5g-3 phải so mã băm.
+
+## 9. 5g-3b — xem trước trả «mất thật» (cùng con số và mức cảnh báo như lúc thay thật)
+Trước 5g-3b, `canh_bao.muc` / `khoa_mac_dinh` / `phat` tính theo mức **cận trên** (`shbg_chi_o_cu`: SHBG có ở tập cũ, không có ở file mới được chọn, chưa trừ SHBG còn nằm ở file NGOÀI tập như file sáng D+1). Lõi thay thật (5g-3, `16_THAY_THE_NGAY_THUC_HIEN.md` mục 4) tính theo **«mất thật»**, nên giao diện có thể báo ĐỎ / đòi đồng ý cho SHBG thật ra vẫn còn. Nay xem trước dùng đúng hàm của lõi thay (`tinhMatThat`, định nghĩa nằm ở `thayTheXemTruoc.js`, `thayTheThucHien.js` nhập lại) nên hai bên luôn cùng kết quả (test đối chiếu với `thayTheNgay` chạy khô).
+
+**Mất thật** = SHBG chuẩn hóa có ở tập cũ, không có ở tập mới VÀ không còn dòng nào ở file ngoài tập của **cùng BCVH** (cùng `unit_code`; file BCVH khác không cứu).
+
+| Trường | Trước 5g-3b | Sau 5g-3b |
+|---|---|---|
+| `so_sanh.shbg_chi_o_cu`, `ty_le_mat`, `shbg_mau_chi_o_cu` | mức cận trên | **không đổi** (vẫn cận trên; `shbg_mau_chi_o_cu` vẫn SHBG đầy đủ, chỉ cho ADMIN) |
+| `so_sanh.shbg_mat_that`, `ty_le_mat_that` | (không có) | **MỚI**: số và tỷ lệ mất thật (làm tròn 4 chữ số như `ty_le_mat`; 0 khi không có dữ liệu cũ) |
+| `so_sanh.shbg_mau_mat_that` | (không có) | **MỚI**: tối đa `SO_SHBG_MAU` (20) mẫu mất thật, sắp tăng dần, **chỉ 6 ký tự đầu** |
+| `canh_bao.muc` | theo cận trên | **theo mất thật** (`AN_TOAN` khi 0; đúng 5 % vẫn `CAN_XAC_NHAN`; > 5 % `DO`) |
+| `canh_bao.khoa_mac_dinh` | cận trên > 0 | **mất thật > 0** |
+| `canh_bao.can_dong_y_mat` | (không có) | **MỚI** = mất thật > 0 (chính là điều kiện lõi thay đòi `dong_y_mat_du_lieu: true`) |
+| `canh_bao.nguong_do`, `khong_the_thay`, `ly_do_khong_the_thay` | — | không đổi |
+| `phat` | `con_o_ban_moi` đếm theo SHBG của file mới | **theo mất thật**: `conSauThay` = SHBG mới + SHBG cũ không mất; `khong_con` = SHBG có trạng thái phát mà mất thật |
+Không trường nào bị đổi tên / xóa. Script `scripts/thay-the-xem-truoc.js` in `MẤT THẬT n (x%) — mức CẬN TRÊN m (y%)`. Chi phí: khi cận trên > 0 quét một lượt các dòng của file ngoài tập cùng BCVH (`iterate`, dừng sớm khi cứu hết); đo trên DB giả ~153.500 dòng: ≈ 110–130 ms cho cả bản xem trước (số đo trong báo cáo 5g-3b; DB thật chưa đo).

@@ -203,6 +203,24 @@ function mucCanhBaoTheo(soMat, tong) {
   return soMat === 0 ? 'AN_TOAN' : (soMat * 10000 > nguongNguyen * tong ? 'DO' : 'CAN_XAC_NHAN');
 }
 
+// ------------------------------------------
+// «Mất thật» (SANLUONG-5g-3, chuyển về đây ở 5g-3b để xem trước và thay thế dùng CHUNG một nguồn):
+// SHBG có ở tập cũ, KHÔNG có ở tập mới VÀ không còn dòng nào ở file NGOÀI tập của cùng BCVH (vd file sáng D+1). Chỉ ĐỌC.
+// chiOCu = mức CẬN TRÊN (chưa trừ file ngoài tập) lấy từ tinhSoSanh. So sánh SHBG chuẩn hoá bằng chính chuanHoaShbg. Trả mảng (đã sắp tăng dần như chiOCu).
+// ------------------------------------------
+function tinhMatThat(db, bcvh, cu, chiOCu) {
+  if (!chiOCu.length) return [];
+  const can = new Set(chiOCu);
+  const conLai = new Set();
+  const dong = db.prepare(`SELECT tracking_no FROM arrival_items WHERE import_file_id IN
+    (SELECT id FROM arrival_import_files WHERE unit_code = @b AND id NOT IN (SELECT value FROM json_each(@ids)))`).pluck().iterate({ b: bcvh, ids: cu.ids });
+  for (const raw of dong) {
+    const s = chuanHoaShbg(raw);
+    if (can.has(s)) { conLai.add(s); if (conLai.size === can.size) break; }
+  }
+  return chiOCu.filter((s) => !conLai.has(s));
+}
+
 /**
  * xemTruocThayThe({ client | ketNoi, dirs, db, bcvh, ngay, tapFile, tmpDir, now, bimat, options })
  *  client: { list(thuMuc), get(duongDanTuXa, duongDanCucBo), end() } đã kết nối; HOẶC ketNoi: () => Promise<client> (gọi SAU khi kiểm đầu vào + khoá, để không kết nối vô ích).
@@ -269,7 +287,12 @@ async function xemTruocThayThe({ client = null, ketNoi = null, dirs = [], db, bc
     // ---- so sánh (chỉ tập file đang chọn và READY)
     const ss = tinhSoSanh(db, cu, sanSang);
     const { moi, trungConLai, chiOCu, chiOMoi, chung, tyLeMat, theoNgayDen } = ss;
-    const mucCanhBao = mucCanhBaoTheo(chiOCu.length, cu.shbg.size);
+    // «mất thật» (trừ SHBG còn ở file ngoài tập cùng BCVH): mức cảnh báo, khoá mặc định và ảnh hưởng trạng thái phát tính theo số này; số cận trên vẫn được trả
+    const matThat = tinhMatThat(db, bcvh, cu, chiOCu);
+    const mucCanhBao = mucCanhBaoTheo(matThat.length, cu.shbg.size);
+    const tyLeMatThat = cu.shbg.size ? Math.round((matThat.length / cu.shbg.size) * 10000) / 10000 : 0;
+    const matSet = new Set(matThat);
+    const conSauThay = new Set([...moi.shbg, ...[...cu.shbg].filter((x) => !matSet.has(x))]);
     let khongTheThay = false;
     let lyDoKhongTheThay = null;
     if (!sanSang.length) {
@@ -284,10 +307,12 @@ async function xemTruocThayThe({ client = null, ketNoi = null, dirs = [], db, bc
       so_sanh: {
         dong_cu: cu.tongDong, dong_moi_sau_loc_trung: moi.dongSauLoc, dong_moi_trung_du_lieu_con_lai: trungConLai,
         shbg_cu: cu.shbg.size, shbg_moi: moi.shbg.size, shbg_chi_o_cu: chiOCu.length, shbg_chi_o_moi: chiOMoi.length, shbg_chung: chung, ty_le_mat: tyLeMat,
-        theo_ngay_den: theoNgayDen, shbg_mau_chi_o_cu: chiOCu.slice(0, CF.SO_SHBG_MAU)
+        shbg_mat_that: matThat.length, ty_le_mat_that: tyLeMatThat,
+        theo_ngay_den: theoNgayDen, shbg_mau_chi_o_cu: chiOCu.slice(0, CF.SO_SHBG_MAU),
+        shbg_mau_mat_that: matThat.slice(0, CF.SO_SHBG_MAU).map((x) => x.slice(0, 6))
       },
-      canh_bao: { muc: mucCanhBao, khoa_mac_dinh: chiOCu.length > 0, nguong_do: CF.NGUONG_MAT_SHBG_DO, khong_the_thay: khongTheThay, ly_do_khong_the_thay: lyDoKhongTheThay },
-      phat: docPhiaPhat(db, bcvh, cu.shbg, moi.shbg),
+      canh_bao: { muc: mucCanhBao, khoa_mac_dinh: matThat.length > 0, can_dong_y_mat: matThat.length > 0, nguong_do: CF.NGUONG_MAT_SHBG_DO, khong_the_thay: khongTheThay, ly_do_khong_the_thay: lyDoKhongTheThay },
+      phat: docPhiaPhat(db, bcvh, cu.shbg, conSauThay),
       tap_file_nguon: tapNguon.filter((m) => m.ket_luan === 'READY').map((m) => ({ ten: m.ten, kich_thuoc: m.kich_thuoc, sha256: m.sha256 }))
     };
   } finally {
@@ -314,5 +339,5 @@ function layNguon(env = process.env) {
 
 module.exports = {
   MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, XemTruocLoi, kiemTraDauVao, kiemTraKhoa, loiNguon, xemTruocThayThe, datNguon, layNguon, chuanHoaShbg,
-  docPhiaDb, docPhiaPhat, lietKeNguonCuaNgay, tinhSoSanh, mucCanhBaoTheo, RONG_TOI_DA_BYTE
+  docPhiaDb, docPhiaPhat, lietKeNguonCuaNgay, tinhSoSanh, mucCanhBaoTheo, tinhMatThat, RONG_TOI_DA_BYTE
 };

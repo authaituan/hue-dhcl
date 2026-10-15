@@ -66,7 +66,8 @@ function inKetQua(kq) {
   const s = kq.so_sanh;
   log('\n[So sánh — tập file đang chọn và dùng được (READY)]');
   log(`  dòng: cũ ${s.dong_cu} → mới ${s.dong_moi_sau_loc_trung} (sau khi lọc trùng theo khoá của importer; ${s.dong_moi_trung_du_lieu_con_lai} dòng trong số đó trùng dữ liệu còn lại sẽ bị bỏ qua)`);
-  log(`  SHBG: cũ ${s.shbg_cu} · mới ${s.shbg_moi} · chung ${s.shbg_chung} · CHỈ Ở CŨ ${s.shbg_chi_o_cu} (mất ${pct(s.ty_le_mat)}) · chỉ ở mới ${s.shbg_chi_o_moi}`);
+  log(`  SHBG: cũ ${s.shbg_cu} · mới ${s.shbg_moi} · chung ${s.shbg_chung} · chỉ ở mới ${s.shbg_chi_o_moi}`);
+  log(`  MẤT THẬT ${s.shbg_mat_that} (${pct(s.ty_le_mat_that)}) — mức CẬN TRÊN ${s.shbg_chi_o_cu} (${pct(s.ty_le_mat)}) (cận trên chưa trừ SHBG còn ở file ngoài tập cùng BCVH; cảnh báo và khoá tính theo MẤT THẬT)`);
   log('  theo ngày đến (SHBG cũ → mới):');
   for (const n of s.theo_ngay_den) log(`    ${n.ngay === null ? '(chưa có ngày đến)' : n.ngay}: ${n.shbg_cu} → ${n.shbg_moi}`);
   if (s.shbg_mau_chi_o_cu.length) log(`  SHBG mẫu chỉ ở cũ (6 ký tự đầu): ${s.shbg_mau_chi_o_cu.map((x) => x.slice(0, 6)).join(', ')}`);

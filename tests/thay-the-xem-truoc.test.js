@@ -126,7 +126,7 @@ test('AN_TOAN: file mới đủ (và thêm SHBG) -> không mất, không khoá; 
   const src = nguonChuan(rangeShbg(0, 110));
   const kq = await xem(src);
   assert.deepEqual([kq.so_sanh.shbg_cu, kq.so_sanh.shbg_moi, kq.so_sanh.shbg_chung, kq.so_sanh.shbg_chi_o_cu, kq.so_sanh.shbg_chi_o_moi, kq.so_sanh.ty_le_mat], [100, 110, 100, 0, 10, 0]);
-  assert.deepEqual(kq.canh_bao, { muc: 'AN_TOAN', khoa_mac_dinh: false, nguong_do: 0.05, khong_the_thay: false, ly_do_khong_the_thay: null });
+  assert.deepEqual(kq.canh_bao, { muc: 'AN_TOAN', khoa_mac_dinh: false, can_dong_y_mat: false, nguong_do: 0.05, khong_the_thay: false, ly_do_khong_the_thay: null });
   assert.equal(kq.so_sanh.dong_cu, 100);
   assert.equal(kq.so_sanh.dong_moi_sau_loc_trung, 110);
   assert.deepEqual(kq.so_sanh.shbg_mau_chi_o_cu, []);
@@ -315,6 +315,104 @@ test('ảnh hưởng trạng thái phát: đếm SHBG có trạng thái trong t�
   // không có trạng thái nào
   ctx.db.prepare('DELETE FROM phat_status_current').run();
   assert.deepEqual((await xem(nguonChuan(rangeShbg(0, 20)))).phat, { co_bang: true, so_shbg_co_trang_thai: 0, con_o_ban_moi: 0, khong_con: 0 });
+});
+
+// ---------- SANLUONG-5g-3b: xem trước trả «mất thật» và tính mức cảnh báo / khoá / phát theo mất thật ----------
+const TT = require('../server/lib/thayTheThucHien');
+const chayKho = (client) => TT.thayTheNgay({ client, dirs: [D1], db: ctx.db, bcvh: B, ngay: NGAY, tmpDir: tmpRoot, now: () => NOW, options: { chayKho: true } });
+/** Dữ liệu cũ 0..100 (nhập tay) + file sáng D+1 của cùng BCVH chứa SHBG `giu` (mốc nằm ở ngày D). Nguồn mới = 20..100 => cận trên luôn là 20. */
+async function dungMatThat(giu) {
+  await napCu(rangeShbg(0, 100));
+  if (giu.length) await nap(ten(B, '2026-10-11', '093012'), csv(giu, { ngay: NGAY }));
+  return nguonChuan(rangeShbg(20, 100));
+}
+
+test('mất thật < cận trên: SHBG chỉ ở tập cũ nhưng còn ở file D+1 cùng BCVH -> mất thật 0 => AN_TOAN, không khoá, dù cận trên 20% (> 5%)', async () => {
+  const src = await dungMatThat(rangeShbg(0, 20));
+  const kq = await xem(src);
+  const s = kq.so_sanh;
+  assert.deepEqual([s.shbg_chi_o_cu, s.ty_le_mat, s.shbg_mat_that, s.ty_le_mat_that], [20, 0.2, 0, 0]);
+  assert.deepEqual(kq.canh_bao, { muc: 'AN_TOAN', khoa_mac_dinh: false, can_dong_y_mat: false, nguong_do: 0.05, khong_the_thay: false, ly_do_khong_the_thay: null });
+  assert.deepEqual(s.shbg_mau_mat_that, []);
+  assert.equal(s.shbg_mau_chi_o_cu.length, 20, 'số cận trên và mẫu cũ giữ nguyên');
+});
+
+test('mất thật: đúng 5% vẫn CAN_XAC_NHAN (khoá, cần đồng ý); hơn 5% là DO; số cận trên không đổi', async () => {
+  let kq = await xem(await dungMatThat(rangeShbg(0, 15))); // cứu 15/20 -> mất thật 5/100
+  assert.deepEqual([kq.so_sanh.shbg_chi_o_cu, kq.so_sanh.shbg_mat_that, kq.so_sanh.ty_le_mat_that, kq.canh_bao.muc, kq.canh_bao.khoa_mac_dinh, kq.canh_bao.can_dong_y_mat], [20, 5, 0.05, 'CAN_XAC_NHAN', true, true]);
+  assert.deepEqual(kq.so_sanh.shbg_mau_mat_that, rangeShbg(15, 20).map((x) => x.slice(0, 6)));
+  ctx.db.prepare('DELETE FROM arrival_items').run(); ctx.db.prepare('DELETE FROM arrival_import_files').run();
+  kq = await xem(await dungMatThat(rangeShbg(0, 14))); // mất thật 6/100
+  assert.deepEqual([kq.so_sanh.shbg_mat_that, kq.so_sanh.ty_le_mat_that, kq.canh_bao.muc], [6, 0.06, 'DO']);
+  assert.equal(kq.so_sanh.ty_le_mat, 0.2);
+});
+
+test('mất thật: SHBG còn ở file của BCVH KHÁC vẫn tính là mất', async () => {
+  await napCu(rangeShbg(0, 100));
+  await nap(ten('535470', NGAY, '093012'), csv(rangeShbg(0, 20), { ma: '535470' }));
+  const kq = await xem(nguonChuan(rangeShbg(20, 100)));
+  assert.deepEqual([kq.so_sanh.shbg_chi_o_cu, kq.so_sanh.shbg_mat_that, kq.canh_bao.muc, kq.canh_bao.khoa_mac_dinh], [20, 20, 'DO', true]);
+});
+
+test('ảnh hưởng trạng thái phát tính theo mất thật: SHBG được cứu bởi file ngoài tập không bị tính là «không còn»', async () => {
+  const src = await dungMatThat(rangeShbg(0, 15));
+  const them = (s) => ctx.db.prepare("INSERT INTO phat_status_current (bcvh, shbg, trang_thai, batch_id, nhap_luc) VALUES (?, ?, 'PTC', 1, '2026-10-12T01:00:00Z')").run(B, s);
+  for (const i of [0, 1, 16, 17, 50]) them(shbg(i)); // 0, 1 được cứu bởi D+1; 16, 17 mất thật; 50 còn ở file mới
+  const kq = await xem(src);
+  assert.deepEqual(kq.phat, { co_bang: true, so_shbg_co_trang_thai: 5, con_o_ban_moi: 3, khong_con: 2 });
+});
+
+test('đối chiếu với thayTheNgay (chạy khô): cùng dữ liệu giả cho cùng shbg_mat_that, mức cảnh báo, khoá, phát', async () => {
+  const them = (s) => ctx.db.prepare("INSERT INTO phat_status_current (bcvh, shbg, trang_thai, batch_id, nhap_luc) VALUES (?, ?, 'PTC', 1, '2026-10-12T01:00:00Z')").run(B, s);
+  const giu = rangeShbg(0, 14);
+  const truoc = await dungMatThat(giu);
+  for (const i of [0, 3, 15, 16, 60]) them(shbg(i));
+  const a = await xem(truoc);
+  const b = await chayKho(nguonChuan(rangeShbg(20, 100)));
+  assert.equal(a.so_sanh.shbg_mat_that, b.so_sanh.shbg_mat_that);
+  assert.equal(a.so_sanh.ty_le_mat_that, b.so_sanh.ty_le_mat_that);
+  assert.equal(a.so_sanh.shbg_mat_that, 6);
+  assert.equal(a.canh_bao.muc, b.canh_bao.muc);
+  assert.equal(a.canh_bao.muc, 'DO');
+  assert.equal(a.canh_bao.can_dong_y_mat, b.canh_bao.can_dong_y_mat);
+  assert.deepEqual(a.phat, b.phat);
+  assert.equal(a.so_sanh.shbg_chi_o_cu, b.so_sanh.shbg_mat_can_tren);
+});
+
+test('phản hồi không chứa SHBG đầy đủ ở các trường mới (shbg_mau_mat_that chỉ 6 ký tự đầu, tối đa SO_SHBG_MAU); SHBG đầy đủ chỉ còn ở trường cũ shbg_mau_chi_o_cu', async () => {
+  const kq = await xem(await dungMatThat([]));
+  assert.equal(kq.so_sanh.shbg_mat_that, 20);
+  assert.ok(kq.so_sanh.shbg_mau_mat_that.length > 0 && kq.so_sanh.shbg_mau_mat_that.length <= CF.SO_SHBG_MAU);
+  assert.ok(kq.so_sanh.shbg_mau_mat_that.every((x) => x.length === 6 && x === 'ZZ9000'));
+  const { shbg_mau_chi_o_cu: cu, ...conLai } = kq.so_sanh;
+  assert.ok(cu.every((x) => /^ZZ9\d{8}VN$/.test(x)), 'trường cũ giữ nguyên (đầy đủ, chỉ cho ADMIN)');
+  assert.ok(!/ZZ9\d{8}VN/.test(JSON.stringify({ ...kq, so_sanh: conLai })), 'mọi chỗ khác không có SHBG đầy đủ');
+  assert.ok(!/\d{15,}/.test(JSON.stringify(kq)));
+});
+
+test('đo thời gian xem trước trên DB giả ~150.000 dòng (30 file ngoài tập x 5.000 dòng) với 100 SHBG mất thật không được cứu (quét toàn bộ file ngoài tập)', async (t) => {
+  const insF = ctx.db.prepare("INSERT INTO arrival_import_files (unit_code, file_name, file_date, file_time, file_size, sha256, status, source) VALUES (?, ?, ?, '09:30:12', 1, ?, 'OK', 'SFTP')");
+  const insI = ctx.db.prepare('INSERT INTO arrival_items (import_file_id, tracking_no, bd8_no, receiver_code, arrival_date) VALUES (?, ?, ?, ?, ?)');
+  ctx.db.transaction(() => {
+    for (let d = 1; d <= 30; d++) {
+      const id = insF.run(B, `HangDen_${B}_202609${String(d).padStart(2, '0')}_093012.csv`, `2026-09-${String(d).padStart(2, '0')}`, `x${d}`).lastInsertRowid;
+      for (let i = 0; i < 5000; i++) insI.run(id, `ZY${d}X${i}`, `q${i}`, B, '2026-09-10');
+    }
+  })();
+  await napCu(rangeShbg(0, 3500));
+  const src = nguonChuan(rangeShbg(100, 4000));
+  const t0 = process.hrtime.bigint();
+  const kq = await xem(src);
+  const ms = Number((process.hrtime.bigint() - t0) / 1000000n);
+  t.diagnostic(`ĐO xem trước: ${ms} ms (DB ~${ctx.db.prepare('SELECT COUNT(*) AS n FROM arrival_items').get().n} dòng; mất thật ${kq.so_sanh.shbg_mat_that})`);
+  assert.equal(kq.so_sanh.shbg_mat_that, 100);
+  assert.equal(kq.canh_bao.muc, 'CAN_XAC_NHAN');
+  const t1 = process.hrtime.bigint();
+  const ss = Date.now();
+  void ss;
+  const s2 = await chayKho(nguonChuan(rangeShbg(100, 4000)));
+  t.diagnostic(`ĐO thayTheNgay chạy khô: ${Number((process.hrtime.bigint() - t1) / 1000000n)} ms`);
+  assert.equal(s2.so_sanh.shbg_mat_that, 100);
 });
 
 // ---------- an toàn / đồng thời ----------
@@ -516,7 +614,7 @@ test('kết quả không có dãy ≥ 15 chữ số (SHBG giả 13 ký tự); c�
   const kq = await xem(nguonChuan(rangeShbg(0, 18)));
   assert.ok(!/\d{15,}/.test(JSON.stringify(kq)));
   assert.deepEqual(Object.keys(kq), ['bcvh', 'ngay', 'tao_luc', 'db', 'nguon', 'so_sanh', 'canh_bao', 'phat', 'tap_file_nguon']);
-  assert.deepEqual(Object.keys(kq.so_sanh), ['dong_cu', 'dong_moi_sau_loc_trung', 'dong_moi_trung_du_lieu_con_lai', 'shbg_cu', 'shbg_moi', 'shbg_chi_o_cu', 'shbg_chi_o_moi', 'shbg_chung', 'ty_le_mat', 'theo_ngay_den', 'shbg_mau_chi_o_cu']);
+  assert.deepEqual(Object.keys(kq.so_sanh), ['dong_cu', 'dong_moi_sau_loc_trung', 'dong_moi_trung_du_lieu_con_lai', 'shbg_cu', 'shbg_moi', 'shbg_chi_o_cu', 'shbg_chi_o_moi', 'shbg_chung', 'ty_le_mat', 'shbg_mat_that', 'ty_le_mat_that', 'theo_ngay_den', 'shbg_mau_chi_o_cu', 'shbg_mau_mat_that']);
   assert.equal(kq.tao_luc, NOW.toISOString());
 });
 
