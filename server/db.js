@@ -123,6 +123,13 @@ try {
   console.error('[db] Lỗi tạo bảng sftp_sync_*:', err.message);
 }
 
+// «Thay thế ngày của một BCVH» (thay_the_nhat_ky, thung_rac_file, thung_rac_dong) — SANLUONG-5g-3. Idempotent; schema ở server/lib/thayTheThucHien.js. Giờ lưu UTC.
+try {
+  require('./lib/thayTheThucHien').ensureThayTheSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng thay_the_* / thung_rac_*:', err.message);
+}
+
 // ==========================================
 // Gán GDVH ↔ BCVH (user_bcvh). Idempotent. Schema đặt trong server/lib/userBcvh.js.
 // ==========================================

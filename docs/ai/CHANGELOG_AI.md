@@ -2,6 +2,17 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5g-3: THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (xóa + nạp lại, sao lưu, thùng rác, khoá, nhật ký)
+
+- **Mới** `server/lib/thayTheThucHien.js` (`thayTheNgay`, `ensureThayTheSchema`, `donThungRac`, `donSaoLuu`; không nạp thư viện SFTP, không mở DB), route **`POST /api/arrivals/thay-the/thuc-hien`** (chỉ ADMIN; `SECURITY_LOG` không SHBG), script **`scripts/thay-the-ngay.js`** (khô mặc định; thật cần `--chay-that` + `--xac-nhan=<mã>:<ngày>` + `--dong-y-mat` nếu mất thật; mã thoát 0–11). Bảng mới (UTC) `thay_the_nhat_ky`, `thung_rac_file`, `thung_rac_dong` (tạo ở `server/db.js`; không đổi bảng hiện có). Hằng số mới ở `server/config/thay-the.js` (30 ngày thùng rác, 5 bản sao lưu, đệm 32 MiB).
+- Thứ tự: đầu vào + gõ lại xác nhận → khoá thật (`sftp_sync_runs`, cờ bộ nhớ) → tải + `chuanBiFile` + so `sha256` bản xem trước → so sánh + **«mất thật»** (trừ SHBG còn ở file ngoài tập cùng BCVH) + khoá đồng ý → `db.backup()` toàn DB (`data/backups/`, giữ 5) → MỘT `db.transaction` đồng bộ (thùng rác → xóa → `ghiFileDaChuanBi(ghiTuChoi:false)` + kiểm `status` → nhật ký) → dọn → nhả khoá. Nguồn SFTP chỉ list / get / end.
+- **Sửa nhỏ `server/lib/thayTheXemTruoc.js`** (ngoại lệ cho phép; kết quả xem trước KHÔNG đổi): tách `lietKeNguonCuaNgay`, `tinhSoSanh`, `mucCanhBaoTheo` để dùng chung; xuất thêm `docPhiaDb`, `docPhiaPhat`. Không đổi `arrivalsImport.js`, `sftpSync.js`, `sftpScheduler.js`.
+- **Test** `tests/thay-the-thuc-hien.test.js` (mới, 32 ca; đã thêm vào `npm test`): thành công, ngoài tập còn nguyên, nguyên khối (REJECTED / ném lỗi / trigger DB thật / dữ liệu đổi giữa chừng → DB y nguyên mọi bảng), xác nhận, mất thật vs cận trên, `NGUON_DA_DOI`, tập rỗng, sao lưu lỗi + giữ 5 bản, thùng rác 30 ngày + mô phỏng khôi phục, khoá (lõi đồng bộ + hẹn giờ bỏ qua lượt, hai lần thay cùng lúc), chạy khô, route + quyền + `SECURITY_LOG`, script, kiểm tĩnh (không `await` trong giao dịch, không lệnh ghi SFTP). 461 → 494 ca.
+- **Ngoại lệ sửa test cũ (PO yêu cầu 15/10/2026)**: `tests/thay-the-xem-truoc.test.js` ĐỎ ở máy có `.env` chứa `SFTP_*` (route nhận 200 thay vì 503, có thể đã kết nối NAS thật) vì `server/index.js` nạp `.env` bằng `process.loadEnvFile()` khi harness `require` nó. Nay test cách ly `SFTP_*` (đầu file + sau `startTestServer`, khôi phục sau), nguồn mặc định CẤM MẠNG, thêm 1 ca canh (`tests/helpers/khongMang.js`). Đã kiểm lại với `.env` giả ở thư mục đứng và `SFTP_HOST=127.0.0.1` trong tiến trình: xanh; bản cũ đỏ đúng ca đó.
+- Docs: `16_THAY_THE_NGAY_THUC_HIEN.md`, `04_DECISIONS.md` #83, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Chưa làm: hoàn tác (5g-5), giao diện (5g-4), chạy với NAS / DB thật.
+
+---
+
 ## [2026-10-15] - SANLUONG-5g-2: Xem trước «Thay thế ngày của một BCVH» (chỉ đọc)
 
 - **Mới** `server/lib/thayTheXemTruoc.js` (`xemTruocThayThe`; chỉ SELECT, không nạp thư viện SFTP, không lệnh ghi), `server/config/thay-the.js` (`NGUONG_MAT_SHBG_DO = 0.05` TẠM, `SO_SHBG_MAU = 20`), route **`POST /api/arrivals/thay-the/xem-truoc`** (chỉ ADMIN; `server/routes/arrivals.js`; ghi `SECURITY_LOG` không có SHBG), script **`scripts/thay-the-xem-truoc.js`** (DB chỉ-đọc, ghim vân tay; mã thoát 0–8).

@@ -628,5 +628,16 @@ Căn cứ: `14_XOA_DU_LIEU_NGAY_AUDIT.md`; importer đã tách (#81). Chi tiết
 - **Trạng thái phát** (`phat_status_current(bcvh, shbg)`, không FK): chỉ đếm SHBG có trạng thái trong tập bị xóa, còn / không còn ở bản mới.
 - **Chưa làm**: xóa, nạp, thùng rác, giao dịch thay thế (5g-3), giao diện (5g-4).
 
+### 83. Thực hiện «Thay thế ngày của một BCVH» nguyên khối: khoá chung với đồng bộ, «mất thật», sao lưu mỗi lần, thùng rác 30 ngày (PO quyết 14–15/10/2026 — SANLUONG-5g-3)
+Căn cứ: #81 (importer đã tách), #82 (xem trước); chi tiết `16_THAY_THE_NGAY_THUC_HIEN.md`.
+- **Nguyên khối**: một `db.transaction` ĐỒNG BỘ (không `await`): chép thùng rác → xóa `arrival_items` rồi `arrival_import_files` của MỌI file `unit_code = X`, `file_date = D` (kể cả `REJECTED` / `CONFLICT` và nhập tay `_235959`) → nạp từng file mới bằng `ghiFileDaChuanBi(…, { ghiTuChoi: false, source: 'SFTP' })` → KIỂM `status` trả về (hàm ghi chỉ trả `REJECTED`, không ném, nên lõi tự ném để hoàn tác) → nhật ký. KHÔNG xóa trạng thái phát (tự nối lại theo `(bcvh, shbg)`).
+- **Khoá thật**: dùng chính bảng `sftp_sync_runs` (hàng chưa `finished_at`, < 30 phút) nên `syncSftpOnce`, bộ hẹn giờ và `sftp-sync.js` bỏ qua lượt; thêm cờ trong bộ nhớ chống hai lần thay cùng lúc. Lõi tự giành khoá bằng hàm của riêng nó (không sửa `sftpSync.js`); nhả = xóa hàng giữ chỗ.
+- **Tin nguồn thật, không tin bản xem trước**: tải lại, `chuanBiFile`, so `sha256` + tên với `tap_file_nguon` của bản xem trước (`NGUON_DA_DOI`); file chọn lỗi thì dừng, KHÔNG xóa gì. Người dùng phải gõ lại mã BCVH + ngày (`XAC_NHAN_SAI`).
+- **«Mất thật»** = SHBG có ở tập cũ, không có ở tập mới VÀ không còn dòng nào ở file ngoài tập của cùng BCVH (vd file sáng D+1). Mức cảnh báo (ngưỡng ĐỎ 5 %, đúng 5 % vẫn `CAN_XAC_NHAN`) và khoá đồng ý (`dong_y_mat_du_lieu === true`) tính theo «mất thật»; số cận trên của 5g-2 vẫn trả. Tách `tinhSoSanh` / `mucCanhBaoTheo` / `lietKeNguonCuaNgay` khỏi `thayTheXemTruoc.js` để dùng chung (kết quả xem trước không đổi).
+- **Sao lưu mỗi lần** (`db.backup()` toàn DB, sau khi chắc chắn sẽ thay; lỗi / thiếu chỗ → KHÔNG thay): `data/backups/truoc-thay-the_<bcvh>_<ngày>_<UTC>.db`, giữ 5 bản. **Thùng rác 30 ngày**: bảng `thung_rac_file`, `thung_rac_dong` giữ nguyên `id` và `import_file_id` gốc (đủ để 5g-5 khôi phục); dọn khi lần thay kế tiếp chạy hoặc bằng `donThungRac`, không có tác vụ nền. **Nhật ký** `thay_the_nhat_ky` (UTC) chỉ ghi lần thành công.
+- **Route** `POST /api/arrivals/thay-the/thuc-hien` (chỉ ADMIN; 400 / 409 / 422 / 502 / 503 / 507 / 500, không để lại thay đổi khi lỗi; phản hồi chỉ có tên tệp sao lưu), **script** `scripts/thay-the-ngay.js` (khô mặc định; thật cần `--chay-that` + `--xac-nhan=<mã>:<ngày>` + `--dong-y-mat` nếu mất thật; mã thoát 9 / 10 / 11 thêm).
+- **Test không phụ thuộc môi trường** (bổ sung theo yêu cầu PO 15/10/2026): `server/index.js` nạp `.env` bằng `process.loadEnvFile()` khi harness `require` nó (nạp SAU khi file test bắt đầu), nên test cụm SFTP cách ly `SFTP_*` cả ở đầu file lẫn ngay sau `startTestServer` và đặt nguồn mặc định CẤM MẠNG (`tests/helpers/khongMang.js`).
+- **Chưa làm**: hoàn tác từ thùng rác (5g-5), giao diện (5g-4), chạy với NAS / DB thật.
+
 ## Drift phát hiện
 _(chưa có)_

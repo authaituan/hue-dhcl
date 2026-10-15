@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { startTestServer, waitForServer, cleanupDbFiles, closeServer } = require('./helpers/serverHarness');
 const { seedUser, loginAs } = require('./helpers/fixtures');
+const { MANG_BI_CAM, cachLySftpEnv, nguonCamMang } = require('./helpers/khongMang');
 const { importArrivalFile, EXPECTED_HEADER } = require('../server/lib/arrivalsImport');
 const T = require('../server/lib/thayTheXemTruoc');
 const CF = require('../server/config/thay-the');
@@ -30,6 +31,7 @@ const USERS = {
   tivi: { hrm: 'XT_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
+const khoiPhuc = [cachLySftpEnv()]; // test KHÔNG phụ thuộc môi trường (.env của máy): xóa SFTP_* ngay từ đầu file, và LẠI sau khi harness nạp server/index.js (nó nạp .env)
 let ctx;
 let dir;
 let tmpRoot;
@@ -59,6 +61,7 @@ before(async () => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhcl-xemtruoc-tmp-'));
   ctx = startTestServer({ port: PORT, dbFileName: `dhcl-test-xemtruoc-${Date.now()}.db` });
   await waitForServer(ctx.baseUrl);
+  khoiPhuc.push(cachLySftpEnv());
   for (const [k, u] of Object.entries(USERS)) {
     seedUser(ctx.db, { hrmCode: u.hrm, fullName: u.hrm, role: u.role, password: u.pass });
     tokens[k] = (await loginAs(ctx.baseUrl, u.hrm, u.pass)).body.token;
@@ -66,13 +69,15 @@ before(async () => {
 });
 after(async () => {
   T.datNguon(null);
+  for (const f of khoiPhuc.reverse()) f();
   await closeServer(ctx.server);
   cleanupDbFiles(ctx.testDbPath, ctx.db);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.rmSync(tmpRoot, { recursive: true, force: true });
 });
 beforeEach(() => {
-  T.datNguon(null);
+  cachLySftpEnv();
+  T.datNguon(nguonCamMang([D1])); // nguồn mặc định CẤM MẠNG: ca nào cần nguồn thì tự đặt
   for (const t of ['sftp_sync_files', 'sftp_sync_runs', 'sftp_source_files', 'phat_status_current', 'arrival_items', 'arrival_import_files', 'ward_bdx_map']) ctx.db.prepare(`DELETE FROM ${t}`).run();
 });
 
@@ -448,11 +453,42 @@ test('route: tham số sai 400; khoá 409; lỗi nguồn 502 có mã; chưa cấ
   T.datNguon({ ketNoi: async () => { throw Object.assign(new Error('All configured authentication methods failed'), {}); }, dirs: [D1] });
   const x = await goi('admin', { bcvh: B, ngay: NGAY });
   assert.deepEqual([x.status, x.body.ma], [502, 'NGUON_XAC_THUC']);
-  // chưa cấu hình (môi trường test không có SFTP_*)
+  // chưa cấu hình (SFTP_* đã bị cách ly): dùng đường đọc cấu hình môi trường thật của layNguon
   T.datNguon(null);
   const c = await goi('admin', { bcvh: B, ngay: NGAY });
   assert.deepEqual([c.status, c.body.ma], [503, 'CHUA_CAU_HINH_SFTP']);
   assert.match(c.body.error, /SFTP_/);
+});
+
+test('canh môi trường: dù process.env có SFTP_* (giá trị giả) hoặc .env nạp muộn, route KHÔNG gọi ketNoiSftp thật; nguồn mặc định cấm mạng', async () => {
+  const SC = require('../server/lib/sftpConnect');
+  const that = SC.ketNoiSftp;
+  let soLanGoi = 0;
+  SC.ketNoiSftp = async () => { soLanGoi++; throw new Error(MANG_BI_CAM); };
+  const cu = { ...process.env };
+  try {
+    // 1. cấu hình giả ĐỦ và đúng dạng nằm trong process.env, nhưng test đã cách ly -> 503, không chạm kết nối
+    Object.assign(process.env, { SFTP_HOST: '127.0.0.1', SFTP_PORT: '5454', SFTP_USER: 'nguoi-dung-gia', SFTP_PASSWORD: 'mat-khau-gia', SFTP_DIRS: D1, SFTP_HOSTKEY_SHA256: 'a'.repeat(64) });
+    cachLySftpEnv();
+    T.datNguon(null);
+    const a = await goi('admin', { bcvh: B, ngay: NGAY });
+    assert.deepEqual([a.status, a.body.ma], [503, 'CHUA_CAU_HINH_SFTP']);
+    assert.equal(soLanGoi, 0);
+    // 2. nếu lỡ biến SFTP_* còn trong môi trường, đường duy nhất tới mạng là sftpConnect.ketNoiSftp — đã bị thay bằng bản cấm mạng (đỏ ngay, không kết nối thật)
+    Object.assign(process.env, { SFTP_HOST: '127.0.0.1', SFTP_PORT: '5454', SFTP_USER: 'nguoi-dung-gia', SFTP_PASSWORD: 'mat-khau-gia', SFTP_DIRS: D1, SFTP_HOSTKEY_SHA256: 'a'.repeat(64) });
+    const b = await goi('admin', { bcvh: B, ngay: NGAY });
+    assert.equal(soLanGoi, 1, 'chỉ chạm bản giả');
+    assert.equal(b.status, 502);
+    assert.ok(!/mat-khau-gia|nguoi-dung-gia/.test(JSON.stringify(b.body)));
+    // 3. nguồn mặc định của file test là cấm mạng
+    T.datNguon(nguonCamMang([D1]));
+    await assert.rejects(() => T.layNguon().ketNoi(), new RegExp(MANG_BI_CAM));
+  } finally {
+    SC.ketNoiSftp = that;
+    for (const k of Object.keys(process.env)) if (/^SFTP_/.test(k)) delete process.env[k];
+    for (const [k, v] of Object.entries(cu)) if (/^SFTP_/.test(k)) process.env[k] = v;
+    cachLySftpEnv();
+  }
 });
 
 test('SECURITY_LOG: mỗi lần xem trước một dòng (ai, BCVH, ngày, kết quả) — KHÔNG có SHBG, KHÔNG có mật khẩu', async () => {
