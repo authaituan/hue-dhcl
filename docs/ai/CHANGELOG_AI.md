@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5f-2: API GHI «Lấy ngay» và «Lấy lại» (chỉ ADMIN, ghi người bấm)
+
+- **Mới** `server/lib/napNguonLay.js`, route `POST /api/nap-nguon/lay-ngay` và `/lay-lai` (`server/routes/napNguon.js`, `requireAdmin`; 202 + chạy nền; 400 / 409 `DANG_CHAY` `TAM_DUNG` / 503; `SECURITY_LOG` không bí mật), hằng số `SO_FILE_TOI_DA_LAY_NGAY = 20`, `SO_O_TOI_DA_LAY_LAI = 20`. Bảng `sftp_sync_runs` thêm 4 cột nullable (`loai`, `nguoi_bam_ma`, `nguoi_bam_ten`, `so_o_yeu_cau`; chỉ ADD COLUMN, idempotent, `ensureLuotSchema` gọi ở `server/db.js`).
+- **Sửa lõi chỉ ở dạng thêm** (PO cho phép): `sftpSync.syncSftpOnce` nhận `options.luotCoSan`; `sftpScheduler` thêm `tamDungHenGio` / `bo.tamDungNgoai` (lượt tay lỗi xác thực / vân tay đưa hẹn giờ về `TAM_DUNG`). Không đổi importer, `thayThe*.js`. **5f-1**: `nguoi` `{ma, ten}`|null, `loai`, `so_o_yeu_cau` ở mọi hình lượt; `luot_gan_nhat` và `dang_chay` thêm `loai`, `nguoi`.
+- **Bước 0**: importer cho nạp lại `REJECTED`/`CONFLICT` nhưng KHÔNG nạp được `EMPTY` khi nguồn đổi nội dung (→ `KHONG_THE_LAY_LAI`, phương án chờ PO); chốt `DA_TU_CHOI` của lõi đồng bộ nên «Lấy lại» có vòng lặp riêng. Chi tiết `18_NAP_DU_LIEU_NGUON_API_LAY.md`.
+- **Test** `tests/nap-nguon-lay.test.js` (mới, 18 ca; đã thêm vào `npm test`). **Test cũ sửa (ngoại lệ có chủ đích)**: `tests/nap-nguon-doc.test.js` (khoá `Object.keys` của lượt + `luot_gan_nhat`/`dang_chay` thêm `loai`/`nguoi` + kiểm tĩnh route: 5 GET + 2 POST), `tests/sftp-sync.test.js` (danh sách cột `sftp_sync_runs` thêm 4 cột). 518 → 536 ca. Docs: `18_NAP_DU_LIEU_NGUON_API_LAY.md`, `04_DECISIONS.md` #86, `17_…` (nguoi), `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Chưa làm: 5f-3 (giao diện), thay bản ghi `EMPTY`.
+
+---
+
 ## [2026-10-15] - SANLUONG-5f-1: API ĐỌC màn «Nạp dữ liệu nguồn» (chỉ ADMIN)
 
 - **Mới** `server/lib/napNguonDoc.js` (lõi thuần chỉ SELECT: `tongQuan`, `luoi`, `mot`, `dsLuot`, `chiTietLuot`), `server/routes/napNguon.js` (năm đường `GET /api/nap-nguon/tong-quan | luoi | o | luot | luot/:id`, `requireAdmin`; đăng ký ở `server/index.js`), `server/config/nap-nguon.js` (hằng số TẠM: giờ mong đợi 09:30 / 16:30, ân hạn 60 phút, ranh giới đợt 12:00, 62 ngày, ngưỡng 0,5× / 2,5×, 4 tuần mẫu, ≥ 3 ngày). Không bảng mới, không ghi DB, không đổi `/api/arrivals/*`.

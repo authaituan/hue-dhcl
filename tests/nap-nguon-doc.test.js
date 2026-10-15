@@ -259,14 +259,14 @@ test('lọc hàng khoá «Thay thế ngày» khỏi danh sách lượt, lượt 
   const khoaXong = luot({ trigger: 'MANUAL', xong: true, batDau: '2026-10-14T01:40:00.000Z', ghiChu: `${CF.TIEN_TO_KHOA_THAY_THE} (x)` });
   const now = new Date('2026-10-14T01:35:00.000Z');
   const tq = N.tongQuan({ db: ctx.db, now, tuDong: {} });
-  assert.deepEqual(tq.luot_gan_nhat, { id: that, bat_dau: '2026-10-14T01:00:00.000Z', cach_chay: 'TU_DONG', ket_qua: 'THANH_CONG' });
+  assert.deepEqual(tq.luot_gan_nhat, { id: that, bat_dau: '2026-10-14T01:00:00.000Z', cach_chay: 'TU_DONG', loai: null, nguoi: null, ket_qua: 'THANH_CONG' });
   assert.equal(tq.dang_chay, null, 'hàng khoá chưa kết thúc không phải «đang chạy»');
   const ds = N.dsLuot({ db: ctx.db, now });
   assert.deepEqual([ds.tong, ds.luot.map((x) => x.id)], [1, [that]]);
   for (const id of [khoa, khoaXong]) assert.throws(() => N.chiTietLuot({ db: ctx.db, now, id }), (e) => e.httpStatus === 404);
   // lượt thật đang chạy (< 30 phút) -> dang_chay; quá 30 phút -> TREO, không còn đang chạy
   const chay = luot({ trigger: 'MANUAL', xong: false, batDau: '2026-10-14T01:20:00.000Z' });
-  assert.deepEqual(N.tongQuan({ db: ctx.db, now, tuDong: {} }).dang_chay, { id: chay, bat_dau: '2026-10-14T01:20:00.000Z' });
+  assert.deepEqual(N.tongQuan({ db: ctx.db, now, tuDong: {} }).dang_chay, { id: chay, bat_dau: '2026-10-14T01:20:00.000Z', cach_chay: 'TAY', loai: null, nguoi: null });
   assert.equal(N.dsLuot({ db: ctx.db, now }).luot[0].ket_qua, 'DANG_CHAY');
   const sau = new Date('2026-10-14T03:00:00.000Z');
   assert.equal(N.tongQuan({ db: ctx.db, now: sau, tuDong: {} }).dang_chay, null);
@@ -280,7 +280,7 @@ test('danh sách lượt: phân trang (mặc định 20, tối đa 100), mới n
   assert.deepEqual([t1.trang, t1.kich_thuoc, t1.tong, t1.so_trang, t1.luot.length], [1, 20, 25, 2, 20]);
   assert.equal(t1.luot[0].id, ids[24]);
   assert.deepEqual([t1.luot[0].ket_qua, t1.luot[0].cach_chay, t1.luot[1].cach_chay, t1.luot[0].nguoi], ['CO_LOI', 'TAY', 'TU_DONG', null]);
-  assert.deepEqual(Object.keys(t1.luot[0]), ['id', 'bat_dau', 'ket_thuc', 'cach_chay', 'liet_ke', 'da_nap', 'da_co', 'chua_on_dinh', 'rong', 'bo_qua_khac', 'loi', 'ket_qua', 'nguoi', 'ghi_chu_loi']);
+  assert.deepEqual(Object.keys(t1.luot[0]), ['id', 'bat_dau', 'ket_thuc', 'cach_chay', 'loai', 'so_o_yeu_cau', 'liet_ke', 'da_nap', 'da_co', 'chua_on_dinh', 'rong', 'bo_qua_khac', 'loi', 'ket_qua', 'nguoi', 'ghi_chu_loi']);
   const t2 = N.dsLuot({ db: ctx.db, now: NOW, trang: '2', kichThuoc: '10' });
   assert.deepEqual([t2.trang, t2.kich_thuoc, t2.luot.length, t2.luot[0].id], [2, 10, 10, ids[14]]);
   assert.equal(N.dsLuot({ db: ctx.db, now: NOW, trang: '3', kichThuoc: '10' }).luot.length, 5);
@@ -450,7 +450,7 @@ test('đo thời gian lưới 62 ngày × 6 BCVH × 2 đợt trên DB giả ~150
 const doc = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
 const boChuThich = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú thích), không nạp thư viện SFTP, không mở DB; route chỉ khai báo GET và dùng requireAdmin', () => {
+test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú thích), không nạp thư viện SFTP, không mở DB; route chỉ khai báo GET (+ hai POST của 5f-2) và dùng requireAdmin', () => {
   const raw = doc('server', 'lib', 'napNguonDoc.js');
   assert.ok(!/INSERT|UPDATE|DELETE|ALTER|CREATE/i.test(raw), 'lõi không chứa INSERT / UPDATE / DELETE / ALTER / CREATE');
   assert.ok(!raw.includes('ssh2') && !/require\(['"]\.\.?\/(db|sftpConnect)/.test(raw));
@@ -458,8 +458,11 @@ test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú th
   assert.ok(sql.length >= 8 && sql.every((x) => x.startsWith('SELECT')), sql.map((x) => x.slice(0, 30)).join(' | '));
   const rt = boChuThich(doc('server', 'routes', 'napNguon.js'));
   const lenh = [...rt.matchAll(/router\.(get|post|put|patch|delete)\(\s*'([^']+)'(?:\s*,\s*(\w+))?/g)];
-  assert.equal(lenh.length, 5);
-  assert.ok(lenh.every((m) => m[1] === 'get' && m[2].startsWith('/nap-nguon/') && m[3] === 'requireAdmin'), JSON.stringify(lenh.map((m) => m.slice(1))));
+  // 5f-1: năm đường GET; 5f-2 thêm hai đường POST (lay-ngay, lay-lai) — mọi đường đều requireAdmin
+  assert.equal(lenh.length, 7);
+  assert.ok(lenh.every((m) => m[2].startsWith('/nap-nguon/') && m[3] === 'requireAdmin'), JSON.stringify(lenh.map((m) => m.slice(1))));
+  assert.equal(lenh.filter((m) => m[1] === 'get').length, 5);
+  assert.deepEqual(lenh.filter((m) => m[1] === 'post').map((m) => m[2]), ['/nap-nguon/lay-ngay', '/nap-nguon/lay-lai']);
   assert.ok(!/prepare|\.run\(|\.exec\(/.test(rt), 'route không chạm DB trực tiếp ngoài lõi');
   assert.ok(/napNguonRoutes/.test(doc('server', 'index.js')));
   for (const f of ['arrivalsImport.js', 'sftpSync.js', 'sftpScheduler.js', 'sftpConnect.js', 'thayTheXemTruoc.js', 'thayTheThucHien.js']) assert.ok(!doc('server', 'lib', f).includes('napNguonDoc'), f);

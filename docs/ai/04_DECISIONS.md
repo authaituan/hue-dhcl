@@ -655,5 +655,14 @@ Căn cứ: canvas bảng 20; `13_SFTP_SYNC.md`, `15_SFTP_SCHEDULER.md`, #83. Chi
 - Hiệu năng: lưới 62 ngày ≈ 13 ms trên DB giả 154 nghìn dòng (vài truy vấn tổng hợp, không truy vấn từng ô). Chuỗi lỗi qua `lamSach` + che `SFTP_*`; không trả đường dẫn / host / cổng / vân tay / SHBG.
 - **Chưa làm**: «Lấy lại» / «Lấy ngay» (5f-2), giao diện (5f-3).
 
+### 86. «Lấy ngay» và «Lấy lại»: khoá chung, chạy nền 202, ghi người bấm, bỏ chốt «không thử lại» khi lấy lại (SANLUONG-5f-2)
+Căn cứ: #85 (API đọc), #83 (khoá chung), 13_SFTP_SYNC. Chi tiết và bằng chứng Bước 0: `18_NAP_DU_LIEU_NGUON_API_LAY.md`.
+- **`POST /api/nap-nguon/lay-ngay`** (một lượt `syncSftpOnce` như hẹn giờ nhưng `HAI_LAN`, tối đa 20 file, cũ trước) và **`POST /api/nap-nguon/lay-lai`** (1–20 ô BCVH × ngày × đợt, bất kỳ ngày nào còn file; chỉ file chưa có bản `OK`). Chỉ ADMIN; 202 `{luot_id, bat_dau}` rồi chạy NỀN; 409 `DANG_CHAY` (kèm `luot_id`; hàng khoá «Thay thế» không lộ) / `TAM_DUNG` (hẹn giờ tạm dừng vì lỗi xác thực / vân tay: KHÔNG kết nối); 503 `CHUA_CAU_HINH`.
+- **Khoá = hàng lượt** trong `sftp_sync_runs`, tạo ĐỒNG BỘ trong handler (hai yêu cầu đồng thời → đúng một 202); nhả bằng `finally` đóng hàng. Lỗi xác thực / vân tay sai ở lượt tay → dừng, đóng lượt, và đưa hẹn giờ về `TAM_DUNG` (hàm mới `tamDungHenGio`).
+- **Ghi người bấm**: 4 cột mới nullable `loai`, `nguoi_bam_ma`, `nguoi_bam_ten`, `so_o_yeu_cau` (chỉ ADD COLUMN, hàng cũ NULL); API đọc 5f-1 trả `nguoi {ma, ten}`/null và `loai`. Không lưu IP / token.
+- **Importer KHÔNG đổi.** `REJECTED`/`CONFLICT` cùng tên lấy lại được (importer xử lý lại), nhưng chốt `DA_TU_CHOI` của lõi đồng bộ chặn → «Lấy lại» có vòng lặp riêng (dùng `fileOnDinh`, bỏ cửa sổ ngày, GIỮ quy tắc ổn định). Ô `EMPTY` mà nguồn nay có nội dung khác: importer báo `CONFLICT` → trả `KHONG_THE_LAY_LAI` (`DA_GHI_RONG_KHAC_NOI_DUNG`); muốn lấy được phải đổi importer hoặc thay bản ghi rỗng — **chờ PO duyệt**.
+- Sửa lõi chỉ ở dạng thêm: `syncSftpOnce` nhận `options.luotCoSan`; `sftpScheduler` thêm `tamDungHenGio`. Kết quả từng ô ánh xạ vào cột `sftp_sync_files.ket_qua` sẵn có (CHECK) + `ma_loi`.
+- **Chưa làm**: giao diện (5f-3), hủy giữa chừng, thay bản ghi `EMPTY`.
+
 ## Drift phát hiện
 _(chưa có)_

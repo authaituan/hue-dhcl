@@ -184,8 +184,15 @@ function taoBoHenGio({ db, env = process.env, clock = dongHoThat, sleep, ketNoi,
     return true;
   }
 
+  /** SANLUONG-5f-2: lượt TAY («Lấy ngay» / «Lấy lại») gặp lỗi xác thực / vân tay sai -> tạm dừng hẹn giờ như lượt tự động (tránh NAS chặn IP). Chỉ có tác dụng khi hẹn giờ đang bật. */
+  function tamDungNgoai(lyDo, chiTiet) {
+    if (!cauHinh || daDung || st.trangThai === TT.TAM_DUNG) return false;
+    tamDung(lyDo, chiTiet);
+    return true;
+  }
+
   const trangThai = () => ({ ...st, luotGanNhat: st.luotGanNhat ? { ...st.luotGanNhat } : null });
-  return { batDau, dung, chayNgay, trangThai };
+  return { batDau, dung, chayNgay, trangThai, tamDungNgoai };
 }
 
 // ---------- một bộ hẹn giờ cho cả máy chủ ----------
@@ -214,4 +221,9 @@ function docTrangThaiSftp() {
   return hienTai ? hienTai.trangThai() : { trangThai: TT.CHUA_KHOI_DONG, lyDo: null, batLuc: null, luotGanNhat: null, luotKeTiep: null, chuKyPhut: null, maxFiles: null, soLuot: 0 };
 }
 
-module.exports = { MAC_DINH, TT, KET_QUA_LUOT, docCauHinhHenGio, taoBoHenGio, startSftpScheduler, stopSftpScheduler, docTrangThaiSftp, laMoiTruongTest };
+/** Tạm dừng hẹn giờ trong tiến trình từ bên ngoài (lượt tay lỗi xác thực / vân tay). lyDo: 'XAC_THUC' | 'VAN_TAY_SAI'. Trả true nếu đã chuyển sang TAM_DUNG. */
+function tamDungHenGio(lyDo, chiTiet) {
+  return hienTai ? hienTai.tamDungNgoai(lyDo, chiTiet) : false;
+}
+
+module.exports = { MAC_DINH, TT, KET_QUA_LUOT, docCauHinhHenGio, taoBoHenGio, startSftpScheduler, stopSftpScheduler, docTrangThaiSftp, tamDungHenGio, laMoiTruongTest };
