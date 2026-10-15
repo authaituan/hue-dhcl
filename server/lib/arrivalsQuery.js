@@ -694,19 +694,23 @@ function metaFor(f) {
   return { from: f.from, to: f.to, date_basis: f.dateBasis, tieu_chi: DATE_BASES[f.dateBasis].label };
 }
 
-// Tỷ lệ DÒNG (≈ bưu gửi) không có XNĐ BD10 / thuộc chuyến thư từ TTKT — cho ghi chú tiêu chí `bd10`. Nhớ theo (số dòng, id lớn nhất) để không quét lại.
+// Tỷ lệ DÒNG (≈ bưu gửi) không có XNĐ BD10 / thuộc chuyến thư từ TTKT — cho ghi chú tiêu chí `bd10`. Nhớ theo (số dòng, id dòng lớn nhất, id file lớn nhất) để không quét lại.
+// `arrival_items.id` KHÔNG AUTOINCREMENT nên xóa rồi nạp lại có thể cho lại đúng cặp (n, mx); `arrival_import_files.id` có AUTOINCREMENT (không bao giờ dùng lại) nên
+// MAX(id) của nó đổi sau mỗi lần nạp / thay — thêm vào khoá (SANLUONG-5g-5, #87). Ngoài ra «Thay thế» và «Khôi phục» gọi xoaBoNhoBd10Share() tường minh.
 const bd10ShareMemo = new WeakMap();
 function bd10Share(db) {
-  const st = db.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(id), 0) AS mx FROM arrival_items').get();
+  const st = db.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(id), 0) AS mx, (SELECT COALESCE(MAX(id), 0) FROM arrival_import_files) AS mf FROM arrival_items').get();
   const hit = bd10ShareMemo.get(db);
-  if (hit && hit.n === st.n && hit.mx === st.mx) return hit.value;
+  if (hit && hit.n === st.n && hit.mx === st.mx && hit.mf === st.mf) return hit.value;
   const r = db.prepare(`SELECT COALESCE(SUM(bd10_confirmed_at IS NULL), 0) AS khong, COALESCE(SUM(substr(bd10_no, 1, ${TTKT_BD10_PREFIX.length}) = @p), 0) AS ttkt
     FROM arrival_items`).get({ p: TTKT_BD10_PREFIX });
   const pct = (x) => (st.n ? Math.round((x / st.n) * 10000) / 100 : 0);
   const value = { don_vi: 'dong', ty_le_bi_loai: pct(r.khong), ty_le_ttkt: pct(r.ttkt) };
-  bd10ShareMemo.set(db, { n: st.n, mx: st.mx, value });
+  bd10ShareMemo.set(db, { n: st.n, mx: st.mx, mf: st.mf, value });
   return value;
 }
+/** Vô hiệu hoá bộ nhớ của bd10Share cho `db` (gọi sau khi «Thay thế» / «Khôi phục» đổi dữ liệu). */
+function xoaBoNhoBd10Share(db) { bd10ShareMemo.delete(db); }
 
 function meta(db) {
   prepareHomeFunction(db);
@@ -748,6 +752,6 @@ module.exports = {
   parseFilters, buildCountedCte, summary, byTime, byWard, byRoute, byService, qualityMocs, items, lookup, exceptions, meta, importStatus,
   homeProvinceKeys, isHomeProvince, catalogWardKeys,
   latestFileDates, latestFileDate, dayAge, ageAt, ageBucket, scopedFilters, notReceivedStats, notReceivedList, TTKT_BD10_PREFIX, SOURCE_GROUPS, SOURCE_CODE_SQL, decodeSourceRows, sumBy, REASON_ORDER,
-  groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff,
+  groupWithHours, foldGroups, sortGroups, busiestHour, pct2, DATE_RE, validYmd, addDays, dayDiff, xoaBoNhoBd10Share,
   ROUTE_KEY_SQL, SERVICE_KEY_SQL, shapeByService, shapeQualityMocs
 };

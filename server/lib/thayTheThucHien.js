@@ -14,6 +14,7 @@ const X = require('./thayTheXemTruoc');
 const S = require('./sftpSync');
 const { chuanBiFile, ghiFileDaChuanBi } = require('./arrivalsImport');
 const CF = require('../config/thay-the');
+const { xoaBoNhoBd10Share } = require('./arrivalsQuery');
 
 const { XemTruocLoi, chuanHoaShbg } = X;
 
@@ -132,6 +133,24 @@ function ensureThayTheSchema(db) {
       ward_key TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS ix_thung_rac_dong_mua ON thung_rac_dong(thung_rac_id);
+
+    -- SANLUONG-5g-5: nhật ký KHÔI PHỤC từ thùng rác (chỉ thêm; mỗi lần thay tối đa một lần khôi phục — nhat_ky_id UNIQUE). Khôi phục là BỔ SUNG, không phải hoàn lại,
+    -- nên không đụng thay_the_nhat_ky.ket_qua (DA_HOAN_TAC vẫn chỉ là chỗ chừa).
+    CREATE TABLE IF NOT EXISTS thay_the_khoi_phuc (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nhat_ky_id INTEGER NOT NULL UNIQUE REFERENCES thay_the_nhat_ky(id),
+      thoi_diem_utc TEXT NOT NULL,                 -- UTC ISO
+      nguoi_thuc_hien TEXT NOT NULL,
+      so_dong_trong_thung_rac INTEGER NOT NULL DEFAULT 0,
+      so_dong_them INTEGER NOT NULL DEFAULT 0,
+      so_dong_da_co INTEGER NOT NULL DEFAULT 0,    -- đã có ở DB (cùng khoá nghiệp vụ) nên bỏ qua
+      so_dong_gan_sang_file_khac INTEGER NOT NULL DEFAULT 0, -- dòng thêm vào nhưng gắn vào bản ghi file hiện hành CÙNG TÊN (không phải bản ghi gốc)
+      so_dong_khong_khoi_phuc INTEGER NOT NULL DEFAULT 0,    -- thuộc file REJECTED / CONFLICT hoặc file không tạo lại được
+      so_file_tao_lai INTEGER NOT NULL DEFAULT 0,
+      so_file_gan_vao_hien_hanh INTEGER NOT NULL DEFAULT 0,
+      so_file_bo_qua INTEGER NOT NULL DEFAULT 0,
+      duong_dan_sao_luu TEXT
+    );
   `);
 }
 
@@ -192,13 +211,33 @@ function kiemTraXacNhan(xacNhan, bcvh, ngay) {
 // Cờ trong bộ nhớ: hai lần thay không chạy cùng lúc.
 let dangThayThe = false;
 
+/**
+ * SANLUONG-5g-5: khoá CHUNG cho «Khôi phục» — cùng cờ bộ nhớ và cùng hàng khoá sftp_sync_runs như thayTheNgay (một lượt tại một thời điểm với đồng bộ SFTP,
+ * hẹn giờ, «Lấy ngay»/«Lấy lại» và «Thay thế»). ĐỒNG BỘ (không await). Trả nha() — gọi trong finally. Ném ThayTheLoi DANG_THAY_THE / DANG_CO_LUOT_DONG_BO.
+ * Không kiểm hẹn giờ TAM_DUNG (khôi phục không chạm mạng).
+ */
+function giuKhoaChung(db, batDau, options = {}, now = () => new Date()) {
+  if (dangThayThe) throw new ThayTheLoi(MA_LOI.DANG_THAY_THE, 'Đang có một lần thay thế khác chạy. Thử lại sau khi nó kết thúc.');
+  X.kiemTraKhoa(db, batDau, options);
+  dangThayThe = true;
+  let idKhoa;
+  try { idKhoa = batDauKhoa(db, batDau); } catch (e) { dangThayThe = false; throw e; }
+  let daNha = false;
+  return () => {
+    if (daNha) return;
+    daNha = true;
+    nhaKhoa(db, idKhoa, now);
+    dangThayThe = false;
+  };
+}
+
 // «Mất thật»: định nghĩa nằm ở X.tinhMatThat (thayTheXemTruoc.js) — xem trước và thay thế dùng CHUNG một nguồn (5g-3b). Hành vi giữ nguyên.
 const { tinhMatThat } = X;
 
 // ------------------------------------------
 // Sao lưu toàn DB (db.backup) — quy ước: <thư mục chứa DB>/backups/, tên truoc-thay-the_<bcvh>_<ngày>_<UTC>.db, giữ SO_BAN_SAO_LUU_GIU bản gần nhất
 // ------------------------------------------
-const TEN_SAO_LUU_RE = /^truoc-thay-the_\d+_\d{4}-\d{2}-\d{2}_(\d{8}T\d{6}Z)(?:_(\d+))?\.db$/;
+const TEN_SAO_LUU_RE = /^truoc-(?:thay-the|khoi-phuc)_\d+_\d{4}-\d{2}-\d{2}_(\d{8}T\d{6}Z)(?:_(\d+))?\.db$/;
 const dauThoiGian = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
 
 function dungLuongTrong(thuMuc) {
@@ -219,6 +258,7 @@ function dsSaoLuu(thuMuc) {
     .sort((a, b) => (a.khoa < b.khoa ? 1 : a.khoa > b.khoa ? -1 : 0));
 }
 
+/** o: { dungLuongTrong?, tienToSaoLuu? ('truoc-thay-the' mặc định; 5g-5: 'truoc-khoi-phuc' — cùng thư mục và cùng hạn giữ 5 bản) }. */
 async function saoLuu(db, thuMuc, bcvh, ngay, batDau, o) {
   let dich = null;
   try {
@@ -228,7 +268,7 @@ async function saoLuu(db, thuMuc, bcvh, ngay, batDau, o) {
     if (trong !== null && trong < can) {
       throw new ThayTheLoi(MA_LOI.KHONG_DU_CHO_SAO_LUU, `Không đủ chỗ sao lưu: còn ${Math.floor(trong / 1048576)} MB, cần ít nhất ${Math.ceil(can / 1048576)} MB. Chưa thay gì`);
     }
-    const goc = `truoc-thay-the_${bcvh}_${ngay}_${dauThoiGian(batDau)}`;
+    const goc = `${o.tienToSaoLuu || 'truoc-thay-the'}_${bcvh}_${ngay}_${dauThoiGian(batDau)}`;
     let tt = 1;
     dich = path.join(thuMuc, `${goc}.db`);
     while (fs.existsSync(dich)) { tt++; dich = path.join(thuMuc, `${goc}_${tt}.db`); }
@@ -441,6 +481,8 @@ async function thayTheNgay({ client = null, ketNoi = null, dirs = [], db, bcvh, 
       throw new ThayTheLoi(MA_LOI.GHI_THAT_BAI, `Giao dịch thay thế thất bại (${S.lamSach(String((err && err.code) || (err && err.name) || 'LOI'), bimat, 40)}) — đã hoàn tác toàn bộ, DB y nguyên`);
     }
 
+    xoaBoNhoBd10Share(db); // dữ liệu ngày đã đổi: buộc tính lại tỷ lệ tiêu chí bd10 (5g-5, #87)
+
     // ---- 7. dọn (lỗi dọn KHÔNG làm hỏng lần thay đã xong)
     const don = { thung_rac: { mua: 0, dong: 0, file: 0 }, sao_luu: 0, loi: [] };
     try { don.thung_rac = donThungRac(db, luc); } catch (err) { don.loi.push('thung_rac'); }
@@ -462,5 +504,6 @@ async function thayTheNgay({ client = null, ketNoi = null, dirs = [], db, bcvh, 
 }
 
 module.exports = {
-  MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, ThayTheLoi, COT_FILE, COT_DONG, ensureThayTheSchema, thayTheNgay, donThungRac, donSaoLuu, dsSaoLuu, tinhMatThat, kiemTraDuKien, kiemTraXacNhan
+  MA_LOI, HTTP, MA_THOAT, THOAT_THEO_LOI, ThayTheLoi, COT_FILE, COT_DONG, ensureThayTheSchema, thayTheNgay, donThungRac, donSaoLuu, dsSaoLuu, tinhMatThat, kiemTraDuKien, kiemTraXacNhan,
+  giuKhoaChung, saoLuu, dauThoiGian
 };

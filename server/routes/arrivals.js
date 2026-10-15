@@ -12,6 +12,8 @@ const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 const thayThe = require('../lib/thayTheXemTruoc');
 const thayTheThucHien = require('../lib/thayTheThucHien');
+const thayTheNhatKy = require('../lib/thayTheNhatKy');
+const thayTheKhoiPhuc = require('../lib/thayTheKhoiPhuc');
 
 const router = express.Router();
 
@@ -244,6 +246,78 @@ router.post('/arrivals/thay-the/thuc-hien', requireAdmin, async (req, res) => {
     ghiLog('LOI_HE_THONG');
     return res.status(500).json({ error: 'Lỗi hệ thống khi thực hiện thay thế (DB không bị thay đổi nếu giao dịch chưa hoàn tất)', ma: 'LOI_HE_THONG' });
   }
+});
+
+// SANLUONG-5g-5 — NHẬT KÝ «Thay thế ngày» (API ĐỌC) và KHÔI PHỤC từ thùng rác. Tất cả CHỈ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Lõi: thayTheNhatKy.js, thayTheKhoiPhuc.js.
+// GET  /arrivals/thay-the/nhat-ky      ?page, page_size (≤ 100), bcvh, tu_ngay, den_ngay (YYYY-MM-DD, ≤ 92 ngày), nguoi (mã HRM) — mới trước
+// GET  /arrivals/thay-the/nhat-ky/:id  chi tiết một lần (không đường dẫn sao lưu, không SHBG, không nội dung dòng thùng rác)
+// POST /arrivals/thay-the/khoi-phuc/xem-truoc  { nhat_ky_id }                              — chỉ đọc
+// POST /arrivals/thay-the/khoi-phuc/thuc-hien  { nhat_ky_id, xac_nhan: { ma_bcvh, ngay } } — ngay dạng YYYY-MM-DD (như «Thay thế»)
+// Lỗi { error, ma }: 400 THAM_SO_SAI / XAC_NHAN_SAI · 404 KHONG_TIM_THAY · 409 DANG_THAY_THE / DANG_CO_LUOT_DONG_BO / THUNG_RAC_HET_HAN / DA_KHOI_PHUC / KHONG_CO_GI_DE_KHOI_PHUC
+// · 507 KHONG_DU_CHO_SAO_LUU · 500 SAO_LUU_LOI / KHOI_PHUC_THAT_BAI (đã hoàn lại, DB y nguyên).
+const loiNhatKy = (res, err, ghiLog, ten) => {
+  if (err instanceof thayTheNhatKy.NhatKyLoi || err instanceof thayThe.XemTruocLoi) {
+    if (ghiLog) ghiLog(err.code);
+    return res.status(err.httpStatus).json({ error: err.message, ma: err.code });
+  }
+  console.error(`Arrivals ${ten} error:`, err && err.code ? err.code : (err && err.name));
+  if (ghiLog) ghiLog('LOI_HE_THONG');
+  return res.status(500).json({ error: 'Lỗi hệ thống khi xử lý nhật ký / khôi phục thay thế', ma: 'LOI_HE_THONG' });
+};
+const chiNhanQuery = (req, ds) => {
+  for (const k of Object.keys(req.query)) {
+    if (!ds.includes(k)) throw thayTheNhatKy.saiThamSo(`Tham số không hỗ trợ: "${String(k).slice(0, 40)}"`);
+  }
+};
+const chiNhanBody = (body, ds) => {
+  for (const k of Object.keys(body)) {
+    if (!ds.includes(k)) throw thayTheNhatKy.saiThamSo(`Tham số không hỗ trợ: "${String(k).slice(0, 40)}"`);
+  }
+};
+const thanJson = (req) => (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {});
+
+router.get('/arrivals/thay-the/nhat-ky', requireAdmin, (req, res) => {
+  try {
+    chiNhanQuery(req, ['page', 'page_size', 'bcvh', 'tu_ngay', 'den_ngay', 'nguoi']);
+    return res.json(thayTheNhatKy.danhSach({ db, query: req.query, now: new Date() }));
+  } catch (err) { return loiNhatKy(res, err, null, 'thay-the nhat-ky'); }
+});
+
+router.get('/arrivals/thay-the/nhat-ky/:id', requireAdmin, (req, res) => {
+  try {
+    chiNhanQuery(req, []);
+    return res.json(thayTheNhatKy.chiTiet({ db, id: req.params.id, now: new Date() }));
+  } catch (err) { return loiNhatKy(res, err, null, 'thay-the nhat-ky chi tiet'); }
+});
+
+const ghiLogKhoiPhuc = (req, event) => (ketQua, extra = {}) => req.app.locals.security.log({
+  event, ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
+  nhat_ky_id: Number.isInteger(thanJson(req).nhat_ky_id) ? thanJson(req).nhat_ky_id : null, ket_qua: ketQua, ...extra
+});
+
+router.post('/arrivals/thay-the/khoi-phuc/xem-truoc', requireAdmin, (req, res) => {
+  const ghiLog = ghiLogKhoiPhuc(req, 'arrivals_thay_the_khoi_phuc_xem_truoc');
+  try {
+    const body = thanJson(req);
+    chiNhanBody(body, ['nhat_ky_id']);
+    const kq = thayTheKhoiPhuc.xemTruoc({ db, nhatKyId: body.nhat_ky_id, now: new Date() });
+    ghiLog('ok', { so_dong_se_them: kq.so_dong_se_them });
+    return res.json(kq);
+  } catch (err) { return loiNhatKy(res, err, ghiLog, 'thay-the khoi-phuc xem-truoc'); }
+});
+
+router.post('/arrivals/thay-the/khoi-phuc/thuc-hien', requireAdmin, async (req, res) => {
+  const ghiLog = ghiLogKhoiPhuc(req, 'arrivals_thay_the_khoi_phuc');
+  try {
+    const body = thanJson(req);
+    chiNhanBody(body, ['nhat_ky_id', 'xac_nhan']);
+    const kq = await thayTheKhoiPhuc.khoiPhuc({
+      db, nhatKyId: body.nhat_ky_id, xacNhan: body.xac_nhan, nguoiThucHien: req.user.hrm_code, sauLuuDir: thayThe.layThuMucSaoLuu() // chỉ test tiêm; không đọc cấu hình SFTP, không mạng
+    });
+    ghiLog('ok', { khoi_phuc_id: kq.khoi_phuc_id, so_dong_them: kq.so_dong_them, so_dong_da_co: kq.so_dong_da_co, so_dong_gan_sang_file_khac: kq.so_dong_gan_sang_file_khac });
+    const { duong_dan: _boDuongDan, ...saoLuuRutGon } = kq.sao_luu; // không trả đường dẫn đầy đủ qua API
+    return res.json({ ...kq, sao_luu: saoLuuRutGon });
+  } catch (err) { return loiNhatKy(res, err, ghiLog, 'thay-the khoi-phuc thuc-hien'); }
 });
 
 module.exports = router;

@@ -1,9 +1,9 @@
 // ==========================================
 // Test SANLUONG-5g-1: tách importer thành chuanBiFile (bất đồng bộ, không đụng DB) và ghiFileDaChuanBi (đồng bộ, gọi được trong giao dịch ngoài).
-//  - TƯƠNG ĐƯƠNG: importArrivalFile bản mới == bản cũ (bản chụp nguyên văn trước thay đổi: tests/helpers/arrivalsImport.truoc-5g1.js) về giá trị trả về
-//    (kể cả thứ tự khoá) VÀ nội dung 3 bảng (arrival_import_files, arrival_items, ward_bdx_map), trên cùng bộ file giả.
+//  - TƯƠNG ĐƯƠNG: importArrivalFile (importer hiện hành) == chuanBiFile + ghiFileDaChuanBi gọi rời trên DB thứ hai (REF; SANLUONG-5g-5 thay bản chụp trước 5g-1)
+//    về giá trị trả về (kể cả thứ tự khoá) VÀ nội dung 3 bảng (arrival_import_files, arrival_items, ward_bdx_map), trên cùng bộ file giả.
 //  - chuanBiFile không đụng DB; ghiFileDaChuanBi đồng bộ; lồng giao dịch (savepoint); tuỳ chọn ghiTuChoi.
-// Server thật + DB tạm của harness (phía bản MỚI), DB bộ nhớ riêng (phía bản CŨ). CSV / SHBG GIẢ (9 chữ số, không có dãy ≥ 15 chữ số).
+// Server thật + DB tạm của harness (phía importArrivalFile), DB bộ nhớ riêng (phía REF). CSV / SHBG GIẢ (9 chữ số, không có dãy ≥ 15 chữ số).
 // ==========================================
 'use strict';
 const { test, before, after, beforeEach } = require('node:test');
@@ -12,14 +12,33 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const RealDatabase = require('better-sqlite3'); // nạp TRƯỚC khi harness thay thế (DB bộ nhớ của bản cũ)
+const RealDatabase = require('better-sqlite3'); // nạp TRƯỚC khi harness thay thế (DB bộ nhớ của REF)
 const { startTestServer, waitForServer, cleanupDbFiles, closeServer } = require('./helpers/serverHarness');
-const OLD = require('./helpers/arrivalsImport.truoc-5g1');
 const NEW = require('../server/lib/arrivalsImport');
+// Phía tham chiếu: ghép tay hai nửa (chuanBiFile rồi ghiFileDaChuanBi) trên DB riêng; importArrivalFile phải cho cùng kết quả và cùng nội dung bảng.
+const REF = {
+  ensureArrivalSchema: NEW.ensureArrivalSchema,
+  async importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
+    const daChuanBi = await NEW.chuanBiFile(filePath, { source });
+    return NEW.ghiFileDaChuanBi(db, daChuanBi, { source });
+  },
+  async importArrivalDirectory(db, thuMuc, opts = {}) {
+    const ket = [];
+    const hop = [];
+    for (const n of fs.readdirSync(thuMuc).filter((t) => fs.statSync(path.join(thuMuc, t)).isFile())) {
+      const m = /^HangDen_(\d+)_(\d{8})_(\d{6})\.csv$/i.exec(n);
+      if (m) hop.push({ n, key: `${m[2]} ${m[3]} ${m[1]}` });
+      else if (/\.csv$/i.test(n)) ket.push({ fileName: n, status: 'SKIPPED_NAME', error: 'Tên file không đúng mẫu' });
+    }
+    hop.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    for (const v of hop) ket.push(await REF.importArrivalFile(db, path.join(thuMuc, v.n), opts));
+    return ket;
+  }
+};
 
 const PORT = 5929;
 let ctx;
-let dbOld;
+let dbRef;
 let dir;
 let seq = 0;
 
@@ -72,33 +91,33 @@ before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhcl-import-split-test-'));
   ctx = startTestServer({ port: PORT, dbFileName: `dhcl-test-import-split-${Date.now()}.db` });
   await waitForServer(ctx.baseUrl);
-  dbOld = taoDbBoNho(OLD);
+  dbRef = taoDbBoNho(REF);
 });
 after(async () => {
   await closeServer(ctx.server);
   cleanupDbFiles(ctx.testDbPath, ctx.db);
-  dbOld.close();
+  dbRef.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
-beforeEach(() => { xoaSach(ctx.db); xoaSach(dbOld); });
+beforeEach(() => { xoaSach(ctx.db); xoaSach(dbRef); });
 
-/** Chạy cùng một chuỗi bước trên bản CŨ (dbOld) và bản MỚI (ctx.db); so từng giá trị trả về (kể cả thứ tự khoá) và nội dung 3 bảng. steps: [() => đường dẫn file]. */
+/** Chạy cùng một chuỗi bước trên bản CŨ (dbRef) và bản MỚI (ctx.db); so từng giá trị trả về (kể cả thứ tự khoá) và nội dung 3 bảng. steps: [() => đường dẫn file]. */
 async function soSanh(steps, nhan) {
   const ketQua = [];
   for (const [i, buoc] of steps.entries()) {
     const p = buoc();
-    let rOld; let rNew; let eOld = null; let eNew = null;
-    try { rOld = await OLD.importArrivalFile(dbOld, p); } catch (e) { eOld = e; }
+    let rRef; let rNew; let eRef = null; let eNew = null;
+    try { rRef = await REF.importArrivalFile(dbRef, p); } catch (e) { eRef = e; }
     try { rNew = await NEW.importArrivalFile(ctx.db, p); } catch (e) { eNew = e; }
-    if (eOld || eNew) {
-      assert.ok(eOld && eNew, `${nhan} bước ${i}: cả hai phải cùng ném lỗi`);
-      assert.deepEqual([eNew.code, eNew.name], [eOld.code, eOld.name]);
+    if (eRef || eNew) {
+      assert.ok(eRef && eNew, `${nhan} bước ${i}: cả hai phải cùng ném lỗi`);
+      assert.deepEqual([eNew.code, eNew.name], [eRef.code, eRef.name]);
       ketQua.push({ nem: eNew.code });
       continue;
     }
-    assert.deepEqual(rNew, rOld, `${nhan} bước ${i}: giá trị trả về`);
-    assert.deepEqual(Object.keys(rNew), Object.keys(rOld), `${nhan} bước ${i}: thứ tự khoá`);
-    assert.deepEqual(dump(ctx.db), dump(dbOld), `${nhan} bước ${i}: nội dung bảng`);
+    assert.deepEqual(rNew, rRef, `${nhan} bước ${i}: giá trị trả về`);
+    assert.deepEqual(Object.keys(rNew), Object.keys(rRef), `${nhan} bước ${i}: thứ tự khoá`);
+    assert.deepEqual(dump(ctx.db), dump(dbRef), `${nhan} bước ${i}: nội dung bảng`);
     ketQua.push(rNew);
   }
   return ketQua;
@@ -182,10 +201,10 @@ test('tương đương: source (SFTP) và importArrivalDirectory theo thứ tự
   fs.writeFileSync(path.join(d, 'HangDen_533140_20261014_150011.csv'), csv([row({ bag: '2026-10-14 15:00:00' })]));
   fs.writeFileSync(path.join(d, 'HangDen_533140_20261013_093012.csv'), csv([row({ bag: '2026-10-13 08:00:00' })]));
   fs.writeFileSync(path.join(d, 'ghi-chu.csv'), csv([]));
-  const rOld = await OLD.importArrivalDirectory(dbOld, d, { source: 'SFTP' });
+  const rRef = await REF.importArrivalDirectory(dbRef, d, { source: 'SFTP' });
   const rNew = await NEW.importArrivalDirectory(ctx.db, d, { source: 'SFTP' });
-  assert.deepEqual(rNew, rOld);
-  assert.deepEqual(dump(ctx.db), dump(dbOld));
+  assert.deepEqual(rNew, rRef);
+  assert.deepEqual(dump(ctx.db), dump(dbRef));
   assert.deepEqual(ctx.db.prepare('SELECT source FROM arrival_import_files').all().map((x) => x.source), ['SFTP', 'SFTP']);
 });
 
