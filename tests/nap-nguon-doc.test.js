@@ -92,7 +92,7 @@ test('mỗi trạng thái của ô: DA_NAP, RONG, LOI, NHAP_TAY, NGUON_CO_FILE_C
   nguon({ bcvh: BC.TA, ngay: n, gio: '093012' }); // nguồn có file sáng, DB chưa có
   fileDb({ bcvh: BC.PL, ngay: n, gio: '235959', source: 'MANUAL', rows: 500 });
   nguon({ bcvh: BC.PL, ngay: n, gio: '163011' }); // ngày nhập tay + nguồn có file chiều
-  // BCVH A Lưới: không có gì ngày 12 -> NGUON_CHUA_CO_FILE
+  fileDb({ bcvh: BC.AL, ngay: '2026-10-11', gio: '093012' }); // ngày bắt đầu của AL = 11 (SANLUONG-5f-1b) -> ngày 12 không có gì = NGUON_CHUA_CO_FILE
   const kq = luoi();
   assert.equal(o(kq, BC.TH, n, 'S').trang_thai, 'DA_NAP');
   assert.equal(o(kq, BC.TH, n, 'C').trang_thai, 'RONG');
@@ -395,7 +395,7 @@ test('route lưới: lọc theo bcvh; ngày mặc định hợp lệ; phản h�
   fileDb({ bcvh: BC.TH, ngay: '2026-10-12' });
   const r = await goi('admin', `/api/nap-nguon/luoi?tu=2026-10-12&den=2026-10-13&bcvh=${BC.TH}`);
   assert.equal(r.status, 200);
-  assert.deepEqual(Object.keys(r.body), ['tu', 'den', 'bcvh', 'hom_nay', 'ds_bcvh', 'gio_mong_doi', 'o', 'ngay_bcvh', 'can_xu_ly', 'tong_hop']);
+  assert.deepEqual(Object.keys(r.body), ['tu', 'den', 'bcvh', 'hom_nay', 'ds_bcvh', 'gio_mong_doi', 'ngay_bat_dau', 'o', 'ngay_bcvh', 'can_xu_ly', 'tong_hop']);
   assert.equal(r.body.o.length, 4);
   assert.ok(r.body.o.every((x) => x.bcvh === BC.TH));
   assert.deepEqual(r.body.ds_bcvh, [{ ma: BC.TH, ten: 'BCVH Thuận Hóa' }]);
@@ -404,6 +404,92 @@ test('route lưới: lọc theo bcvh; ngày mặc định hợp lệ; phản h�
   const tong = await goi('admin', '/api/nap-nguon/luoi?tu=2026-10-12&den=2026-10-13');
   assert.equal(tong.body.o.length, 2 * 6 * 2);
   assert.deepEqual(tong.body.ds_bcvh.map((x) => x.ma), Object.values(BC).sort((a, b) => ['533140', '535470', '536250', '537015', '537220', '535790'].indexOf(a) - ['533140', '535470', '536250', '537015', '537220', '535790'].indexOf(b)));
+});
+
+// =====================================================================
+// NGÀY BẮT ĐẦU CỦA BCVH (SANLUONG-5f-1b, #88): ô trước ngày bắt đầu = CHUA_BAT_DAU, không vào can_xu_ly
+// =====================================================================
+const cxCua = (kq, bcvh) => kq.can_xu_ly.filter((x) => x.bcvh === bcvh);
+
+test('CHUA_BAT_DAU: BCVH có file từ ngày D -> ô trước D là CHUA_BAT_DAU (không vào can_xu_ly); khoảng trống SAU D vẫn NGUON_CHUA_CO_FILE và vào can_xu_ly; tổng hợp đủ 10 khóa', () => {
+  fileDb({ bcvh: BC.TH, ngay: '2026-10-13', gio: '093012' });
+  const kq = luoi({ tu: '2026-10-10', den: '2026-10-13' });
+  assert.equal(kq.ngay_bat_dau[BC.TH], '2026-10-13');
+  assert.deepEqual(Object.keys(kq.ngay_bat_dau).sort(), [...N.MA_BCVH].sort());
+  for (const ngay of ['2026-10-10', '2026-10-11', '2026-10-12']) {
+    for (const dot of ['S', 'C']) {
+      const c = o(kq, BC.TH, ngay, dot);
+      assert.deepEqual([c.trang_thai, c.ly_do, c.nghi_ngo, c.chi_tiet.file_db.length, c.chi_tiet.file_nguon.length], ['CHUA_BAT_DAU', null, null, 0, 0]);
+    }
+  }
+  assert.equal(o(kq, BC.TH, '2026-10-13', 'S').trang_thai, 'DA_NAP');
+  assert.equal(o(kq, BC.TH, '2026-10-13', 'C').trang_thai, 'NGUON_CHUA_CO_FILE');
+  assert.deepEqual(cxCua(kq, BC.TH).map((x) => `${x.ngay}|${x.dot}|${x.trang_thai}`), ['2026-10-13|C|NGUON_CHUA_CO_FILE']);
+  assert.equal(kq.o.filter((c) => c.bcvh === BC.TH && c.trang_thai === 'CHUA_BAT_DAU').length, 3 * 2);
+  assert.equal(kq.tong_hop.theo_trang_thai.CHUA_BAT_DAU, 3 * 2 + 5 * 4 * 2, '5 BCVH không có file: mọi ngày < hôm nay');
+  assert.equal(Object.keys(kq.tong_hop.theo_trang_thai).length, 10);
+  assert.ok(!kq.can_xu_ly.some((x) => x.trang_thai === 'CHUA_BAT_DAU'));
+  // khoảng trống SAU ngày bắt đầu: file ngày 10-11, trống ngày 10-12 -> vẫn là khoảng trống thật
+  fileDb({ bcvh: BC.HT, ngay: '2026-10-11', gio: '093012' });
+  const k2 = luoi({ tu: '2026-10-10', den: '2026-10-13' });
+  assert.equal(o(k2, BC.HT, '2026-10-10', 'S').trang_thai, 'CHUA_BAT_DAU');
+  assert.equal(o(k2, BC.HT, '2026-10-12', 'S').trang_thai, 'NGUON_CHUA_CO_FILE');
+  assert.ok(cxCua(k2, BC.HT).some((x) => x.ngay === '2026-10-12' && x.dot === 'S'));
+});
+
+test('CHUA_BAT_DAU: BCVH không có file nào -> ngày bắt đầu = hôm nay; ngày < hôm nay là CHUA_BAT_DAU, hôm nay quá giờ + ân hạn là CHO_FILE', () => {
+  const chieu = luc(HOM_NAY, '18:00');
+  const kq = N.luoi({ db: ctx.db, now: chieu, tu: '2026-10-12', den: HOM_NAY, bcvh: BC.AL });
+  assert.equal(kq.ngay_bat_dau[BC.AL], HOM_NAY);
+  assert.equal(o(kq, BC.AL, '2026-10-12', 'S').trang_thai, 'CHUA_BAT_DAU');
+  assert.equal(o(kq, BC.AL, '2026-10-13', 'C').trang_thai, 'CHUA_BAT_DAU');
+  assert.deepEqual([o(kq, BC.AL, HOM_NAY, 'S').trang_thai, o(kq, BC.AL, HOM_NAY, 'C').trang_thai], ['CHO_FILE', 'CHO_FILE']);
+  assert.deepEqual(kq.can_xu_ly.map((x) => `${x.ngay}|${x.dot}|${x.trang_thai}`), [`${HOM_NAY}|C|CHO_FILE`, `${HOM_NAY}|S|CHO_FILE`]);
+  assert.equal(luoi({ bcvh: BC.AL, tu: HOM_NAY, den: HOM_NAY }).can_xu_ly.length, 0, 'sáng sớm: CHUA_DEN_GIO, không vào can_xu_ly');
+});
+
+test('ngày bắt đầu: file chỉ có ở sftp_source_files (kể cả đã biến mất) làm lùi ngày bắt đầu; bản ghi REJECTED / nhập tay sớm nhất vẫn tính', () => {
+  fileDb({ bcvh: BC.TH, ngay: '2026-10-13' });
+  nguon({ bcvh: BC.TH, ngay: '2026-10-11', con: 0 }); // chưa nạp, đã biến mất khỏi nguồn
+  assert.equal(luoi({ tu: '2026-10-10', den: '2026-10-13' }).ngay_bat_dau[BC.TH], '2026-10-11');
+  fileDb({ bcvh: BC.HT, ngay: '2026-10-12' });
+  fileDb({ bcvh: BC.HT, ngay: '2026-10-10', gio: '093012', status: 'REJECTED', error: 'Sai tiêu đề', rows: 0 });
+  fileDb({ bcvh: BC.HTHUY, ngay: '2026-10-12' });
+  fileDb({ bcvh: BC.HTHUY, ngay: '2026-10-09', gio: '235959', source: 'MANUAL' });
+  const kq = luoi({ tu: '2026-10-10', den: '2026-10-13' });
+  assert.equal(kq.ngay_bat_dau[BC.HT], '2026-10-10');
+  assert.equal(kq.ngay_bat_dau[BC.HTHUY], '2026-10-09');
+  assert.equal(o(kq, BC.HT, '2026-10-10', 'S').trang_thai, 'LOI');
+  assert.equal(o(kq, BC.TH, '2026-10-11', 'S').trang_thai, 'NGUON_CHUA_CO_FILE');
+  assert.equal(o(kq, BC.TH, '2026-10-10', 'S').trang_thai, 'CHUA_BAT_DAU');
+});
+
+test('kịch bản khảo sát 5f-3a: 533140 từ 01/10, 5 BCVH chỉ hôm nay, 62 ngày -> can_xu_ly không còn ~700 mục nhiễu', (t) => {
+  for (let d = 0; d < 14; d++) {
+    const ngay = S.congNgay('2026-10-01', d);
+    fileDb({ bcvh: BC.TH, ngay, gio: '093012' });
+    if (ngay !== HOM_NAY) fileDb({ bcvh: BC.TH, ngay, gio: '163011' });
+  }
+  for (const ma of [BC.HT, BC.HTHUY, BC.TA, BC.PL, BC.AL]) fileDb({ bcvh: ma, ngay: HOM_NAY, gio: '093012' });
+  const t0 = process.hrtime.bigint();
+  const kq = N.luoi({ db: ctx.db, now: luc(HOM_NAY, '18:00'), tu: '2026-08-14', den: HOM_NAY });
+  const ms = Number((process.hrtime.bigint() - t0) / 1000000n);
+  t.diagnostic(`ĐO kịch bản (f): ${kq.o.length} ô; can_xu_ly ${kq.can_xu_ly.length}; CHUA_BAT_DAU ${kq.tong_hop.theo_trang_thai.CHUA_BAT_DAU}; ${ms} ms`);
+  assert.equal(kq.o.length, 62 * 6 * 2);
+  assert.equal(kq.ngay_bat_dau[BC.TH], '2026-10-01');
+  assert.equal(kq.ngay_bat_dau[BC.HT], HOM_NAY);
+  assert.ok(kq.can_xu_ly.every((x) => x.trang_thai === 'CHO_FILE'), JSON.stringify(kq.can_xu_ly.map((x) => x.trang_thai)));
+  assert.equal(kq.can_xu_ly.length, 6, '533140 chiều hôm nay + 5 BCVH chiều hôm nay');
+  assert.equal(kq.tong_hop.theo_trang_thai.CHUA_BAT_DAU, (48 * 2) + 5 * 61 * 2);
+  assert.ok(ms < 1000);
+});
+
+test('GET /o: ô CHUA_BAT_DAU -> 200, không file, không lỗi; lấy lại không bị ảnh hưởng', async () => {
+  fileDb({ bcvh: BC.TH, ngay: '2026-10-13' });
+  const r = await goi('admin', `/api/nap-nguon/o?bcvh=${BC.TH}&ngay=2026-10-10&dot=S`);
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.trang_thai, r.body.ly_do, r.body.nghi_ngo, r.body.file_db.length, r.body.file_nguon.length, r.body.lich_su.length, r.body.loi], ['CHUA_BAT_DAU', null, null, 0, 0, 0, null]);
+  assert.ok(!/\d{15,}/.test(JSON.stringify(r.body)));
 });
 
 // =====================================================================

@@ -674,5 +674,11 @@ Căn cứ: #83 (thùng rác + nhật ký), khảo sát 5g-5 Việc 0. Chi tiết
 - **Dọn**: xóa `tests/helpers/arrivalsImport.truoc-5g1.js`; 7 ca «tương đương» của `arrivals-import-split.test.js` nay so `importArrivalFile` với `chuanBiFile` + `ghiFileDaChuanBi` gọi rời trên DB thứ hai (giữ nguyên kịch bản).
 - **Chưa làm**: giao diện; «nạp bổ sung» 01–09/10; danh sách loại trừ file ADMIN bỏ tích; module ngưỡng.
 
+### 88. «Ngày bắt đầu» của BCVH và trạng thái ô `CHUA_BAT_DAU` (SANLUONG-5f-1b; định nghĩa PO còn xác nhận)
+Căn cứ: khảo sát 5f-3a (kịch bản giả: 744 ô, 704 mục `NGUON_CHUA_CO_FILE` nhiễu vì các BCVH mới chưa có dữ liệu). Chi tiết: `17_NAP_DU_LIEU_NGUON_API_DOC.md`.
+- `ngay_bat_dau(bcvh)` = ngày nhỏ nhất của `arrival_import_files.file_date` (mọi trạng thái, cả nhập tay) và ngày trong tên file của `sftp_source_files` (kể cả đã biến mất); không có gì → `hom_nay`. Ô `ngay < ngay_bat_dau` → `CHUA_BAT_DAU` (xét trước mọi quy tắc khác), không vào `can_xu_ly`. Khoảng trống SAU ngày bắt đầu giữ nguyên `NGUON_CHUA_CO_FILE` / `CHO_FILE`.
+- `luoi()` trả thêm `ngay_bat_dau` ở cấp lưới; `tong_hop.theo_trang_thai` thêm khóa `CHUA_BAT_DAU` (10 khóa). `/o` trả 200 với ô `CHUA_BAT_DAU`. «Lấy lại» không đổi (không đọc trạng thái ô).
+- Không thêm biến môi trường / bảng / cột. Chỉ phần đọc `napNguonDoc.js`; lõi tải / nạp giữ nguyên.
+
 ## Drift phát hiện
 _(chưa có)_

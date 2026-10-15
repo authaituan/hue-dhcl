@@ -13,7 +13,8 @@ const CF = require('../config/nap-nguon');
 const MA_BCVH = DASHBOARD_BCVH.map((b) => b.ma);
 const TRANG_THAI = Object.freeze({
   DA_NAP: 'DA_NAP', NHAP_TAY: 'NHAP_TAY', RONG: 'RONG', LOI: 'LOI', NGUON_CO_FILE_CHUA_NAP: 'NGUON_CO_FILE_CHUA_NAP',
-  CHO_FILE: 'CHO_FILE', CHUA_DEN_GIO: 'CHUA_DEN_GIO', NGUON_CHUA_CO_FILE: 'NGUON_CHUA_CO_FILE', MA_KHONG_KHOP: 'MA_KHONG_KHOP'
+  CHO_FILE: 'CHO_FILE', CHUA_DEN_GIO: 'CHUA_DEN_GIO', NGUON_CHUA_CO_FILE: 'NGUON_CHUA_CO_FILE', MA_KHONG_KHOP: 'MA_KHONG_KHOP',
+  CHUA_BAT_DAU: 'CHUA_BAT_DAU' // SANLUONG-5f-1b: ngày trước «ngày bắt đầu» của BCVH (quyết định #88)
 });
 
 /** Lỗi có MÃ: THAM_SO_SAI (400), KHONG_TIM_THAY (404). */
@@ -88,7 +89,7 @@ function tongQuan({ db, now = new Date(), tuDong = {} }) {
 // ------------------------------------------
 const khoa = (bcvh, ngay) => `${bcvh}|${ngay}`;
 
-function nap(db, tu, den, dsBcvh) {
+function nap(db, tu, den, dsBcvh, homNay) {
   const m = JSON.stringify(dsBcvh);
   const dbFiles = db.prepare(`SELECT id, unit_code, file_name, file_date, file_time, file_size, row_count, status, error, source, imported_at FROM arrival_import_files
     WHERE unit_code IN (SELECT value FROM json_each(@m)) AND file_date BETWEEN @tu AND @den ORDER BY file_date, file_time, id`).all({ m, tu, den });
@@ -126,7 +127,19 @@ function nap(db, tu, den, dsBcvh) {
     WHERE status IN ('OK', 'EMPTY') AND unit_code IN (SELECT value FROM json_each(@m)) AND file_date BETWEEN @tu AND @den GROUP BY unit_code, file_date`).all({ m, tu: tu28, den })) {
     tong.set(khoa(r.unit_code, r.file_date), { n: r.n, so_file: r.so_file });
   }
-  return { theoDb, theoNguon, maLa, coThongTinNguon, tong };
+
+  // «Ngày bắt đầu» của BCVH (SANLUONG-5f-1b, #88) = ngày nhỏ nhất trong MỌI bản ghi arrival_import_files (mọi trạng thái, kể cả nhập tay)
+  // và mọi tên file trong sftp_source_files (kể cả đã biến mất). Không có gì -> hôm nay. Một truy vấn gộp + một lượt qua theoTen cho cả danh sách BCVH.
+  const ngayBatDau = new Map(dsBcvh.map((ma) => [ma, homNay]));
+  const ha = (ma, ngay) => { if (ngay && ngay < ngayBatDau.get(ma)) ngayBatDau.set(ma, ngay); };
+  for (const r of db.prepare('SELECT unit_code, MIN(file_date) AS ngay FROM arrival_import_files WHERE unit_code IN (SELECT value FROM json_each(@m)) GROUP BY unit_code').all({ m })) {
+    if (ngayBatDau.has(r.unit_code) && ngayHopLe(r.ngay)) ha(r.unit_code, r.ngay);
+  }
+  for (const tenFile of theoTen.keys()) {
+    const p = F.phanTichTen(tenFile);
+    if (p && p.ngayHopLe && ngayBatDau.has(p.maDonVi)) ha(p.maDonVi, p.ngay);
+  }
+  return { theoDb, theoNguon, maLa, coThongTinNguon, tong, ngayBatDau };
 }
 
 const trungVi = (a) => { const s = [...a].sort((x, y) => x - y); const g = s.length >> 1; return s.length % 2 ? s[g] : (s[g - 1] + s[g]) / 2; };
@@ -148,6 +161,9 @@ function tinhNghiNgo(du, bcvh, ngay, homNay) {
 }
 
 function tinhO(du, bcvh, ngay, dot, now, bimat) {
+  if (ngay < du.ngayBatDau.get(bcvh)) {
+    return { bcvh, ngay, dot, trang_thai: TRANG_THAI.CHUA_BAT_DAU, ly_do: null, nghi_ngo: null, nguon_co_file: du.coThongTinNguon ? false : null, chi_tiet: { file_db: [], file_nguon: [] } };
+  }
   const fDb = du.theoDb.get(khoa(bcvh, ngay)) || [];
   const fNguon = (du.theoNguon.get(khoa(bcvh, ngay)) || []).filter((s) => dotCua(s.gio) === dot);
   const sftpDot = fDb.filter((f) => f.source === 'SFTP' && dotCua(f.file_time) === dot);
@@ -196,7 +212,7 @@ const CAN_XU_LY = new Set([TRANG_THAI.LOI, TRANG_THAI.RONG, TRANG_THAI.NGUON_CO_
 
 /**
  * Lưới ngày × BCVH × đợt (S, C). Tối đa SO_NGAY_TOI_DA ngày. Trả
- * { tu, den, bcvh, hom_nay, ds_bcvh, gio_mong_doi, o: [ô] (ngày mới nhất trước, rồi theo thứ tự BCVH, S trước C), ngay_bcvh: [{bcvh, ngay, tong_dong, so_file_db, trung_vi, so_mau, nghi_ngo, nguon_co_file}],
+ * { tu, den, bcvh, hom_nay, ds_bcvh, gio_mong_doi, ngay_bat_dau: { <mã BCVH>: 'YYYY-MM-DD' }, o: [ô] (ngày mới nhất trước, rồi theo thứ tự BCVH, S trước C), ngay_bcvh: [{bcvh, ngay, tong_dong, so_file_db, trung_vi, so_mau, nghi_ngo, nguon_co_file}],
  *   can_xu_ly: [mục phẳng, mới nhất trước], tong_hop: { theo_trang_thai, nghi_ngo } }.
  */
 function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
@@ -206,8 +222,8 @@ function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
   const loc = kiemTraBcvh(bcvh);
   const ds = loc ? [loc] : MA_BCVH;
   const ten = bcvhNames(db);
-  const du = nap(db, tu, den, ds);
   const homNay = ngayCuc(now);
+  const du = nap(db, tu, den, ds, homNay);
   const o = [];
   const ngayBcvh = [];
   const theoTrangThai = Object.fromEntries(Object.values(TRANG_THAI).map((k) => [k, 0]));
@@ -240,6 +256,7 @@ function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
   canXuLy.sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : THU_TU_LOAI[a.loai] - THU_TU_LOAI[b.loai] || idx(a.bcvh) - idx(b.bcvh) || (a.dot === b.dot ? 0 : a.dot === 'C' ? -1 : 1)));
   return {
     tu, den, bcvh: loc, hom_nay: homNay, ds_bcvh: ds.map((ma) => ({ ma, ten: ten.get(ma) })), gio_mong_doi: GIO_MONG_DOI(),
+    ngay_bat_dau: Object.fromEntries(ds.map((ma) => [ma, du.ngayBatDau.get(ma)])),
     o, ngay_bcvh: ngayBcvh, can_xu_ly: canXuLy, tong_hop: { theo_trang_thai: theoTrangThai, nghi_ngo: nghiNgoDem }
   };
 }
@@ -249,7 +266,7 @@ function mot({ db, now = new Date(), bcvh, ngay, dot, bimat = [] }) {
   if (kiemTraBcvh(bcvh) === null) throw saiThamSo(`Tham số "bcvh" là bắt buộc, một trong: ${MA_BCVH.join(', ')}`);
   if (!ngayHopLe(ngay)) throw saiThamSo('Tham số "ngay" phải là ngày hợp lệ dạng YYYY-MM-DD');
   if (dot !== 'S' && dot !== 'C') throw saiThamSo('Tham số "dot" phải là S hoặc C');
-  const du = nap(db, ngay, ngay, [bcvh]);
+  const du = nap(db, ngay, ngay, [bcvh], ngayCuc(now));
   const c = tinhO(du, bcvh, ngay, dot, now, bimat);
   const nghi = tinhNghiNgo(du, bcvh, ngay, ngayCuc(now));
   const mau = `${bcvh}_${ngay.replace(/-/g, '')}`;
