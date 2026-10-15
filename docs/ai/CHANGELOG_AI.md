@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5f-1b: «Ngày bắt đầu» của từng BCVH, ô `CHUA_BAT_DAU`
+
+- **Sửa** `server/lib/napNguonDoc.js`: `nap()` tính `ngayBatDau` một lần (truy vấn gộp `MIN(file_date)` + duyệt tên `sftp_source_files`); `tinhO()` trả `CHUA_BAT_DAU` cho ngày trước ngày bắt đầu; `luoi()` thêm khóa `ngay_bat_dau`; `tong_hop.theo_trang_thai` thêm `CHUA_BAT_DAU` (10 khóa). `CAN_XU_LY` không đổi (không gồm trạng thái mới). #88.
+- **Test** `tests/nap-nguon-doc.test.js`: +5 ca (557 ca; 556 pass, 1 skip). Sửa 2 ca cũ: BCVH không có dữ liệu nay cần một file sớm hơn để còn `NGUON_CHUA_CO_FILE`; danh sách khóa của `/luoi` thêm `ngay_bat_dau`. Docs: `17_…`, `04_DECISIONS.md` #88, `00_SNAPSHOT.md`.
+
+---
+
 ## [2026-10-15] - SANLUONG-5g-5: Nhật ký «Thay thế ngày» (API đọc), khôi phục từ thùng rác, dọn
 
 - **Mới** `server/lib/thayTheNhatKy.js` (lõi đọc), `server/lib/thayTheKhoiPhuc.js` (xem trước chỉ đọc + khôi phục một giao dịch); route `GET /api/arrivals/thay-the/nhat-ky[/:id]`, `POST /api/arrivals/thay-the/khoi-phuc/xem-truoc` và `/thuc-hien` (`server/routes/arrivals.js`, chỉ ADMIN). Khôi phục là BỔ SUNG: `INSERT OR IGNORE` theo khoá nghiệp vụ (id dòng gốc bỏ — đã bị dùng lại), tạo lại file với id gốc hoặc gắn vào bản OK cùng tên; không đụng trạng thái phát / NAS. #87.

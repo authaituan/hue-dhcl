@@ -30,6 +30,7 @@ Giờ trong DB là UTC (ISO `…Z`; `imported_at` của SQLite được đổi `
 Tối đa 62 ngày (400 nếu vượt, `tu > den`, ngày sai, mã BCVH lạ, thiếu `tu`/`den`, query lạ).
 ```
 { tu, den, bcvh, hom_nay, ds_bcvh: [{ma, ten}], gio_mong_doi,
+  ngay_bat_dau: { "<mã BCVH>": "YYYY-MM-DD" },   // SANLUONG-5f-1b, #88; theo `ds_bcvh` (lọc bcvh thì chỉ một khóa)
   o: [ { bcvh, ngay, dot: S|C, trang_thai, ly_do, nghi_ngo, nguon_co_file,
          chi_tiet: { file_db: [{ten, nguon: MANUAL|SFTP, trang_thai, so_dong, nap_luc, loi}], file_nguon: [{ten, kich_thuoc, mtime, lan_dau_thay, con_tren_nguon}] } } ],
   ngay_bcvh: [ { bcvh, ngay, tong_dong, so_file_db, trung_vi, so_mau, nghi_ngo, nguon_co_file } ],
@@ -39,10 +40,11 @@ Tối đa 62 ngày (400 nếu vượt, `tu > den`, ngày sai, mã BCVH lạ, thi
 - `o`: ngày MỚI NHẤT trước, rồi thứ tự 6 BCVH (533140, 535470, 536250, 537015, 537220, 535790), đợt S trước C. `file_db` của một ô = file SFTP của đợt đó + MỌI file `MANUAL` của ngày (nhập tay là cả ngày).
 - `ngay_bcvh`: một mục cho mỗi (BCVH, ngày) — chỗ UI vẽ ô «Cả ngày» và cờ nghi ngờ. Mỗi ô cũng mang `nghi_ngo` / `nguon_co_file` của ngày đó.
 - `can_xu_ly` (mới nhất trước): `loai = DOT` — ô có trạng thái `LOI`, `RONG`, `NGUON_CO_FILE_CHUA_NAP`, `CHO_FILE`, `NGUON_CHUA_CO_FILE`; `loai = NGAY` — (BCVH, ngày) nghi ngờ `IT` / `NHIEU` (`dot = null`, `ly_do = NGHI_NGO_IT|NHIEU`; `CHUA_DU_MAU` KHÔNG vào danh sách); `loai = MA_LA` — `bcvh = null`, `trang_thai = MA_KHONG_KHOP`, kèm `ma_la` (≤ 12 ký tự) và `ten_file`. Lọc theo `bcvh` thì không có mục `MA_LA`.
-- `tong_hop.theo_trang_thai`: số ô theo từng trạng thái (cộng `MA_KHONG_KHOP` = số file mã lạ).
+- `tong_hop.theo_trang_thai`: số ô theo từng trạng thái (cộng `MA_KHONG_KHOP` = số file mã lạ). Đủ 10 khóa: `DA_NAP`, `NHAP_TAY`, `RONG`, `LOI`, `NGUON_CO_FILE_CHUA_NAP`, `CHO_FILE`, `CHUA_DEN_GIO`, `NGUON_CHUA_CO_FILE`, `MA_KHONG_KHOP`, `CHUA_BAT_DAU`.
+- `ngay_bat_dau[bcvh]` (5f-1b): ngày NHỎ NHẤT trong `file_date` của mọi bản ghi `arrival_import_files` của BCVH (mọi trạng thái `OK`/`EMPTY`/`REJECTED`/`CONFLICT`, cả nhập tay) và ngày trong tên file của mọi dòng `sftp_source_files` có mã BCVH đó (kể cả `con_tren_nguon = 0`); không có gì → `hom_nay`. Tính MỘT lần cho cả lưới bằng truy vấn gộp, KHÔNG phụ thuộc `tu`/`den`. Ô có `ngay < ngay_bat_dau` là `CHUA_BAT_DAU` (không vào `can_xu_ly`).
 
 ### 3.3 `GET /api/nap-nguon/o?bcvh=&ngay=&dot=S|C`
-Khung chi tiết một ô: `trang_thai`, `ly_do`, `nghi_ngo`, `nguon_co_file`, `tong_ngay` (tổng dòng / trung vị / số mẫu), `file_mong_doi` { `mau_ten` `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv`, `gio_mong_doi`, `an_han_phut` }, `file_db`, `file_nguon`, `thong_tin_nap` (file SFTP `OK` của đợt: tên, nạp lúc, số dòng, thời gian nạp ms từ lần `DA_NAP` gần nhất trong `sftp_sync_files`), `lan_thu_gan_nhat`, `loi` { `ma`, `chi_tiet` đã lọc } và `lich_su` (≤ 20, mới nhất trước, mỗi lần: `lan_id`, `luot_id`, `luc` UTC, `cach_chay`, `ten`, `ket_qua`, `so_dong`, `thoi_gian_ms`, `ma_loi`, `chi_tiet`).
+Khung chi tiết một ô (ô trước ngày bắt đầu: `200`, `trang_thai = CHUA_BAT_DAU`, `file_db`/`file_nguon`/`lich_su` rỗng, `loi = null`): `trang_thai`, `ly_do`, `nghi_ngo`, `nguon_co_file`, `tong_ngay` (tổng dòng / trung vị / số mẫu), `file_mong_doi` { `mau_ten` `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv`, `gio_mong_doi`, `an_han_phut` }, `file_db`, `file_nguon`, `thong_tin_nap` (file SFTP `OK` của đợt: tên, nạp lúc, số dòng, thời gian nạp ms từ lần `DA_NAP` gần nhất trong `sftp_sync_files`), `lan_thu_gan_nhat`, `loi` { `ma`, `chi_tiet` đã lọc } và `lich_su` (≤ 20, mới nhất trước, mỗi lần: `lan_id`, `luot_id`, `luc` UTC, `cach_chay`, `ten`, `ket_qua`, `so_dong`, `thoi_gian_ms`, `ma_loi`, `chi_tiet`).
 
 ### 3.4 `GET /api/nap-nguon/luot?trang=&kich_thuoc=` và `GET /api/nap-nguon/luot/:id`
 Danh sách `{ trang, kich_thuoc, tong, so_trang, luot: [{ id, bat_dau, ket_thuc, cach_chay, liet_ke, da_nap, da_co, chua_on_dinh, rong, bo_qua_khac, loi, ket_qua, nguoi, ghi_chu_loi }] }`, mới nhất trước. `ket_qua`: `DANG_CHAY` (chưa kết thúc, < 30 phút), `TREO` (> 30 phút), `CO_LOI` (`loi > 0`), `THANH_CONG`. `nguoi` = `{ma, ten}` của người bấm «Lấy ngay» / «Lấy lại» (5f-2, `18_…`), `null` với lượt tự động và hàng cũ; `loai` = `LAY_NGAY` \| `LAY_LAI` \| null; `so_o_yeu_cau`. `luot_gan_nhat` và `dang_chay` (tổng quan) cũng có `loai`, `nguoi`. Chi tiết: thêm `files: [{id, ten, ket_qua, so_dong, thoi_gian_ms, ma_loi, chi_tiet}]` (KHÔNG trả thư mục nguồn). Lượt không có / là hàng khóa → 404.
@@ -51,6 +53,7 @@ Danh sách `{ trang, kich_thuoc, tong, so_trang, luot: [{ id, bat_dau, ket_thuc,
 Đợt: `S` nếu `file_time < 12:00`, `C` nếu `≥ 12:00` (file 11:59:59 → S, 12:00:00 → C). Xét THEO THỨ TỰ, dừng ở quy tắc đầu tiên khớp:
 | # | Điều kiện (BCVH, ngày = `file_date`, đợt) | `trang_thai` | `ly_do` |
 |---|---|---|---|
+| 0 | `ngay` < `ngay_bat_dau` của BCVH (xét TRƯỚC mọi quy tắc khác; `ly_do = null`, `nghi_ngo = null`, không file) | `CHUA_BAT_DAU` | — |
 | 1 | có file SFTP của đợt `status OK` | `DA_NAP` | — |
 | 2 | có file SFTP của đợt `EMPTY` (và không có `OK`) | `RONG` | `EMPTY` |
 | 3 | có file SFTP của đợt `REJECTED`/`CONFLICT` (không `OK`/`EMPTY`) | `LOI` | `REJECTED` / `CONFLICT` |
