@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertCircle,
   RefreshCw,
@@ -25,7 +25,8 @@ export default function SourceIngestAttention({
   onNavigateReplaceDay,
   isExecuting,
   onRefresh,
-  onNotify
+  onNotify,
+  runCompletedTrigger
 }) {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [showLimit, setShowLimit] = useState(50);
@@ -33,6 +34,13 @@ export default function SourceIngestAttention({
   const [pendingItemsToSubmit, setPendingItemsToSubmit] = useState([]);
   const [showReviewed, setShowReviewed] = useState(false);
   const [markingItem, setMarkingItem] = useState(null);
+
+  // Việc B: Sau khi lượt chạy hoàn thành (xong theo dõi), xóa danh sách ô đã chọn
+  useEffect(() => {
+    if (runCompletedTrigger > 0) {
+      setSelectedKeys([]);
+    }
+  }, [runCompletedTrigger]);
 
   const safeBcvhList = Array.isArray(bcvhList) ? bcvhList : [];
   const safeItems = Array.isArray(items) ? items : [];
@@ -114,7 +122,6 @@ export default function SourceIngestAttention({
       dot: i.dot
     }));
     onTriggerLayLai(payloadItems);
-    setSelectedKeys([]);
     setShowManualDataConfirm(false);
   };
 
