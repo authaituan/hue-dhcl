@@ -137,6 +137,13 @@ try {
   console.error('[db] Lỗi thêm cột sftp_sync_runs (5f-2):', err.message);
 }
 
+// SANLUONG-5f-1c: nap_nguon_da_xem_xet («Đã xem xét» cho mục cần xử lý). Idempotent; schema ở server/lib/napNguonXemXet.js. Giờ lưu UTC.
+try {
+  require('./lib/napNguonXemXet').ensureXemXetSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng nap_nguon_da_xem_xet:', err.message);
+}
+
 // ==========================================
 // Gán GDVH ↔ BCVH (user_bcvh). Idempotent. Schema đặt trong server/lib/userBcvh.js.
 // ==========================================

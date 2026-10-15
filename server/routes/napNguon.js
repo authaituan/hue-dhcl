@@ -89,4 +89,28 @@ router.post('/nap-nguon/lay-ngay', requireAdmin, xuLyGhi('nap_nguon_lay_ngay', (
 
 router.post('/nap-nguon/lay-lai', requireAdmin, xuLyGhi('nap_nguon_lay_lai', (req) => L.layLai({ db, user: req.user, body: req.body })));
 
+// ---------- SANLUONG-5f-1c: «Đã xem xét» (chỉ ADMIN). POST 200 { id, da_co } · 400 THAM_SO_SAI · 409 KHONG_CAN_XU_LY · DELETE 200 { id, da_huy } · 404 KHONG_TIM_THAY ----------
+// SECURITY_LOG: ai, BCVH, ngày, loại, hành động. KHÔNG ghi ghi chú, KHÔNG SHBG.
+const XX = require('../lib/napNguonXemXet');
+const xuLyXemXet = (hanhDong, fn) => (req, res) => {
+  const event = `nap_nguon_${hanhDong}`;
+  try {
+    const kq = fn(req);
+    ghiLogLay(req, event, 'ok', { muc_id: kq.id, loai: kq.loai, bcvh: kq.bcvh, ngay: kq.ngay, da_co: kq.da_co });
+    return res.json(hanhDong === 'da_xem_xet' ? { id: kq.id, da_co: kq.da_co } : { id: kq.id, da_huy: true });
+  } catch (err) {
+    if (err instanceof N.NapNguonLoi) {
+      ghiLogLay(req, event, err.code);
+      return res.status(err.httpStatus).json({ error: err.message, ma: err.code });
+    }
+    console.error(`Nap-nguon ${event} error:`, err && err.code ? err.code : (err && err.name));
+    ghiLogLay(req, event, 'LOI_HE_THONG');
+    return res.status(500).json({ error: 'Lỗi hệ thống khi ghi trạng thái đã xem xét', ma: 'LOI_HE_THONG' });
+  }
+};
+
+router.post('/nap-nguon/da-xem-xet', requireAdmin, xuLyXemXet('da_xem_xet', (req) => XX.danhDau({ db, now: new Date(), user: req.user, body: req.body })));
+
+router.delete('/nap-nguon/da-xem-xet/:id', requireAdmin, xuLyXemXet('huy_da_xem_xet', (req) => XX.huy({ db, id: req.params.id, user: req.user })));
+
 module.exports = router;

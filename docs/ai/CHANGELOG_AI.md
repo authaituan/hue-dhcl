@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5f-1c: «Đã xem xét» cho mục cần xử lý của «Nạp dữ liệu nguồn» (backend)
+
+- **Mới** `server/lib/napNguonXemXet.js` (bảng `nap_nguon_da_xem_xet`, dấu vân tay, lọc, đánh dấu, hủy); route `POST /api/nap-nguon/da-xem-xet`, `DELETE /api/nap-nguon/da-xem-xet/:id` (`server/routes/napNguon.js`, `requireAdmin`; `SECURITY_LOG` không ghi ghi chú).
+- **Sửa** `server/lib/napNguonDoc.js`: `luoi()` bỏ mục đã xem xét còn hiệu lực khỏi `can_xu_ly`, trả `da_xem_xet[]` + `tong_hop.da_xem_xet`; thêm `dauVanTayMuc` (cho POST). `server/db.js`: tạo bảng khi khởi động. Quyết định #89.
+- **Test** `tests/nap-nguon-xem-xet.test.js` (mới, 11 ca; đã thêm vào `npm test`). **Test cũ sửa (có chủ đích)**: `tests/nap-nguon-doc.test.js` — khóa `Object.keys` của `luoi` thêm `da_xem_xet`; kiểm tĩnh route 7 → 9 (thêm POST + DELETE).
+- **Chưa làm**: giao diện (`src/`); lõi tải / nạp không đổi.
+
+---
+
 ## [2026-10-15] - SANLUONG-5f-1b: «Ngày bắt đầu» của từng BCVH, ô `CHUA_BAT_DAU`
 
 - **Sửa** `server/lib/napNguonDoc.js`: `nap()` tính `ngayBatDau` một lần (truy vấn gộp `MIN(file_date)` + duyệt tên `sftp_source_files`); `tinhO()` trả `CHUA_BAT_DAU` cho ngày trước ngày bắt đầu; `luoi()` thêm khóa `ngay_bat_dau`; `tong_hop.theo_trang_thai` thêm `CHUA_BAT_DAU` (10 khóa). `CAN_XU_LY` không đổi (không gồm trạng thái mới). #88.
