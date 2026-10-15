@@ -13,18 +13,26 @@ import {
   REASON_MAP,
   formatNumber
 } from '../../utils/sourceIngest';
+import { MarkReviewDialog } from './SourceIngestReviewDialog';
+import SourceIngestReviewed from './SourceIngestReviewed';
 
 export default function SourceIngestAttention({
   items = [],
   bcvhList = [],
+  daXemXetList = [],
+  daXemXetCount = 0,
   onTriggerLayLai,
   onNavigateReplaceDay,
-  isExecuting
+  isExecuting,
+  onRefresh,
+  onNotify
 }) {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [showLimit, setShowLimit] = useState(50);
   const [showManualDataConfirm, setShowManualDataConfirm] = useState(false);
   const [pendingItemsToSubmit, setPendingItemsToSubmit] = useState([]);
+  const [showReviewed, setShowReviewed] = useState(false);
+  const [markingItem, setMarkingItem] = useState(null);
 
   const safeBcvhList = Array.isArray(bcvhList) ? bcvhList : [];
   const safeItems = Array.isArray(items) ? items : [];
@@ -194,6 +202,37 @@ export default function SourceIngestAttention({
   const visibleItems = sortedItems.slice(0, showLimit);
 
   if (totalCount === 0) {
+    if (daXemXetCount > 0) {
+      return (
+        <div className="space-y-4">
+          <div className="card-soft p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="font-semibold text-emerald-900">
+              Không có mục nào cần xử lý. {daXemXetCount} mục đã xem xét.
+            </div>
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showReviewed}
+                onChange={(e) => setShowReviewed(e.target.checked)}
+                className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+              />
+              <span>Hiện cả mục đã xem xét ({formatNumber(daXemXetCount)})</span>
+            </label>
+          </div>
+
+          {showReviewed && (
+            <SourceIngestReviewed
+              items={daXemXetList}
+              bcvhList={safeBcvhList}
+              showReviewed={showReviewed}
+              onToggleShowReviewed={setShowReviewed}
+              onRefresh={onRefresh}
+              onNotify={onNotify}
+            />
+          )}
+        </div>
+      );
+    }
     return null;
   }
 
@@ -201,52 +240,63 @@ export default function SourceIngestAttention({
   const isOverLimit = selectedCount > 20;
 
   return (
-    <div className="card-soft rounded-2xl border border-orange-200 overflow-hidden shadow-2xs space-y-0">
-      {/* HEADER B0 */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-50/90 to-amber-50/50 border-b border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
-            <h3 className="text-sm font-bold text-gray-900 tracking-tight">
-              B0. Ngày bị thiếu cần xử lý ({formatNumber(totalCount)} mục)
-            </h3>
+    <div className="space-y-4">
+      <div className="card-soft rounded-2xl border border-orange-200 overflow-hidden shadow-2xs space-y-0">
+        {/* HEADER B0 */}
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-50/90 to-amber-50/50 border-b border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+              <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                Cần xử lý ({formatNumber(totalCount)})
+              </h3>
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              {formatNumber(totalCount)} đợt cần xem · {formatNumber(thieuCount)} thiếu · {formatNumber(rongCount)} rỗng · {formatNumber(loiCount)} lỗi · {formatNumber(nghiNgoCount)} nghi ngờ (ít/nhiều)
+            </p>
           </div>
-          <p className="text-xs text-gray-600 mt-1">
-            {formatNumber(totalCount)} đợt cần xem · {formatNumber(thieuCount)} thiếu · {formatNumber(rongCount)} rỗng · {formatNumber(loiCount)} lỗi · {formatNumber(nghiNgoCount)} nghi ngờ (ít/nhiều)
-          </p>
-        </div>
 
-        {/* NÚT THỰC HIỆN LẤY LẠI NHIỀU ĐỢT */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-          {selectedCount > 0 && (
-            <button
-              type="button"
-              onClick={handleConfirmBatchLayLai}
-              disabled={isExecuting || isOverLimit}
-              className={`flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
-                isOverLimit
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-orange-600 hover:bg-orange-700 text-white'
-              }`}
-            >
-              {isExecuting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Đang gửi…</span>
-                </>
-              ) : (
-                <span>Lấy lại {selectedCount} đợt đã chọn</span>
-              )}
-            </button>
-          )}
+          {/* NÚT THỰC HIỆN LẤY LẠI NHIỀU ĐỢT VÀ Ô HIỆN MỤC ĐÃ XEM XÉT */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showReviewed}
+                onChange={(e) => setShowReviewed(e.target.checked)}
+                className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+              />
+              <span>Hiện cả mục đã xem xét ({formatNumber(daXemXetCount)})</span>
+            </label>
 
-          {isOverLimit && (
-            <span className="text-[11px] text-red-600 font-semibold">
-              Tối đa 20 đợt mỗi lần
-            </span>
-          )}
+            {selectedCount > 0 && (
+              <button
+                type="button"
+                onClick={handleConfirmBatchLayLai}
+                disabled={isExecuting || isOverLimit}
+                className={`flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
+                  isOverLimit
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                }`}
+              >
+                {isExecuting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang gửi…</span>
+                  </>
+                ) : (
+                  <span>Lấy lại {selectedCount} đợt đã chọn</span>
+                )}
+              </button>
+            )}
+
+            {isOverLimit && (
+              <span className="text-[11px] text-red-600 font-semibold">
+                Tối đa 20 đợt mỗi lần
+              </span>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* BẢNG DANH SÁCH CẦN XỬ LÝ */}
       <div className="overflow-x-auto">
@@ -340,37 +390,57 @@ export default function SourceIngestAttention({
                   {/* HÀNH ĐỘNG */}
                   <td className="py-2.5 px-3 text-right whitespace-nowrap">
                     {item.loai === 'NGAY' ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onNavigateReplaceDay &&
-                          onNavigateReplaceDay({ bcvh: item.bcvh, ngay: item.ngay })
-                        }
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-orange-700 bg-orange-100 hover:bg-orange-200 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
-                      >
-                        <span>Thay thế ngày</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    ) : item.trang_thai === 'NGUON_CHUA_CO_FILE' ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 bg-gray-100 cursor-not-allowed"
-                        title="Nguồn chưa có file, không thể lấy lại"
-                      >
-                        Lấy lại
-                      </button>
-                    ) : item.loai === 'DOT' && selectable ? (
-                      <button
-                        type="button"
-                        onClick={() => handleSingleLayLai(item)}
-                        disabled={isExecuting}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
-                      >
-                        Lấy lại
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onNavigateReplaceDay &&
+                            onNavigateReplaceDay({ bcvh: item.bcvh, ngay: item.ngay })
+                          }
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-orange-700 bg-orange-100 hover:bg-orange-200 transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
+                        >
+                          <span>Thay thế ngày</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMarkingItem(item)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          Đã xem xét
+                        </button>
+                      </div>
+                    ) : item.loai === 'DOT' ? (
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        {item.trang_thai === 'NGUON_CHUA_CO_FILE' ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 bg-gray-100 cursor-not-allowed"
+                            title="Nguồn chưa có file, không thể lấy lại"
+                          >
+                            Lấy lại
+                          </button>
+                        ) : selectable ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSingleLayLai(item)}
+                            disabled={isExecuting}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                          >
+                            Lấy lại
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setMarkingItem(item)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          Đã xem xét
+                        </button>
+                      </div>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-gray-400 text-xs">Không có thao tác</span>
                     )}
                   </td>
                 </tr>
@@ -441,6 +511,29 @@ export default function SourceIngestAttention({
           </div>
         </div>
       )}
+      </div>
+
+      {/* THẺ ĐÃ XEM XÉT NẾU BẬT */}
+      {showReviewed && (
+        <SourceIngestReviewed
+          items={daXemXetList}
+          bcvhList={safeBcvhList}
+          showReviewed={showReviewed}
+          onToggleShowReviewed={setShowReviewed}
+          onRefresh={onRefresh}
+          onNotify={onNotify}
+        />
+      )}
+
+      {/* MODAL ĐÁNH DẤU ĐÃ XEM XÉT */}
+      <MarkReviewDialog
+        isOpen={Boolean(markingItem)}
+        item={markingItem}
+        bcvhList={safeBcvhList}
+        onClose={() => setMarkingItem(null)}
+        onRefresh={onRefresh}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

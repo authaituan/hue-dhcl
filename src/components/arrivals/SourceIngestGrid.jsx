@@ -10,7 +10,9 @@ import {
   getVnTodayYmd,
   addDaysYmd,
   countDays,
-  CELL_STATUS_MAP
+  CELL_STATUS_MAP,
+  buildReviewedLookup,
+  formatUtcToVnDateTime
 } from '../../utils/sourceIngest';
 
 export default function SourceIngestGrid({
@@ -111,6 +113,9 @@ export default function SourceIngestGrid({
       cellLookup[key] = o;
     }
   }
+
+  // Tra cứu các mục đã xem xét
+  const reviewedLookup = buildReviewedLookup(gridData?.da_xem_xet);
 
   // Danh sách các ngày trong khoảng (sắp xếp mới nhất ở trên)
   const dayList = [];
@@ -322,16 +327,26 @@ export default function SourceIngestGrid({
                       const oC = cellLookup[`${b.ma}_${day}_C`];
                       const ngayBatDau = ngayBatDauMap[b.ma];
                       const isNghiNgo = (oS?.nghi_ngo === 'IT' || oS?.nghi_ngo === 'NHIEU' || oC?.nghi_ngo === 'IT' || oC?.nghi_ngo === 'NHIEU');
+                      const reviewedItemS = reviewedLookup[`DOT|${b.ma}|${day}|S`];
+                      const reviewedItemC = reviewedLookup[`DOT|${b.ma}|${day}|C`];
+                      const reviewedNgayItem = reviewedLookup[`NGAY|${b.ma}|${day}|`];
 
                       return (
                         <td key={b.ma} className="py-2 px-1 text-center align-middle">
                           <div className="relative inline-flex items-center justify-center gap-1 bg-gray-50/50 p-1 rounded-xl border border-gray-100">
-                            {/* DẤU CHẤM CAM GÓC CẶP S/C KHI CÓ NGHI NGỜ */}
+                            {/* DẤU CHẤM CAM GÓC CẶP S/C KHI CÓ NGHI NGỜ (ĐỔI THÀNH CHẤM RỖNG NẾU ĐÃ XEM XÉT) */}
                             {isNghiNgo && (
-                              <span
-                                className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white"
-                                title="Có cảnh báo nghi ngờ số lượng dòng ít/nhiều"
-                              />
+                              reviewedNgayItem ? (
+                                <span
+                                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-white ring-2 ring-white"
+                                  title={`Đã xem xét bởi ${reviewedNgayItem.nguoi?.ten || reviewedNgayItem.nguoi?.ma || '—'} lúc ${formatUtcToVnDateTime(reviewedNgayItem.luc)}`}
+                                />
+                              ) : (
+                                <span
+                                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white"
+                                  title="Có cảnh báo nghi ngờ số lượng dòng ít/nhiều"
+                                />
+                              )
                             )}
 
                             {/* Ô SÁNG */}
@@ -341,6 +356,7 @@ export default function SourceIngestGrid({
                               bcvh={b.ma}
                               ngay={day}
                               ngayBatDau={ngayBatDau}
+                              reviewedItem={reviewedItemS}
                               onClick={() => onSelectCell({ bcvh: b.ma, ngay: day, dot: 'S' })}
                             />
 
@@ -351,6 +367,7 @@ export default function SourceIngestGrid({
                               bcvh={b.ma}
                               ngay={day}
                               ngayBatDau={ngayBatDau}
+                              reviewedItem={reviewedItemC}
                               onClick={() => onSelectCell({ bcvh: b.ma, ngay: day, dot: 'C' })}
                             />
                           </div>
@@ -394,6 +411,12 @@ export default function SourceIngestGrid({
             <span>Chưa nạp</span>
           </span>
           <span className="inline-flex items-center gap-1">
+            <span className="relative w-3.5 h-3.5 rounded bg-white border border-stone-300 flex items-center justify-center text-[8px] font-bold text-gray-500">
+              ✓
+            </span>
+            <span>Đã xem xét: viền xám, dấu ✓</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
             <span className="w-3 h-3 rounded bg-gray-50 border border-gray-200" />
             <span>Không file</span>
           </span>
@@ -412,7 +435,7 @@ export default function SourceIngestGrid({
 }
 
 // Component con hiển thị 1 nhãn S hoặc C
-function CellButton({ cell, dot, bcvh, ngay, ngayBatDau, onClick }) {
+function CellButton({ cell, dot, bcvh, ngay, ngayBatDau, reviewedItem, onClick }) {
   const trangThai = (cell && typeof cell.trang_thai === 'string') ? cell.trang_thai : '';
   const cfg = (trangThai && CELL_STATUS_MAP[trangThai]) || {
     label: dot,
@@ -443,14 +466,41 @@ function CellButton({ cell, dot, bcvh, ngay, ngayBatDau, onClick }) {
     );
   }
 
+  const isReviewed = Boolean(reviewedItem);
+  let cellClass = `relative w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer border ${cfg.cellClass}`;
+  let title = `${dot === 'S' ? 'Sáng' : 'Chiều'} · ${cfg.label || trangThai}`;
+
+  if (isReviewed) {
+    const reviewerName = reviewedItem?.nguoi
+      ? (typeof reviewedItem.nguoi.ten === 'string' && reviewedItem.nguoi.ten
+          ? reviewedItem.nguoi.ten
+          : (typeof reviewedItem.nguoi.ma === 'string' ? reviewedItem.nguoi.ma : '—'))
+      : '—';
+    const reviewedTimeVn = typeof reviewedItem?.luc === 'string' ? formatUtcToVnDateTime(reviewedItem.luc) : '—';
+    title = `Đã xem xét bởi ${reviewerName} lúc ${reviewedTimeVn}`;
+
+    // Đổi kiểu viền: viền LIỀN màu xám (stone-300), không viền đứt
+    cellClass = cellClass
+      .replace(/border-dashed/g, 'border-solid')
+      .replace(/border-[a-z]+-[0-9]+/g, 'border-stone-300');
+    if (!cellClass.includes('border-stone-300')) {
+      cellClass += ' border-stone-300 border-solid';
+    }
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer border ${cfg.cellClass}`}
-      title={`${dot === 'S' ? 'Sáng' : 'Chiều'} · ${cfg.label || trangThai}`}
+      className={cellClass}
+      title={title}
     >
-      {dot}
+      <span>{dot}</span>
+      {isReviewed && (
+        <span className="absolute top-0.5 right-0.5 text-[8px] font-bold text-gray-500 leading-none pointer-events-none">
+          ✓
+        </span>
+      )}
     </button>
   );
 }

@@ -17,17 +17,23 @@ import {
   translateFileResult,
   getFileResultStyle
 } from '../../utils/sourceIngest';
+import { UnmarkReviewDialog } from './SourceIngestReviewDialog';
 
 export default function SourceIngestCellPanel({
   cellParams, // { bcvh, ngay, dot }
+  daXemXetList = [],
+  bcvhList = [],
   onClose,
   onTriggerLayLai,
   onNavigateReplaceDay,
-  isExecuting
+  isExecuting,
+  onRefresh,
+  onNotify
 }) {
   const [loading, setLoading] = useState(true);
   const [cellData, setCellData] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const [unmarkingItem, setUnmarkingItem] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,6 +139,15 @@ export default function SourceIngestCellPanel({
 
   const canReplaceDay = cellData?.nghi_ngo === 'IT' || cellData?.nghi_ngo === 'NHIEU';
 
+  const safeDaXemXetList = Array.isArray(daXemXetList) ? daXemXetList : [];
+  const matchingDotItem = safeDaXemXetList.find(
+    (x) => x && x.loai === 'DOT' && x.bcvh === bcvh && x.ngay === ngay && x.dot === dot
+  );
+  const isNghiNgo = cellData?.nghi_ngo === 'IT' || cellData?.nghi_ngo === 'NHIEU';
+  const matchingNgayItem = isNghiNgo
+    ? safeDaXemXetList.find((x) => x && x.loai === 'NGAY' && x.bcvh === bcvh && x.ngay === ngay)
+    : null;
+
   const handleLayLai = () => {
     onTriggerLayLai([{ bcvh, ngay, dot }]);
     onClose();
@@ -167,6 +182,54 @@ export default function SourceIngestCellPanel({
             Mã đơn vị: {bcvh} · Đợt: {dotLabel}
           </p>
         </div>
+
+        {/* KHỐI ĐÃ XEM XÉT (NẾU CÓ) */}
+        {matchingDotItem && (
+          <div className="p-3.5 bg-gray-50/90 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-1">
+              <div className="text-gray-900">
+                <strong className="font-bold">Đã xem xét</strong> bởi {matchingDotItem.nguoi?.ten || matchingDotItem.nguoi?.ma || '—'} lúc {formatUtcToVnDateTime(matchingDotItem.luc)}
+              </div>
+              {typeof matchingDotItem.ghi_chu === 'string' && matchingDotItem.ghi_chu.trim() && (
+                <div className="text-gray-600">
+                  Ghi chú: {matchingDotItem.ghi_chu.trim()}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setUnmarkingItem(matchingDotItem)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs shrink-0 cursor-pointer"
+            >
+              Bỏ đánh dấu
+            </button>
+          </div>
+        )}
+
+        {matchingNgayItem && (
+          <div className="p-3.5 bg-gray-50/90 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-1">
+              <div className="font-bold text-gray-900">
+                Nghi ngờ số dòng của cả ngày: đã xem xét
+              </div>
+              <div className="text-gray-700">
+                Bởi {matchingNgayItem.nguoi?.ten || matchingNgayItem.nguoi?.ma || '—'} lúc {formatUtcToVnDateTime(matchingNgayItem.luc)}
+              </div>
+              {typeof matchingNgayItem.ghi_chu === 'string' && matchingNgayItem.ghi_chu.trim() && (
+                <div className="text-gray-600">
+                  Ghi chú: {matchingNgayItem.ghi_chu.trim()}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setUnmarkingItem(matchingNgayItem)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs shrink-0 cursor-pointer"
+            >
+              Bỏ đánh dấu
+            </button>
+          </div>
+        )}
 
         {/* NỘI DUNG LOADING / LỖI / DỮ LIỆU */}
         {loading ? (
@@ -441,6 +504,16 @@ export default function SourceIngestCellPanel({
           </div>
         </div>
       </div>
+
+      {/* MODAL XÁC NHẬN BỎ ĐÁNH DẤU */}
+      <UnmarkReviewDialog
+        isOpen={Boolean(unmarkingItem)}
+        item={unmarkingItem}
+        bcvhList={bcvhList}
+        onClose={() => setUnmarkingItem(null)}
+        onRefresh={onRefresh}
+        onNotify={onNotify}
+      />
     </div>
   );
 }

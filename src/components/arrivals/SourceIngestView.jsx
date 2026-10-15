@@ -39,11 +39,18 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
   // Ô được chọn để xem chi tiết (Mục C)
   const [selectedCellParams, setSelectedCellParams] = useState(null);
 
-  // Theo dõi sau khi bấm «Lấy ngay» hoặc «Lấy lại»
   const [trackingRun, setTrackingRun] = useState(null); // { id, bat_dau, loai, da_co_nhap_tay }
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [actionSuccessSummary, setActionSuccessSummary] = useState(null);
+  const [reviewNotice, setReviewNotice] = useState(null);
+
+  const handleReviewNotify = useCallback((msg) => {
+    setReviewNotice(msg);
+    setTimeout(() => {
+      setReviewNotice((prev) => (prev === msg ? null : prev));
+    }, 4000);
+  }, []);
 
   const trackingTimerRef = useRef(null);
   const autoRefreshTimerRef = useRef(null);
@@ -338,6 +345,23 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
         </div>
       )}
 
+      {/* BANNER THÔNG BÁO XEM XÉT */}
+      {reviewNotice && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-950 flex items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-semibold">{reviewNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReviewNotice(null)}
+            className="text-gray-400 hover:text-gray-600 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* MỤC A. TÌNH TRẠNG CHUNG */}
       <SourceIngestStatus
         data={overviewData}
@@ -351,9 +375,13 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
       <SourceIngestAttention
         items={Array.isArray(gridData?.can_xu_ly) ? gridData.can_xu_ly : []}
         bcvhList={Array.isArray(gridData?.ds_bcvh) ? gridData.ds_bcvh : []}
+        daXemXetList={Array.isArray(gridData?.da_xem_xet) ? gridData.da_xem_xet : []}
+        daXemXetCount={typeof gridData?.tong_hop?.da_xem_xet === 'number' ? gridData.tong_hop.da_xem_xet : (Array.isArray(gridData?.da_xem_xet) ? gridData.da_xem_xet.length : 0)}
         onTriggerLayLai={handleTriggerLayLai}
         onNavigateReplaceDay={onNavigateReplaceDay}
         isExecuting={isExecutingAction || Boolean(trackingRun)}
+        onRefresh={refreshAll}
+        onNotify={handleReviewNotify}
       />
 
       {/* MỤC F. LƯỚI THEO NGÀY (BỌC ERROR BOUNDARY) */}
@@ -401,10 +429,14 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
         >
           <SourceIngestCellPanel
             cellParams={selectedCellParams}
+            daXemXetList={Array.isArray(gridData?.da_xem_xet) ? gridData.da_xem_xet : []}
+            bcvhList={Array.isArray(gridData?.ds_bcvh) ? gridData.ds_bcvh : []}
             onClose={() => setSelectedCellParams(null)}
             onTriggerLayLai={handleTriggerLayLai}
             onNavigateReplaceDay={onNavigateReplaceDay}
             isExecuting={isExecutingAction || Boolean(trackingRun)}
+            onRefresh={refreshAll}
+            onNotify={handleReviewNotify}
           />
         </SourceIngestErrorBoundary>
       )}
