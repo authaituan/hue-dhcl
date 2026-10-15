@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5g-2: Xem trước «Thay thế ngày của một BCVH» (chỉ đọc)
+
+- **Mới** `server/lib/thayTheXemTruoc.js` (`xemTruocThayThe`; chỉ SELECT, không nạp thư viện SFTP, không lệnh ghi), `server/config/thay-the.js` (`NGUONG_MAT_SHBG_DO = 0.05` TẠM, `SO_SHBG_MAU = 20`), route **`POST /api/arrivals/thay-the/xem-truoc`** (chỉ ADMIN; `server/routes/arrivals.js`; ghi `SECURITY_LOG` không có SHBG), script **`scripts/thay-the-xem-truoc.js`** (DB chỉ-đọc, ghim vân tay; mã thoát 0–8).
+- Tính: tập file DB của (BCVH, `file_date`) mọi trạng thái + số dòng / SHBG / phân bố `arrival_date`; tập file nguồn của đúng mã + đúng ngày (bỏ `DuBao_*`, `#recycle`, lạ; ≤ 3 byte `RONG`), tải file chọn về thư mục tạm → `chuanBiFile` → xóa tệp; so sánh SHBG chuẩn hóa (chỉ ở cũ / chỉ ở mới / chung, `ty_le_mat`, theo ngày đến, ≤ 20 SHBG mẫu cho ADMIN); mức `AN_TOAN` / `CAN_XAC_NHAN` (đúng 5 % vẫn thế) / `DO` (> 5 %), `khoa_mac_dinh`, `khong_the_thay`; ảnh hưởng `phat_status_current(bcvh, shbg)`; `tap_file_nguon` kèm sha256 cho 5g-3.
+- Chặn: đang có lượt đồng bộ (khóa DB / hẹn giờ `DANG_CHAY`) → 409; hai bản xem trước cùng lúc → 409; lỗi xác thực / vân tay / mạng / thư mục phân loại, KHÔNG thử lại. `client.end()` luôn được gọi, tệp tạm luôn xóa.
+- Test `tests/thay-the-xem-truoc.test.js` (mới, 26 ca; đã thêm vào `npm test`). Docs: `15_THAY_THE_NGAY_XEM_TRUOC.md`, `04_DECISIONS.md` #82, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Không đổi `arrivalsImport.js`, `sftpSync.js`, `sftpScheduler.js`, lược đồ DB. Chưa làm: xóa / nạp / thùng rác / giao diện (5g-3, 5g-4); chưa chạy với NAS thật.
+
+---
+
 ## [2026-10-15] - SANLUONG-5g-1: Tách importer thành chuanBiFile (async, không đụng DB) + ghiFileDaChuanBi (đồng bộ)
 
 - `server/lib/arrivalsImport.js` (PO cho phép, chỉ ticket này): `importArrivalFile` tách đôi — `chuanBiFile(filePath, { source })` (bất đồng bộ, KHÔNG nhận `db`: đọc + kiểm tra tên / BOM / tiêu đề / từng dòng / khoảng ngày, băm, đếm; trả đối tượng «đã chuẩn bị» `ketLuan` READY / EMPTY_FILE / REJECTED / SKIPPED_NAME) và `ghiFileDaChuanBi(db, daChuanBi, { ghiTuChoi, source })` (ĐỒNG BỘ: idempotent theo tên + sha256, `CONFLICT`, ghi file + `INSERT OR IGNORE` + `ward_bdx_map`). Gọi được BÊN TRONG giao dịch ngoài (savepoint của better-sqlite3, không tự commit, hoàn tác theo giao dịch ngoài). `options.ghiTuChoi=false` tắt ghi `REJECTED` / `CONFLICT`. `importArrivalFile` giữ nguyên chữ ký và hành vi (= await `chuanBiFile` + `ghiFileDaChuanBi`). Xuất thêm hai hàm.

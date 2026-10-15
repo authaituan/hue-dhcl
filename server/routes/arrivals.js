@@ -10,6 +10,7 @@ const { getAssignedBcvh, VALID_BCVH_CODES } = require('../lib/userBcvh');
 const phatDash = require('../lib/phatDashboard');
 const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
+const thayThe = require('../lib/thayTheXemTruoc');
 
 const router = express.Router();
 
@@ -171,5 +172,37 @@ router.get('/arrivals/import-status', requireAdmin, handle((req) => {
   q.parseFilters(req.query, { allowed: [], requireRange: false });
   return q.importStatus(db, { getMissingBatches });
 }, 'import-status'));
+
+// SANLUONG-5g-2 — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC; chưa xoá, chưa nạp — thay thật là 5g-3). Chỉ ADMIN (TTVH, GDVH, STAFF, TIVI -> 403; không token -> 401).
+// POST vì gọi mạng (liệt kê + tải file từ nguồn SFTP). Thân JSON: { bcvh, ngay (YYYY-MM-DD, ngày trong TÊN FILE), tap_file?: [tên file] (mặc định tất cả file của (bcvh, ngày) trên nguồn) }.
+// Lỗi: 400 tham số, 409 đang có lượt đồng bộ / đang có bản xem trước khác, 503 chưa cấu hình SFTP, 502 lỗi nguồn (mạng / xác thực / vân tay / thư mục — KHÔNG thử lại).
+// Ghi SECURITY_LOG một dòng: ai, BCVH, ngày, kết quả (KHÔNG có SHBG, KHÔNG có mật khẩu). Route là nơi nạp lớp kết nối SFTP (sftpConnect.js, nạp lười).
+router.post('/arrivals/thay-the/xem-truoc', requireAdmin, async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const ghiLog = (ketQua, extra = {}) => req.app.locals.security.log({
+    event: 'arrivals_thay_the_xem_truoc', ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
+    bcvh: typeof body.bcvh === 'string' ? body.bcvh.slice(0, 12) : null, ngay: typeof body.ngay === 'string' ? body.ngay.slice(0, 10) : null, ket_qua: ketQua, ...extra
+  });
+  try {
+    for (const k of Object.keys(body)) {
+      if (!['bcvh', 'ngay', 'tap_file'].includes(k)) throw new thayThe.XemTruocLoi(thayThe.MA_LOI.THAM_SO_SAI, `Tham số không hỗ trợ: "${String(k).slice(0, 40)}"`);
+    }
+    thayThe.kiemTraDauVao({ bcvh: body.bcvh, ngay: body.ngay, tapFile: body.tap_file });
+    const nguon = thayThe.layNguon();
+    const kq = await thayThe.xemTruocThayThe({
+      client: nguon.client || null, ketNoi: nguon.ketNoi, dirs: nguon.dirs, db, bcvh: body.bcvh, ngay: body.ngay, tapFile: body.tap_file ?? null, bimat: nguon.bimat || []
+    });
+    ghiLog('ok', { muc: kq.canh_bao.muc, khong_the_thay: kq.canh_bao.khong_the_thay });
+    return res.json(kq);
+  } catch (err) {
+    if (err instanceof thayThe.XemTruocLoi) {
+      ghiLog(err.code);
+      return res.status(err.httpStatus).json({ error: err.message, ma: err.code });
+    }
+    console.error('Arrivals thay-the xem-truoc error:', err && err.code ? err.code : (err && err.name));
+    ghiLog('LOI_HE_THONG');
+    return res.status(500).json({ error: 'Lỗi hệ thống khi xem trước thay thế', ma: 'LOI_HE_THONG' });
+  }
+});
 
 module.exports = router;

@@ -37,6 +37,7 @@ src/
 scripts/import-seed.js  # nạp tài khoản + mạng lưới từ DB hệ thống cũ vào data/hue-dhcl.db (06_DEPLOYMENT.md mục 5)
 scripts/import-arrivals.js  # nạp CSV "Hàng đến" (file/thư mục), --check-days; --db để trỏ DB khác
 server/lib/sftpScheduler.js # (không phải script) hẹn giờ tự động nạp SFTP trong máy chủ — mặc định TẮT, SFTP_SYNC_ENABLED=1 (SANLUONG-5e; docs/ai/15_SFTP_SCHEDULER.md)
+scripts/thay-the-xem-truoc.js # XEM TRƯỚC thay thế ngày của một BCVH (CHỈ ĐỌC; DB readonly, ghim vân tay; SANLUONG-5g-2; docs/ai/15_THAY_THE_NGAY_XEM_TRUOC.md)
 scripts/sftp-sync.js         # đồng bộ SFTP chạy tay: quét → tải tệp tạm → nạp (source='SFTP'); mặc định chạy khô, --chay-that (SANLUONG-5c; docs/ai/13_SFTP_SYNC.md)
 scripts/sftp-probe.js        # thử kết nối SFTP CHỈ ĐỌC: vân tay khoá máy chủ + liệt kê tên/kích thước/mtime (SANLUONG-5b; chưa tải/nạp; docs/ai/12_SFTP_PROBE.md)
 scripts/set-ward-map.js     # gán tay phường/xã → BĐX (MANUAL)
@@ -108,6 +109,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/export?receiver_code=&from=&to=[&date_basis=]` — file `.xlsx` (`HangDen_<mã>_<from>_<to>.xlsx`) dữ liệu thô của MỘT BCVH, 9 cột chuỗi; `from`/`to` bắt buộc, ≤ 92 ngày, ≤ 1.000.000 dòng; GDVH chỉ BCVH được giao (403 nếu khác) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/arrivalsExport.js` |
 | `GET /api/arrivals/exceptions?ly_do=&page=&page_size=` — ngoại lệ phân trang (BD10 sớm, đến lại, chưa nhận tại BCVH, không mốc nào) + `theo_ly_do` | ADMIN | `routes/arrivals.js` |
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
+| `POST /api/arrivals/thay-the/xem-truoc` — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC, 5g-2, #82): thân `{ bcvh, ngay, tap_file? }` → `{ db, nguon, so_sanh, canh_bao, phat, tap_file_nguon }`; 400 tham số, 409 đang có lượt đồng bộ / bản xem trước khác, 502 lỗi nguồn SFTP, 503 chưa cấu hình `SFTP_*` | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheXemTruoc.js`, `config/thay-the.js` |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất
