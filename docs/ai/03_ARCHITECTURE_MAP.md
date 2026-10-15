@@ -29,6 +29,7 @@ server/
   routes/dashboard.js       # số đếm tổng quan
   routes/dashboardWidgets.js # Dashboard động: CRUD ô, dữ liệu, xem trước
   routes/arrivals.js    # API "Hàng đến" + Dashboard điều hành (chỉ GET, ADMIN + TTVH + GDVH)
+  routes/napNguon.js    # API ĐỌC màn «Nạp dữ liệu nguồn» (/api/nap-nguon/*, chỉ GET, chỉ ADMIN; SANLUONG-5f-1; docs/ai/17_NAP_DU_LIEU_NGUON_API_DOC.md)
 src/
   App.jsx               # khung app: đăng nhập / Sidebar / Header / 3 màn hình
   utils/api.js          # apiFetch/apiFetchJson, lưu token, sự kiện hết phiên
@@ -114,6 +115,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
 | `POST /api/arrivals/thay-the/xem-truoc` — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC, 5g-2, #82): thân `{ bcvh, ngay, tap_file? }` → `{ db, nguon, so_sanh, canh_bao, phat, tap_file_nguon }`; 400 tham số, 409 đang có lượt đồng bộ / bản xem trước khác, 502 lỗi nguồn SFTP, 503 chưa cấu hình `SFTP_*` | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheXemTruoc.js`, `config/thay-the.js` |
 | `POST /api/arrivals/thay-the/thuc-hien` — THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (5g-3, #83): thân `{ bcvh, ngay, tap_file?, tap_file_nguon: [{ten, sha256}], xac_nhan: {ma_bcvh, ngay}, dong_y_mat_du_lieu? }` → tóm tắt (số dòng xóa / nạp, mất thật, `nhat_ky_id`, tên tệp sao lưu); 400, 409 (đang có lượt / nguồn đã đổi / cần đồng ý mất dữ liệu / dữ liệu đã đổi), 422, 502, 503, 507, 500; lỗi nào cũng KHÔNG để lại thay đổi | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheThucHien.js`, `lib/thayTheXemTruoc.js` |
+| `GET /api/nap-nguon/tong-quan` · `/luoi?tu=&den=[&bcvh=]` (≤ 62 ngày) · `/o?bcvh=&ngay=&dot=S\|C` · `/luot?trang=&kich_thuoc=` · `/luot/:id` — màn «Nạp dữ liệu nguồn» (5f-1, #85): tình trạng hẹn giờ + lượt gần nhất; lưới ngày × BCVH × đợt với trạng thái ô, `nghi_ngo`, `nguon_co_file`, `can_xu_ly`; khung chi tiết một ô; danh sách / chi tiết lượt (lọc hàng khóa «Thay thế»); 400 tham số sai (kể cả query lạ), 404 lượt không có; chỉ ĐỌC | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/napNguon.js`, `lib/napNguonDoc.js`, `config/nap-nguon.js` |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
 `arrival` (mặc định) / `bag` / `bd10` / `item`, `receiver_code` (nhiều giá trị), `ward_key`. Sản lượng = SHBG khác nhau, đếm tại lần đến sớm nhất

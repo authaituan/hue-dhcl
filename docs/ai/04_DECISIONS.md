@@ -646,5 +646,14 @@ Căn cứ: #82 (xem trước theo cận trên), #83 (lõi thay tính mất thậ
 - `shbg_mau_chi_o_cu` (trường cũ) vẫn trả SHBG đầy đủ cho ADMIN theo yêu cầu «giữ nguyên»; mọi trường MỚI chỉ có 6 ký tự đầu. Nếu PO muốn rút gọn cả trường cũ → ticket riêng (giao diện có thể đang dựa vào).
 - Chi tiết: `15_THAY_THE_NGAY_XEM_TRUOC.md` mục 9.
 
+### 85. API ĐỌC màn «Nạp dữ liệu nguồn»: trạng thái ô theo bảng quyết định, nghi ngờ ít/nhiều theo trung vị (SANLUONG-5f-1)
+Căn cứ: canvas bảng 20; `13_SFTP_SYNC.md`, `15_SFTP_SCHEDULER.md`, #83. Chi tiết: `17_NAP_DU_LIEU_NGUON_API_DOC.md`.
+- **Chỉ GET, chỉ ADMIN, chỉ ĐỌC** (không bảng mới / ALTER / ghi): `/api/nap-nguon/tong-quan`, `/luoi`, `/o`, `/luot`, `/luot/:id`; lõi `server/lib/napNguonDoc.js`, hằng số TẠM `server/config/nap-nguon.js`. Không đổi route `/api/arrivals/*` (kể cả `import-status`).
+- **Ô = (BCVH, `file_date`, đợt)**, đợt theo `file_time` (< 12:00 S, ≥ 12:00 C). Trạng thái xét theo thứ tự: `DA_NAP` → `RONG` → `LOI` → `NGUON_CO_FILE_CHUA_NAP` (kể cả ngày đã nhập tay) → `NHAP_TAY` → (hôm nay) `CHUA_DEN_GIO` / `CHO_FILE` (giờ mong đợi + ân hạn) → (quá khứ) `NGUON_CHUA_CO_FILE`; `MA_KHONG_KHOP` tách riêng (không thuộc ô). File `MANUAL` là cả ngày (tính cho cả S và C).
+- **Nghi ngờ ít / nhiều** ở mức (BCVH, ngày): tổng `row_count` so với trung vị cùng thứ trong tuần (≤ 4 tuần, ≥ 3 mẫu): `IT` < 0,5×, `NHIEU` > 2,5×, `CHUA_DU_MAU`. Không xét hôm nay. Ngưỡng và giờ mong đợi là TẠM (PO chưa chốt).
+- **Mã lạ** lấy từ `sftp_source_files` + `sftp_sync_files(ma_loi = MA_LA)`; **người bấm «Tay»** chưa có cột → `nguoi: null` (5f-2 bổ sung); **giờ chạy kế tiếp** từ bộ hẹn giờ trong tiến trình; hàng khóa «Thay thế» lọc khỏi mọi danh sách lượt.
+- Hiệu năng: lưới 62 ngày ≈ 13 ms trên DB giả 154 nghìn dòng (vài truy vấn tổng hợp, không truy vấn từng ô). Chuỗi lỗi qua `lamSach` + che `SFTP_*`; không trả đường dẫn / host / cổng / vân tay / SHBG.
+- **Chưa làm**: «Lấy lại» / «Lấy ngay» (5f-2), giao diện (5f-3).
+
 ## Drift phát hiện
 _(chưa có)_
