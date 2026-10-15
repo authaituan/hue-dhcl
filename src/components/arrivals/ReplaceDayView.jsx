@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   RefreshCw,
@@ -89,10 +89,15 @@ const ERROR_MESSAGES = {
   LOI_HE_THONG: 'Lỗi hệ thống trong quá trình thực hiện.',
 };
 
-export default function ReplaceDayView({ authUser }) {
+export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
   // Lựa chọn đầu vào
-  const [bcvh, setBcvh] = useState(BCVH_LIST[0]?.ma || '533140');
-  const [ngay, setNgay] = useState(getYesterdayYmd());
+  const [bcvh, setBcvh] = useState(initialBcvh || BCVH_LIST[0]?.ma || '533140');
+  const [ngay, setNgay] = useState(initialNgay || getYesterdayYmd());
+
+  useEffect(() => {
+    if (initialBcvh) setBcvh(initialBcvh);
+    if (initialNgay) setNgay(initialNgay);
+  }, [initialBcvh, initialNgay]);
 
   // Trạng thái xem trước
   const [loadingPreview, setLoadingPreview] = useState(false);

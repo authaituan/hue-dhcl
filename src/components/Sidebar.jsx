@@ -8,7 +8,8 @@ import {
   Package,
   Activity,
   Gauge,
-  RefreshCw
+  RefreshCw,
+  Server
 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 
@@ -34,6 +35,7 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
   if (isAdmin) {
     navItems.push({ id: 'useradmin', label: 'Quản lý người dùng', icon: UserCog });
     navItems.push({ id: 'replace_day', label: 'Thay thế ngày', icon: RefreshCw, title: 'Thay thế ngày của một BCVH' });
+    navItems.push({ id: 'nap_nguon', label: 'Nạp dữ liệu nguồn', icon: Server, title: 'Nạp dữ liệu nguồn' });
   }
 
   return (

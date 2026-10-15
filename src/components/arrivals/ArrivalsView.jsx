@@ -12,11 +12,12 @@ import ArrivalsExport from './ArrivalsExport';
 import { ArrivalsNotReceivedBanner, ArrivalsNotReceivedDetail } from './ArrivalsNotReceived';
 import { ArrivalsBd10NotConfirmedBanner, ArrivalsBd10NotConfirmedDetail } from './ArrivalsBd10NotConfirmed';
 import { formatToApiDate } from './dateUtils';
+import IngestAttentionBanner from './IngestAttentionBanner';
 
 // Alias dùng chung từ constants/bcvh.js
 const DASHBOARD_BCVH = BCVH_LIST;
 
-export default function ArrivalsView({ authUser, navParams, onClearNavParams }) {
+export default function ArrivalsView({ authUser, navParams, onClearNavParams, onNavigateNapNguon }) {
   const isAdmin = authUser?.role === 'ADMIN';
 
   const [meta, setMeta] = useState(null);
@@ -200,7 +201,7 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams }) 
             Bưu gửi đến Bưu cục Vận hành · {filters.receiver_code.length === DASHBOARD_BCVH.length 
               ? 'Tất cả 6 BCVH' 
               : DASHBOARD_BCVH.filter(b => filters.receiver_code.includes(b.ma)).map(b => b.ten.replace('BCVH ', '')).join(', ')}
-            {meta?.date_range?.max_time && ` · lần nạp gần nhất ${meta.date_range.max_time.replace(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/, '$3/$2/$1 $4')}`}
+            {meta?.date_range?.max_time && ` · Dữ liệu đến lúc ${meta.date_range.max_time.replace(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/, '$3/$2/$1 $4')}`}
           </p>
         </div>
       </div>
@@ -221,11 +222,11 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams }) 
         </div>
       )}
 
-      {isAdmin && (data.importStatus?.missing_batches?.length > 0) && (
-        <div className="rounded-xl bg-[#fff4d6] border border-[#f0d58a] text-[#5c3f00] p-3 px-4 flex flex-wrap gap-x-4 gap-y-2 items-center text-[14px]">
-          <strong>Cảnh báo (chỉ ADMIN thấy):</strong>
-          <span>Có {data.importStatus.missing_batches.length} ngày thiếu đợt nạp file SFTP.</span>
-        </div>
+      {isAdmin && (
+        <IngestAttentionBanner
+          isAdmin={isAdmin}
+          onNavigateNapNguon={onNavigateNapNguon}
+        />
       )}
 
       <div className="min-h-[400px]">

@@ -12,6 +12,7 @@ export default function Header({ activeTab }) {
       case 'network': return 'Quản lý mạng lưới';
       case 'useradmin': return 'Quản lý người dùng';
       case 'replace_day': return 'Thay thế ngày';
+      case 'nap_nguon': return 'Nạp dữ liệu nguồn';
       default: return 'Trang chủ';
     }
   };
