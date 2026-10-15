@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-15] - SANLUONG-5f-1: API ĐỌC màn «Nạp dữ liệu nguồn» (chỉ ADMIN)
+
+- **Mới** `server/lib/napNguonDoc.js` (lõi thuần chỉ SELECT: `tongQuan`, `luoi`, `mot`, `dsLuot`, `chiTietLuot`), `server/routes/napNguon.js` (năm đường `GET /api/nap-nguon/tong-quan | luoi | o | luot | luot/:id`, `requireAdmin`; đăng ký ở `server/index.js`), `server/config/nap-nguon.js` (hằng số TẠM: giờ mong đợi 09:30 / 16:30, ân hạn 60 phút, ranh giới đợt 12:00, 62 ngày, ngưỡng 0,5× / 2,5×, 4 tuần mẫu, ≥ 3 ngày). Không bảng mới, không ghi DB, không đổi `/api/arrivals/*`.
+- Trạng thái ô (BCVH × ngày × đợt S/C): `DA_NAP`, `RONG`, `LOI`, `NGUON_CO_FILE_CHUA_NAP` (kể cả ngày nhập tay), `NHAP_TAY`, `CHUA_DEN_GIO`, `CHO_FILE`, `NGUON_CHUA_CO_FILE`, `MA_KHONG_KHOP` (riêng); cờ phụ `nguon_co_file`, `nghi_ngo` (`IT` / `NHIEU` / `CHUA_DU_MAU`, theo trung vị cùng thứ trong tuần). `can_xu_ly` phẳng, mới nhất trước. Hàng khóa «Thay thế» lọc khỏi danh sách lượt. `nguoi` của lượt «Tay» = `null` (chưa có cột; 5f-2).
+- Đo (DB giả 154.000 dòng, 1.080 file): lưới 62 ngày × 6 BCVH × 2 đợt ≈ 13 ms (lõi), ≈ 17 ms (HTTP). Test `tests/nap-nguon-doc.test.js` (mới, 17 ca; đã thêm vào `npm test`): mọi trạng thái, ranh giới 11:59:59 / 12:00:00, hôm nay trước / sau giờ, nghi ngờ, mã lạ, lượt + phân trang, quyền, 400, chỉ-đọc (so mọi bảng), không lộ bí mật (`SFTP_*` giả), tĩnh. 501 → 518 ca. Docs: `17_NAP_DU_LIEU_NGUON_API_DOC.md`, `04_DECISIONS.md` #85, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`. Chưa làm: 5f-2 (nút «Lấy lại» / «Lấy ngay»), 5f-3 (giao diện).
+
+---
+
 ## [2026-10-15] - SANLUONG-5g-3b: Xem trước trả «mất thật» (và mức cảnh báo theo mất thật)
 
 - `server/lib/thayTheXemTruoc.js`: nhận `tinhMatThat` (chuyển từ `thayTheThucHien.js`, xuất ra; `thayTheThucHien.js` nhập lại, hành vi `thayTheNgay` không đổi). `xemTruocThayThe` THÊM `so_sanh.shbg_mat_that`, `ty_le_mat_that`, `shbg_mau_mat_that` (6 ký tự đầu, tối đa 20), `canh_bao.can_dong_y_mat`; giữ nguyên `shbg_chi_o_cu` / `ty_le_mat` / `shbg_mau_chi_o_cu` (cận trên). ĐỔI NGHĨA: `canh_bao.muc`, `canh_bao.khoa_mac_dinh`, `phat` theo mất thật (đúng 5 % vẫn `CAN_XAC_NHAN`). `scripts/thay-the-xem-truoc.js` in `MẤT THẬT n (x%) — mức CẬN TRÊN m (y%)`.
