@@ -10,6 +10,7 @@ import DailyOpsDashboard from './components/arrivals/DailyOpsDashboard';
 import TiviView from './components/TiviView';
 import ProcessingDeliveryView from './components/phat/ProcessingDeliveryView';
 import ReplaceDayView from './components/arrivals/ReplaceDayView';
+import SourceIngestView from './components/arrivals/SourceIngestView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
@@ -123,6 +124,14 @@ export default function App() {
     setArrivalsNavParams(params);
   };
 
+  const [replaceDayParams, setReplaceDayParams] = useState(null);
+
+  const handleNavigateReplaceDay = (params) => {
+    if (!params) return;
+    setReplaceDayParams(params);
+    setActiveTab('replace_day');
+  };
+
   // Vào / thoát chế độ tivi
   const enterTvMode = useCallback((bcvh) => {
     // Cập nhật URL query string (không reload)
@@ -217,6 +226,7 @@ export default function App() {
               authUser={authUser}
               navParams={arrivalsNavParams}
               onClearNavParams={() => setArrivalsNavParams(null)}
+              onNavigateNapNguon={() => setActiveTab('nap_nguon')}
             />
           )}
 
@@ -233,7 +243,18 @@ export default function App() {
           )}
 
           {activeTab === 'replace_day' && isAdmin && (
-            <ReplaceDayView authUser={authUser} />
+            <ReplaceDayView
+              authUser={authUser}
+              initialBcvh={replaceDayParams?.bcvh}
+              initialNgay={replaceDayParams?.ngay}
+            />
+          )}
+
+          {activeTab === 'nap_nguon' && isAdmin && (
+            <SourceIngestView
+              authUser={authUser}
+              onNavigateReplaceDay={handleNavigateReplaceDay}
+            />
           )}
         </main>
       </div>

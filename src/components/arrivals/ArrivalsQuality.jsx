@@ -1,6 +1,5 @@
 import React from 'react';
 import { Server, FileWarning, CheckCircle2, XCircle, Archive, FileText, PackageCheck } from 'lucide-react';
-
 // PO ẩn 11/10/2026, xem SANLUONG-4c; thẻ cũ tính theo bưu gửi, gồm BD10 lập đi và không có BD10
 const SHOW_LEGACY_KHONG_XND_BD10 = false;
 
@@ -141,10 +140,6 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
               <div className="flex justify-between text-sm border-t border-gray-100 pt-2">
                 <span>Bưu gửi đến lại trong khoảng lọc (đếm một lần)</span>
                 <strong>{summary.canh_bao?.den_lai_trong_khoang?.toLocaleString('vi-VN') || 0}</strong>
-              </div>
-              <div className="flex justify-between text-sm border-t border-gray-100 pt-2">
-                <span>Ngày thiếu đợt trong khoảng đã chọn</span>
-                <strong>{importStatus?.missing_batches?.length || 0}</strong>
               </div>
               <div className="flex justify-between text-sm border-t border-gray-100 pt-2">
                 <span>File bị từ chối hoặc trùng tên khác nội dung</span>
