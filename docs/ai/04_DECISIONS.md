@@ -680,5 +680,14 @@ Căn cứ: khảo sát 5f-3a (kịch bản giả: 744 ô, 704 mục `NGUON_CHUA_
 - `luoi()` trả thêm `ngay_bat_dau` ở cấp lưới; `tong_hop.theo_trang_thai` thêm khóa `CHUA_BAT_DAU` (10 khóa). `/o` trả 200 với ô `CHUA_BAT_DAU`. «Lấy lại» không đổi (không đọc trạng thái ô).
 - Không thêm biến môi trường / bảng / cột. Chỉ phần đọc `napNguonDoc.js`; lõi tải / nạp giữ nguyên.
 
+### 89. «Đã xem xét» cho mục cần xử lý của «Nạp dữ liệu nguồn» (SANLUONG-5f-1c; quy tắc PO còn xác nhận)
+Căn cứ: ví dụ thật 15/10/2026 — BCVH Thuận Hóa ngày 09/10 sáng + chiều ở `NGUON_CO_FILE_CHUA_NAP` vì ngày đã có dữ liệu nhập tay, file chiều trên nguồn chỉ 3 byte; ADMIN đã xem, không cần làm gì nhưng mục (và banner) không bao giờ hết. Chi tiết: `17_NAP_DU_LIEU_NGUON_API_DOC.md` §3.5.
+- Bảng mới `nap_nguon_da_xem_xet` (tạo ở `db.js` qua `napNguonXemXet.ensureXemXetSchema`, idempotent). Chỉ mục duy nhất bán phần trên `(loai, bcvh, ngay, COALESCE(dot,''))` khi `huy_luc IS NULL` ⇒ mỗi khóa mục có tối đa MỘT bản ghi đang hoạt động. Hủy = đặt `huy_luc` + `huy_nguoi_ma`, không xóa dòng.
+- Chỉ `loai = DOT` và `NGAY`; KHÔNG áp cho `MA_LA`. Khóa mục = `(loai, bcvh, ngay, dot)`, `dot = NULL` cho `NGAY`.
+- **Dấu vân tay**: `DOT` = `trang_thai|ly_do|<16 hex đầu SHA-256 của các dòng "ten|kich_thuoc" của file nguồn CÒN trên nguồn thuộc ô, sắp theo tên (không có → băm chuỗi rỗng)>`; `NGAY` = `nghi_ngo|tong_dong`. Dấu chỉ có hiệu lực khi dấu vân tay hiện tại khớp lúc đánh dấu; lệch ⇒ mục tự quay lại `can_xu_ly`, bản ghi cũ giữ làm lịch sử. Hệ quả có chủ đích: tình trạng đổi rồi trở lại đúng như cũ thì dấu có hiệu lực trở lại (dấu vân tay khớp).
+- `luoi()` bỏ mục đã xem xét khỏi `can_xu_ly`, trả thêm `da_xem_xet[]` và `tong_hop.da_xem_xet`; `o[]`, `tong_hop.theo_trang_thai`, `tong_hop.nghi_ngo` không đổi. Tên người tra từ `users` lúc đọc.
+- API chỉ ADMIN: `POST /api/nap-nguon/da-xem-xet` (máy chủ tự kiểm mục còn cần xử lý, 409 `KHONG_CAN_XU_LY`; idempotent `da_co`), `DELETE /api/nap-nguon/da-xem-xet/:id` (404 `KHONG_TIM_THAY`). `SECURITY_LOG` ghi `nap_nguon_da_xem_xet` / `nap_nguon_huy_da_xem_xet` (ai, BCVH, ngày, loại), không ghi ghi chú.
+- Lõi tải / nạp (`napNguonLay.js`, `sftpSync.js`) không đổi; lõi đọc `napNguonDoc.js` vẫn thuần SELECT (phần ghi ở `napNguonXemXet.js`).
+
 ## Drift phát hiện
 _(chưa có)_

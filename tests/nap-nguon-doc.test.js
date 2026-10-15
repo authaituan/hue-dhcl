@@ -395,7 +395,7 @@ test('route lưới: lọc theo bcvh; ngày mặc định hợp lệ; phản h�
   fileDb({ bcvh: BC.TH, ngay: '2026-10-12' });
   const r = await goi('admin', `/api/nap-nguon/luoi?tu=2026-10-12&den=2026-10-13&bcvh=${BC.TH}`);
   assert.equal(r.status, 200);
-  assert.deepEqual(Object.keys(r.body), ['tu', 'den', 'bcvh', 'hom_nay', 'ds_bcvh', 'gio_mong_doi', 'ngay_bat_dau', 'o', 'ngay_bcvh', 'can_xu_ly', 'tong_hop']);
+  assert.deepEqual(Object.keys(r.body), ['tu', 'den', 'bcvh', 'hom_nay', 'ds_bcvh', 'gio_mong_doi', 'ngay_bat_dau', 'o', 'ngay_bcvh', 'can_xu_ly', 'da_xem_xet', 'tong_hop']); // 5f-1c thêm da_xem_xet
   assert.equal(r.body.o.length, 4);
   assert.ok(r.body.o.every((x) => x.bcvh === BC.TH));
   assert.deepEqual(r.body.ds_bcvh, [{ ma: BC.TH, ten: 'BCVH Thuận Hóa' }]);
@@ -536,7 +536,7 @@ test('đo thời gian lưới 62 ngày × 6 BCVH × 2 đợt trên DB giả ~150
 const doc = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
 const boChuThich = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú thích), không nạp thư viện SFTP, không mở DB; route chỉ khai báo GET (+ hai POST của 5f-2) và dùng requireAdmin', () => {
+test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú thích), không nạp thư viện SFTP, không mở DB; route chỉ khai báo GET (+ hai POST của 5f-2, + POST/DELETE «đã xem xét» của 5f-1c) và dùng requireAdmin', () => {
   const raw = doc('server', 'lib', 'napNguonDoc.js');
   assert.ok(!/INSERT|UPDATE|DELETE|ALTER|CREATE/i.test(raw), 'lõi không chứa INSERT / UPDATE / DELETE / ALTER / CREATE');
   assert.ok(!raw.includes('ssh2') && !/require\(['"]\.\.?\/(db|sftpConnect)/.test(raw));
@@ -545,10 +545,12 @@ test('kiểm tĩnh: lõi không có câu lệnh ghi SQL (kể cả trong chú th
   const rt = boChuThich(doc('server', 'routes', 'napNguon.js'));
   const lenh = [...rt.matchAll(/router\.(get|post|put|patch|delete)\(\s*'([^']+)'(?:\s*,\s*(\w+))?/g)];
   // 5f-1: năm đường GET; 5f-2 thêm hai đường POST (lay-ngay, lay-lai) — mọi đường đều requireAdmin
-  assert.equal(lenh.length, 7);
+  // 5f-1c thêm POST + DELETE /nap-nguon/da-xem-xet (ghi bảng riêng qua lõi napNguonXemXet.js, không phải lõi đọc này)
+  assert.equal(lenh.length, 9);
   assert.ok(lenh.every((m) => m[2].startsWith('/nap-nguon/') && m[3] === 'requireAdmin'), JSON.stringify(lenh.map((m) => m.slice(1))));
   assert.equal(lenh.filter((m) => m[1] === 'get').length, 5);
-  assert.deepEqual(lenh.filter((m) => m[1] === 'post').map((m) => m[2]), ['/nap-nguon/lay-ngay', '/nap-nguon/lay-lai']);
+  assert.deepEqual(lenh.filter((m) => m[1] === 'post').map((m) => m[2]), ['/nap-nguon/lay-ngay', '/nap-nguon/lay-lai', '/nap-nguon/da-xem-xet']);
+  assert.deepEqual(lenh.filter((m) => m[1] === 'delete').map((m) => m[2]), ['/nap-nguon/da-xem-xet/:id']);
   assert.ok(!/prepare|\.run\(|\.exec\(/.test(rt), 'route không chạm DB trực tiếp ngoài lõi');
   assert.ok(/napNguonRoutes/.test(doc('server', 'index.js')));
   for (const f of ['arrivalsImport.js', 'sftpSync.js', 'sftpScheduler.js', 'sftpConnect.js', 'thayTheXemTruoc.js', 'thayTheThucHien.js']) assert.ok(!doc('server', 'lib', f).includes('napNguonDoc'), f);

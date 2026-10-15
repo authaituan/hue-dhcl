@@ -34,14 +34,25 @@ Tối đa 62 ngày (400 nếu vượt, `tu > den`, ngày sai, mã BCVH lạ, thi
   o: [ { bcvh, ngay, dot: S|C, trang_thai, ly_do, nghi_ngo, nguon_co_file,
          chi_tiet: { file_db: [{ten, nguon: MANUAL|SFTP, trang_thai, so_dong, nap_luc, loi}], file_nguon: [{ten, kich_thuoc, mtime, lan_dau_thay, con_tren_nguon}] } } ],
   ngay_bcvh: [ { bcvh, ngay, tong_dong, so_file_db, trung_vi, so_mau, nghi_ngo, nguon_co_file } ],
-  can_xu_ly: [ { loai: DOT|NGAY|MA_LA, bcvh, ngay, dot, trang_thai, ly_do, nghi_ngo, nguon_co_file, (ma_la, ten_file) } ],
-  tong_hop: { theo_trang_thai: {…}, nghi_ngo: {IT, NHIEU, CHUA_DU_MAU} } }
+  can_xu_ly: [ { loai: DOT|NGAY|MA_LA, bcvh, ngay, dot, trang_thai, ly_do, nghi_ngo, nguon_co_file, (ma_la, ten_file) } ],  // KHÔNG gồm mục «đã xem xét» còn hiệu lực
+  da_xem_xet: [ { id, loai: DOT|NGAY, bcvh, ngay, dot, trang_thai, ly_do, nghi_ngo, nguoi: {ma, ten}, luc, ghi_chu } ],   // SANLUONG-5f-1c, #89
+  tong_hop: { theo_trang_thai: {…}, nghi_ngo: {IT, NHIEU, CHUA_DU_MAU}, da_xem_xet: <số mục> } }
 ```
 - `o`: ngày MỚI NHẤT trước, rồi thứ tự 6 BCVH (533140, 535470, 536250, 537015, 537220, 535790), đợt S trước C. `file_db` của một ô = file SFTP của đợt đó + MỌI file `MANUAL` của ngày (nhập tay là cả ngày).
 - `ngay_bcvh`: một mục cho mỗi (BCVH, ngày) — chỗ UI vẽ ô «Cả ngày» và cờ nghi ngờ. Mỗi ô cũng mang `nghi_ngo` / `nguon_co_file` của ngày đó.
 - `can_xu_ly` (mới nhất trước): `loai = DOT` — ô có trạng thái `LOI`, `RONG`, `NGUON_CO_FILE_CHUA_NAP`, `CHO_FILE`, `NGUON_CHUA_CO_FILE`; `loai = NGAY` — (BCVH, ngày) nghi ngờ `IT` / `NHIEU` (`dot = null`, `ly_do = NGHI_NGO_IT|NHIEU`; `CHUA_DU_MAU` KHÔNG vào danh sách); `loai = MA_LA` — `bcvh = null`, `trang_thai = MA_KHONG_KHOP`, kèm `ma_la` (≤ 12 ký tự) và `ten_file`. Lọc theo `bcvh` thì không có mục `MA_LA`.
 - `tong_hop.theo_trang_thai`: số ô theo từng trạng thái (cộng `MA_KHONG_KHOP` = số file mã lạ). Đủ 10 khóa: `DA_NAP`, `NHAP_TAY`, `RONG`, `LOI`, `NGUON_CO_FILE_CHUA_NAP`, `CHO_FILE`, `CHUA_DEN_GIO`, `NGUON_CHUA_CO_FILE`, `MA_KHONG_KHOP`, `CHUA_BAT_DAU`.
 - `ngay_bat_dau[bcvh]` (5f-1b): ngày NHỎ NHẤT trong `file_date` của mọi bản ghi `arrival_import_files` của BCVH (mọi trạng thái `OK`/`EMPTY`/`REJECTED`/`CONFLICT`, cả nhập tay) và ngày trong tên file của mọi dòng `sftp_source_files` có mã BCVH đó (kể cả `con_tren_nguon = 0`); không có gì → `hom_nay`. Tính MỘT lần cho cả lưới bằng truy vấn gộp, KHÔNG phụ thuộc `tu`/`den`. Ô có `ngay < ngay_bat_dau` là `CHUA_BAT_DAU` (không vào `can_xu_ly`).
+
+- `da_xem_xet` (5f-1c): các mục ADMIN đã đánh dấu «đã xem xét», còn hiệu lực (dấu vân tay khớp), thuộc khoảng và BCVH đang xem; mới nhất trước. `luc` = UTC; `nguoi.ten` tra từ `users` lúc đọc (có thể `null`); không trả dấu vân tay. Chưa có bản ghi nào ⇒ `[]` và `tong_hop.da_xem_xet = 0`. Các khóa khác của `luoi` giữ nguyên.
+
+### 3.5 «Đã xem xét» — `POST /api/nap-nguon/da-xem-xet`, `DELETE /api/nap-nguon/da-xem-xet/:id` (SANLUONG-5f-1c, #89)
+Chỉ ADMIN (401 không token; 403 vai trò khác). Lỗi dạng `{ error, ma }`.
+- `POST` thân `{ loai: "DOT"|"NGAY", bcvh, ngay: "YYYY-MM-DD", dot?: "S"|"C", ghi_chu?: string ≤ 200 }` ⇒ 200 `{ id, da_co: bool }`. `dot` bắt buộc khi `DOT`, phải bỏ khi `NGAY`. Trường lạ / sai kiểu / `loai = MA_LA` / ghi chú > 200 ⇒ 400 `THAM_SO_SAI`. Mục không còn nằm trong `can_xu_ly` (máy chủ tính lại đúng ngày + BCVH) ⇒ 409 `KHONG_CAN_XU_LY`. Đánh dấu lại khi bản đang hoạt động cùng dấu vân tay ⇒ trả bản đó (`da_co: true`); khi bản cũ lỗi thời ⇒ hủy bản cũ, tạo bản mới (`da_co: false`).
+- `DELETE` ⇒ 200 `{ id, da_huy: true }`; không tồn tại hoặc đã hủy ⇒ 404 `KHONG_TIM_THAY`. Bản ghi giữ lại (`huy_luc`, `huy_nguoi_ma`).
+- **Dấu vân tay**: `DOT` = `trang_thai|ly_do|băm` với băm = 16 ký tự hex đầu SHA-256 của các dòng `ten|kich_thuoc` của file nguồn CÒN trên nguồn thuộc ô (sắp theo tên; không có ⇒ băm chuỗi rỗng). `NGAY` = `nghi_ngo|tong_dong`. Dấu vân tay hiện tại khác lúc đánh dấu ⇒ dấu hết hiệu lực, mục tự quay lại `can_xu_ly`.
+- Bảng `nap_nguon_da_xem_xet`: `id, loai, bcvh, ngay, dot, trang_thai, ly_do, nghi_ngo, dau_van_tay, nguoi_ma, ghi_chu, tao_luc, huy_luc, huy_nguoi_ma`; chỉ mục duy nhất bán phần (một bản hoạt động / khóa mục).
+- `SECURITY_LOG`: một dòng mỗi lần (`nap_nguon_da_xem_xet` / `nap_nguon_huy_da_xem_xet`: người, vai trò, BCVH, ngày, loại, kết quả); KHÔNG ghi ghi chú.
 
 ### 3.3 `GET /api/nap-nguon/o?bcvh=&ngay=&dot=S|C`
 Khung chi tiết một ô (ô trước ngày bắt đầu: `200`, `trang_thai = CHUA_BAT_DAU`, `file_db`/`file_nguon`/`lich_su` rỗng, `loi = null`): `trang_thai`, `ly_do`, `nghi_ngo`, `nguon_co_file`, `tong_ngay` (tổng dòng / trung vị / số mẫu), `file_mong_doi` { `mau_ten` `HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv`, `gio_mong_doi`, `an_han_phut` }, `file_db`, `file_nguon`, `thong_tin_nap` (file SFTP `OK` của đợt: tên, nạp lúc, số dòng, thời gian nạp ms từ lần `DA_NAP` gần nhất trong `sftp_sync_files`), `lan_thu_gan_nhat`, `loi` { `ma`, `chi_tiet` đã lọc } và `lich_su` (≤ 20, mới nhất trước, mỗi lần: `lan_id`, `luot_id`, `luc` UTC, `cach_chay`, `ten`, `ket_qua`, `so_dong`, `thoi_gian_ms`, `ma_loi`, `chi_tiet`).

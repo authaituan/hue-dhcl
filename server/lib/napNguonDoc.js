@@ -9,6 +9,7 @@ const S = require('./sftpSync');
 const F = require('./sftpFiles');
 const { DASHBOARD_BCVH, bcvhNames } = require('./dashboardQuery');
 const CF = require('../config/nap-nguon');
+const X = require('./napNguonXemXet');
 
 const MA_BCVH = DASHBOARD_BCVH.map((b) => b.ma);
 const TRANG_THAI = Object.freeze({
@@ -213,7 +214,7 @@ const CAN_XU_LY = new Set([TRANG_THAI.LOI, TRANG_THAI.RONG, TRANG_THAI.NGUON_CO_
 /**
  * Lưới ngày × BCVH × đợt (S, C). Tối đa SO_NGAY_TOI_DA ngày. Trả
  * { tu, den, bcvh, hom_nay, ds_bcvh, gio_mong_doi, ngay_bat_dau: { <mã BCVH>: 'YYYY-MM-DD' }, o: [ô] (ngày mới nhất trước, rồi theo thứ tự BCVH, S trước C), ngay_bcvh: [{bcvh, ngay, tong_dong, so_file_db, trung_vi, so_mau, nghi_ngo, nguon_co_file}],
- *   can_xu_ly: [mục phẳng, mới nhất trước], tong_hop: { theo_trang_thai, nghi_ngo } }.
+ *   can_xu_ly: [mục phẳng, mới nhất trước; KHÔNG gồm mục đã xem xét còn hiệu lực], da_xem_xet: [...] (5f-1c), tong_hop: { theo_trang_thai, nghi_ngo, da_xem_xet } }.
  */
 function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
   if (!ngayHopLe(tu) || !ngayHopLe(den)) throw saiThamSo('Tham số "tu" và "den" phải là ngày hợp lệ dạng YYYY-MM-DD');
@@ -236,13 +237,13 @@ function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
       ngayBcvh.push({ bcvh: ma, ngay, tong_dong: nghi.tong_dong, so_file_db: nghi.so_file_db, trung_vi: nghi.trung_vi, so_mau: nghi.so_mau, nghi_ngo: nghi.nghi_ngo, nguon_co_file: nc });
       if (nghi.nghi_ngo) {
         nghiNgoDem[nghi.nghi_ngo]++;
-        if (nghi.nghi_ngo !== 'CHUA_DU_MAU') canXuLy.push({ loai: 'NGAY', bcvh: ma, ngay, dot: null, trang_thai: null, ly_do: `NGHI_NGO_${nghi.nghi_ngo}`, nghi_ngo: nghi.nghi_ngo, nguon_co_file: nc });
+        if (nghi.nghi_ngo !== 'CHUA_DU_MAU') canXuLy.push({ loai: 'NGAY', bcvh: ma, ngay, dot: null, trang_thai: null, ly_do: `NGHI_NGO_${nghi.nghi_ngo}`, nghi_ngo: nghi.nghi_ngo, nguon_co_file: nc, dau_van_tay: X.dauVanTayNgay(nghi) });
       }
       for (const dot of ['S', 'C']) {
         const c = tinhO(du, ma, ngay, dot, now, bimat);
         o.push(c);
         theoTrangThai[c.trang_thai]++;
-        if (CAN_XU_LY.has(c.trang_thai)) canXuLy.push({ loai: 'DOT', bcvh: ma, ngay, dot, trang_thai: c.trang_thai, ly_do: c.ly_do, nghi_ngo: c.nghi_ngo, nguon_co_file: c.nguon_co_file });
+        if (CAN_XU_LY.has(c.trang_thai)) canXuLy.push({ loai: 'DOT', bcvh: ma, ngay, dot, trang_thai: c.trang_thai, ly_do: c.ly_do, nghi_ngo: c.nghi_ngo, nguon_co_file: c.nguon_co_file, dau_van_tay: X.dauVanTayDot(c) });
       }
     }
   }
@@ -252,13 +253,30 @@ function luoi({ db, now = new Date(), tu, den, bcvh = null, bimat = [] }) {
       canXuLy.push({ loai: 'MA_LA', bcvh: null, ngay: m.ngay, dot: dotCua(m.gio), trang_thai: TRANG_THAI.MA_KHONG_KHOP, ly_do: 'MA_LA', ma_la: F.tenAnToan(m.ma, 12), ten_file: F.tenAnToan(tenFile, 60), nghi_ngo: null, nguon_co_file: m.con_tren_nguon });
     }
   }
+  // SANLUONG-5f-1c: tách mục «đã xem xét» còn hiệu lực (dấu vân tay khớp) khỏi can_xu_ly. o[] / theo_trang_thai / nghi_ngo KHÔNG đổi.
+  const { conLai, daXemXet } = X.loc(db, tu, den, ds, canXuLy);
   const idx = (m) => (m ? MA_BCVH.indexOf(m) : 99);
-  canXuLy.sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : THU_TU_LOAI[a.loai] - THU_TU_LOAI[b.loai] || idx(a.bcvh) - idx(b.bcvh) || (a.dot === b.dot ? 0 : a.dot === 'C' ? -1 : 1)));
+  conLai.sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : THU_TU_LOAI[a.loai] - THU_TU_LOAI[b.loai] || idx(a.bcvh) - idx(b.bcvh) || (a.dot === b.dot ? 0 : a.dot === 'C' ? -1 : 1)));
   return {
     tu, den, bcvh: loc, hom_nay: homNay, ds_bcvh: ds.map((ma) => ({ ma, ten: ten.get(ma) })), gio_mong_doi: GIO_MONG_DOI(),
     ngay_bat_dau: Object.fromEntries(ds.map((ma) => [ma, du.ngayBatDau.get(ma)])),
-    o, ngay_bcvh: ngayBcvh, can_xu_ly: canXuLy, tong_hop: { theo_trang_thai: theoTrangThai, nghi_ngo: nghiNgoDem }
+    o, ngay_bcvh: ngayBcvh, can_xu_ly: conLai, da_xem_xet: daXemXet, tong_hop: { theo_trang_thai: theoTrangThai, nghi_ngo: nghiNgoDem, da_xem_xet: daXemXet.length }
   };
+}
+
+/**
+ * SANLUONG-5f-1c: tình trạng HIỆN TẠI của một mục (DOT: ô; NGAY: cả ngày) để đánh dấu «đã xem xét». Đã kiểm tham số ở X.danhDau.
+ * Trả { can_xu_ly, trang_thai, ly_do, nghi_ngo, dau } (dau = dấu vân tay hiện tại).
+ */
+function dauVanTayMuc({ db, now = new Date(), loai, bcvh, ngay, dot }) {
+  const du = nap(db, ngay, ngay, [bcvh], ngayCuc(now));
+  const nghi = tinhNghiNgo(du, bcvh, ngay, ngayCuc(now));
+  if (loai === 'NGAY') {
+    const can = nghi.nghi_ngo === 'IT' || nghi.nghi_ngo === 'NHIEU';
+    return { can_xu_ly: can, trang_thai: null, ly_do: can ? `NGHI_NGO_${nghi.nghi_ngo}` : null, nghi_ngo: nghi.nghi_ngo, dau: X.dauVanTayNgay(nghi) };
+  }
+  const c = tinhO(du, bcvh, ngay, dot, now, []);
+  return { can_xu_ly: CAN_XU_LY.has(c.trang_thai), trang_thai: c.trang_thai, ly_do: c.ly_do, nghi_ngo: c.nghi_ngo, dau: X.dauVanTayDot(c) };
 }
 
 /** Khung chi tiết một ô (bcvh, ngày, đợt S|C): trạng thái + file mong đợi + file trong DB / trên nguồn + lần thử gần nhất + lịch sử (tối đa LICH_SU_TOI_DA). */
@@ -326,4 +344,4 @@ function chiTietLuot({ db, now = new Date(), id, bimat = [] }) {
   };
 }
 
-module.exports = { NapNguonLoi, TRANG_THAI, MA_BCVH, tongQuan, luoi, mot, dsLuot, chiTietLuot, dotCua };
+module.exports = { NapNguonLoi, TRANG_THAI, MA_BCVH, tongQuan, luoi, mot, dsLuot, chiTietLuot, dotCua, ngayHopLe, dauVanTayMuc };
