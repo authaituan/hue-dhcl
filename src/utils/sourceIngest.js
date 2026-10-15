@@ -303,4 +303,11 @@ export function parseBcvhAndDateFromFilename(filename) {
   return null;
 }
 
+// Đếm số file trong files[] có mã lỗi NGUON_KHONG_CO
+export function countFilesNguonKhongCo(files) {
+  if (!Array.isArray(files)) return 0;
+  return files.filter((f) => f && f.ma_loi === 'NGUON_KHONG_CO').length;
+}
+
+
 

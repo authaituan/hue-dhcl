@@ -11,7 +11,8 @@ import {
   getVnTodayYmd,
   addDaysYmd,
   formatUtcToVnDateTime,
-  formatNumber
+  formatNumber,
+  countFilesNguonKhongCo
 } from '../../utils/sourceIngest';
 import SourceIngestStatus from './SourceIngestStatus';
 import SourceIngestAttention from './SourceIngestAttention';
@@ -35,6 +36,9 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
 
   // Trigger làm mới danh sách lượt chạy
   const [runsRefreshTrigger, setRunsRefreshTrigger] = useState(0);
+
+  // Trigger báo lượt chạy đã hoàn thành (xong theo dõi) để bỏ chọn ở «Cần xử lý»
+  const [runCompletedTrigger, setRunCompletedTrigger] = useState(0);
 
   // Ô được chọn để xem chi tiết (Mục C)
   const [selectedCellParams, setSelectedCellParams] = useState(null);
@@ -153,13 +157,20 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
             trackingTimerRef.current = null;
             setTrackingRun(null);
 
+            // Báo hoàn thành lượt chạy để xóa chọn ô ở «Cần xử lý»
+            setRunCompletedTrigger((prev) => prev + 1);
+
             // Gọi GET /api/nap-nguon/luot/:id một lần để lấy tóm tắt kết quả
             try {
               const runRes = await apiFetchJson(`/api/nap-nguon/luot/${runId}`);
               if (runRes.ok) {
+                const runData = runRes.data;
+                const nKhongCo = countFilesNguonKhongCo(runData?.files);
                 setActionSuccessSummary({
-                  run: runRes.data,
-                  da_co_nhap_tay: daCoNhapTay
+                  run: runData,
+                  da_co_nhap_tay: daCoNhapTay,
+                  loai: loai || runData?.loai,
+                  n_khong_co: nKhongCo
                 });
               }
             } catch (_) {}
@@ -317,33 +328,79 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
       )}
 
       {/* BANNER TÓM TẮT KẾT QUẢ SAU KHI LƯỢT CHẠY XONG */}
-      {actionSuccessSummary && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-200">
-          <div className="flex items-start gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <div className="font-bold">
-                Lượt #{actionSuccessSummary.run?.id} hoàn thành: {actionSuccessSummary.run?.ket_qua === 'THANH_CONG' ? 'Thành công' : 'Có lỗi'}
+      {actionSuccessSummary && (() => {
+        const isLayLai = actionSuccessSummary.loai === 'LAY_LAI';
+        const nKhongCo = Number(actionSuccessSummary.n_khong_co) || 0;
+        const isYellow = isLayLai && nKhongCo > 0;
+        const isSuccess = actionSuccessSummary.run?.ket_qua === 'THANH_CONG';
+        const daNap = actionSuccessSummary.run?.da_nap ?? 0;
+        const daCo = actionSuccessSummary.run?.da_co ?? 0;
+        const loi = actionSuccessSummary.run?.loi ?? 0;
+        const isAllZero = Number(daNap) === 0 && Number(daCo) === 0 && Number(loi) === 0;
+
+        if (isYellow) {
+          return (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-200">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <div className="font-bold">
+                    Lượt #{actionSuccessSummary.run?.id} hoàn thành: {formatNumber(nKhongCo)} đợt chưa có file trên nguồn
+                  </div>
+                  <div className="text-[11px] text-amber-900">
+                    Đã nạp: <strong>{formatNumber(daNap)}</strong> file · Đã có: <strong>{formatNumber(daCo)}</strong> · Lỗi: <strong>{formatNumber(loi)}</strong> · Nguồn chưa có file: <strong>{formatNumber(nKhongCo)}</strong>
+                    {isAllZero && ' · Chưa có gì để lấy. Thử lại khi nguồn đã xuất file.'}
+                    {actionSuccessSummary.da_co_nhap_tay && (
+                      <span className="ml-2 font-semibold text-amber-800">
+                        (Có đợt đã có dữ liệu nhập tay: chỉ thêm các dòng mới từ nguồn)
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] text-emerald-800">
-                Đã nạp: <strong>{formatNumber(actionSuccessSummary.run?.da_nap)}</strong> tệp · Đã có: <strong>{formatNumber(actionSuccessSummary.run?.da_co)}</strong> · Lỗi: <strong>{formatNumber(actionSuccessSummary.run?.loi)}</strong>
-                {actionSuccessSummary.da_co_nhap_tay && (
-                  <span className="ml-2 font-semibold text-amber-800">
-                    (Có đợt đã có dữ liệu nhập tay: chỉ thêm các dòng mới từ nguồn)
-                  </span>
-                )}
+              <button
+                type="button"
+                onClick={() => setActionSuccessSummary(null)}
+                className="px-3 py-1 bg-white border border-amber-300 rounded-lg text-[11px] font-bold text-amber-800 hover:bg-amber-100/50 cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <div className={`p-4 rounded-2xl ${isSuccess ? 'bg-emerald-50 border border-emerald-300 text-emerald-950' : 'bg-red-50 border border-red-300 text-red-950'} text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-200`}>
+            <div className="flex items-start gap-2.5">
+              {isSuccess ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-0.5">
+                <div className="font-bold">
+                  Lượt #{actionSuccessSummary.run?.id} hoàn thành: {isSuccess ? 'Thành công' : 'Có lỗi'}
+                </div>
+                <div className={`text-[11px] ${isSuccess ? 'text-emerald-800' : 'text-red-800'}`}>
+                  Đã nạp: <strong>{formatNumber(daNap)}</strong> file · Đã có: <strong>{formatNumber(daCo)}</strong> · Lỗi: <strong>{formatNumber(loi)}</strong>
+                  {actionSuccessSummary.da_co_nhap_tay && (
+                    <span className="ml-2 font-semibold text-amber-800">
+                      (Có đợt đã có dữ liệu nhập tay: chỉ thêm các dòng mới từ nguồn)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setActionSuccessSummary(null)}
+              className={`px-3 py-1 bg-white border ${isSuccess ? 'border-emerald-300 text-emerald-800 hover:bg-emerald-100/50' : 'border-red-300 text-red-800 hover:bg-red-100/50'} rounded-lg text-[11px] font-bold cursor-pointer`}
+            >
+              Đóng
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setActionSuccessSummary(null)}
-            className="px-3 py-1 bg-white border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800 hover:bg-emerald-100/50 cursor-pointer"
-          >
-            Đóng
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* BANNER THÔNG BÁO XEM XÉT */}
       {reviewNotice && (
@@ -382,6 +439,7 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
         isExecuting={isExecutingAction || Boolean(trackingRun)}
         onRefresh={refreshAll}
         onNotify={handleReviewNotify}
+        runCompletedTrigger={runCompletedTrigger}
       />
 
       {/* MỤC F. LƯỚI THEO NGÀY (BỌC ERROR BOUNDARY) */}

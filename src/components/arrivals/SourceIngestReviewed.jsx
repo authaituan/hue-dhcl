@@ -90,16 +90,6 @@ export default function SourceIngestReviewed({
         <h3 className="text-sm font-bold text-gray-900 tracking-tight">
           Đã xem xét ({formatNumber(sortedItems.length)})
         </h3>
-
-        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={Boolean(showReviewed)}
-            onChange={(e) => onToggleShowReviewed && onToggleShowReviewed(e.target.checked)}
-            className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
-          />
-          <span>Hiện cả mục đã xem xét ({formatNumber(sortedItems.length)})</span>
-        </label>
       </div>
 
       {/* DANH SÁCH BẢNG HOẶC THÔNG BÁO RỖNG */}

@@ -363,7 +363,7 @@ export default function SourceIngestRuns({
                                     <ArrowRight className="w-3 h-3" />
                                   </button>
                                 )}
-                                {chiTietStr && <div>{chiTietStr}</div>}
+                                {chiTietStr && f.ma_loi !== 'NGUON_KHONG_CO' && <div>{chiTietStr}</div>}
                               </div>
                             </td>
                           </tr>
