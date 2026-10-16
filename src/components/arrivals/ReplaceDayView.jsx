@@ -13,11 +13,13 @@ import {
   ArrowRight,
   Info,
   Check,
+  History,
 } from 'lucide-react';
 import { apiFetchJson } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
 import CustomDatePicker from './CustomDatePicker';
 import ReplaceDayDialog from './ReplaceDayDialog';
+import ReplaceLogTab from './ReplaceLogTab';
 
 // ==========================================
 // HÀM TIỆN ÍCH ĐỊNH DẠNG
@@ -90,6 +92,9 @@ const ERROR_MESSAGES = {
 };
 
 export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
+  // Tab nội bộ: 'replace' (Thay thế ngày) | 'log' (Nhật ký và khôi phục)
+  const [activeTab, setActiveTab] = useState('replace');
+
   // Lựa chọn đầu vào
   const [bcvh, setBcvh] = useState(initialBcvh || BCVH_LIST[0]?.ma || '533140');
   const [ngay, setNgay] = useState(initialNgay || getYesterdayYmd());
@@ -230,8 +235,41 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
   const hasUncheckedFile = nguonFiles.length > 0 && nguonFiles.some((f) => !selectedFiles.includes(f.ten));
   const showNearDaysWarning = isWithinLast3Days(ngay) && hasUncheckedFile;
 
+  const isAdmin = authUser?.role === 'ADMIN';
+
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      {/* ── THANH CHUYỂN TAB NỘI BỘ ───────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('replace')}
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+            activeTab === 'replace'
+              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <RefreshCw className="w-4 h-4" />
+          <span>Thay thế ngày</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('log')}
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+            activeTab === 'log'
+              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>Nhật ký và khôi phục</span>
+        </button>
+      </div>
+
+      {/* ── TAB 1: THAY THẾ NGÀY ────────────────────────────────────────── */}
+      <div className={activeTab === 'replace' ? 'space-y-6' : 'hidden'}>
       {/* ── CARD TIÊU ĐỀ & MÔ TẢ ────────────────────────────────────────── */}
       <div className="card-soft p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -946,6 +984,24 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
             setPreviewData(null);
           }}
         />
+      )}
+      </div>
+
+      {/* ── TAB 2: NHẬT KÝ VÀ KHÔI PHỤC ───────────────────────────────── */}
+      {activeTab === 'log' && (
+        isAdmin ? (
+          <ReplaceLogTab authUser={authUser} />
+        ) : (
+          <div className="card-soft p-8 rounded-2xl text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-[--color-title]">Chỉ quản trị viên xem được</h3>
+            <p className="text-xs text-[--color-body] max-w-md mx-auto">
+              Chức năng xem nhật ký và khôi phục dữ liệu yêu cầu quyền Quản trị viên (ADMIN).
+            </p>
+          </div>
+        )
       )}
     </div>
   );
