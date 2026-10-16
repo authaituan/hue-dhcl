@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-7d: «Toàn Trung tâm» chỉ cộng BCVH có dữ liệu đúng ngày chung (backend)
+
+- **Sửa** `server/lib/dashboardDenQuery.js` (`tongQuanDen`): với `bcvh=all`, tập T = BCVH có «hôm nay» riêng bằng `ngay_du_lieu`; sản lượng, hàng đi ngoài, túi/kiện, khối lượng, `luot`, `sau_15h`, `den_luc`, `da_toi_gio` và hai mốc so sánh (`so_bcvh` đếm trong T) chỉ tính trên T. Thêm `so_bcvh_trong_tong`, `bcvh_ngoai_tong` (`[{ma, ngay}]`). Không đổi: `theo_bcvh`, `bcvh_can_chu_y` (x/6), `cung_ngay_du_lieu`, `nap_luc`, `bcvh=<một BCVH>`, «Xử lý và tỷ lệ phát».
+- **Test** `tests/dashboard-den-cung-ngay.test.js` (mới, 8 ca; thêm vào `package.json`). **Test cũ sửa (có chủ đích)**: `tests/phat.test.js` — mẫu số phát (3 + 5) không còn bằng thẻ tổng Điều hành (5) khi các BCVH lệch ngày. `npm test`: 584 ca, 583 pass, 1 skip. Báo cáo: `25_DASH7D_TONG_CHI_TINH_BCVH_CUNG_NGAY.md`.
+- **Chưa làm**: giao diện (ghi chú «A Lưới chưa có dữ liệu …», nhãn x/6); thống nhất mẫu số «Xử lý và tỷ lệ phát».
+
+---
+
 ## [2026-10-16] - DASH-7c-b: «Toàn Trung tâm» đếm bưu gửi khác nhau xuyên BCVH (backend)
 
 - **Sửa** `server/lib/dashboardDenQuery.js`: hàm mới `countAcross` (CTE xuyên BCVH, cắt giờ theo BCVH của từng dòng TRƯỚC khi chọn dòng sớm nhất); `tongQuanDen` với `bcvh=all` tính tổng bưu gửi, hàng đi ngoài, sau 15:00 và hai mốc so sánh (tử và mẫu cùng tập BCVH có mốc) theo công thức B. Thêm trường `san_luong.tong_cong_theo_bcvh`, `so_shbg_qua_nhieu_bcvh`, `tui_kien`, `khoi_luong_g` (chỉ `bcvh=all`). Số từng BCVH, `luot`, `bcvh=<một BCVH>` không đổi.

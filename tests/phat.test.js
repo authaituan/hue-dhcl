@@ -982,7 +982,12 @@ test('tỷ lệ: mẫu số = SHBG đến ngày đó = san_luong của tong-quan
   const macDinh = await tl('');
   assert.deepEqual([macDinh.bcvh, macDinh.ngay, macDinh.cung_ngay], ['all', '2026-10-04', false], 'M mới nhất 03/10, M2 mới nhất 04/10');
   assert.equal(macDinh.mau_so, 3 + 5);
-  assert.equal(macDinh.mau_so, (await call('GET', '/api/arrivals/dashboard/tong-quan-den?bcvh=all', 'admin')).body.san_luong.buu_gui);
+  // DASH-7d: khi các BCVH lệch ngày, thẻ tổng của Điều hành chỉ cộng BCVH đúng ngày chung (04/10: chỉ M2 = 5), còn mẫu số «Xử lý và tỷ lệ phát»
+  // vẫn cộng từng BCVH theo ngày riêng của nó (3 + 5). Hai số chỉ bằng nhau khi cùng ngày (kiểm ở dòng 979 với date=2026-10-02).
+  const tqAll = (await call('GET', '/api/arrivals/dashboard/tong-quan-den?bcvh=all', 'admin')).body;
+  assert.equal(tqAll.san_luong.buu_gui, 5);
+  assert.equal(tqAll.so_bcvh_trong_tong, 1);
+  assert.equal(macDinh.mau_so, tqAll.san_luong.tong_cong_theo_bcvh + 3, 'mẫu số phát = 3 (M, 03/10, ngoài tổng) + công thức A trên tập ngày chung');
   assert.equal(macDinh.so_lieu_den_luc, [S.nhap_luc, ...ctx.db.prepare("SELECT nhap_luc FROM phat_batches WHERE trang_thai = 'da_nhap' AND bcvh = ?").all(M).map((x) => x.nhap_luc)].sort().pop(), 'đợt gần nhất của các BCVH');
 
   // --- Đợt đã hoàn tác không tính vào «số liệu tính đến lúc»
