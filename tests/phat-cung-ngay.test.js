@@ -126,7 +126,7 @@ test('(a2) /api/arrivals/dashboard/ket-qua-phat all: cùng tập T; xếp hạng
   assert.ok(Array.isArray(k.chua_du_du_lieu) && k.chua_du_du_lieu.some((x) => x.bcvh === M6), 'BCVH chậm vẫn có trong danh sách chưa đủ dữ liệu (xét theo ngày riêng)');
 });
 
-test('(4) đối chiếu thẻ Điều hành: mẫu số phát = tong_cong_theo_bcvh (cùng công thức A) = buu_gui khi không SHBG nào qua 2 BCVH; cùng tập T', () => {
+test('(4) đối chiếu thẻ Điều hành: mẫu số phát = tong_cong_theo_bcvh = buu_gui khi không SHBG nào qua 2 BCVH; cùng tập T; từ DASH-7f mẫu số = buu_gui cả khi có SHBG qua 2 BCVH', () => {
   const t = P.tyLeApi(ctx.db, { bcvh: 'all' });
   const tq = den.tongQuanDen(ctx.db, {});
   assert.equal(t.mau_so, tq.san_luong.tong_cong_theo_bcvh);
@@ -134,12 +134,12 @@ test('(4) đối chiếu thẻ Điều hành: mẫu số phát = tong_cong_theo_
   assert.equal(t.mau_so, tq.san_luong.buu_gui);
   assert.equal(t.so_bcvh_trong_tong, tq.so_bcvh_trong_tong);
   assert.deepEqual(t.bcvh_ngoai_tong, tq.bcvh_ngoai_tong);
-  // Ngày rõ ràng 15/10 (S1 qua 2 BCVH): mẫu số phát vẫn theo A = tong_cong_theo_bcvh (7), thẻ Điều hành theo B (6)
+  // Ngày rõ ràng 15/10 (S1 qua 2 BCVH): từ DASH-7f mẫu số phát = buu_gui (6, S1 chỉ tính cho M2 — mốc muộn hơn); tong_cong_theo_bcvh (công thức A) vẫn 7
   const t15 = P.tyLeApi(ctx.db, { bcvh: 'all', ngay: '2026-10-15' });
   const tq15 = den.tongQuanDen(ctx.db, { date: '2026-10-15' });
-  assert.equal(t15.mau_so, 7);
-  assert.equal(t15.mau_so, tq15.san_luong.tong_cong_theo_bcvh);
-  assert.equal(tq15.san_luong.buu_gui, 6);
+  assert.equal(t15.mau_so, 6);
+  assert.equal(t15.mau_so, tq15.san_luong.buu_gui);
+  assert.equal(tq15.san_luong.tong_cong_theo_bcvh, 7);
   assert.equal(tq15.san_luong.so_shbg_qua_nhieu_bcvh, 1);
 });
 
@@ -159,7 +159,7 @@ test('(c) có ngày rõ ràng: giữ hành vi cũ (mọi BCVH trong phạm vi t�
   assert.deepEqual(t.bcvh_ngoai_tong, []);
   assert.equal(t.so_bcvh_trong_tong, 4, 'các BCVH có file (M, M2, M5, BCVH chậm), như phạm vi tính trước đây');
   const k = phatDash.ketQuaPhat(ctx.db, VALID_BCVH_CODES, { bcvh: 'all', ngay: '2026-10-15' });
-  assert.equal(k.mau_so, 2 + 2 + 3, '15/10: M 2 + M2 2 + BCVH chậm 3 (cả BCVH chậm vì ngày được chọn rõ)');
+  assert.equal(k.mau_so, 1 + 2 + 3, '15/10: M 1 (S1 thuộc M2, muộn hơn) + M2 2 + BCVH chậm 3 (cả BCVH chậm vì ngày được chọn rõ) — DASH-7f');
   assert.equal(k.so_bcvh_trong_tong, 6);
   assert.deepEqual(k.bcvh_ngoai_tong, []);
 });
