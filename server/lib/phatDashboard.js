@@ -62,10 +62,13 @@ function ketQuaPhat(db, codes, p) {
   const byUnit = aq.latestFileDates(db);
   const per = codes.map((ma) => motBcvh(db, ma, p.ngay || aq.latestFileDate(db, [ma], byUnit)));
 
+  // DASH-7e: tổng (bcvh=all, không chọn ngày) chỉ cộng BCVH đúng ngày chung (P.tapNgayChung); xếp hạng và cung_ngay vẫn xét mọi BCVH theo ngày riêng.
+  const tap = p.bcvh === 'all' ? P.tapNgayChung(byUnit, codes, p.ngay) : null;
+  const perTong = tap ? per.filter((r) => tap.trong.includes(r.ma)) : per;
   const so = P.zeroMap();
   let coTt = 0;
   let nhapLuc = null;
-  for (const r of per) {
+  for (const r of perTong) {
     P.congMap(so, r.tong);
     coTt += r.co_tt;
     if (r.nhap_luc_max && (!nhapLuc || r.nhap_luc_max > nhapLuc)) nhapLuc = r.nhap_luc_max;
@@ -92,6 +95,7 @@ function ketQuaPhat(db, codes, p) {
     pham_vi: codes,
     ngay: p.ngay || (days.length ? days[days.length - 1] : null),
     cung_ngay: days.length <= 1,
+    ...(tap ? { so_bcvh_trong_tong: tap.trong.length, bcvh_ngoai_tong: tap.ngoai } : {}),
     mau_so: tong.mau_so,
     theo_trang_thai: tong.theo_trang_thai,
     ptc: tong.theo_trang_thai.PTC.ty_le,
