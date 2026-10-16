@@ -19,6 +19,11 @@ COPY src ./src
 RUN npm run build \
  && npm prune --omit=dev
 
+# Kiểm tra ngay lúc build (NAS-2): nạp được 2 thư viện có phần native/tùy chọn. Hỏng thì build dừng tại đây,
+# không để tới lúc chạy trên NAS mới biết. better-sqlite3@13 nạp thẳng prebuilds/linux-x64.node (node_modules/better-sqlite3/lib/linux-x64.js),
+# gypfile=false nên KHÔNG cần node-gyp; ssh2 tự rơi về JS nếu thiếu cpu-features (phụ thuộc tùy chọn, bị bỏ qua do --ignore-scripts).
+RUN node -e "const D=require('better-sqlite3'); const d=new D(':memory:'); d.pragma('journal_mode = WAL'); d.close(); require('ssh2-sftp-client'); console.log('native-ok')"
+
 # ---------- Tầng chạy ----------
 FROM node:22-bookworm-slim
 WORKDIR /app

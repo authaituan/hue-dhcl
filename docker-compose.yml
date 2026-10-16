@@ -1,5 +1,6 @@
 # hue-dhcl trên Synology Container Manager (Project) hoặc `docker compose up -d --build`.
-# Đặt file `.env` (copy từ `.env.example`) CẠNH file này trước khi chạy.
+# Đặt file `.env` (tạo từ `.env.nas.example`) CẠNH file này trước khi chạy. File `.env` KHÔNG nằm trong repo và KHÔNG vào image.
+# Hướng dẫn từng bước: docs/ai/20_NAS_HUONG_DAN_CHAY.md
 services:
   hue-dhcl:
     build:
@@ -8,19 +9,44 @@ services:
     container_name: hue-dhcl
     restart: unless-stopped
     # Chế độ mạng HOST: mạng bridge làm app thấy IP máy khách là 172.18.0.1 nên danh sách CMS_ALLOWED_IPS chặn hết (404).
-    # Dùng host thì app thấy IP thật. Cổng app = PORT bên dưới (mặc định 18060), KHÔNG dùng 5000 vì DSM đã chiếm.
+    # Dùng host thì app thấy IP thật, và SFTP_HOST có thể là 127.0.0.1 hoặc IP LAN của NAS.
+    # Cổng app = PORT bên dưới (mặc định 18060), KHÔNG dùng 5000 vì DSM đã chiếm.
     # Nhớ cho phép cổng này trong Tường lửa DSM. Không dùng mục `ports` ở chế độ này.
     network_mode: host
     volumes:
-      - ./data:/app/data       # DB hue-dhcl.db + security.log — NẰM NGOÀI container, backup thư mục này
+      # Thư mục (không phải từng file) chứa hue-dhcl.db, -wal, -shm, security.log và backups/ (bản sao lưu trước «Thay thế ngày»/«Khôi phục»).
+      # Mã chỉ ghi vào /app/data và /tmp (tạm). PHẢI là thư mục cục bộ của volume Synology, KHÔNG phải chia sẻ SMB/NFS.
+      - ./data:/app/data
+    # Dùng `environment:` + ${TEN} thay cho `env_file`: chỉ đúng các biến liệt kê dưới đây tới được app (không lọt biến lạ trong .env),
+    # và JWT_SECRET/CMS_ALLOWED_IPS được compose kiểm tra bắt buộc ngay khi chạy. Biến để trống = app dùng mặc định của nó.
     environment:
-      JWT_SECRET: ${JWT_SECRET:?Thiếu JWT_SECRET trong file .env}
-      # Danh sách IP/CIDR được vào hệ thống. PHẢI có 127.0.0.1 để healthcheck bên dưới chạy được.
-      CMS_ALLOWED_IPS: ${CMS_ALLOWED_IPS:?Thiếu CMS_ALLOWED_IPS trong file .env}
-      TZ: Asia/Ho_Chi_Minh
+      TZ: Asia/Ho_Chi_Minh     # BẮT BUỘC cho «hôm nay», đợt SÁNG/CHIỀU 09:30/16:30 (server/config/nap-nguon.js:8)
       PORT: ${HOST_PORT:-18060}  # cổng app lắng nghe trực tiếp trên NAS
+      # --- Đăng nhập ---
+      JWT_SECRET: ${JWT_SECRET:?can dat JWT_SECRET trong file .env}
+      JWT_EXPIRY: ${JWT_EXPIRY:-}            # mặc định app: 8h
+      JWT_EXPIRY_TIVI: ${JWT_EXPIRY_TIVI:-} # mặc định app: 90d
+      LOGIN_IP_MAX_FAILS: ${LOGIN_IP_MAX_FAILS:-}
+      # --- Lọc IP / reverse proxy ---
+      # PHẢI có 127.0.0.1 để healthcheck bên dưới chạy được.
+      CMS_ALLOWED_IPS: ${CMS_ALLOWED_IPS:?can dat CMS_ALLOWED_IPS trong file .env}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}  # chỉ đặt khi có reverse proxy của DSM đứng trước
+      # --- SFTP (nguồn dữ liệu) ---
+      SFTP_HOST: ${SFTP_HOST:-}
+      SFTP_PORT: ${SFTP_PORT:-5454}          # mặc định MÃ là 22; NAS dùng 5454
+      SFTP_USER: ${SFTP_USER:-}
+      SFTP_PASSWORD: ${SFTP_PASSWORD:-}
+      SFTP_DIRS: ${SFTP_DIRS:-}
+      SFTP_HOSTKEY_SHA256: ${SFTP_HOSTKEY_SHA256:-}
+      # --- Bộ tự động nạp SFTP (mặc định TẮT; chỉ giá trị 1 mới bật) ---
+      SFTP_SYNC_ENABLED: ${SFTP_SYNC_ENABLED:-}
+      SFTP_SYNC_INTERVAL_MINUTES: ${SFTP_SYNC_INTERVAL_MINUTES:-}
+      SFTP_SYNC_MAX_FILES: ${SFTP_SYNC_MAX_FILES:-}
+      SFTP_SYNC_DAYS: ${SFTP_SYNC_DAYS:-}
+      SFTP_STABLE_SECONDS: ${SFTP_STABLE_SECONDS:-}
     healthcheck:
-      # Dùng node (image không có curl): GET / phải trả 200. Nếu CMS_ALLOWED_IPS thiếu 127.0.0.1 -> 404 -> "unhealthy".
+      # GET / trả trang giao diện tĩnh (dist/index.html; server/index.js:59-73): không cần đăng nhập, không có dữ liệu.
+      # Dùng node (image không có curl). Thiếu 127.0.0.1 trong CMS_ALLOWED_IPS -> 404 -> "unhealthy"; thiếu dist/ cũng 404.
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:'+(process.env.PORT||5000)+'/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 5s

@@ -5,9 +5,22 @@
 node_modules
 dist
 data
+**/data
+backups
+**/backups
+# File DB SQLite (kể cả -wal/-shm/-journal) ở MỌI độ sâu thư mục (mẫu `**/` — mẫu trần chỉ khớp ở gốc ngữ cảnh build):
+# không bao giờ vào image (dữ liệu nằm trên volume ./data).
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.db-journal
+**/*.sqlite
+**/*.sqlite3
+# .env.nas.example cũng bị loại khỏi image (khớp .env.*) nhưng vẫn nằm trong repo.
 .env
 .env.*
 !.env.example
+.github
 *.log
 tests
 docs
