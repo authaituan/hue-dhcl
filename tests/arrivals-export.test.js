@@ -416,8 +416,10 @@ test('XML dòng dữ liệu: thoát & < > " \' đúng, giữ chữ có dấu, B�
 
 test('nhật ký: mỗi lần xuất ghi ai / BCVH / khoảng ngày / số dòng vào security.log, không có dữ liệu bưu gửi', async () => {
   const file = process.env.SECURITY_LOG;
+  // Chỉ xét dòng do CHÍNH ca này sinh ra (ts > t0): nhật ký ghi bất đồng bộ nên dòng của ca xuất trước có thể tới muộn, sau mốc t0 (TEST-1).
+  const t0 = new Date().toISOString();
   const entries = () => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '').split('\n').filter(Boolean).map((l) => JSON.parse(l))
-    .filter((e) => e.event === 'arrivals_export');
+    .filter((e) => e.event === 'arrivals_export' && e.ts > t0);
   const sofar = entries().length;
   const res = await get(exportUrl(BC, RANGE_0405), 'ttvh');
   assert.equal(res.status, 200);

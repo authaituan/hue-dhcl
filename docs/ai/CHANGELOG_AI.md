@@ -2,6 +2,12 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - TEST-1: test nhật ký security.log đỏ ngẫu nhiên
+
+- **Nguyên nhân**: không phải chạy song song dùng chung file (harness đặt `SECURITY_LOG` riêng mỗi tiến trình) mà là cuộc đua ghi bất đồng bộ (`fs.appendFile`) trong cùng một file test. **Sửa test**: `tests/arrivals-export.test.js`, `tests/nap-nguon-xem-xet.test.js` lọc dòng theo `ts > t0` của ca; không đổi `server/`, `src/`, không nới phép kiểm. `npm test` 3 lần: 599 ca, 598 đạt, 1 bỏ qua. Báo cáo: `28_TEST1_SECURITY_LOG_CHAY_SONG_SONG.md`.
+
+---
+
 ## [2026-10-16] - DASH-7f: tỷ lệ phát — mỗi SHBG trong ngày chỉ tính cho BCVH có mốc đến muộn nhất (backend)
 
 - **Sửa** `server/lib/phat.js` (CTE `g` + `runGan`/`GAN_JOIN` mới; `demNgay`, `tonCho`, `tyLeApi`) và `server/lib/phatDashboard.js` (`motBcvh`, `ketQuaPhat`): mẫu số, tử số, khung giờ, tồn chờ, giờ nhập, xếp hạng và `tyLeNgay` (trước/sau nhập đợt, hoàn tác) gán mỗi SHBG trong một ngày cho BCVH có `arrival_at` R2 muộn nhất (hòa → mã BCVH nhỏ hơn); hàng đi ngoài không có quy tắc riêng. Thêm trường `so_shbg_chuyen_tiep_loai_bo` (ty-le và ket-qua-phat). Không đổi: `tong-quan-den`, `dashboardDenQuery.js`, `arrivalsQuery.js`, `src/`.
