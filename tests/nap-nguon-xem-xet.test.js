@@ -261,12 +261,13 @@ test('(i) chưa có bản ghi nào: luoi trả đúng như trước (da_xem_xet 
 
 test('(j) SECURITY_LOG: một dòng mỗi lần đánh dấu / hủy; không có ghi chú, SHBG hay dãy ≥ 15 chữ số', async () => {
   dotLoi();
-  const truoc = fs.existsSync(process.env.SECURITY_LOG) ? fs.statSync(process.env.SECURITY_LOG).size : 0;
+  // Mốc theo thời điểm ghi (ts do máy chủ đặt lúc gọi log), không theo kích thước file: nhật ký ghi bất đồng bộ nên dòng của ca trước có thể tới muộn (TEST-1).
+  const t0 = new Date().toISOString();
   const ghiChu = 'GHI-CHU-BI-MAT-XYZ';
   const a = await danhDau({ loai: 'DOT', bcvh: TH, ngay: N0, dot: 'S', ghi_chu: ghiChu });
   await huy(a.body.id);
   await new Promise((r) => setTimeout(r, 200));
-  const s = fs.readFileSync(process.env.SECURITY_LOG).subarray(truoc).toString('utf8').split('\n').filter((l) => l.includes('da_xem_xet'));
+  const s = fs.readFileSync(process.env.SECURITY_LOG, 'utf8').split('\n').filter((l) => l.includes('da_xem_xet') && JSON.parse(l).ts > t0);
   const dd = s.filter((l) => l.includes('"event":"nap_nguon_da_xem_xet"'));
   const hh = s.filter((l) => l.includes('"event":"nap_nguon_huy_da_xem_xet"'));
   assert.equal(dd.length, 1);
