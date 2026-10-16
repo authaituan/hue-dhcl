@@ -292,6 +292,140 @@ function formatActionDetail(item) {
   return '';
 }
 
+// Hook tự cuộn danh sách mượt mà (DASH-9e)
+export function useAutoScroll({
+  items,
+  gap = 12,
+  speed = 25,
+  pauseOnHover = true,
+  pauseOnFocus = true,
+}) {
+  const containerRef = useRef(null);
+  const trackRef = useRef(null);
+  const contentRef = useRef(null);
+  const offsetRef = useRef(0);
+  const lastTimeRef = useRef(null);
+  const rafIdRef = useRef(null);
+  const prevItemsKeyRef = useRef('');
+
+  const [canScroll, setCanScroll] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const itemsKey = useMemo(() => {
+    if (!items || !items.length) return '';
+    return items.map((i) => `${i.bcvh || ''}_${i.loai || ''}_${i.ngay || ''}_${i.muc || ''}`).join('|');
+  }, [items]);
+
+  // Reset offset khi danh sách mục thực sự thay đổi nội dung (giữ nguyên khi refresh 60s cùng khóa)
+  useEffect(() => {
+    if (itemsKey !== prevItemsKeyRef.current) {
+      prevItemsKeyRef.current = itemsKey;
+      offsetRef.current = 0;
+      if (trackRef.current) {
+        trackRef.current.style.transform = 'translateY(0px)';
+      }
+    }
+  }, [itemsKey]);
+
+  // Đo chiều cao khung và nội dung
+  useEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const measure = () => {
+      const containerH = container.clientHeight;
+      const contentH = content.offsetHeight;
+      const overflow = contentH > containerH + 1;
+      setCanScroll(overflow);
+      if (!overflow) {
+        offsetRef.current = 0;
+        if (trackRef.current) {
+          trackRef.current.style.transform = 'none';
+        }
+      }
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        measure();
+      });
+      ro.observe(container);
+      ro.observe(content);
+      return () => {
+        ro.disconnect();
+      };
+    }
+  }, [itemsKey]);
+
+  // Vòng lặp cuộn bằng requestAnimationFrame (25 px/giây)
+  useEffect(() => {
+    if (!canScroll) {
+      if (trackRef.current) {
+        trackRef.current.style.transform = 'none';
+      }
+      return;
+    }
+
+    let active = true;
+    lastTimeRef.current = null;
+
+    const step = (now) => {
+      if (!active) return;
+
+      if (lastTimeRef.current === null) {
+        lastTimeRef.current = now;
+      }
+
+      const rawDt = now - lastTimeRef.current;
+      const dt = Math.min(Math.max(rawDt, 0), 100); // chặn tối đa 100ms
+      lastTimeRef.current = now;
+
+      const content = contentRef.current;
+      const track = trackRef.current;
+
+      if (content && track) {
+        const contentH = content.offsetHeight;
+        const loopHeight = contentH + gap;
+        const paused = (pauseOnHover && isPaused) || (pauseOnFocus && isFocused);
+
+        if (!paused && loopHeight > 0) {
+          offsetRef.current += (speed * dt) / 1000;
+          if (offsetRef.current >= loopHeight) {
+            offsetRef.current -= loopHeight;
+          }
+          track.style.transform = `translateY(-${offsetRef.current}px)`;
+        }
+      }
+
+      rafIdRef.current = requestAnimationFrame(step);
+    };
+
+    rafIdRef.current = requestAnimationFrame(step);
+
+    return () => {
+      active = false;
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [canScroll, isPaused, isFocused, gap, speed, pauseOnHover, pauseOnFocus]);
+
+  return {
+    containerRef,
+    trackRef,
+    contentRef,
+    canScroll,
+    isPaused,
+    setIsPaused,
+    isFocused,
+    setIsFocused,
+  };
+}
+
 export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode }) {
   const isGdvH = authUser?.role === 'GDVH';
   
@@ -312,10 +446,6 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const [connectionLostAt, setConnectionLostAt] = useState(null);
   const [error403, setError403] = useState(null);
-
-  // Carousel index cho danh sách việc cần điều hành
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [isHoveringSlide, setIsHoveringSlide] = useState(false);
 
   // Gọi các API dashboard
   const fetchData = useCallback(async (bcvhCode) => {
@@ -421,21 +551,21 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   const handleSelectBcvh = (newCode) => {
     setSelectedBcvh(newCode);
     setHasUserSelected(true);
-    setCurrentSlideIndex(0);
   };
 
-  // Carousel timer cho danh sách việc cần điều hành
+  // Danh sách việc cần điều hành
   const actionItems = useMemo(() => {
     return viecCanLam?.items || [];
   }, [viecCanLam]);
 
-  useEffect(() => {
-    if (isHoveringSlide || actionItems.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentSlideIndex((prev) => (prev + 1) % actionItems.length);
-    }, 6000); // 6 giây chuyển mục
-    return () => clearInterval(timer);
-  }, [isHoveringSlide, actionItems.length]);
+  // Hook tự cuộn danh sách (DASH-9e)
+  const webScroll = useAutoScroll({
+    items: actionItems,
+    gap: 12,
+    speed: 25,
+    pauseOnHover: true,
+    pauseOnFocus: true,
+  });
 
   // Điều hướng sang màn hình chi tiết khi bấm nút xử lý
   const handleExecuteAction = (item) => {
@@ -846,74 +976,154 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             <p className="text-xs mt-1 text-[#166534]">Tất cả chỉ số của {isAllView ? 'các BCVH' : currentBcvhObj?.ten} đều trong ngưỡng bình thường.</p>
           </div>
         ) : (
-          <div 
-            className="space-y-3"
-            onMouseEnter={() => setIsHoveringSlide(true)}
-            onMouseLeave={() => setIsHoveringSlide(false)}
-          >
-            {actionItems.map((item, idx) => {
-              const isXuLy = item.muc === 'xu_ly_ngay';
-              const cardBg = isXuLy ? 'bg-[#fff1f2] border-[#fecdd3]' : 'bg-[#fff7ed] border-[#fed7aa]';
-              const badgeBg = isXuLy ? 'bg-[#ffe4e6] text-[#be123c]' : 'bg-[#ffedd5] text-[#c2410c]';
-              const badgeText = isXuLy ? 'Xử lý ngay' : 'Trong ngày';
-              const numColor = isXuLy ? 'text-[#be123c]' : 'text-[#c2410c]';
+          <div>
+            <div 
+              ref={webScroll.containerRef}
+              className="max-h-[320px] relative rounded-xl overflow-hidden"
+              onMouseEnter={() => webScroll.setIsPaused(true)}
+              onMouseLeave={() => webScroll.setIsPaused(false)}
+              onFocus={() => webScroll.setIsFocused(true)}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  webScroll.setIsFocused(false);
+                }
+              }}
+            >
+              <div
+                ref={webScroll.trackRef}
+                className="flex flex-col gap-3"
+                style={{ willChange: 'transform' }}
+              >
+                <div ref={webScroll.contentRef} className="flex flex-col gap-3">
+                  {actionItems.map((item, idx) => {
+                    const isXuLy = item.muc === 'xu_ly_ngay';
+                    const cardBg = isXuLy ? 'bg-[#fff1f2] border-[#fecdd3]' : 'bg-[#fff7ed] border-[#fed7aa]';
+                    const badgeBg = isXuLy ? 'bg-[#ffe4e6] text-[#be123c]' : 'bg-[#ffedd5] text-[#c2410c]';
+                    const badgeText = isXuLy ? 'Xử lý ngay' : 'Trong ngày';
+                    const numColor = isXuLy ? 'text-[#be123c]' : 'text-[#c2410c]';
 
-              return (
-                <div 
-                  key={`${item.bcvh}-${item.loai}-${idx}`}
-                  className={`border rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md ${cardBg}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap shrink-0 mt-0.5 ${badgeBg}`}>
-                      {badgeText}
-                    </span>
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
-                        {formatActionTitle(item, isAllView)}
-                      </h4>
-                      <p className="text-xs text-[#57534e]">
-                        {formatActionDetail(item)}
-                      </p>
-                    </div>
-                  </div>
+                    return (
+                      <div 
+                        key={`${item.bcvh}-${item.loai}-${idx}`}
+                        className={`border rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md ${cardBg}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap shrink-0 mt-0.5 ${badgeBg}`}>
+                            {badgeText}
+                          </span>
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
+                              {formatActionTitle(item, isAllView)}
+                            </h4>
+                            <p className="text-xs text-[#57534e]">
+                              {formatActionDetail(item)}
+                            </p>
+                          </div>
+                        </div>
 
-                  <div className="flex items-center justify-between md:justify-end gap-5 pt-3 md:pt-0 border-t md:border-t-0 border-black/5 shrink-0">
-                    <div className="text-left md:text-right">
-                      {item.loai === 'chua_nhan_tai_bcvh' ? (
-                        <div className="flex items-baseline md:justify-end gap-1">
-                          <span className={`text-2xl font-black ${numColor}`}>
-                            {item.so_lieu?.buu_gui?.toLocaleString('vi-VN')}
-                          </span>
-                          <span className="text-xs font-bold text-[#57534e]">bưu gửi</span>
+                        <div className="flex items-center justify-between md:justify-end gap-5 pt-3 md:pt-0 border-t md:border-t-0 border-black/5 shrink-0">
+                          <div className="text-left md:text-right">
+                            {item.loai === 'chua_nhan_tai_bcvh' ? (
+                              <div className="flex items-baseline md:justify-end gap-1">
+                                <span className={`text-2xl font-black ${numColor}`}>
+                                  {item.so_lieu?.buu_gui?.toLocaleString('vi-VN')}
+                                </span>
+                                <span className="text-xs font-bold text-[#57534e]">bưu gửi</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-baseline md:justify-end gap-1">
+                                <span className={`text-2xl font-black ${numColor}`}>
+                                  {formatPercent(item.so_lieu?.ty_le)}
+                                </span>
+                                <span className="text-xs font-bold text-[#57534e]">chưa XNĐ</span>
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleExecuteAction(item)}
+                            className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 ${
+                              isXuLy ? 'bg-[#e11d48] hover:bg-[#be123c]' : 'bg-[#ea580c] hover:bg-[#c2410c]'
+                            }`}
+                          >
+                            <span>Xử lý</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      ) : (
-                        <div className="flex items-baseline md:justify-end gap-1">
-                          <span className={`text-2xl font-black ${numColor}`}>
-                            {formatPercent(item.so_lieu?.ty_le)}
-                          </span>
-                          <span className="text-xs font-bold text-[#57534e]">chưa XNĐ</span>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleExecuteAction(item)}
-                      className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 ${
-                        isXuLy ? 'bg-[#e11d48] hover:bg-[#be123c]' : 'bg-[#ea580c] hover:bg-[#c2410c]'
-                      }`}
-                    >
-                      <span>Xử lý</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-            <div className="flex items-center justify-between text-[11px] text-[#a8a29e] pt-1 px-1">
+                {webScroll.canScroll && (
+                  <div className="flex flex-col gap-3" aria-hidden="true">
+                    {actionItems.map((item, idx) => {
+                      const isXuLy = item.muc === 'xu_ly_ngay';
+                      const cardBg = isXuLy ? 'bg-[#fff1f2] border-[#fecdd3]' : 'bg-[#fff7ed] border-[#fed7aa]';
+                      const badgeBg = isXuLy ? 'bg-[#ffe4e6] text-[#be123c]' : 'bg-[#ffedd5] text-[#c2410c]';
+                      const badgeText = isXuLy ? 'Xử lý ngay' : 'Trong ngày';
+                      const numColor = isXuLy ? 'text-[#be123c]' : 'text-[#c2410c]';
+
+                      return (
+                        <div 
+                          key={`${item.bcvh}-${item.loai}-${idx}-clone`}
+                          className={`border rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:shadow-md ${cardBg}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap shrink-0 mt-0.5 ${badgeBg}`}>
+                              {badgeText}
+                            </span>
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
+                                {formatActionTitle(item, isAllView)}
+                              </h4>
+                              <p className="text-xs text-[#57534e]">
+                                {formatActionDetail(item)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between md:justify-end gap-5 pt-3 md:pt-0 border-t md:border-t-0 border-black/5 shrink-0">
+                            <div className="text-left md:text-right">
+                              {item.loai === 'chua_nhan_tai_bcvh' ? (
+                                <div className="flex items-baseline md:justify-end gap-1">
+                                  <span className={`text-2xl font-black ${numColor}`}>
+                                    {item.so_lieu?.buu_gui?.toLocaleString('vi-VN')}
+                                  </span>
+                                  <span className="text-xs font-bold text-[#57534e]">bưu gửi</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-baseline md:justify-end gap-1">
+                                  <span className={`text-2xl font-black ${numColor}`}>
+                                    {formatPercent(item.so_lieu?.ty_le)}
+                                  </span>
+                                  <span className="text-xs font-bold text-[#57534e]">chưa XNĐ</span>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              tabIndex={-1}
+                              onClick={() => handleExecuteAction(item)}
+                              className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 ${
+                                isXuLy ? 'bg-[#e11d48] hover:bg-[#be123c]' : 'bg-[#ea580c] hover:bg-[#c2410c]'
+                              }`}
+                            >
+                              <span>Xử lý</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-[#a8a29e] pt-2 px-1">
               <span>{actionItems.length} việc cần lưu ý</span>
               <span>Rê chuột để dừng · Bấm «Xử lý →» để mở màn chi tiết</span>
             </div>
           </div>
         )}
+
       </div>
 
       {/* 5. KHỐI BẢNG XẾP HẠNG BCVH (PHAT-3c) */}
