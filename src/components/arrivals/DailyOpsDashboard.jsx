@@ -528,6 +528,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
     };
   }, [isAllView, initialLoading, tongQuan]);
 
+  const chuyenChieu = tongQuan?.chuyen_chieu;
+  const gioDuLieuHienTai = formatTimeOnly(
+    isAllView ? tongQuan?.den_luc : (currentBcvhRow?.den_luc || tongQuan?.den_luc)
+  );
+
   // ==========================================
   // XỬ LÝ LỖI QUYỀN TRUY CẬP (403)
   // ==========================================
@@ -762,21 +767,42 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           </div>
         </div>
 
-        {/* THẺ 4: HÀNG ĐẾN SAU 15:00 */}
+        {/* THẺ 4: HÀNG ĐẾN CHUYẾN CHIỀU */}
         <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
-              HÀNG ĐẾN SAU 15:00
+              HÀNG ĐẾN CHUYẾN CHIỀU
             </div>
-            <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
-              {tongQuan?.sau_15h?.da_toi_gio ? formatPercent(tongQuan?.sau_15h?.ty_le) : 'Chưa tới 15:00'}
-            </div>
+            {!chuyenChieu ? (
+              <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+                —
+              </div>
+            ) : chuyenChieu.da_toi_gio ? (
+              <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+                {(chuyenChieu.buu_gui ?? 0).toLocaleString('vi-VN')}
+              </div>
+            ) : (
+              <div className="text-[22px] font-bold text-[#0f2747] leading-tight my-2">
+                Chưa có lượt chiều
+              </div>
+            )}
           </div>
           <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-            {tongQuan?.sau_15h?.da_toi_gio ? (
-              <span>{(tongQuan?.sau_15h?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi {formatNhanNgay(tongQuan?.ngay_du_lieu)} · khó phát hết trong ngày</span>
+            {!chuyenChieu ? null : chuyenChieu.da_toi_gio ? (
+              <>
+                {chuyenChieu.ty_le !== null && chuyenChieu.ty_le !== undefined && !isNaN(chuyenChieu.ty_le) && (
+                  <span>{formatPercent(chuyenChieu.ty_le)} sản lượng đến hôm nay</span>
+                )}
+                {gioDuLieuHienTai && (
+                  <span className="text-[#a8a29e] block text-[11px]">
+                    Dữ liệu hiện tại đã tới {gioDuLieuHienTai}
+                  </span>
+                )}
+              </>
             ) : (
-              <span className="text-[#a8a29e]">Dữ liệu hiện tại chưa tới mốc 15:00</span>
+              <span className="text-[#a8a29e]">
+                Chờ dữ liệu lượt chiều
+              </span>
             )}
           </div>
         </div>

@@ -296,7 +296,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
       ?? tongQuan?.san_luong?.buu_gui;
 
   const hangDiNgoai = tongQuan?.hang_di_ngoai;
-  const sau15h   = tongQuan?.sau_15h;
+  const chuyenChieu = tongQuan?.chuyen_chieu;
 
   // Chưa nhận — Bảng 11 dùng theo_bcvh[], Bảng 12 dùng chua_nhan tổng
   const chuaNhanBcvhList = tongQuan?.theo_bcvh || [];
@@ -458,7 +458,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
             isAll={isAll}
             slBuuGui={slBuuGui}
             hangDiNgoai={hangDiNgoai}
-            sau15h={sau15h}
+            chuyenChieu={chuyenChieu}
             tongQuan={tongQuan}
           />
 
@@ -563,7 +563,7 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
 }
 
 // ── Hàng A: 4 thẻ ────────────────────────────────────────────────────────────
-function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
+function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan }) {
   const cardStyle = {
     flex: 1,
     background: TV.bgCard,
@@ -583,6 +583,8 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
     background: '#ffffff',
     border: '2px solid #e2e8f0',
   };
+
+  const gioDuLieuTivi = formatTimeOnly(tongQuan?.den_luc);
 
   return (
     <div style={{ display: 'flex', gap: 20, height: 196 }}>
@@ -682,25 +684,60 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
         </div>
       </div>
 
-      {/* Thẻ 4: Đến sau 15:00 */}
+      {/* Thẻ 4: Hàng đến chuyến chiều */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
-          Đến sau 15:00
-        </div>
-        {sau15h?.da_toi_gio ? (
-          <>
-            <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
-              {formatPercent(sau15h.ty_le)}
-            </div>
-            <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
-              {formatViVN(sau15h.buu_gui)} bưu gửi
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 32, fontWeight: 700, color: TV.textSecondary, marginTop: 16 }}>
-            Chưa tới 15:00
+        <div>
+          <div style={{
+            fontSize: 17,
+            fontWeight: 700,
+            color: TV.textSecondary,
+            letterSpacing: 0.5,
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+          }}>
+            HÀNG ĐẾN CHUYẾN CHIỀU
           </div>
-        )}
+          {!chuyenChieu ? (
+            <div style={{ fontSize: 76, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
+              —
+            </div>
+          ) : chuyenChieu.da_toi_gio ? (
+            <div style={{ fontSize: 76, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
+              {formatViVN(chuyenChieu.buu_gui)}
+            </div>
+          ) : (
+            <div style={{
+              fontSize: 36,
+              fontWeight: 800,
+              color: TV.textPrimary,
+              lineHeight: 1.1,
+              marginTop: 14,
+              whiteSpace: 'nowrap',
+            }}>
+              Chưa có lượt chiều
+            </div>
+          )}
+        </div>
+        <div>
+          {!chuyenChieu ? null : chuyenChieu.da_toi_gio ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+              {chuyenChieu.ty_le !== null && chuyenChieu.ty_le !== undefined && !isNaN(chuyenChieu.ty_le) && (
+                <div style={{ fontSize: 20, color: TV.textSecondary, whiteSpace: 'nowrap', lineHeight: 1.25 }}>
+                  {formatPercent(chuyenChieu.ty_le)} sản lượng đến hôm nay
+                </div>
+              )}
+              {gioDuLieuTivi && (
+                <div style={{ fontSize: 17, color: '#94a3b8', whiteSpace: 'nowrap', lineHeight: 1.25 }}>
+                  Dữ liệu hiện tại đã tới {gioDuLieuTivi}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: 17, color: '#94a3b8', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.25 }}>
+              Chờ dữ liệu lượt chiều
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
