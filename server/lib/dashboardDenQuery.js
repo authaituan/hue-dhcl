@@ -14,7 +14,7 @@
 const aq = require('./arrivalsQuery');
 const bd10 = require('./bd10Query');
 const { DASHBOARD_BCVH, bcvhNames } = require('./dashboardQuery');
-const { DASHBOARD_DEN_THRESHOLDS: TH } = require('../config/dashboard-thresholds');
+const { DASHBOARD_DEN_THRESHOLDS: TH, GIO_CHUYEN_CHIEU } = require('../config/dashboard-thresholds');
 
 const { QueryParamError, DATE_RE, validYmd, addDays } = aq;
 const BCVH_CODES = DASHBOARD_BCVH.map((b) => b.ma);
@@ -106,11 +106,11 @@ const countWin = (db, f) => runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(S
  * Cắt giờ theo BCVH của TỪNG DÒNG được áp TRƯỚC khi chọn dòng sớm nhất (giữ nghĩa «cùng giờ» của từng BCVH); sau đó mỗi SHBG đếm 1 lần tại dòng
  * có arrival_at nhỏ nhất (hoà -> id nhỏ nhất) — đúng quy tắc buildCountedCte (arrivalsQuery.js:227-253: r -> firsts MIN(t || printf('%012d', id)) -> s).
  * Không dùng thẳng buildCountedCte vì nó chỉ nhận MỘT khoảng from/to cho mọi BCVH; có test đối chiếu với aq.summary (tests/dashboard-den-xuyen-bcvh.test.js).
- * Trả { bg, dn, muon, nhieu, tui, kg_g }: bưu gửi; hàng đi ngoài (aq.DI_NGOAI_SQL); bưu gửi có dòng đại diện từ giờ GIO_MUON; SHBG có mặt ở >= 2 BCVH;
+ * Trả { bg, dn, muon, chieu, nhieu, tui, kg_g }: bưu gửi; hàng đi ngoài (aq.DI_NGOAI_SQL); bưu gửi có dòng đại diện từ giờ GIO_MUON; chieu = từ GIO_CHUYEN_CHIEU (DASH-9b; giờ của dòng đại diện = giờ đến SỚM NHẤT xuyên BCVH); SHBG có mặt ở >= 2 BCVH;
  * số túi/kiện (BD8 khác nhau, khác rỗng, trên mọi dòng trong cửa sổ của các SHBG đã đếm — như aq.summary); khối lượng (gam) của dòng đại diện.
  */
 function countAcross(db, wins) {
-  const out = { bg: 0, dn: 0, muon: 0, nhieu: 0, tui: 0, kg_g: 0 };
+  const out = { bg: 0, dn: 0, muon: 0, chieu: 0, nhieu: 0, tui: 0, kg_g: 0 };
   if (!wins.length) return out;
   const row = db.prepare(`
     WITH w AS (SELECT json_extract(value, '$.rc') AS rc, json_extract(value, '$.day') AS day, json_extract(value, '$.to') AS to_t FROM json_each(@wins)),
@@ -128,9 +128,10 @@ function countAcross(db, wins) {
     SELECT (SELECT COUNT(*) FROM s) AS bg,
       (SELECT COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) FROM s) AS dn,
       (SELECT COALESCE(SUM(CAST(substr(t, 12, 2) AS INTEGER) >= @gm), 0) FROM s) AS muon,
+      (SELECT COALESCE(SUM(CAST(substr(t, 12, 2) AS INTEGER) >= @gc), 0) FROM s) AS chieu,
       (SELECT COALESCE(SUM(nb > 1), 0) FROM s) AS nhieu,
       (SELECT COUNT(DISTINCT r.bd8_no) FROM r WHERE r.bd8_no <> '' AND r.tracking_no IN (SELECT tracking_no FROM s)) AS tui,
-      (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS kg_g`).get({ wins: JSON.stringify(wins), gm: TH.GIO_MUON });
+      (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS kg_g`).get({ wins: JSON.stringify(wins), gm: TH.GIO_MUON, gc: GIO_CHUYEN_CHIEU });
   return { ...out, ...row };
 }
 
@@ -187,18 +188,19 @@ function issuesOf(db, c) {
 // Sản lượng của MỘT BCVH: hôm nay (lượt, bưu gửi, hàng đi ngoài, sau 15:00) + so hôm qua / cùng thứ tuần trước, cùng giờ dữ liệu
 // ------------------------------------------
 function volumeOf(db, c) {
-  const empty = { luot: 0, buu_gui: 0, di_ngoai: 0, muon: 0, hom_qua: null, tuan_truoc: null };
+  const empty = { luot: 0, buu_gui: 0, di_ngoai: 0, muon: 0, chieu: 0, hom_qua: null, tuan_truoc: null };
   if (!c.cut) return empty;
   const f = windowFilter(c.ma, c.day, c.cut);
   const t = runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) AS dn,
-      COALESCE(SUM(t >= @muon), 0) AS muon FROM s`, { muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00` })[0];
+      COALESCE(SUM(t >= @muon), 0) AS muon, COALESCE(SUM(t >= @chieu), 0) AS chieu FROM s`,
+  { muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00`, chieu: `${c.day} ${String(GIO_CHUYEN_CHIEU).padStart(2, '0')}:00:00` })[0];
   const luot = db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT tracking_no, bd10_no, bd8_no FROM arrival_items
     WHERE receiver_code = @ma AND arrival_date = @d AND arrival_at BETWEEN @from AND @to)`).get({ ma: c.ma, d: c.day, from: f.from, to: f.to }).n;
   const y = addDays(c.day, -1);
   const w = addDays(c.day, -7);
   const present = filesPresent(db, c.ma, [y, w]);
   return {
-    luot, buu_gui: t.bg, di_ngoai: t.dn, muon: t.muon,
+    luot, buu_gui: t.bg, di_ngoai: t.dn, muon: t.muon, chieu: t.chieu,
     hom_qua: present.has(y) ? countWin(db, windowFilter(c.ma, y, c.cut)) : null,
     tuan_truoc: present.has(w) ? countWin(db, windowFilter(c.ma, w, c.cut)) : null
   };
@@ -281,6 +283,7 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
   const bg = useB ? todayB.bg : sumBg;
   const dn = useB ? todayB.dn : sum(vs, (v) => v.di_ngoai);
   const muonTong = useB ? todayB.muon : sum(vs, (v) => v.muon);
+  const chieuTong = useB ? todayB.chieu : sum(vs, (v) => v.chieu);
   const OFF = { hom_qua: -1, tuan_truoc: -7 };
   const canChuY = rows.filter((r) => r.muc === MUC.XU_LY_NGAY || r.muc === MUC.TRONG_NGAY).length;
   // Mốc so sánh (dưới sàn 50 bưu gửi thì chenh_pct / chenh_diem = null, vẫn giữ giá trị mốc). Sản lượng: { gia_tri, chenh_pct, so_bcvh }; của hàng đi ngoài: { buu_gui, ty_le, mau_so, chenh_diem (điểm %, hôm nay − mốc), so_bcvh }.
@@ -336,6 +339,9 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     // da_toi_gio: có BCVH nào dữ liệu đã tới mốc GIO_MUON chưa (chưa tới thì số 0 không có nghĩa "không có hàng muộn").
     sau_15h: { buu_gui: muonTong, ty_le: ratio4(muonTong, bg), tu_gio: TH.GIO_MUON,
       da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON && (!useB || c.day === header.ngay_du_lieu)) },
+    // DASH-9b: hàng đến CHUYẾN CHIỀU (từ GIO_CHUYEN_CHIEU, mặc định 10:00) — cùng cấu trúc, ngày, tập T và công thức A/B như sau_15h; da_toi_gio theo giờ dữ liệu (den_luc), không theo đồng hồ.
+    chuyen_chieu: { buu_gui: chieuTong, ty_le: ratio4(chieuTong, bg), tu_gio: GIO_CHUYEN_CHIEU,
+      da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= GIO_CHUYEN_CHIEU && (!useB || c.day === header.ngay_du_lieu)) },
     bcvh_can_chu_y: { so: canChuY, tong: rows.length },
     theo_bcvh: rows.map(({ _v, ...r }) => r)
   };
