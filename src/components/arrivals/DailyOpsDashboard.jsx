@@ -31,10 +31,89 @@ export function formatPctChange(pct) {
   return `${sign}${pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+// Lấy ngày hôm nay theo giờ Việt Nam dạng YYYY-MM-DD
+export function getVnTodayYmd() {
+  const d = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return formatter.format(d);
+}
+
+// Chuyển YYYY-MM-DD -> DD/MM (vd 2026-10-15 -> 15/10)
+export function formatDdMm(ymd) {
+  if (!ymd) return '';
+  const parts = String(ymd).split('-');
+  if (parts.length >= 3) {
+    return `${parts[2].slice(0, 2)}/${parts[1]}`;
+  }
+  return String(ymd);
+}
+
+// Cộng/trừ N ngày từ YYYY-MM-DD
+export function addDaysYmd(ymd, days) {
+  if (!ymd) return '';
+  const parts = String(ymd).split('-').map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) return ymd;
+  const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  d.setUTCDate(d.getUTCDate() + days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+// Kiểm tra xem YYYY-MM-DD có trùng ngày đồng hồ máy giờ VN không
+export function isVnToday(ymd) {
+  if (!ymd) return false;
+  return String(ymd).slice(0, 10) === getVnTodayYmd();
+}
+
+// Trả về nhãn ngày: nếu đúng hôm nay (giờ VN) -> 'hôm nay', ngược lại -> 'dd/mm'
+export function formatNhanNgay(ngay, fallback = 'hôm nay') {
+  if (!ngay) return fallback;
+  if (isVnToday(ngay)) return 'hôm nay';
+  return formatDdMm(ngay);
+}
+
+// Việc 1: Hàm nhãn dùng chung nhận ngay (YYYY-MM-DD) và den_luc
+// - Nếu ngay = ngày của đồng hồ máy (giờ VN): giữ «hôm nay».
+// - Ngược lại: «dd/mm» (ví dụ «15/10»).
+// - Ghép giờ dữ liệu: «… · đến hh:mm» khi có den_luc.
+// Ví dụ: formatNhanNgayGio('2026-10-15', '14:47:00', 'Sản lượng đến') -> «Sản lượng đến 15/10 · đến 14:47»
+// khi đúng hôm nay: «Sản lượng đến hôm nay · đến 14:47»
+export function formatNhanNgayGio(ngay, denLuc, prefix = '') {
+  const p = prefix ? `${prefix.trim()} ` : '';
+  const dateStr = formatNhanNgay(ngay);
+  const timeStr = formatTimeOnly(denLuc);
+  const timeSuffix = timeStr ? ` · đến ${timeStr}` : '';
+  return `${p}${dateStr}${timeSuffix}`;
+}
+
+// Nhãn so sánh mốc 1 ngày trước và 7 ngày trước theo ngày tham chiếu thật
+export function getNhanSoSanhMoc(ngay) {
+  if (!ngay || isVnToday(ngay)) {
+    return {
+      labelHomQua: 'so hôm qua cùng giờ',
+      labelTuanTruoc: 'so tuần trước',
+      ngayHomQua: null,
+      ngayTuanTruoc: null,
+    };
+  }
+  const y = addDaysYmd(ngay, -1);
+  const w = addDaysYmd(ngay, -7);
+  return {
+    labelHomQua: `so ${formatDdMm(y)} cùng giờ`,
+    labelTuanTruoc: `so ${formatDdMm(w)}`,
+    ngayHomQua: y,
+    ngayTuanTruoc: w,
+  };
+}
+
 // «+5,0% so tuần trước» khi có số chênh; null (thiếu mốc hoặc mốc dưới sàn 50 BG, DASH-6b) -> «chưa đủ dữ liệu so tuần trước». label: 'so tuần trước' | 'so hôm qua cùng giờ'.
-export function formatSoSanh(pct, label) {
-  if (pct === null || pct === undefined || isNaN(pct)) return `chưa đủ dữ liệu ${label}`;
-  return `${formatPctChange(pct)} ${label}`;
+// soBcvh: khi nhỏ hơn tổng số BCVH (mặc định 6) thì thêm chú thích mốc (x/6 BCVH có mốc).
+export function formatSoSanh(pct, label, soBcvh = null, tongBcvh = 6) {
+  const bcvhSuffix = (soBcvh !== null && soBcvh !== undefined && soBcvh < tongBcvh)
+    ? ` (${soBcvh}/${tongBcvh} BCVH có mốc)`
+    : '';
+  if (pct === null || pct === undefined || isNaN(pct)) return `chưa đủ dữ liệu ${label}${bcvhSuffix}`;
+  return `${formatPctChange(pct)} ${label}${bcvhSuffix}`;
 }
 
 // Lý do chưa đánh giá mức sản lượng (danh_gia_san_luong.ly_do của API) -> chữ ngắn để làm chú thích.
@@ -284,6 +363,29 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
     }
   };
 
+  const isAllView = selectedBcvh === 'all';
+  const currentBcvhObj = !isAllView ? DASHBOARD_BCVH.find((b) => b.ma === selectedBcvh) : null;
+  const currentBcvhRow = !isAllView && tongQuan?.theo_bcvh ? tongQuan.theo_bcvh.find((r) => r.ma === selectedBcvh) : null;
+
+  // Đếm số việc theo mức
+  const countXuLyNgay = actionItems.filter((i) => i.muc === 'xu_ly_ngay').length;
+  const countTrongNgay = actionItems.filter((i) => i.muc === 'trong_ngay').length;
+
+  const nhanMocTong = useMemo(
+    () => getNhanSoSanhMoc(tongQuan?.ngay_du_lieu),
+    [tongQuan?.ngay_du_lieu]
+  );
+  const nhanMocCurrentBcvh = useMemo(
+    () => getNhanSoSanhMoc(currentBcvhRow?.ngay_du_lieu || tongQuan?.ngay_du_lieu),
+    [currentBcvhRow?.ngay_du_lieu, tongQuan?.ngay_du_lieu]
+  );
+  const bcvhChuaCoDuLieuNgayNay = useMemo(() => {
+    if (!tongQuan?.theo_bcvh || !tongQuan?.ngay_du_lieu) return 0;
+    return tongQuan.theo_bcvh.filter(
+      (r) => !r.co_du_lieu || r.ngay_du_lieu !== tongQuan.ngay_du_lieu
+    ).length;
+  }, [tongQuan]);
+
   // ==========================================
   // XỬ LÝ LỖI QUYỀN TRUY CẬP (403)
   // ==========================================
@@ -318,14 +420,6 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       </div>
     );
   }
-
-  const isAllView = selectedBcvh === 'all';
-  const currentBcvhObj = !isAllView ? DASHBOARD_BCVH.find((b) => b.ma === selectedBcvh) : null;
-  const currentBcvhRow = !isAllView && tongQuan?.theo_bcvh?.find((r) => r.ma === selectedBcvh);
-
-  // Đếm số việc theo mức
-  const countXuLyNgay = actionItems.filter((i) => i.muc === 'xu_ly_ngay').length;
-  const countTrongNgay = actionItems.filter((i) => i.muc === 'trong_ngay').length;
 
   return (
     <div className="p-6 space-y-6 text-[#292524] bg-[#f8f9fa] min-h-screen">
@@ -364,15 +458,23 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-black text-[#881337] tracking-tight">
               {isAllView
-                ? 'Cần điều hành ngay hôm nay'
-                : `Cần điều hành ngay hôm nay · ${currentBcvhObj?.ten || selectedBcvh} (${selectedBcvh})`}
+                ? (isVnToday(tongQuan?.ngay_du_lieu)
+                    ? 'Cần điều hành ngay hôm nay'
+                    : `Cần điều hành ngày ${formatDdMm(tongQuan?.ngay_du_lieu)}`)
+                : (isVnToday(currentBcvhRow?.ngay_du_lieu || tongQuan?.ngay_du_lieu)
+                    ? `Cần điều hành ngay hôm nay · ${currentBcvhObj?.ten || selectedBcvh} (${selectedBcvh})`
+                    : `Cần điều hành ngày ${formatDdMm(currentBcvhRow?.ngay_du_lieu || tongQuan?.ngay_du_lieu)} · ${currentBcvhObj?.ten || selectedBcvh} (${selectedBcvh})`)}
             </h1>
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                 connectionLostAt ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
               }`}>
                 <span className={`w-2 h-2 rounded-full ${connectionLostAt ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-                {connectionLostAt ? 'Mất kết nối' : `Trực tiếp · Dữ liệu đến ${formatTimeOnly(tongQuan?.den_luc) || 'chưa có'}`}
+                {connectionLostAt
+                  ? 'Mất kết nối'
+                  : isVnToday(tongQuan?.ngay_du_lieu)
+                    ? `Trực tiếp · Dữ liệu đến ${formatTimeOnly(tongQuan?.den_luc) || 'chưa có'}`
+                    : `Trực tiếp · Dữ liệu ${formatDdMm(tongQuan?.ngay_du_lieu)} · đến ${formatTimeOnly(tongQuan?.den_luc) || 'chưa có'}`}
               </span>
               {lastRefreshedAt && (
                 <span className="text-[11px] text-[#78716c] hidden sm:inline" title="Lần làm mới thành công gần nhất">
@@ -421,7 +523,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
-              {isAllView ? 'SẢN LƯỢNG ĐẾN HÔM NAY' : 'BƯU GỬI ĐẾN BCVH HÔM NAY'}
+              {formatNhanNgayGio(
+                isAllView ? tongQuan?.ngay_du_lieu : (currentBcvhRow?.ngay_du_lieu || tongQuan?.ngay_du_lieu),
+                isAllView ? tongQuan?.den_luc : (currentBcvhRow?.den_luc || tongQuan?.den_luc),
+                isAllView ? 'SẢN LƯỢNG ĐẾN' : 'BƯU GỬI ĐẾN BCVH'
+              )}
             </div>
             <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
               {isAllView
@@ -432,15 +538,38 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <div className="text-xs text-[#57534e] space-y-0.5 pt-2 border-t border-[#f5f5f4]">
             {isAllView ? (
               <div>
-                <span>{formatSoSanh(tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct, 'so hôm qua cùng giờ')}</span>
+                <span>{formatSoSanh(
+                  tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct,
+                  nhanMocTong.labelHomQua,
+                  tongQuan?.san_luong?.so_hom_qua_cung_gio?.so_bcvh,
+                  tongQuan?.theo_bcvh?.length || 6
+                )}</span>
                 <span className="mx-1.5">·</span>
-                <span>{formatSoSanh(tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.chenh_pct, 'so tuần trước')}</span>
+                <span>{formatSoSanh(
+                  tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.chenh_pct,
+                  nhanMocTong.labelTuanTruoc,
+                  tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.so_bcvh,
+                  tongQuan?.theo_bcvh?.length || 6
+                )}</span>
               </div>
             ) : (
               <div>
-                <span>{formatSoSanh(currentBcvhRow?.so_hom_qua?.chenh_pct, 'so hôm qua cùng giờ')}</span>
+                <span>{formatSoSanh(
+                  currentBcvhRow?.so_hom_qua?.chenh_pct,
+                  nhanMocCurrentBcvh.labelHomQua
+                )}</span>
                 <span className="mx-1.5">·</span>
-                <span title={lyDoChuaDanhGia(currentBcvhRow?.danh_gia_san_luong)}>{formatSoSanh(currentBcvhRow?.so_tuan_truoc?.chenh_pct, 'so tuần trước')}</span>
+                <span title={lyDoChuaDanhGia(currentBcvhRow?.danh_gia_san_luong)}>
+                  {formatSoSanh(
+                    currentBcvhRow?.so_tuan_truoc?.chenh_pct,
+                    nhanMocCurrentBcvh.labelTuanTruoc
+                  )}
+                </span>
+              </div>
+            )}
+            {isAllView && bcvhChuaCoDuLieuNgayNay > 0 && (
+              <div className="text-[11px] text-amber-700 font-medium">
+                {bcvhChuaCoDuLieuNgayNay} BCVH chưa có dữ liệu ngày này
               </div>
             )}
             <div className="text-[11px] text-[#a8a29e] italic">BG = bưu gửi (lần đến sớm nhất)</div>
@@ -476,11 +605,17 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             </div>
           </div>
           <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-            <span>{(tongQuan?.hang_di_ngoai?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi hôm nay</span>
+            <span>{(tongQuan?.hang_di_ngoai?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi {formatNhanNgay(tongQuan?.ngay_du_lieu)}</span>
             <span className="text-[#a8a29e] block text-[11px]">
               {tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== null && tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== undefined
-                ? `${formatPointDiff(tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.chenh_diem)} so tuần trước`
-                : 'chưa đủ dữ liệu so tuần trước'}
+                ? `${formatPointDiff(tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.chenh_diem)} ${nhanMocTong.labelTuanTruoc}${
+                    tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh !== null &&
+                    tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh !== undefined &&
+                    tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh < (tongQuan?.theo_bcvh?.length || 6)
+                      ? ` (${tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh}/${tongQuan?.theo_bcvh?.length || 6} BCVH có mốc)`
+                      : ''
+                  }`
+                : `chưa đủ dữ liệu ${nhanMocTong.labelTuanTruoc}`}
             </span>
           </div>
         </div>
@@ -497,7 +632,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           </div>
           <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
             {tongQuan?.sau_15h?.da_toi_gio ? (
-              <span>{(tongQuan?.sau_15h?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi hôm nay · khó phát hết trong ngày</span>
+              <span>{(tongQuan?.sau_15h?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi {formatNhanNgay(tongQuan?.ngay_du_lieu)} · khó phát hết trong ngày</span>
             ) : (
               <span className="text-[#a8a29e]">Dữ liệu hiện tại chưa tới mốc 15:00</span>
             )}
@@ -535,7 +670,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         {actionItems.length === 0 ? (
           <div className="py-10 text-center bg-[#f0fdf4] rounded-xl border border-[#bbf7d0] text-[#15803d]">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-80" />
-            <p className="font-bold text-[15px]">Hôm nay chưa có việc cần điều hành</p>
+            <p className="font-bold text-[15px]">
+              {isVnToday(tongQuan?.ngay_du_lieu)
+                ? 'Hôm nay chưa có việc cần điều hành'
+                : `Ngày ${formatDdMm(tongQuan?.ngay_du_lieu)} chưa có việc cần điều hành`}
+            </p>
             <p className="text-xs mt-1 text-[#166534]">Tất cả chỉ số của {isAllView ? 'các BCVH' : currentBcvhObj?.ten} đều trong ngưỡng bình thường.</p>
           </div>
         ) : (
@@ -620,9 +759,17 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black text-[#292524]">Hôm nay theo từng BCVH</h3>
+              <h3 className="text-lg font-black text-[#292524]">
+                {isVnToday(tongQuan?.ngay_du_lieu)
+                  ? 'Hôm nay theo từng BCVH'
+                  : `Theo từng BCVH · ${formatDdMm(tongQuan?.ngay_du_lieu)}`}
+              </h3>
               <p className="text-xs text-[#78716c] mt-0.5">
-                Sản lượng đến tích luỹ từ 00:00 tới {formatTimeOnly(tongQuan?.den_luc) || 'hiện tại'}. Bấm vào BCVH để xem điều hành riêng của BCVH đó.
+                Sản lượng đến tích luỹ từ 00:00 tới {formatTimeOnly(tongQuan?.den_luc) || 'hiện tại'}.
+                {bcvhChuaCoDuLieuNgayNay > 0 && (
+                  <span className="text-amber-700 font-medium"> ({bcvhChuaCoDuLieuNgayNay} BCVH chưa có dữ liệu ngày này)</span>
+                )}
+                {' '}Bấm vào BCVH để xem điều hành riêng của BCVH đó.
               </p>
             </div>
             {onNavigate && (
@@ -642,8 +789,12 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 <tr>
                   <th className="px-4 py-3">BCVH</th>
                   <th className="px-4 py-3 text-right">SẢN LƯỢNG ĐẾN</th>
-                  <th className="px-4 py-3 text-right">SO HÔM QUA</th>
-                  <th className="px-4 py-3 text-right">SO TUẦN TRƯỚC</th>
+                  <th className="px-4 py-3 text-right">
+                    {isVnToday(tongQuan?.ngay_du_lieu) ? 'SO HÔM QUA' : `SO ${formatDdMm(addDaysYmd(tongQuan?.ngay_du_lieu, -1))}`}
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    {isVnToday(tongQuan?.ngay_du_lieu) ? 'SO TUẦN TRƯỚC' : `SO ${formatDdMm(addDaysYmd(tongQuan?.ngay_du_lieu, -7))}`}
+                  </th>
                   <th className="px-4 py-3 text-right">CHƯA NHẬN</th>
                   <th className="px-4 py-3 text-right">BD10 CHƯA XNĐ</th>
                   <th className="px-4 py-3 text-center">ĐÁNH GIÁ</th>
@@ -663,6 +814,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         <div className="font-bold text-[#881337] hover:underline flex items-center gap-1">
                           <span>{row.ten}</span>
                           <span className="text-xs font-normal text-[#a8a29e]">· {row.ma}</span>
+                          {row.co_du_lieu && row.ngay_du_lieu && row.ngay_du_lieu !== tongQuan?.ngay_du_lieu && (
+                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded ml-1" title={`Dữ liệu ngày ${row.ngay_du_lieu}`}>
+                              {formatDdMm(row.ngay_du_lieu)}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-medium">
@@ -887,22 +1043,34 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
         <div>
           <h3 className="text-lg font-black text-[#292524]">
-            Phường/xã sản lượng đến tăng mạnh nhất hôm nay
+            {isVnToday(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)
+              ? 'Phường/xã sản lượng đến tăng mạnh nhất hôm nay'
+              : `Phường/xã sản lượng đến tăng mạnh nhất ${formatDdMm(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)}`}
           </h3>
           <p className="text-xs text-[#78716c] mt-0.5">
-            Chỉ tính sản lượng đến. Ba cột: hôm kia, hôm qua, hôm nay (cột cam đỏ). BG = bưu gửi. Chip bên phải: tăng so với hôm qua (đỏ nếu từ 20% trở lên, vàng nếu thấp hơn, xanh nếu giảm; hôm qua quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).
+            {(() => {
+              const pxNgay = phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu;
+              const cotStr = isVnToday(pxNgay)
+                ? 'hôm kia, hôm qua, hôm nay (cột cam đỏ)'
+                : `${formatDdMm(addDaysYmd(pxNgay, -2))}, ${formatDdMm(addDaysYmd(pxNgay, -1))}, ${formatDdMm(pxNgay)} (cột cam đỏ)`;
+              const soStr = isVnToday(pxNgay) ? 'hôm qua' : formatDdMm(addDaysYmd(pxNgay, -1));
+              return `Chỉ tính sản lượng đến. Ba cột: ${cotStr}. BG = bưu gửi. Chip bên phải: tăng so với ${soStr} (đỏ nếu từ 20% trở lên, vàng nếu thấp hơn, xanh nếu giảm; ${soStr} quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).`;
+            })()}
           </p>
         </div>
 
         {phuongXa?.items?.length === 0 ? (
           <div className="p-6 text-center text-sm text-gray-500 bg-gray-50 rounded-xl">
-            Chưa có phường/xã nào tăng đột biến hôm nay.
+            {isVnToday(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)
+              ? 'Chưa có phường/xã nào tăng đột biến hôm nay.'
+              : `Chưa có phường/xã nào tăng đột biến ngày ${formatDdMm(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)}.`}
           </div>
         ) : (
           <div className="space-y-3">
             {phuongXa?.items?.map((item, idx) => {
               const maxVal = Math.max(item.hom_kia || 0, item.hom_qua || 0, item.hom_nay || 0, 1);
               const chip = wardChangeChip(item);
+              const itemNgay = item.ngay || phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu;
 
               return (
                 <div 
@@ -925,7 +1093,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         style={{ height: item.hom_kia !== null ? `${Math.max(15, (item.hom_kia / maxVal) * 36)}px` : '4px' }} 
                         className="w-full bg-[#93c5fd] rounded-t-sm"
                       />
-                      <span className="text-[9px] text-gray-400 mt-0.5">hôm kia</span>
+                      <span className="text-[9px] text-gray-400 mt-0.5">
+                        {isVnToday(itemNgay) ? 'hôm kia' : formatDdMm(addDaysYmd(itemNgay, -2))}
+                      </span>
                     </div>
 
                     {/* Hôm qua */}
@@ -935,7 +1105,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         style={{ height: item.hom_qua !== null ? `${Math.max(15, (item.hom_qua / maxVal) * 36)}px` : '4px' }} 
                         className="w-full bg-[#3b82f6] rounded-t-sm"
                       />
-                      <span className="text-[9px] text-gray-400 mt-0.5">hôm qua</span>
+                      <span className="text-[9px] text-gray-400 mt-0.5">
+                        {isVnToday(itemNgay) ? 'hôm qua' : formatDdMm(addDaysYmd(itemNgay, -1))}
+                      </span>
                     </div>
 
                     {/* Hôm nay */}
@@ -945,7 +1117,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         style={{ height: `${Math.max(15, (item.hom_nay / maxVal) * 36)}px` }} 
                         className="w-full bg-[#ea580c] rounded-t-sm"
                       />
-                      <span className="text-[9px] font-bold text-[#ea580c] mt-0.5">hôm nay</span>
+                      <span className="text-[9px] font-bold text-[#ea580c] mt-0.5">
+                        {isVnToday(itemNgay) ? 'hôm nay' : formatDdMm(itemNgay)}
+                      </span>
                     </div>
                   </div>
 
@@ -971,9 +1145,13 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                     </div>
                     <div className="text-[11px] text-[#78716c] mt-1">
                       {item.tuan_truoc_cung_gio !== null && item.tuan_truoc_cung_gio !== undefined ? (
-                        <span>so tuần trước ({item.tuan_truoc_cung_gio} BG): {formatPctChange(item.lech_so_tuan_truoc_pct)}</span>
+                        <span>
+                          {isVnToday(itemNgay) ? 'so tuần trước' : `so ${formatDdMm(addDaysYmd(itemNgay, -7))}`} ({item.tuan_truoc_cung_gio} BG): {formatPctChange(item.lech_so_tuan_truoc_pct)}
+                        </span>
                       ) : (
-                        <span>so tuần trước: chưa đủ dữ liệu</span>
+                        <span>
+                          {isVnToday(itemNgay) ? 'so tuần trước' : `so ${formatDdMm(addDaysYmd(itemNgay, -7))}`}: chưa đủ dữ liệu
+                        </span>
                       )}
                     </div>
                   </div>

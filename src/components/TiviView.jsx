@@ -12,6 +12,10 @@ import {
   formatTimeOnly,
   formatDateTimeSec,
   wardChangeChip,
+  formatNhanNgay,
+  formatDdMm,
+  isVnToday,
+  getNhanSoSanhMoc,
 } from './arrivals/DailyOpsDashboard';
 
 // ─── Token màu và font chuẩn Canvas DASH-4c ──────────────────────────────────
@@ -454,13 +458,14 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
               currentPage={actionPage}
               totalPages={totalActionPages}
               isAll={isAll}
+              ngayDuLieu={tongQuan?.ngay_du_lieu}
             />
 
             {/* Cột Giữa */}
             {isAll ? (
               <ColXepHang />
             ) : (
-              <ColKhungGio />
+              <ColKhungGio ngayDuLieu={tongQuan?.ngay_du_lieu} />
             )}
 
             {/* Cột Phải */}
@@ -471,6 +476,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
                 chuaNhan={chuaNhanBcvh12}
                 pxItems={pxItems}
                 bcvhScope={bcvhScope}
+                ngayDuLieu={phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu}
               />
             )}
           </div>
@@ -494,7 +500,9 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
       {/* Tiêu đề trái */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
         <h1 style={{ fontSize: 44, fontWeight: 900, color: TV.textPrimary, margin: 0, letterSpacing: '-1px' }}>
-          Cần điều hành ngay hôm nay
+          {isVnToday(tongQuan?.ngay_du_lieu)
+            ? 'Cần điều hành ngay hôm nay'
+            : `Cần điều hành ngày ${formatDdMm(tongQuan?.ngay_du_lieu)}`}
         </h1>
         <span style={{
           background: TV.bgCardNested, border: `1.5px solid ${TV.border}`,
@@ -565,14 +573,42 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
     <div style={{ display: 'flex', gap: 20, height: 196 }}>
       {/* Thẻ 1: Sản lượng đến */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: TV.textSecondary, letterSpacing: 1, textTransform: 'uppercase' }}>
-          {isAll ? 'Sản lượng đến' : 'Hàng đến hôm nay'}
+        <div style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: TV.textSecondary,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}>
+          {isAll ? 'Sản lượng đến' : 'Hàng đến'}
+          {' '}
+          {formatNhanNgay(tongQuan?.ngay_du_lieu)}
+          {tongQuan?.den_luc ? (
+            <span style={{ fontSize: 15, fontWeight: 500, color: '#94a3b8', textTransform: 'none' }}>
+              {' '}· đến {formatTimeOnly(tongQuan.den_luc)}
+            </span>
+          ) : null}
         </div>
         <div style={{ fontSize: 72, fontWeight: 900, color: TV.textPrimary, lineHeight: 1, marginTop: 8 }}>
           {slBuuGui !== null && slBuuGui !== undefined ? formatViVN(slBuuGui) : '—'}
         </div>
-        <div style={{ fontSize: 20, color: TV.textSecondary, marginTop: 4 }}>
-          {formatSoSanh(tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct, 'so hôm qua cùng giờ')}
+        <div style={{
+          fontSize: 17,
+          color: TV.textSecondary,
+          marginTop: 4,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}>
+          {formatSoSanh(
+            tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct,
+            getNhanSoSanhMoc(tongQuan?.ngay_du_lieu).labelHomQua,
+            tongQuan?.san_luong?.so_hom_qua_cung_gio?.so_bcvh,
+            tongQuan?.theo_bcvh?.length || 6
+          )}
         </div>
       </div>
 
@@ -638,7 +674,7 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
 }
 
 // ── Cột Trái: Việc cần làm ────────────────────────────────────────────────────
-function ColViec({ items, totalItems, currentPage, totalPages, isAll }) {
+function ColViec({ items, totalItems, currentPage, totalPages, isAll, ngayDuLieu }) {
   const colStyle = {
     width: 500,
     flexShrink: 0,
@@ -670,7 +706,9 @@ function ColViec({ items, totalItems, currentPage, totalPages, isAll }) {
         }}>
           <div style={{ fontSize: 48 }}>✅</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: TV.green, textAlign: 'center' }}>
-            Hôm nay chưa có việc cần điều hành
+            {isVnToday(ngayDuLieu)
+              ? 'Hôm nay chưa có việc cần điều hành'
+              : `Ngày ${formatDdMm(ngayDuLieu)} chưa có việc cần điều hành`}
           </div>
         </div>
       ) : (
@@ -875,7 +913,7 @@ function ColXepHang() {
 }
 
 // ── Cột Giữa — Bảng 12: Khung giờ ───────────────────────────────────────────
-function ColKhungGio() {
+function ColKhungGio({ ngayDuLieu }) {
   const TIME_SLOTS = [
     'Cả ngày',
     'Trước 10h',
@@ -900,7 +938,9 @@ function ColKhungGio() {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary }}>
-          Hôm nay từng khung giờ
+          {isVnToday(ngayDuLieu)
+            ? 'Hôm nay từng khung giờ'
+            : `Từng khung giờ ngày ${formatDdMm(ngayDuLieu)}`}
         </div>
         <span style={{
           background: '#0b0f14',
@@ -1057,7 +1097,7 @@ const TV_CHIP_STYLE = {
 // Bố cục cột phải bảng 12 ở sân khấu 1920×1080 (chiều cao hàng B ≈ 681 px):
 // thẻ «Chưa nhận» ≈ 297 px + khe 16 px -> thẻ phường/xã ≈ 368 px; 3 dòng × 64 px + 2 khe × 12 px = 216 px
 // vừa trong phần thân ≈ 289 px (trừ đệm và tiêu đề), không đè dòng «Dữ liệu đến … · Làm mới …».
-function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
+function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope, ngayDuLieu }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
@@ -1139,7 +1179,9 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
         flexDirection: 'column',
       }}>
         <div style={{ fontSize: 22, fontWeight: 900, color: TV.textPrimary, lineHeight: 1.2, marginBottom: 12, whiteSpace: 'nowrap' }}>
-          Phường/xã đến tăng mạnh hôm nay
+          {isVnToday(ngayDuLieu)
+            ? 'Phường/xã đến tăng mạnh hôm nay'
+            : `Phường/xã đến tăng mạnh ${formatDdMm(ngayDuLieu)}`}
         </div>
         {pxItems.length === 0 ? (
           <div style={{ color: TV.textSecondary, fontSize: 20, textAlign: 'center', marginTop: 12 }}>
@@ -1208,6 +1250,11 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope }) {
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 function Footer({ tongQuan, lastOk }) {
+  const timeStr = formatTimeOnly(tongQuan?.den_luc) || '—';
+  const dataLabel = isVnToday(tongQuan?.ngay_du_lieu)
+    ? `Dữ liệu đến ${timeStr}`
+    : `Dữ liệu ${formatDdMm(tongQuan?.ngay_du_lieu)} · đến ${timeStr}`;
+
   return (
     <div style={{
       marginTop: 14,
@@ -1216,7 +1263,7 @@ function Footer({ tongQuan, lastOk }) {
       alignItems: 'center',
     }}>
       <div style={{ fontSize: 16, color: TV.textSecondary, fontWeight: 500 }}>
-        Dữ liệu đến {formatTimeOnly(tongQuan?.den_luc) || '—'}
+        {dataLabel}
         {' · '}
         Làm mới {lastOk ? formatDateTimeSec(lastOk) : '—'}
       </div>
