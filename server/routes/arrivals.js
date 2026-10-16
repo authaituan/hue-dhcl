@@ -83,6 +83,7 @@ router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'
 // Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF 403.
 // bcvh_goi_y: BCVH được giao của GDVH (giao diện chọn sẵn), rỗng với vai trò khác. Tham số: bcvh (mã | all), date; phuong-xa-tang thêm gioi_han.
 const goiY = (req) => ({ goiY: req.user.role === ROLES.GDVH ? getAssignedBcvh(req.user.id, db) : [] });
+const TIVI_CHUA_GAN_PHAM_VI = 'Tài khoản màn hình tivi chưa được gán phạm vi (toàn Trung tâm hoặc một BCVH), vui lòng liên hệ quản trị viên';
 // TIVI (#74): tham số bcvh LUÔN bị ép theo phạm vi của tài khoản (bỏ qua giá trị client gửi); chưa có phạm vi -> 403.
 function dashScope(req, res, next) {
   if (req.user.role !== ROLES.TIVI) {
@@ -91,7 +92,7 @@ function dashScope(req, res, next) {
   }
   const scope = getTiviScope(db, req.user.id);
   if (!isValidTiviScope(scope)) {
-    return res.status(403).json({ error: 'Tài khoản màn hình tivi chưa được gán phạm vi (toàn Trung tâm hoặc một BCVH), vui lòng liên hệ quản trị viên' });
+    return res.status(403).json({ error: TIVI_CHUA_GAN_PHAM_VI });
   }
   req.dashQuery = { ...req.query, bcvh: scope };
   next();
@@ -100,10 +101,21 @@ router.get('/arrivals/dashboard/tong-quan-den', dashScope, handle((req) => den.t
 router.get('/arrivals/dashboard/viec-can-lam', dashScope, handle((req) => den.viecCanLam(db, req.dashQuery, goiY(req)), 'dashboard-viec-can-lam'));
 router.get('/arrivals/dashboard/phuong-xa-tang', dashScope, handle((req) => den.phuongXaTang(db, req.dashQuery, goiY(req)), 'dashboard-phuong-xa-tang'));
 
-// Kết quả phát cho Dashboard «Điều hành hôm nay» (PHAT-3b, #79). Chỉ ADMIN, TTVH, GDVH: STAFF 403 (viewerGuard), TIVI 403 (allowlist, tivi.js — tivi để PHAT-3d).
+// Kết quả phát cho Dashboard «Điều hành hôm nay» (PHAT-3b, #79). ADMIN, TTVH, GDVH xem được; STAFF 403 (viewerGuard).
+// TIVI (DASH-10b): chỉ tài khoản phạm vi 'all' và chỉ khi `bcvh` vắng / 'all' (tiviPhatGuard); phạm vi một BCVH hoặc xin BCVH cụ thể -> 403, không ép ngầm như 3 endpoint «đến».
 // Phạm vi: ADMIN, TTVH, GDVH đều xem ĐỦ 6 BCVH như 3 endpoint dashboard «đến» (#72) — không giới hạn theo user_bcvh (xếp hạng cần so sánh các BCVH);
 // GDVH chưa được giao BCVH nào vẫn có dữ liệu. Giới hạn theo BCVH được giao chỉ còn ở NHẬP / HỦY / LỊCH SỬ / BẢN KIỂM TRA của /api/phat/* (routes/phat.js).
 // Không có `bcvh` (hoặc `all`) = cả 6 BCVH.
+function tiviPhatGuard(req, res, next) {
+  if (req.user.role !== ROLES.TIVI) return next();
+  const scope = getTiviScope(db, req.user.id);
+  if (!isValidTiviScope(scope)) return res.status(403).json({ error: TIVI_CHUA_GAN_PHAM_VI });
+  const b = req.query.bcvh;
+  if (scope !== 'all' || (b !== undefined && b !== '' && b !== 'all')) {
+    return res.status(403).json({ error: 'Tài khoản màn hình tivi chỉ xem được kết quả phát của toàn Trung tâm' });
+  }
+  next();
+}
 function phatScope(req, res, next) {
   try {
     req.phatParams = phatDash.parseParams(req.query);
@@ -114,7 +126,7 @@ function phatScope(req, res, next) {
   req.phatCodes = req.phatParams.bcvh === 'all' ? VALID_BCVH_CODES : [req.phatParams.bcvh];
   next();
 }
-router.get('/arrivals/dashboard/ket-qua-phat', phatScope, handle((req) => phatDash.ketQuaPhat(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat'));
+router.get('/arrivals/dashboard/ket-qua-phat', tiviPhatGuard, phatScope, handle((req) => phatDash.ketQuaPhat(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));

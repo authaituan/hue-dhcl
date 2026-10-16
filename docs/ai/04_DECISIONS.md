@@ -689,5 +689,10 @@ Căn cứ: ví dụ thật 15/10/2026 — BCVH Thuận Hóa ngày 09/10 sáng + 
 - API chỉ ADMIN: `POST /api/nap-nguon/da-xem-xet` (máy chủ tự kiểm mục còn cần xử lý, 409 `KHONG_CAN_XU_LY`; idempotent `da_co`), `DELETE /api/nap-nguon/da-xem-xet/:id` (404 `KHONG_TIM_THAY`). `SECURITY_LOG` ghi `nap_nguon_da_xem_xet` / `nap_nguon_huy_da_xem_xet` (ai, BCVH, ngày, loại), không ghi ghi chú.
 - Lõi tải / nạp (`napNguonLay.js`, `sftpSync.js`) không đổi; lõi đọc `napNguonDoc.js` vẫn thuần SELECT (phần ghi ở `napNguonXemXet.js`).
 
+### 90. Tivi phạm vi `all` được đọc `ket-qua-phat` (PO chốt 16/10/2026 — DASH-10b, backend)
+Căn cứ: DASH-10a — thẻ PTC và xếp hạng «Cả ngày» trên Tivi cần dữ liệu `ket-qua-phat`; Tivi chỉ dùng cho TTVH (phạm vi `all`). Chi tiết: `30_DASH10B_TIVI_KET_QUA_PHAT.md`.
+- `GET /api/arrivals/dashboard/ket-qua-phat` thêm vào `TIVI_ALLOWED` (đúng 1 mục; `/api/phat/*` vẫn 403 với Tivi — sửa #74 và #79 ở điểm «TIVI 403»).
+- `tiviPhatGuard`: Tivi chỉ qua khi phạm vi tài khoản là `all` và `bcvh` vắng / rỗng / `all`; phạm vi một BCVH, chưa gán phạm vi, hoặc xin `bcvh` cụ thể → 403 (không ép ngầm như 3 endpoint «đến»). Vai trò khác không đổi; cấu trúc trả về không đổi.
+
 ## Drift phát hiện
 _(chưa có)_

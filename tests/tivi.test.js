@@ -1,5 +1,5 @@
 // ==========================================
-// Test DASH-3 (#74): vai trò TIVI — chỉ xem 3 endpoint dashboard «đến» (allowlist, từ chối mặc định), phạm vi do ADMIN gán,
+// Test DASH-3 (#74), DASH-10b: vai trò TIVI — chỉ xem 3 endpoint dashboard «đến» + ket-qua-phat (phạm vi 'all'; allowlist, từ chối mặc định), phạm vi do ADMIN gán,
 // token dài hạn riêng, thu hồi khi khoá / đổi mật khẩu / đổi vai trò. Server thật trên DB tạm, dữ liệu giả (không cần dữ liệu hàng đến).
 // ==========================================
 'use strict';
@@ -157,6 +157,57 @@ test('TIVI chưa có phạm vi -> 403 ở dashboard, thông báo rõ; /auth/me v
     assert.match(r.body.error, /chưa được gán phạm vi/);
   }
   assert.equal((await get('/api/auth/me', 'tvNone')).status, 200);
+});
+
+// ---------- DASH-10b: Tivi đọc ket-qua-phat (chỉ phạm vi 'all', chỉ endpoint này) ----------
+const KQP = '/api/arrivals/dashboard/ket-qua-phat';
+
+test('DASH-10b: Tivi phạm vi all, bcvh vắng / rỗng / all -> 200, đủ khóa', async () => {
+  for (const qs of ['', '?bcvh=all', '?bcvh=']) {
+    const r = await get(`${KQP}${qs}`, 'tvAll');
+    assert.equal(r.status, 200, qs);
+    for (const k of ['ptc', 'nguong', 'co_so_lieu_phat', 'xep_hang_bcvh', 'chua_du_du_lieu']) assert.ok(k in r.body, `${qs} thiếu ${k}`);
+    assert.equal(r.body.bcvh, 'all');
+  }
+  assert.equal((await get(`${KQP}/`, 'tvAll')).status, 200, 'dấu "/" cuối');
+});
+
+test('DASH-10b: Tivi phạm vi all xin một BCVH cụ thể (hoặc lặp tham số) -> 403', async () => {
+  assert.equal((await get(`${KQP}?bcvh=${M}`, 'tvAll')).status, 403);
+  assert.equal((await get(`${KQP}?bcvh=${M2}`, 'tvAll')).status, 403);
+  assert.equal((await get(`${KQP}?bcvh=all&bcvh=${M}`, 'tvAll')).status, 403);
+});
+
+test('DASH-10b: Tivi phạm vi một BCVH -> 403 dù bcvh=all hay bcvh=mã của nó; chưa gán phạm vi -> 403', async () => {
+  for (const qs of ['', '?bcvh=all', `?bcvh=${M2}`, `?bcvh=${M}`]) {
+    assert.equal((await get(`${KQP}${qs}`, 'tvM2')).status, 403, qs);
+  }
+  const r = await get(KQP, 'tvNone');
+  assert.equal(r.status, 403);
+  assert.match(r.body.error, /chưa được gán phạm vi/);
+});
+
+test('DASH-10b: Tivi vẫn 403 ở /api/phat/*; allowlist chỉ thêm đúng ket-qua-phat', async () => {
+  const { TIVI_ALLOWED } = require('../server/lib/tivi');
+  assert.ok(TIVI_ALLOWED.includes(`GET ${KQP}`));
+  assert.ok(!TIVI_ALLOWED.some((x) => x.includes('/api/phat')));
+  assert.equal(TIVI_ALLOWED.length, 5);
+  for (const [m, p, body] of [
+    ['GET', '/api/phat/ty-le'], ['GET', '/api/phat/ty-le?bcvh=all'], ['GET', '/api/phat/batches'], ['GET', '/api/phat/drafts'],
+    ['GET', '/api/phat/template'], ['POST', '/api/phat/drafts', {}]
+  ]) {
+    assert.equal((await call(m, p, tokens.tvAll, body)).status, 403, `${m} ${p}`);
+  }
+});
+
+test('DASH-10b: không hồi quy — 3 endpoint «đến» vẫn 200 cho Tivi; ket-qua-phat: STAFF 403, ADMIN / TTVH / GDVH 200', async () => {
+  for (const p of DASH) assert.equal((await get(p, 'tvAll')).status, 200, p);
+  assert.equal((await get(DASH[0], 'tvM2')).status, 200);
+  assert.equal((await get(KQP, 'staff')).status, 403);
+  for (const who of ['admin', 'ttvh', 'gdvh']) {
+    assert.equal((await get(KQP, who)).status, 200, who);
+    assert.equal((await get(`${KQP}?bcvh=${M}`, who)).status, 200, `${who} một BCVH`);
+  }
 });
 
 test('quản lý tài khoản: chỉ ADMIN tạo / sửa TIVI kèm phạm vi; kiểm giá trị; danh sách có vai trò + phạm vi, không lộ password_hash', async () => {
