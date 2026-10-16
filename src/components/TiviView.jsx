@@ -182,6 +182,61 @@ function useTiviData({ bcvhScope, onForceLogout }) {
   return { tongQuan, viecCanLam, phuongXa, lastOk, lostAt, loading };
 }
 
+// ─── Hook lấy kết quả phát (PHAT-3b / DASH-10c) ─────────────────────────────
+function useTiviPhatData({ isAll, onForceLogout }) {
+  const [ketQuaPhat, setKetQuaPhat] = useState(null);
+
+  useEffect(() => {
+    if (!isAll) {
+      setKetQuaPhat(null);
+      return;
+    }
+
+    let isSubscribed = true;
+
+    const fetchPhat = async () => {
+      try {
+        const res = await apiFetchJson('/api/arrivals/dashboard/ket-qua-phat?bcvh=all');
+        if (!isSubscribed) return;
+
+        if (res.status === 401) {
+          clearToken();
+          onForceLogout?.();
+          return;
+        }
+
+        if (res.ok && res.data) {
+          setKetQuaPhat(res.data);
+        }
+      } catch {
+        // Lỗi fetch: giữ số cũ nếu có, không làm gì cả
+      }
+    };
+
+    fetchPhat();
+    let tid = setInterval(fetchPhat, REFRESH_MS);
+
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPhat();
+        clearInterval(tid);
+        tid = setInterval(fetchPhat, REFRESH_MS);
+      } else {
+        clearInterval(tid);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(tid);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [isAll, onForceLogout]);
+
+  return ketQuaPhat;
+}
+
 // ─── Hook giữ màn hình sáng (Screen Wake Lock) ───────────────────────────────
 function useWakeLock() {
   const wakeLockRef = useRef(null);
@@ -381,6 +436,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
 
   const isAll = !bcvhScope || bcvhScope === 'all';
   const scopeName = isAll ? 'Trung tâm · 6 BCVH' : bcvhName(bcvhScope);
+  const ketQuaPhat = useTiviPhatData({ isAll, onForceLogout });
 
   // Sắp xếp «Xử lý ngay» đứng trước
   const rawActionItems = useMemo(() => viecCanLam?.items || [], [viecCanLam]);
@@ -564,6 +620,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
             hangDiNgoai={hangDiNgoai}
             chuyenChieu={chuyenChieu}
             tongQuan={tongQuan}
+            ketQuaPhat={ketQuaPhat}
           />
 
           <div style={{ height: 24 }} />
@@ -579,7 +636,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
 
             {/* Cột Giữa */}
             {isAll ? (
-              <ColXepHang />
+              <ColXepHang ketQuaPhat={ketQuaPhat} />
             ) : (
               <ColKhungGio ngayDuLieu={tongQuan?.ngay_du_lieu} />
             )}
@@ -663,8 +720,106 @@ function HeaderBar({ scopeName, clock, lostAt, lastOk, tongQuan }) {
   );
 }
 
+// ── Thẻ 2: PHÁT THÀNH CÔNG (PTC) (DASH-10c) ──────────────────────────────────
+function PtcCard({ ketQuaPhat }) {
+  const hasData = Boolean(
+    ketQuaPhat &&
+    ketQuaPhat.co_so_lieu_phat &&
+    ketQuaPhat.ptc !== null &&
+    ketQuaPhat.ptc !== undefined
+  );
+
+  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? 0.82;
+  const nguongChuaCoTt = ketQuaPhat?.nguong?.chua_co_tt_canh_bao ?? 0.10;
+  const mucTieuPct = Math.round(nguongDat * 100);
+
+  const ptcVal = ketQuaPhat?.ptc;
+  const isDat = hasData && ptcVal >= nguongDat;
+
+  let cardBg = '#ffffff';
+  let cardBorder = '#e2e8f0';
+  let numColor = '#0f172a';
+
+  if (hasData) {
+    if (isDat) {
+      cardBg = '#ecfdf5';
+      cardBorder = '#a7f3d0';
+      numColor = '#047857';
+    } else {
+      cardBg = '#fffbeb';
+      cardBorder = '#fde68a';
+      numColor = '#b45309';
+    }
+  }
+
+  const denLucBangkok = ketQuaPhat?.so_lieu_den_luc_bangkok;
+  const denLucHhmm = denLucBangkok ? formatTimeOnly(denLucBangkok) : '';
+  const soPtc = ketQuaPhat?.theo_trang_thai?.PTC?.so ?? 0;
+  const mauSo = ketQuaPhat?.mau_so ?? 0;
+  const chuaCoTtTyLe = ketQuaPhat?.theo_trang_thai?.CHUA_CO_TT?.ty_le;
+  const isChuaCoTtCanhBao = chuaCoTtTyLe !== null && chuaCoTtTyLe !== undefined && chuaCoTtTyLe >= nguongChuaCoTt;
+
+  return (
+    <div style={{
+      flex: 1.35, background: cardBg, border: `2px solid ${cardBorder}`, borderRadius: 18,
+      padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      minWidth: 0, overflow: 'hidden',
+    }}>
+      {/* Hàng trên */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '0.04em', color: '#475569', whiteSpace: 'nowrap' }}>
+          PHÁT THÀNH CÔNG (PTC)
+        </div>
+        {hasData && denLucHhmm ? (
+          <div style={{ fontSize: 17, color: '#64748b', whiteSpace: 'nowrap' }}>
+            đến {denLucHhmm}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Giữa */}
+      <div>
+        <div style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: numColor }}>
+          {hasData ? formatPercent(ptcVal) : '—'}
+        </div>
+        <div style={{ fontSize: 20, color: '#334155', whiteSpace: 'nowrap', marginTop: 4 }}>
+          {hasData ? `${formatViVN(soPtc)} / ${formatViVN(mauSo)} bưu gửi phát thành công` : 'Chưa có số liệu phát hôm nay'}
+        </div>
+      </div>
+
+      {/* Hàng dưới */}
+      {hasData ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{
+            background: isDat ? '#d1fae5' : '#fef3c7', color: isDat ? '#047857' : '#92400e',
+            borderRadius: 9999, padding: '3px 12px', fontSize: 15, fontWeight: 800, whiteSpace: 'nowrap',
+          }}>
+            {isDat ? `Đạt mục tiêu ${mucTieuPct}%` : `Dưới mục tiêu ${mucTieuPct}%`}
+          </span>
+
+          {chuaCoTtTyLe !== null && chuaCoTtTyLe !== undefined ? (
+            isChuaCoTtCanhBao ? (
+              <span style={{ background: '#ffe4e6', color: '#be123c', fontWeight: 800, borderRadius: 9999, padding: '3px 12px', fontSize: 15, whiteSpace: 'nowrap' }}>
+                Chưa có TT {formatPercent(chuaCoTtTyLe)}
+              </span>
+            ) : (
+              <span style={{ fontSize: 17, fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+                Chưa có TT {formatPercent(chuaCoTtTyLe)}
+              </span>
+            )
+          ) : null}
+        </div>
+      ) : (
+        <div style={{ fontSize: 17, color: '#64748b', whiteSpace: 'nowrap' }}>
+          Chờ nhập kết quả phát
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Hàng A: 4 thẻ ────────────────────────────────────────────────────────────
-function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan }) {
+function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan, ketQuaPhat }) {
   const cardStyle = {
     flex: 1,
     background: TV.bgCard,
@@ -675,14 +830,6 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan }) {
     flexDirection: 'column',
     justifyContent: 'space-between',
     minWidth: 0,
-  };
-
-  // Thẻ PTC nổi nhất (màu trắng/sáng theo canvas, dựng khung, giá trị là «–», badge «SẮP CÓ»)
-  const ptcCardStyle = {
-    ...cardStyle,
-    flex: 1.35,
-    background: '#ffffff',
-    border: '2px solid #e2e8f0',
   };
 
   const gioDuLieuTivi = formatTimeOnly(tongQuan?.den_luc);
@@ -748,29 +895,8 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan }) {
         </div>
       </div>
 
-      {/* Thẻ 2: PTC — Khung giống canvas, giá trị là «–», badge «SẮP CÓ», giữ nguyên nhãn hiện tại */}
-      <div style={ptcCardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: 1, textTransform: 'uppercase' }}>
-            PHÁT THÀNH CÔNG (PTC)
-          </div>
-          <span style={{
-            background: '#0b0f14', color: '#ffffff',
-            borderRadius: 9999, padding: '4px 14px', fontSize: 16, fontWeight: 800,
-            letterSpacing: '0.05em',
-          }}>
-            SẮP CÓ
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 4 }}>
-          <span style={{ fontSize: 68, fontWeight: 900, color: '#64748b', lineHeight: 1 }}>
-            –
-          </span>
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 600, color: '#64748b', marginTop: 4 }}>
-          Module «Xử lý và tỷ lệ phát» đang được xây dựng
-        </div>
-      </div>
+      {/* Thẻ 2: PTC */}
+      <PtcCard ketQuaPhat={ketQuaPhat} />
 
       {/* Thẻ 3: Hàng đi ngoài */}
       <div style={cardStyle}>
@@ -1025,87 +1151,223 @@ function ActionCardStack({ item, isAll }) {
   );
 }
 
-// ── Cột Giữa — Bảng 11: Xếp hạng BCVH - PTC ─────────────────────────────
-function ColXepHang() {
+// ── Cột Giữa — Bảng 11: Xếp hạng BCVH · PTC (DASH-10c) ─────────────────────
+function ColXepHang({ ketQuaPhat }) {
   const TABS = ['Cả ngày', '<10h', '10–12h', '12–14h', '14–16h', '16–18h', '>18h'];
+
+  const hasData = Boolean(ketQuaPhat && ketQuaPhat.co_so_lieu_phat);
+  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? 0.82;
+  const sanXepHang = ketQuaPhat?.nguong?.san_xep_hang_bcvh ?? 50;
+  const mucTieuPct = Math.round(nguongDat * 100);
+
+  const denLucBangkok = ketQuaPhat?.so_lieu_den_luc_bangkok;
+  const denLucHhmm = denLucBangkok ? formatTimeOnly(denLucBangkok) : '';
+
+  const xepHang = hasData ? (ketQuaPhat?.xep_hang_bcvh || []) : [];
+  const chuaDu = hasData ? (ketQuaPhat?.chua_du_du_lieu || []) : [];
+
+  const isStateA = hasData && xepHang.length >= 2;
+  const isStateB = hasData && xepHang.length < 2;
+  const isStateC = !hasData;
+
+  const maxHang = xepHang.length > 0 ? Math.max(...xepHang.map((r) => r.hang)) : 1;
 
   return (
     <div style={{
-      flex: 1,
-      background: TV.bgCard,
-      border: `1.5px solid ${TV.border}`,
-      borderRadius: 20,
-      padding: '24px 28px',
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: 0,
-      overflow: 'hidden',
+      flex: 1, background: '#ffffff', border: '2px solid #e2e8f0', borderRadius: 20,
+      padding: '24px 28px', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary }}>
-          Xếp hạng BCVH · PTC
+      {/* Tiêu đề & giờ số liệu */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+          XẾP HẠNG BCVH · PTC
         </div>
-        <span style={{
-          background: '#0b0f14',
-          border: `1.5px solid ${TV.border}`,
-          color: '#ffffff',
-          borderRadius: 9999,
-          padding: '4px 14px',
-          fontSize: 14,
-          fontWeight: 800,
-          letterSpacing: '0.05em',
-        }}>
-          SẮP CÓ
-        </span>
+        <div style={{ fontSize: 17, color: '#64748b', whiteSpace: 'nowrap' }}>
+          {hasData && denLucHhmm ? `Số liệu đến ${denLucHhmm}` : 'Chưa có số liệu phát'}
+        </div>
       </div>
 
-      {/* Tab khung giờ */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto' }}>
+      {/* Hàng nút khung giờ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, overflowX: 'hidden' }}>
         {TABS.map((tab, idx) => (
           <span key={tab} style={{
-            background: idx === 0 ? '#ffffff' : TV.bgCardNested,
-            color: idx === 0 ? '#0f172a' : TV.textSecondary,
-            border: `1px solid ${idx === 0 ? '#ffffff' : TV.border}`,
-            borderRadius: 9999,
-            padding: '3px 12px',
-            fontSize: 14,
-            fontWeight: idx === 0 ? 800 : 600,
-            whiteSpace: 'nowrap',
+            background: idx === 0 ? '#0f172a' : '#f1f5f9', color: idx === 0 ? '#ffffff' : '#94a3b8',
+            borderRadius: 9999, padding: '3px 12px', fontSize: 14, fontWeight: idx === 0 ? 700 : 500, whiteSpace: 'nowrap',
           }}>
             {tab}
           </span>
         ))}
+        <span style={{ fontSize: 17, color: '#94a3b8', marginLeft: 4, whiteSpace: 'nowrap' }}>
+          sắp có
+        </span>
       </div>
 
-      <div style={{ fontSize: 14, color: TV.textSecondary, marginBottom: 14 }}>
-        Tính năng xếp hạng theo tỉ lệ phát thành công thuộc module «Xử lý và tỷ lệ phát»
-      </div>
+      {/* THÂN KHỐI THEO 3 TRẠNG THÁI */}
+      {isStateA && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {/* Các hàng được xếp hạng */}
+            {xepHang.map((row) => {
+              const isTop = row.hang === 1;
+              const isBottom = !isTop && row.hang === maxHang;
+              const isDat = row.ptc >= nguongDat;
+              const fillCol = isDat ? '#047857' : '#b45309';
+              const displayName = (row.ten || bcvhName(row.bcvh)).replace(/^BCVH\s+/, '');
+              const rowBg = isTop ? '#ecfdf5' : isBottom ? '#fef2f2' : '#ffffff';
+              const rowBorder = isTop ? '#a7f3d0' : isBottom ? '#fecdd3' : '#e2e8f0';
+              const circleBg = isTop ? '#047857' : isBottom ? '#be123c' : '#e2e8f0';
+              const circleCol = (isTop || isBottom) ? '#ffffff' : '#334155';
+              const ptcPct = Math.min(100, Math.max(0, (row.ptc || 0) * 100));
+              const targetPct = Math.min(100, Math.max(0, nguongDat * 100));
 
-      {/* 6 BCVH với thanh tiến độ rỗng và giá trị «–», không số mẫu, không mũi tên */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0 }}>
-        {BCVH_LIST.map((bcvh, idx) => (
-          <div key={bcvh.ma} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '8px 14px',
-            background: TV.bgCardNested,
-            border: `1px solid ${TV.border}`,
-            borderRadius: 12,
-          }}>
-            <span style={{ width: 20, fontSize: 18, fontWeight: 800, color: TV.textSecondary, textAlign: 'center' }}>
-              {idx + 1}
-            </span>
-            <span style={{ width: 130, fontSize: 18, fontWeight: 700, color: TV.textPrimary, whiteSpace: 'nowrap' }}>
-              {bcvh.ten.replace('BCVH ', '')}
-            </span>
-            <div style={{ flex: 1, height: 12, background: '#111720', borderRadius: 6, overflow: 'hidden' }} />
-            <span style={{ width: 36, fontSize: 18, fontWeight: 800, color: TV.textSecondary, textAlign: 'right' }}>
-              –
-            </span>
+              return (
+                <div key={row.bcvh} style={{
+                  height: 64, padding: '0 16px', borderRadius: 12, background: rowBg,
+                  border: `1px solid ${rowBorder}`, display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%', background: circleBg, color: circleCol,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, flexShrink: 0,
+                  }}>
+                    {row.hang}
+                  </div>
+                  <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.15 }} title={displayName}>
+                      {displayName}
+                    </div>
+                    <div style={{ fontSize: 17, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      {formatViVN(row.mau_so)} bưu gửi
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, height: 14, background: '#e2e8f0', borderRadius: 7, position: 'relative' }}>
+                    <div style={{ width: `${ptcPct}%`, height: '100%', background: fillCol, borderRadius: 7 }} />
+                    <div style={{
+                      position: 'absolute', top: -5, left: `${targetPct}%`, width: 3, height: 24,
+                      background: '#0f172a', transform: 'translateX(-50%)', borderRadius: 1.5, zIndex: 2,
+                    }} />
+                  </div>
+                  <div style={{ width: 104, textAlign: 'right', fontSize: 32, fontWeight: 900, color: fillCol, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {formatPercent(row.ptc)}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Các hàng chưa đủ dữ liệu (nằm sau các hàng xếp hạng) */}
+            {chuaDu.map((row) => {
+              const displayName = (row.ten || bcvhName(row.bcvh)).replace(/^BCVH\s+/, '');
+              return (
+                <div key={row.bcvh} style={{
+                  height: 64, padding: '0 16px', borderRadius: 12, background: '#f8fafc',
+                  border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%', background: '#e2e8f0', color: '#94a3b8',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, flexShrink: 0,
+                  }}>
+                    –
+                  </div>
+                  <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.15 }} title={displayName}>
+                      {displayName}
+                    </div>
+                    <div style={{ fontSize: 17, color: '#94a3b8', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      {formatViVN(row.mau_so)} bưu gửi
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                    <span style={{ background: '#e2e8f0', color: '#475569', fontSize: 17, fontWeight: 700, padding: '4px 14px', borderRadius: 9999, whiteSpace: 'nowrap' }}>
+                      {row.ly_do === 'duoi_san' ? `Dưới ${sanXepHang} bưu gửi · chưa xếp hạng` : 'Chưa nhập kết quả phát'}
+                    </span>
+                  </div>
+                  <div style={{ width: 104, textAlign: 'right', fontSize: 32, fontWeight: 900, color: '#cbd5e1', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    —
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+
+          {/* Dòng chú thích nhỏ dưới cùng */}
+          <div style={{ fontSize: 17, color: '#64748b', marginTop: 10, whiteSpace: 'nowrap' }}>
+            ▌Vạch đen = mục tiêu {mucTieuPct}%
+          </div>
+        </div>
+      )}
+
+      {isStateB && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ background: '#fffbeb', border: '2px solid #fde68a', borderRadius: 12, padding: '14px 18px', marginBottom: 10 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#92400e', lineHeight: 1.2 }}>
+              Chưa đủ BCVH để xếp hạng
+            </div>
+            <div style={{ fontSize: 18, color: '#78350f', marginTop: 4, lineHeight: 1.2 }}>
+              Cần ít nhất 2 BCVH có từ {sanXepHang} bưu gửi và đã nhập kết quả phát
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {BCVH_LIST.map((bcvh) => {
+              const ranked = xepHang.find((r) => r.bcvh === bcvh.ma);
+              const unranked = chuaDu.find((r) => r.bcvh === bcvh.ma);
+              const hasRanked = Boolean(ranked);
+              const isDat = hasRanked && ranked.ptc >= nguongDat;
+              const fillCol = isDat ? '#047857' : '#b45309';
+              const displayName = bcvh.ten.replace(/^BCVH\s+/, '');
+              const mauSo = ranked?.mau_so ?? unranked?.mau_so ?? 0;
+              const lyDo = unranked?.ly_do || 'chua_nhap';
+
+              return (
+                <div key={bcvh.ma} style={{
+                  height: 58, padding: '0 16px', borderRadius: 12, background: '#f8fafc',
+                  border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: hasRanked ? '#0f172a' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.15 }} title={displayName}>
+                      {displayName}
+                    </div>
+                    <div style={{ fontSize: 17, color: '#94a3b8', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      {formatViVN(mauSo)} bưu gửi
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                    {hasRanked ? (
+                      <span style={{ background: '#d1fae5', color: '#047857', fontSize: 17, fontWeight: 700, borderRadius: 9999, padding: '4px 14px', whiteSpace: 'nowrap' }}>
+                        Đủ điều kiện · chưa đủ BCVH để xếp
+                      </span>
+                    ) : (
+                      <span style={{ background: '#e2e8f0', color: '#475569', fontSize: 17, fontWeight: 700, borderRadius: 9999, padding: '4px 14px', whiteSpace: 'nowrap' }}>
+                        {lyDo === 'duoi_san' ? `Dưới ${sanXepHang} bưu gửi · chưa xếp hạng` : 'Chưa nhập kết quả phát'}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ width: 104, textAlign: 'right', fontSize: 32, fontWeight: 900, color: hasRanked ? fillCol : '#cbd5e1', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {hasRanked ? formatPercent(ranked.ptc) : '—'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {isStateC && (
+        <div style={{
+          flex: 1, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 12, padding: 24, minHeight: 0,
+        }}>
+          <div style={{ fontSize: 64, fontWeight: 900, color: '#cbd5e1', lineHeight: 1 }}>
+            —
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#334155', textAlign: 'center' }}>
+            Chưa có số liệu phát hôm nay
+          </div>
+          <div style={{ fontSize: 18, color: '#64748b', textAlign: 'center' }}>
+            Bảng xếp hạng hiện khi có BCVH đã nhập kết quả phát
+          </div>
+        </div>
+      )}
     </div>
   );
 }
