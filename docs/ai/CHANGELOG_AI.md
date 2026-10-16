@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-9b: API `chuyen_chieu` (hàng đến chuyến chiều, từ 10:00) cho thẻ Điều hành/Tivi (backend)
+
+- **Thêm** `tong-quan-den.chuyen_chieu {buu_gui, ty_le, tu_gio, da_toi_gio}` ở `server/lib/dashboardDenQuery.js` (`countAcross`, `volumeOf`, `tongQuanDen`) và hằng `GIO_CHUYEN_CHIEU = 10` ở `server/config/dashboard-thresholds.js` (export riêng, ngoài `DASHBOARD_DEN_THRESHOLDS` để `nguong` không đổi). Không đổi `sau_15h`, `GIO_MUON`, `nguong`, `san_luong`, `src/`.
+- **Test** `tests/dashboard-chuyen-chieu.test.js` (mới, 5 ca; thêm vào `package.json`). **Test cũ sửa (có chủ đích)**: `tests/dashboard-den.test.js:192` danh sách khóa của phản hồi thêm `chuyen_chieu`. `npm test`: 604 ca, 603 đạt, 1 bỏ qua. Báo cáo: `29_DASH9B_API_CHUYEN_CHIEU_TU_10H.md`.
+- **Chưa làm**: giao diện (DASH-9c); gỡ `sau_15h` (chờ PO).
+
+---
+
 ## [2026-10-16] - TEST-1: test nhật ký security.log đỏ ngẫu nhiên
 
 - **Nguyên nhân**: không phải chạy song song dùng chung file (harness đặt `SECURITY_LOG` riêng mỗi tiến trình) mà là cuộc đua ghi bất đồng bộ (`fs.appendFile`) trong cùng một file test. **Sửa test**: `tests/arrivals-export.test.js`, `tests/nap-nguon-xem-xet.test.js` lọc dòng theo `ts > t0` của ca; không đổi `server/`, `src/`, không nới phép kiểm. `npm test` 3 lần: 599 ca, 598 đạt, 1 bỏ qua. Báo cáo: `28_TEST1_SECURITY_LOG_CHAY_SONG_SONG.md`.

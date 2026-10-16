@@ -189,7 +189,7 @@ test('tong-quan-den một BCVH: lượt / bưu gửi, hàng đi ngoài, sau 15:0
   assert.equal(res.status, 200);
   const b = res.body;
   assert.deepEqual(Object.keys(b), ['bcvh', 'bcvh_goi_y', 'ngay_du_lieu', 'cung_ngay_du_lieu', 'den_luc', 'nap_luc', 'nguong',
-    'san_luong', 'hang_di_ngoai', 'sau_15h', 'bcvh_can_chu_y', 'theo_bcvh']);
+    'san_luong', 'hang_di_ngoai', 'sau_15h', 'chuyen_chieu', 'bcvh_can_chu_y', 'theo_bcvh']);
   assert.equal(b.bcvh, M);
   assert.equal(b.ngay_du_lieu, D, 'mặc định = ngày file mới nhất của BCVH');
   assert.equal(b.den_luc, `${D} 16:00:00`);

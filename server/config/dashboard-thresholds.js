@@ -24,4 +24,8 @@ const DASHBOARD_DEN_THRESHOLDS = Object.freeze({
   GIO_BAT_DAU_DANH_GIA: 12
 });
 
-module.exports = { DASHBOARD_DEN_THRESHOLDS };
+// DASH-9b: mốc «chuyến chiều» (hàng đến lượt 2): bưu gửi có arrival_at từ GIO_CHUYEN_CHIEU:00:00 trở đi. Để NGOÀI DASHBOARD_DEN_THRESHOLDS có chủ đích:
+// đối tượng đó được trả nguyên cho client ở `nguong` và có test khóa danh sách khóa — thêm khóa sẽ đổi hợp đồng cũ.
+const GIO_CHUYEN_CHIEU = 10;
+
+module.exports = { DASHBOARD_DEN_THRESHOLDS, GIO_CHUYEN_CHIEU };
