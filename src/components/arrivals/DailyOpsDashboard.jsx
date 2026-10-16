@@ -95,6 +95,53 @@ export function formatBcvhNgoaiTong(bcvhNgoaiTong) {
   return `Chưa gồm ${n} BCVH (${firstTen}, …)`;
 }
 
+/**
+ * Câu ghi chú BCVH nằm ngoài tổng dưới bảng «Hôm nay theo từng BCVH» (DASH-8b).
+ * Lấy từ bcvh_ngoai_tong [{ma, ngay}] của API tong-quan-den (bcvh=all).
+ * - 1 BCVH có ngày: «A Lưới (dữ liệu 15/10) không nằm trong tổng.»
+ * - 1 BCVH ngày null: «A Lưới (chưa có dữ liệu) không nằm trong tổng.»
+ * - 2-3 BCVH: «A Lưới (15/10), Phú Lộc (14/10) không nằm trong tổng.»
+ * - > 3 BCVH: «4 BCVH (A Lưới, …) không nằm trong tổng.»
+ * - Rỗng hoặc thiếu: null
+ */
+export function formatBcvhNgoaiTongGhiChu(bcvhNgoaiTong) {
+  if (!bcvhNgoaiTong || !Array.isArray(bcvhNgoaiTong) || bcvhNgoaiTong.length === 0) {
+    return null;
+  }
+
+  const getTen = (ma) => {
+    const found = DASHBOARD_BCVH.find((b) => b.ma === String(ma));
+    const fullName = found ? found.ten : ma;
+    return String(fullName || '').replace(/^BCVH\s+/, '').trim();
+  };
+
+  const n = bcvhNgoaiTong.length;
+
+  if (n === 1) {
+    const item = bcvhNgoaiTong[0];
+    const ten = getTen(item?.ma);
+    if (!item?.ngay) {
+      return `${ten} (chưa có dữ liệu) không nằm trong tổng.`;
+    }
+    return `${ten} (dữ liệu ${formatDdMm(item.ngay)}) không nằm trong tổng.`;
+  }
+
+  if (n <= 3) {
+    const parts = bcvhNgoaiTong.map((item) => {
+      const ten = getTen(item?.ma);
+      if (!item?.ngay) {
+        return `${ten} (chưa có dữ liệu)`;
+      }
+      return `${ten} (${formatDdMm(item.ngay)})`;
+    });
+    return `${parts.join(', ')} không nằm trong tổng.`;
+  }
+
+  // Quá 3 BCVH
+  const firstTen = getTen(bcvhNgoaiTong[0]?.ma);
+  return `${n} BCVH (${firstTen}, …) không nằm trong tổng.`;
+}
+
 // Cộng/trừ N ngày từ YYYY-MM-DD
 export function addDaysYmd(ymd, days) {
   if (!ymd) return '';
@@ -436,6 +483,50 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
     if (!isAllView) return null;
     return formatBcvhNgoaiTong(tongQuan?.bcvh_ngoai_tong);
   }, [isAllView, tongQuan?.bcvh_ngoai_tong]);
+
+  // Ghi chú chênh lệch bưu gửi dưới bảng «Hôm nay theo từng BCVH» (DASH-8b, canvas bảng 1, phương án B)
+  const ghiChuBangBcvh = useMemo(() => {
+    if (!isAllView || initialLoading || !tongQuan || !Array.isArray(tongQuan?.theo_bcvh)) {
+      return null;
+    }
+    const cardBg = tongQuan?.san_luong?.buu_gui;
+    if (typeof cardBg !== 'number' || isNaN(cardBg)) {
+      return null;
+    }
+
+    const ngoaiTongCodes = new Set(
+      Array.isArray(tongQuan?.bcvh_ngoai_tong)
+        ? tongQuan.bcvh_ngoai_tong.map((b) => String(b.ma))
+        : []
+    );
+
+    const rowsInTong = tongQuan.theo_bcvh.filter((r) => {
+      if (ngoaiTongCodes.has(String(r.ma))) return false;
+      if (!r.co_du_lieu) return false;
+      if (tongQuan.ngay_du_lieu && r.ngay_du_lieu !== tongQuan.ngay_du_lieu) return false;
+      return true;
+    });
+
+    const countX = rowsInTong.length;
+    if (countX <= 0) return null;
+
+    const sumS = rowsInTong.reduce((acc, r) => {
+      const val = r.san_luong?.buu_gui;
+      return acc + (typeof val === 'number' && !isNaN(val) ? val : 0);
+    }, 0);
+
+    const diffN = sumS - cardBg;
+    if (diffN <= 0) return null;
+
+    const xStr = countX.toLocaleString('vi-VN');
+    const sStr = sumS.toLocaleString('vi-VN');
+    const nStr = diffN.toLocaleString('vi-VN');
+    const cauNgoaiTong = formatBcvhNgoaiTongGhiChu(tongQuan.bcvh_ngoai_tong);
+
+    return {
+      text: `Cộng ${xStr} dòng trong tổng là ${sStr}, cao hơn thẻ «Sản lượng đến hôm nay» ${nStr} bưu gửi: ${nStr} bưu gửi đến từ 2 BCVH trở lên nên mỗi dòng đếm riêng, thẻ chỉ đếm một lần.${cauNgoaiTong ? ` ${cauNgoaiTong}` : ''}`
+    };
+  }, [isAllView, initialLoading, tongQuan]);
 
   // ==========================================
   // XỬ LÝ LỖI QUYỀN TRUY CẬP (403)
@@ -937,6 +1028,12 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               </tbody>
             </table>
           </div>
+
+          {ghiChuBangBcvh && (
+            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+              {ghiChuBangBcvh.text}
+            </div>
+          )}
 
           <p className="text-[11px] text-[#78716c] italic">
             Mức đánh giá do hệ thống tính từ sản lượng so với cùng thứ tuần trước, bưu gửi chưa nhận và BD10 chưa XNĐ. Ngưỡng đang là tạm thời.
