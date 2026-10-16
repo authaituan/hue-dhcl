@@ -643,7 +643,10 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
 
             {/* Cột Phải */}
             {isAll ? (
-              <ColChuaNhanAll chuaNhanList={chuaNhanBcvhList} />
+              <ColChuaNhanAll
+                chuaNhanList={chuaNhanBcvhList}
+                ngayDuLieu={tongQuan?.ngay_du_lieu}
+              />
             ) : (
               <ColChuaNhanBCVH
                 chuaNhan={chuaNhanBcvh12}
@@ -1446,8 +1449,8 @@ function ColKhungGio({ ngayDuLieu }) {
   );
 }
 
-// ── Cột Phải — Bảng 11: Chưa nhận tất cả BCVH ───────────────────────────────
-function ColChuaNhanAll({ chuaNhanList }) {
+// ── Cột Phải — Bảng 11: Hàng tới rồi, chưa quét? (DASH-11a) ────────────────────
+function ColChuaNhanAll({ chuaNhanList = [], ngayDuLieu }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
@@ -1460,85 +1463,265 @@ function ColChuaNhanAll({ chuaNhanList }) {
     overflow: 'hidden',
   };
 
+  const totalBcvhCount = chuaNhanList.length || 6;
+  const hasNoDataBcvh = chuaNhanList.some((r) => r.co_du_lieu === false);
+  const allHaveData = chuaNhanList.length > 0 && !hasNoDataBcvh;
+
+  const tongBuuGui = chuaNhanList.reduce((acc, r) => {
+    if (r.co_du_lieu === false) return acc;
+    return acc + (r.chua_nhan?.buu_gui || 0);
+  }, 0);
+
+  const tongTu1Ngay = chuaNhanList.reduce((acc, r) => {
+    if (r.co_du_lieu === false) return acc;
+    return acc + (r.chua_nhan?.cho_tu_1_ngay || 0);
+  }, 0);
+
+  const tongTrongNgay = Math.max(0, tongBuuGui - tongTu1Ngay);
+
+  const isZeroStateGreen = tongBuuGui === 0 && allHaveData;
+
+  const activeRows = useMemo(() => {
+    const list = chuaNhanList.filter((r) => r.co_du_lieu !== false && (r.chua_nhan?.buu_gui || 0) > 0);
+    return list.sort((a, b) => {
+      const bA = a.chua_nhan?.buu_gui || 0;
+      const bB = b.chua_nhan?.buu_gui || 0;
+      if (bB !== bA) return bB - bA;
+      const idxA = BCVH_LIST.findIndex((x) => x.ma === String(a.ma));
+      const idxB = BCVH_LIST.findIndex((x) => x.ma === String(b.ma));
+      return (idxA !== -1 ? idxA : 999) - (idxB !== -1 ? idxB : 999);
+    });
+  }, [chuaNhanList]);
+
+  const maxBuuGui = useMemo(() => {
+    if (activeRows.length === 0) return 1;
+    return Math.max(...activeRows.map((r) => r.chua_nhan?.buu_gui || 0), 1);
+  }, [activeRows]);
+
+  const zeroRows = useMemo(() => {
+    return chuaNhanList.filter((r) => r.co_du_lieu !== false && (r.chua_nhan?.buu_gui || 0) === 0);
+  }, [chuaNhanList]);
+
+  const noDataRows = useMemo(() => {
+    return chuaNhanList.filter((r) => r.co_du_lieu === false);
+  }, [chuaNhanList]);
+
   return (
     <div style={colStyle}>
-      <div style={{ fontSize: 26, fontWeight: 900, color: TV.textPrimary, marginBottom: 16 }}>
-        Chưa nhận tại BCVH, đã chờ bao lâu?
+      {/* Tiêu đề & Dòng phụ */}
+      <div style={{ fontSize: 30, fontWeight: 800, color: TV.textPrimary, lineHeight: 1.2 }}>
+        Hàng tới rồi, chưa quét?
+      </div>
+      <div style={{ fontSize: 18, color: '#94a3b8', marginTop: 4, lineHeight: 1.3 }}>
+        Có BD10 về BCVH nhưng chưa có XN nhận trên hệ thống
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {chuaNhanList.length === 0 ? (
-          <div style={{ color: TV.textSecondary, fontSize: 22, textAlign: 'center', marginTop: 20 }}>
-            Chưa có dữ liệu
+      {isZeroStateGreen ? (
+        /* Trạng thái không có hàng chờ (Việc 2) */
+        <div style={{
+          flex: 1,
+          background: '#064e3b',
+          border: '1.5px solid #065f46',
+          borderRadius: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 20px',
+          margin: '20px 0',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 120, fontWeight: 900, color: '#6ee7b7', lineHeight: 1 }}>
+            0
           </div>
-        ) : chuaNhanList.map((row) => {
-          const cn = row.chua_nhan || {};
-          const tong = cn.buu_gui || 0;
-          const tu1  = cn.cho_tu_1_ngay || 0;
-          const trong = Math.max(0, tong - tu1);
-          const pTrong = tong > 0 ? (trong / tong) * 100 : 0;
-          const pTu1   = tong > 0 ? (tu1 / tong) * 100 : 0;
-          const coDuLieu = row.co_du_lieu !== false;
-
-          return (
-            <div key={row.ma} style={{ display: 'flex', alignItems: 'center', gap: 16, minHeight: 46 }}>
-              <div style={{ width: 140, flexShrink: 0, fontSize: 20, fontWeight: 700, color: '#d1d5db', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {row.ten?.replace('BCVH ', '') || row.ma}
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#ecfdf5', marginTop: 8 }}>
+            Không có hàng chờ
+          </div>
+          <div style={{ fontSize: 18, color: '#a7f3d0', marginTop: 8 }}>
+            Trong dữ liệu ngày {formatDdMm(ngayDuLieu) || '—'} của cả {totalBcvhCount} BCVH
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Hàng tổng */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 96, fontWeight: 900, color: '#ffffff', lineHeight: 1 }}>
+                {formatViVN(tongBuuGui)}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: '#cbd5e1' }}>
+                bưu gửi
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{
+                background: '#fbbf24',
+                color: '#1c1917',
+                fontSize: 20,
+                fontWeight: 700,
+                borderRadius: 9999,
+                padding: '4px 14px',
+                whiteSpace: 'nowrap',
+              }}>
+                Trong ngày · {formatViVN(tongTrongNgay)}
               </div>
-              <div style={{ flex: 1 }}>
-                {!coDuLieu ? (
-                  <div style={{ fontSize: 16, color: TV.textSecondary, padding: '6px 12px' }}>
-                    chưa có dữ liệu
-                  </div>
-                ) : tong === 0 ? (
-                  <div style={{ fontSize: 18, color: '#475569', background: TV.bgCardNested, borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
-                    0 bưu gửi
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', height: 30, borderRadius: 8, overflow: 'hidden', background: TV.bgCardNested }}>
-                    {trong > 0 && (
-                      <div style={{ width: `${pTrong}%`, background: TV.yellow, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#1a0a00' }}>
-                        {trong}
-                      </div>
-                    )}
-                    {tu1 > 0 && (
-                      <div style={{ width: `${pTu1}%`, background: TV.red, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
-                        {tu1}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div style={{ width: 56, flexShrink: 0, fontSize: 22, fontWeight: 900, color: tong > 0 ? TV.textPrimary : '#475569', textAlign: 'right' }}>
-                {coDuLieu ? formatViVN(tong) : ''}
+              <div style={{
+                background: '#f87171',
+                color: '#450a0a',
+                fontSize: 20,
+                fontWeight: 700,
+                borderRadius: 9999,
+                padding: '4px 14px',
+                whiteSpace: 'nowrap',
+              }}>
+                Từ 1 ngày · {formatViVN(tongTu1Ngay)}
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {/* Chú thích màu ở đáy */}
+          {/* Đường kẻ mảnh #1e293b */}
+          <div style={{ height: 1, background: '#1e293b', marginBottom: 12 }} />
+
+          {/* Danh sách BCVH */}
+          <div style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            gap: 6,
+          }}>
+            {activeRows.map((row) => {
+              const cn = row.chua_nhan || {};
+              const tong = cn.buu_gui || 0;
+              const tu1 = cn.cho_tu_1_ngay || 0;
+              const trong = Math.max(0, tong - tu1);
+
+              const rowWidthPct = (tong / maxBuuGui) * 100;
+              const pTrong = tong > 0 ? (trong / tong) * 100 : 0;
+              const pTu1 = tong > 0 ? (tu1 / tong) * 100 : 0;
+
+              const isTrongNarrow = (trong / maxBuuGui) < 0.16;
+              const isTu1Narrow = (tu1 / maxBuuGui) < 0.16;
+
+              return (
+                <div key={row.ma} style={{ display: 'flex', alignItems: 'center', height: 56, gap: 14 }}>
+                  {/* Tên BCVH */}
+                  <div style={{
+                    width: 150,
+                    flexShrink: 0,
+                    fontSize: 26,
+                    fontWeight: 700,
+                    color: TV.textPrimary,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {row.ten?.replace(/^BCVH\s+/, '') || row.ma}
+                  </div>
+
+                  {/* Thanh chia hai đoạn */}
+                  <div style={{
+                    flex: 1,
+                    height: 38,
+                    borderRadius: 8,
+                    background: '#1e293b',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}>
+                    <div style={{
+                      width: `${rowWidthPct}%`,
+                      height: '100%',
+                      display: 'flex',
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                    }}>
+                      {trong > 0 && (
+                        <div style={{
+                          width: `${pTrong}%`,
+                          height: '100%',
+                          background: '#fbbf24',
+                          color: '#1c1917',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: isTrongNarrow ? 20 : 22,
+                          fontWeight: 800,
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {trong}
+                        </div>
+                      )}
+                      {tu1 > 0 && (
+                        <div style={{
+                          width: `${pTu1}%`,
+                          height: '100%',
+                          background: '#f87171',
+                          color: '#450a0a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: isTu1Narrow ? 20 : 22,
+                          fontWeight: 800,
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {tu1}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Số tổng của hàng ở bên phải */}
+                  <div style={{
+                    width: 44,
+                    flexShrink: 0,
+                    textAlign: 'right',
+                    fontSize: 32,
+                    fontWeight: 800,
+                    color: TV.textPrimary,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {formatViVN(tong)}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Các BCVH có dữ liệu và buu_gui === 0: gộp một dòng cuối */}
+            {zeroRows.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, marginTop: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#34d399', flexShrink: 0 }} />
+                <span style={{ fontSize: 22, color: '#94a3b8' }}>
+                  {zeroRows.length} BCVH còn lại: không có hàng chờ
+                </span>
+              </div>
+            )}
+
+            {/* BCVH chưa có dữ liệu */}
+            {noDataRows.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, marginTop: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#64748b', flexShrink: 0 }} />
+                <span style={{ fontSize: 22, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Chưa có dữ liệu: {noDataRows.map((r) => (r.ten || r.ma || '').replace(/^BCVH\s+/, '')).join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Chân khối */}
       <div style={{
-        marginTop: 14,
+        marginTop: 'auto',
         paddingTop: 12,
-        borderTop: `1px solid ${TV.border}`,
-        fontSize: 15,
-        color: TV.textSecondary,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
+        fontSize: 16,
+        color: '#64748b',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: TV.yellow }} />
-          <span>Trong ngày</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: TV.red }} />
-          <span>Từ 1 ngày trở lên</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: TV.textSecondary }}>Chia theo giờ: sắp có</span>
-        </div>
+        Dữ liệu ngày {formatDdMm(ngayDuLieu) || '—'} · ngày trước xem trên web
       </div>
     </div>
   );
