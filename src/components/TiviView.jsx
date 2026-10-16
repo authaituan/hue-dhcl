@@ -8,6 +8,7 @@ import { BCVH_LIST } from '../constants/bcvh';
 import { apiFetchJson, clearToken } from '../utils/api';
 import {
   formatPercent,
+  formatPctChange,
   formatSoSanh,
   formatTimeOnly,
   formatDateTimeSec,
@@ -96,6 +97,20 @@ function tvActionSub(item, isAll) {
     return `${pfx}${formatPercent(so_lieu?.ty_le)} BD10 đến (${cl}/${tong})`;
   }
   return pfx.replace(/ · $/, '') || '';
+}
+
+// DASH-8a (canvas bảng 3, phương án B): Nhãn so sánh gọn trên tivi (không bị cắt chữ)
+// Bỏ chữ «cùng giờ» và «BCVH có mốc»; (x/N) chỉ hiện khi số BCVH có mốc nhỏ hơn tổng số BCVH;
+// giữ nguyên nhãn ngày thật khi ngày tham chiếu khác (DASH-7b).
+function formatSoSanhTivi(pct, label, soBcvh = null, tongBcvh = 6) {
+  const cleanLabel = (label || '').replace(/\s+cùng giờ$/, '');
+  const bcvhSuffix = (soBcvh !== null && soBcvh !== undefined && soBcvh < tongBcvh)
+    ? ` (${soBcvh}/${tongBcvh})`
+    : '';
+  if (pct === null || pct === undefined || isNaN(pct)) {
+    return `chưa đủ dữ liệu ${cleanLabel}${bcvhSuffix}`;
+  }
+  return `${formatPctChange(pct)} ${cleanLabel}${bcvhSuffix}`;
 }
 
 // ─── Hook lấy dữ liệu dashboard ──────────────────────────────────────────────
@@ -596,19 +611,37 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, sau15h, tongQuan }) {
           {slBuuGui !== null && slBuuGui !== undefined ? formatViVN(slBuuGui) : '—'}
         </div>
         <div style={{
-          fontSize: 17,
-          color: TV.textSecondary,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
           marginTop: 4,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
         }}>
-          {formatSoSanh(
-            tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct,
-            getNhanSoSanhMoc(tongQuan?.ngay_du_lieu).labelHomQua,
-            tongQuan?.san_luong?.so_hom_qua_cung_gio?.so_bcvh,
-            tongQuan?.theo_bcvh?.length || 6
-          )}
+          <div style={{
+            fontSize: 15,
+            color: TV.textSecondary,
+            whiteSpace: 'nowrap',
+            lineHeight: 1.25,
+          }}>
+            {formatSoSanhTivi(
+              tongQuan?.san_luong?.so_hom_qua_cung_gio?.chenh_pct,
+              getNhanSoSanhMoc(tongQuan?.ngay_du_lieu).labelHomQua,
+              tongQuan?.san_luong?.so_hom_qua_cung_gio?.so_bcvh,
+              tongQuan?.theo_bcvh?.length || 6
+            )}
+          </div>
+          <div style={{
+            fontSize: 15,
+            color: TV.textSecondary,
+            whiteSpace: 'nowrap',
+            lineHeight: 1.25,
+          }}>
+            {formatSoSanhTivi(
+              tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.chenh_pct,
+              getNhanSoSanhMoc(tongQuan?.ngay_du_lieu).labelTuanTruoc,
+              tongQuan?.san_luong?.so_tuan_truoc_cung_gio?.so_bcvh,
+              tongQuan?.theo_bcvh?.length || 6
+            )}
+          </div>
         </div>
       </div>
 

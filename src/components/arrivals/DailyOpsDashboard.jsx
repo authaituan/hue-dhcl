@@ -48,6 +48,53 @@ export function formatDdMm(ymd) {
   return String(ymd);
 }
 
+/**
+ * Dòng báo BCVH chậm nằm ngoài tổng (DASH-8a, canvas bảng 1, phương án B).
+ * Lấy từ bcvh_ngoai_tong [{ma, ngay}] của API tong-quan-den (bcvh=all).
+ * - 1 BCVH có ngày: «Chưa gồm A Lưới (dữ liệu mới nhất 15/10)»
+ * - 1 BCVH ngày null: «Chưa gồm A Lưới (chưa có dữ liệu)»
+ * - 2-3 BCVH: «Chưa gồm A Lưới (15/10), Phú Lộc (14/10)»
+ * - > 3 BCVH: «Chưa gồm 4 BCVH (A Lưới, …)»
+ * - Rỗng hoặc thiếu: null
+ */
+export function formatBcvhNgoaiTong(bcvhNgoaiTong) {
+  if (!bcvhNgoaiTong || !Array.isArray(bcvhNgoaiTong) || bcvhNgoaiTong.length === 0) {
+    return null;
+  }
+
+  const getTen = (ma) => {
+    const found = DASHBOARD_BCVH.find((b) => b.ma === String(ma));
+    const fullName = found ? found.ten : ma;
+    return String(fullName || '').replace(/^BCVH\s+/, '').trim();
+  };
+
+  const n = bcvhNgoaiTong.length;
+
+  if (n === 1) {
+    const item = bcvhNgoaiTong[0];
+    const ten = getTen(item?.ma);
+    if (!item?.ngay) {
+      return `Chưa gồm ${ten} (chưa có dữ liệu)`;
+    }
+    return `Chưa gồm ${ten} (dữ liệu mới nhất ${formatDdMm(item.ngay)})`;
+  }
+
+  if (n <= 3) {
+    const parts = bcvhNgoaiTong.map((item) => {
+      const ten = getTen(item?.ma);
+      if (!item?.ngay) {
+        return `${ten} (chưa có dữ liệu)`;
+      }
+      return `${ten} (${formatDdMm(item.ngay)})`;
+    });
+    return `Chưa gồm ${parts.join(', ')}`;
+  }
+
+  // Quá 3 BCVH
+  const firstTen = getTen(bcvhNgoaiTong[0]?.ma);
+  return `Chưa gồm ${n} BCVH (${firstTen}, …)`;
+}
+
 // Cộng/trừ N ngày từ YYYY-MM-DD
 export function addDaysYmd(ymd, days) {
   if (!ymd) return '';
@@ -385,6 +432,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       (r) => !r.co_du_lieu || r.ngay_du_lieu !== tongQuan.ngay_du_lieu
     ).length;
   }, [tongQuan]);
+  const dongBcvhNgoaiTong = useMemo(() => {
+    if (!isAllView) return null;
+    return formatBcvhNgoaiTong(tongQuan?.bcvh_ngoai_tong);
+  }, [isAllView, tongQuan?.bcvh_ngoai_tong]);
 
   // ==========================================
   // XỬ LÝ LỖI QUYỀN TRUY CẬP (403)
@@ -567,9 +618,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 </span>
               </div>
             )}
-            {isAllView && bcvhChuaCoDuLieuNgayNay > 0 && (
-              <div className="text-[11px] text-amber-700 font-medium">
-                {bcvhChuaCoDuLieuNgayNay} BCVH chưa có dữ liệu ngày này
+            {dongBcvhNgoaiTong && (
+              <div className="text-xs text-[#57534e]">
+                {dongBcvhNgoaiTong}
               </div>
             )}
             <div className="text-[11px] text-[#a8a29e] italic">BG = bưu gửi (lần đến sớm nhất)</div>

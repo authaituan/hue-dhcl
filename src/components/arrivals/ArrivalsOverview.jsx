@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetchJson } from '../../utils/api';
 import { Loader2, Package, MapPin, Scale, Box, AlertOctagon } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
 
-function BcvhComparisonTable({ filters, bcvhList }) {
+function BcvhComparisonTable({ filters, bcvhList, cardSanLuong }) {
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -45,6 +45,29 @@ function BcvhComparisonTable({ filters, bcvhList }) {
     loadAll();
   }, [filters, bcvhList]);
 
+  // Tính chênh lệch N = (tổng các dòng) - (số trên thẻ) (DASH-8a, canvas bảng 2, phương án B)
+  const noteInfo = useMemo(() => {
+    if (loading || !tableData || !Array.isArray(tableData) || tableData.length < 2) {
+      return null;
+    }
+    if (typeof cardSanLuong !== 'number' || isNaN(cardSanLuong)) {
+      return null;
+    }
+    const expectedCount = Array.isArray(filters?.receiver_code) ? filters.receiver_code.length : 0;
+    if (expectedCount < 2 || tableData.length !== expectedCount) {
+      return null;
+    }
+    const sumRows = tableData.reduce((acc, r) => acc + (typeof r.san_luong === 'number' && !isNaN(r.san_luong) ? r.san_luong : 0), 0);
+    const diffN = sumRows - cardSanLuong;
+    if (diffN > 0) {
+      return {
+        xStr: sumRows.toLocaleString('vi-VN'),
+        nStr: diffN.toLocaleString('vi-VN')
+      };
+    }
+    return null;
+  }, [loading, tableData, cardSanLuong, filters?.receiver_code]);
+
   if (filters.receiver_code.length < 2) return null;
 
   return (
@@ -79,6 +102,11 @@ function BcvhComparisonTable({ filters, bcvhList }) {
           </tbody>
         </table>
       </div>
+      {noteInfo && (
+        <div className="p-3 bg-amber-50/80 border-t border-amber-200 text-xs text-amber-900 leading-relaxed">
+          Cộng các dòng là {noteInfo.xStr}, cao hơn thẻ {noteInfo.nStr} bưu gửi: {noteInfo.nStr} bưu gửi đến từ 2 BCVH trở lên nên mỗi dòng đếm riêng, thẻ chỉ đếm một lần.
+        </div>
+      )}
     </div>
   );
 }
@@ -167,7 +195,7 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
         </div>
       )}
 
-      <BcvhComparisonTable filters={filters} bcvhList={bcvhList} />
+      <BcvhComparisonTable filters={filters} bcvhList={bcvhList} cardSanLuong={sum?.san_luong} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card-soft p-4">
