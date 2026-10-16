@@ -162,10 +162,10 @@ test('hằng số máy chủ: hai ngưỡng màu PTC, sàn xếp hạng BCVH 50,
 });
 
 // ---------------- quyền ----------------
-test('quyền: không token 401; STAFF 403; TIVI 403 (kể cả đã có phạm vi); ADMIN, TTVH 200', async () => {
+test('quyền: không token 401; STAFF 403; TIVI phạm vi all: 200 khi bcvh vắng, 403 khi xin một BCVH (DASH-10b); ADMIN, TTVH 200', async () => {
   assert.equal((await kq('', null)).status, 401);
   assert.equal((await kq('', 'staff')).status, 403);
-  assert.equal((await kq('', 'tivi')).status, 403);
+  assert.equal((await kq('', 'tivi')).status, 200); // DASH-10b (#90): trước đây 403
   assert.equal((await kq(`?bcvh=${M}`, 'tivi')).status, 403);
   assert.equal((await kq('')).status, 200);
   assert.equal((await kq('', 'ttvh')).status, 200);

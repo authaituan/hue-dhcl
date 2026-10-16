@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-10b: Tivi (phạm vi `all`) đọc `ket-qua-phat` (backend)
+
+- **Thêm** `GET /api/arrivals/dashboard/ket-qua-phat` vào `TIVI_ALLOWED` (`server/lib/tivi.js`) và `tiviPhatGuard` ở `server/routes/arrivals.js`: Tivi chỉ qua khi phạm vi `all` và `bcvh` vắng/`all`, còn lại 403. `/api/phat/*` vẫn 403 với Tivi; vai trò khác và cấu trúc trả về không đổi. Quyết định #90.
+- **Test** `tests/tivi.test.js` +5 ca (không file test mới). **Test cũ sửa (có chủ đích)**: `tests/phat-dashboard.test.js:165-169` — Tivi phạm vi `all` gọi `ket-qua-phat` không `bcvh` nay 200 (trước 403); xin `bcvh=<mã>` vẫn 403. `npm test`: 609 ca, 608 đạt, 1 bỏ qua. Không đổi `src/`. Báo cáo: `30_DASH10B_TIVI_KET_QUA_PHAT.md`.
+- **Chưa làm**: giao diện Tivi (DASH-10c); lọc khung giờ và `ColKhungGio` (DASH-10d).
+
+---
+
 ## [2026-10-16] - DASH-9b: API `chuyen_chieu` (hàng đến chuyến chiều, từ 10:00) cho thẻ Điều hành/Tivi (backend)
 
 - **Thêm** `tong-quan-den.chuyen_chieu {buu_gui, ty_le, tu_gio, da_toi_gio}` ở `server/lib/dashboardDenQuery.js` (`countAcross`, `volumeOf`, `tongQuanDen`) và hằng `GIO_CHUYEN_CHIEU = 10` ở `server/config/dashboard-thresholds.js` (export riêng, ngoài `DASHBOARD_DEN_THRESHOLDS` để `nguong` không đổi). Không đổi `sau_15h`, `GIO_MUON`, `nguong`, `san_luong`, `src/`.

@@ -1,5 +1,6 @@
 // ==========================================
-// Vai trò TIVI — màn hình tivi chạy 24/24, CHỈ xem dashboard phần «đến» (DASH-3, docs/ai/04_DECISIONS.md #74).
+// Vai trò TIVI — màn hình tivi chạy 24/24, CHỈ xem dashboard phần «đến» và kết quả phát (DASH-3, docs/ai/04_DECISIONS.md #74; DASH-10b).
+//  - Kết quả phát: CHỈ qua GET /api/arrivals/dashboard/ket-qua-phat và CHỈ với tài khoản phạm vi 'all' (route ép, arrivals.js); /api/phat/* vẫn 403.
 //  - Allowlist, TỪ CHỐI MẶC ĐỊNH: authRequired (server/auth.js) gọi tiviAllows() ở MỌI request /api của tài khoản TIVI;
 //    ngoài các cặp "PHƯƠNG THỨC đường dẫn" dưới đây đều 403 (kể cả route chỉ có authRequired, route thêm sau này).
 //  - Phạm vi (scope): 'all' (toàn Trung tâm) hoặc MỘT mã trong 6 BCVH; lưu ở bảng riêng user_tivi_scope
@@ -14,7 +15,8 @@ const TIVI_ALLOWED = Object.freeze([
   'GET /api/auth/me',
   'GET /api/arrivals/dashboard/tong-quan-den',
   'GET /api/arrivals/dashboard/viec-can-lam',
-  'GET /api/arrivals/dashboard/phuong-xa-tang'
+  'GET /api/arrivals/dashboard/phuong-xa-tang',
+  'GET /api/arrivals/dashboard/ket-qua-phat'
 ]);
 
 /** Request có thuộc allowlist của TIVI không. Đường dẫn được giải mã, đổi chữ thường, bỏ "/" cuối (Express khớp route không phân biệt hoa thường). */
