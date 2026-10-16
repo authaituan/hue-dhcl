@@ -261,11 +261,15 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
 
   // Tổng phạm vi: cộng các BCVH; so sánh chỉ trên các BCVH có mốc so sánh (cùng tập ở tử và mẫu).
   const sum = (arr, fn) => arr.reduce((a, x) => a + fn(x), 0);
-  const vsRows = rows.filter((r) => r._v);
+  const header = headerOf(db, p, ctxs, goiY);
+  // DASH-7d: với bcvh=all, mọi số TỔNG chỉ cộng tập T = BCVH có «hôm nay» riêng đúng NGÀY CHUNG (header.ngay_du_lieu = ngày mới nhất trong các BCVH).
+  // BCVH chưa có file OK ngày chung (hoặc chưa có file nào) không vào tổng; dòng riêng của nó trong theo_bcvh giữ nguyên số ngày cũ. bcvh=<một BCVH>: T = chính nó.
+  const useB = p.bcvh === 'all';
+  const inT = (r) => !useB || (r.ngay_du_lieu !== null && r.ngay_du_lieu === header.ngay_du_lieu);
+  const vsRows = rows.filter((r) => r._v && inT(r));
   const vs = vsRows.map((r) => r._v);
   const sumBg = sum(vs, (v) => v.buu_gui); // công thức A: cộng từng BCVH (mỗi BCVH đếm SHBG khác nhau riêng)
   // DASH-7c-b: «Toàn Trung tâm» (bcvh=all) đếm SHBG khác nhau XUYÊN BCVH (công thức B, countAcross). Số từng BCVH (theo_bcvh) và bcvh=<một BCVH> giữ nguyên.
-  const useB = p.bcvh === 'all';
   const ctxOf = new Map(ctxs.map((c) => [c.ma, c]));
   // Cửa sổ của các BCVH trong `set` ở ngày hôm nay (off = 0) / hôm qua (-1) / cùng thứ tuần trước (-7): cùng ngày dữ liệu và giờ cắt của từng BCVH.
   const winsOf = (set, off) => set.filter((r) => ctxOf.get(r.ma).cut).map((r) => {
@@ -306,8 +310,14 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     };
   };
 
+  const trongT = rows.filter(inT);
+  // den_luc của thẻ tổng chỉ lấy từ BCVH trong T (headerOf lấy mọi BCVH: BCVH ngoài T có den_luc của ngày cũ, chỉ lọt vào khi T không có den_luc nào).
+  const denLucT = useB ? (ctxs.filter((c) => c.day && c.day === header.ngay_du_lieu).map((c) => c.denLuc).filter(Boolean).sort().pop() || null) : header.den_luc;
   return {
-    ...headerOf(db, p, ctxs, goiY),
+    ...header,
+    den_luc: denLucT,
+    // DASH-7d, CHỈ THÊM (bcvh=all): số BCVH trong tổng; BCVH ngoài tổng kèm ngày mới nhất của nó (null nếu chưa có file OK nào).
+    ...(useB ? { so_bcvh_trong_tong: trongT.length, bcvh_ngoai_tong: rows.filter((r) => !inT(r)).map((r) => ({ ma: r.ma, ngay: r.ngay_du_lieu })) } : {}),
     nguong: TH,
     san_luong: {
       luot: sum(vs, (v) => v.luot),
@@ -325,7 +335,7 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     },
     // da_toi_gio: có BCVH nào dữ liệu đã tới mốc GIO_MUON chưa (chưa tới thì số 0 không có nghĩa "không có hàng muộn").
     sau_15h: { buu_gui: muonTong, ty_le: ratio4(muonTong, bg), tu_gio: TH.GIO_MUON,
-      da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON) },
+      da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON && (!useB || c.day === header.ngay_du_lieu)) },
     bcvh_can_chu_y: { so: canChuY, tong: rows.length },
     theo_bcvh: rows.map(({ _v, ...r }) => r)
   };
