@@ -100,6 +100,40 @@ function runCounted(db, f, select, extra = {}) {
 /** { bg: số SHBG, dn: số SHBG đi ngoài } trong khoảng của bộ lọc f. */
 const countWin = (db, f) => runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) AS dn FROM s`)[0];
 
+/**
+ * Tổng «Toàn Trung tâm» (DASH-7c-b): đếm SHBG KHÁC NHAU xuyên BCVH (công thức B) trên nhiều cửa sổ (mỗi BCVH một cửa sổ riêng).
+ * wins: [{ rc, day, to }] — dòng của BCVH `rc` có arrival_date = day và arrival_at trong [day 00:00:00, to] (`to` = 'YYYY-MM-DD HH:MM:SS').
+ * Cắt giờ theo BCVH của TỪNG DÒNG được áp TRƯỚC khi chọn dòng sớm nhất (giữ nghĩa «cùng giờ» của từng BCVH); sau đó mỗi SHBG đếm 1 lần tại dòng
+ * có arrival_at nhỏ nhất (hoà -> id nhỏ nhất) — đúng quy tắc buildCountedCte (arrivalsQuery.js:227-253: r -> firsts MIN(t || printf('%012d', id)) -> s).
+ * Không dùng thẳng buildCountedCte vì nó chỉ nhận MỘT khoảng from/to cho mọi BCVH; có test đối chiếu với aq.summary (tests/dashboard-den-xuyen-bcvh.test.js).
+ * Trả { bg, dn, muon, nhieu, tui, kg_g }: bưu gửi; hàng đi ngoài (aq.DI_NGOAI_SQL); bưu gửi có dòng đại diện từ giờ GIO_MUON; SHBG có mặt ở >= 2 BCVH;
+ * số túi/kiện (BD8 khác nhau, khác rỗng, trên mọi dòng trong cửa sổ của các SHBG đã đếm — như aq.summary); khối lượng (gam) của dòng đại diện.
+ */
+function countAcross(db, wins) {
+  const out = { bg: 0, dn: 0, muon: 0, nhieu: 0, tui: 0, kg_g: 0 };
+  if (!wins.length) return out;
+  const row = db.prepare(`
+    WITH w AS (SELECT json_extract(value, '$.rc') AS rc, json_extract(value, '$.day') AS day, json_extract(value, '$.to') AS to_t FROM json_each(@wins)),
+    r AS MATERIALIZED (
+      SELECT a.id, a.tracking_no, a.receiver_code, a.bd8_no, a.arrival_at AS t
+      FROM arrival_items a JOIN w ON a.receiver_code = w.rc AND a.arrival_date = w.day AND a.arrival_at BETWEEN w.day || ' 00:00:00' AND w.to_t
+    ),
+    firsts AS (
+      SELECT tracking_no, MIN(t || printf('%012d', id)) AS k, COUNT(DISTINCT receiver_code) AS nb FROM r GROUP BY tracking_no
+    ),
+    s AS (
+      SELECT x.tracking_no, x.nb, substr(x.k, 1, 19) AS t, a.weight_g
+      FROM firsts x JOIN arrival_items a ON a.id = CAST(substr(x.k, 20, 12) AS INTEGER)
+    )
+    SELECT (SELECT COUNT(*) FROM s) AS bg,
+      (SELECT COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) FROM s) AS dn,
+      (SELECT COALESCE(SUM(CAST(substr(t, 12, 2) AS INTEGER) >= @gm), 0) FROM s) AS muon,
+      (SELECT COALESCE(SUM(nb > 1), 0) FROM s) AS nhieu,
+      (SELECT COUNT(DISTINCT r.bd8_no) FROM r WHERE r.bd8_no <> '' AND r.tracking_no IN (SELECT tracking_no FROM s)) AS tui,
+      (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS kg_g`).get({ wins: JSON.stringify(wins), gm: TH.GIO_MUON });
+  return { ...out, ...row };
+}
+
 // ------------------------------------------
 // Mức điều hành (thuần, không đụng DB)
 // ------------------------------------------
@@ -227,26 +261,48 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
 
   // Tổng phạm vi: cộng các BCVH; so sánh chỉ trên các BCVH có mốc so sánh (cùng tập ở tử và mẫu).
   const sum = (arr, fn) => arr.reduce((a, x) => a + fn(x), 0);
-  const vs = rows.filter((r) => r._v).map((r) => r._v);
-  const bg = sum(vs, (v) => v.buu_gui);
-  const dn = sum(vs, (v) => v.di_ngoai);
+  const vsRows = rows.filter((r) => r._v);
+  const vs = vsRows.map((r) => r._v);
+  const sumBg = sum(vs, (v) => v.buu_gui); // công thức A: cộng từng BCVH (mỗi BCVH đếm SHBG khác nhau riêng)
+  // DASH-7c-b: «Toàn Trung tâm» (bcvh=all) đếm SHBG khác nhau XUYÊN BCVH (công thức B, countAcross). Số từng BCVH (theo_bcvh) và bcvh=<một BCVH> giữ nguyên.
+  const useB = p.bcvh === 'all';
+  const ctxOf = new Map(ctxs.map((c) => [c.ma, c]));
+  // Cửa sổ của các BCVH trong `set` ở ngày hôm nay (off = 0) / hôm qua (-1) / cùng thứ tuần trước (-7): cùng ngày dữ liệu và giờ cắt của từng BCVH.
+  const winsOf = (set, off) => set.filter((r) => ctxOf.get(r.ma).cut).map((r) => {
+    const c = ctxOf.get(r.ma);
+    const day = off ? addDays(c.day, off) : c.day;
+    return { rc: c.ma, day, to: `${day} ${c.cut}` };
+  });
+  const todayB = useB ? countAcross(db, winsOf(vsRows, 0)) : null;
+  const bg = useB ? todayB.bg : sumBg;
+  const dn = useB ? todayB.dn : sum(vs, (v) => v.di_ngoai);
+  const muonTong = useB ? todayB.muon : sum(vs, (v) => v.muon);
+  const OFF = { hom_qua: -1, tuan_truoc: -7 };
   const canChuY = rows.filter((r) => r.muc === MUC.XU_LY_NGAY || r.muc === MUC.TRONG_NGAY).length;
   // Mốc so sánh (dưới sàn 50 bưu gửi thì chenh_pct / chenh_diem = null, vẫn giữ giá trị mốc). Sản lượng: { gia_tri, chenh_pct, so_bcvh }; của hàng đi ngoài: { buu_gui, ty_le, mau_so, chenh_diem (điểm %, hôm nay − mốc), so_bcvh }.
+  // Với bcvh=all (B): tử (hôm nay) và mẫu (mốc) cùng tính xuyên BCVH trên CÙNG tập BCVH có mốc (không trộn BCVH thiếu mốc vào một vế).
+  const refOf = (key) => {
+    const setRows = vsRows.filter((r) => r._v[key] !== null);
+    if (!setRows.length) return null;
+    const set = setRows.map((r) => r._v);
+    if (!useB) {
+      return { n: set.length, refBg: sum(set, (v) => v[key].bg), refDn: sum(set, (v) => v[key].dn), todayBg: sum(set, (v) => v.buu_gui), todayDn: sum(set, (v) => v.di_ngoai) };
+    }
+    const ref = countAcross(db, winsOf(setRows, OFF[key]));
+    const today = countAcross(db, winsOf(setRows, 0));
+    return { n: set.length, refBg: ref.bg, refDn: ref.dn, todayBg: today.bg, todayDn: today.dn };
+  };
   const sanLuongVs = (key) => {
-    const set = vs.filter((v) => v[key] !== null);
-    if (!set.length) return null;
-    const ref = sum(set, (v) => v[key].bg);
-    return { gia_tri: ref, chenh_pct: pctVsMoc(sum(set, (v) => v.buu_gui), ref), so_bcvh: set.length };
+    const o = refOf(key);
+    if (!o) return null;
+    return { gia_tri: o.refBg, chenh_pct: pctVsMoc(o.todayBg, o.refBg), so_bcvh: o.n };
   };
   const diNgoaiVs = (key) => {
-    const set = vs.filter((v) => v[key] !== null);
-    if (!set.length) return null;
-    const refBg = sum(set, (v) => v[key].bg);
-    const refDn = sum(set, (v) => v[key].dn);
-    const todayBg = sum(set, (v) => v.buu_gui);
+    const o = refOf(key);
+    if (!o) return null;
     return {
-      buu_gui: refDn, ty_le: ratio4(refDn, refBg), mau_so: refBg,
-      chenh_diem: mocDuLon(refBg) && todayBg ? round2((sum(set, (v) => v.di_ngoai) / todayBg - refDn / refBg) * 100) : null, so_bcvh: set.length
+      buu_gui: o.refDn, ty_le: ratio4(o.refDn, o.refBg), mau_so: o.refBg,
+      chenh_diem: mocDuLon(o.refBg) && o.todayBg ? round2((o.todayDn / o.todayBg - o.refDn / o.refBg) * 100) : null, so_bcvh: o.n
     };
   };
 
@@ -257,7 +313,10 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
       luot: sum(vs, (v) => v.luot),
       buu_gui: bg,
       so_hom_qua_cung_gio: sanLuongVs('hom_qua'),
-      so_tuan_truoc_cung_gio: sanLuongVs('tuan_truoc')
+      so_tuan_truoc_cung_gio: sanLuongVs('tuan_truoc'),
+      // Chỉ khi bcvh=all (DASH-7c-b), CHỈ THÊM: tong_cong_theo_bcvh = công thức A (cộng các dòng BCVH); so_shbg_qua_nhieu_bcvh = số SHBG có mặt ở >= 2 BCVH
+      // trong cửa sổ hôm nay (A − B = Σ(số BCVH − 1) >= số này; bằng nhau khi không SHBG nào ở >= 3 BCVH); tui_kien / khoi_luong_g theo B.
+      ...(useB ? { tong_cong_theo_bcvh: sumBg, so_shbg_qua_nhieu_bcvh: todayB.nhieu, tui_kien: todayB.tui, khoi_luong_g: todayB.kg_g } : {})
     },
     // Hàng đi ngoài (#76): chỉ hiển thị (số, %, chênh so hôm qua / tuần trước), KHÔNG gắn mức. mau_so = số bưu gửi đến (như «Sản lượng đến»).
     hang_di_ngoai: {
@@ -265,7 +324,7 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
       so_hom_qua_cung_gio: diNgoaiVs('hom_qua'), so_tuan_truoc_cung_gio: diNgoaiVs('tuan_truoc')
     },
     // da_toi_gio: có BCVH nào dữ liệu đã tới mốc GIO_MUON chưa (chưa tới thì số 0 không có nghĩa "không có hàng muộn").
-    sau_15h: { buu_gui: sum(vs, (v) => v.muon), ty_le: ratio4(sum(vs, (v) => v.muon), bg), tu_gio: TH.GIO_MUON,
+    sau_15h: { buu_gui: muonTong, ty_le: ratio4(muonTong, bg), tu_gio: TH.GIO_MUON,
       da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON) },
     bcvh_can_chu_y: { so: canChuY, tong: rows.length },
     theo_bcvh: rows.map(({ _v, ...r }) => r)
@@ -354,5 +413,6 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
 module.exports = {
   MUC, DANH_GIA, LY_DO, GIOI_HAN_MAC_DINH, GIOI_HAN_TOI_DA, parseParams, mucSanLuong, danhGiaSanLuong, mucChuaNhan, mucBd10, tongQuanDen, viecCanLam, phuongXaTang,
   // Dùng chung cho module «Xử lý và tỷ lệ phát» (PHAT-1): chỉ thêm export, không đổi cách tính.
-  bcvhContext, windowFilter, runCounted
+  bcvhContext, windowFilter, runCounted,
+  countAcross // DASH-7c-b: đếm xuyên BCVH (công thức B) trên nhiều cửa sổ
 };
