@@ -389,14 +389,14 @@ test('không có khung giờ / tồn chờ; không lộ số hiệu bưu gửi',
   assert.ok(!/\d{15,}/.test(txt));
   assert.ok(!txt.includes('ZZ9'), 'không có SHBG');
   assert.deepEqual(Object.keys((await kq(`?bcvh=${M}`)).body), [
-    'bcvh', 'pham_vi', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'ptc', 'muc_cap_nhat', 'co_so_lieu_phat',
+    'bcvh', 'pham_vi', 'ngay', 'cung_ngay', 'mau_so', 'so_shbg_chuyen_tiep_loai_bo', 'theo_trang_thai', 'ptc', 'muc_cap_nhat', 'co_so_lieu_phat',
     'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'nguong', 'xep_hang_bcvh', 'chua_du_du_lieu'
   ]);
 });
 
 test('/api/phat/ty-le không đổi: đủ khoá cũ, ton_cho + khung giờ, quyền cũ (TTVH 200, STAFF/TIVI 403)', async () => {
   const t = (await call(`/api/phat/ty-le?bcvh=${M}&ngay=${D}`, 'ttvh')).body;
-  assert.deepEqual(Object.keys(t), ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'muc_cap_nhat', 'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'theo_khung_gio_den', 'ton_cho']);
+  assert.deepEqual(Object.keys(t), ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'muc_cap_nhat', 'so_shbg_chuyen_tiep_loai_bo', 'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'theo_khung_gio_den', 'ton_cho']);
   assert.equal(t.theo_khung_gio_den.length, 6);
   assert.equal(t.ton_cho.theo_nhom.length, 4);
   assert.equal((await call('/api/phat/ty-le', 'staff')).status, 403);

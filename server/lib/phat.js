@@ -567,13 +567,35 @@ function soLieuDenLuc(db, codes) {
 }
 
 /**
+ * DASH-7f: mỗi SHBG trong MỘT NGÀY (arrival_date) chỉ tính cho MỘT BCVH — BCVH có mốc đến (R2: arrival_at SỚM nhất của SHBG tại BCVH đó trong ngày,
+ * đúng `t` của buildCountedCte) MUỘN NHẤT; hòa mốc -> mã BCVH nhỏ hơn. CTE `g` (tracking_no, d = ngày, rc = BCVH, rk = 1 là BCVH được tính) xét MỌI BCVH
+ * hợp lệ (không chỉ BCVH đang tính) và chỉ các SHBG có trong `s`; ghép vào `s` bằng GAN_JOIN. Hàng đi ngoài không có quy tắc riêng. Không đổi aq / den.
+ */
+const GAN_CTE = `g AS (
+    SELECT tracking_no, arrival_date AS d, receiver_code AS rc,
+      ROW_NUMBER() OVER (PARTITION BY tracking_no, arrival_date ORDER BY mt DESC, receiver_code ASC) AS rk
+    FROM (SELECT tracking_no, arrival_date, receiver_code, MIN(arrival_at) AS mt FROM arrival_items
+      WHERE arrival_date BETWEEN @g_tu AND @g_den AND arrival_at BETWEEN @g_tu || ' 00:00:00' AND @g_den || ' 23:59:59'
+        AND receiver_code IN (SELECT value FROM json_each(@g_all)) AND tracking_no IN (SELECT tracking_no FROM s)
+      GROUP BY tracking_no, arrival_date, receiver_code))`;
+const GAN_JOIN = `FROM s JOIN g ON g.tracking_no = s.tracking_no AND g.d = s.arrival_date AND g.rc = @bcvh AND g.rk = 1
+  LEFT JOIN phat_status_current p ON p.bcvh = @bcvh AND p.shbg = s.tracking_no`;
+
+/** Như den.runCounted nhưng thêm CTE `g`; [tu, den] = khoảng ngày xét tranh chấp giữa các BCVH. */
+function runGan(db, f, tu, denNgay, select, extra = {}) {
+  const { sql, params } = aq.buildCountedCte(db, f);
+  return db.prepare(`WITH ${sql}, ${GAN_CTE} ${select}`).all({ ...params, g_tu: tu, g_den: denNgay, g_all: JSON.stringify(VALID_BCVH_CODES), ...extra });
+}
+
+/**
  * SHBG đến ngày `day` của MỘT BCVH, đếm theo (giờ đến, trạng thái hiện tại; chưa có = CHUA_CO_TT). Trả { tong: {mã: n}, khung: {mã khung: {mã: n}},
  * co_tt, nhap_luc_max }: co_tt = số SHBG của NGÀY NÀY có dòng trạng thái (kể cả dòng đã đổi về CHUA_CO_TT); nhap_luc_max = giờ nhập (UTC ISO) mới nhất
  * trong các dòng đó, null nếu co_tt = 0 — gắn với đúng ngày, không lấy giờ đợt nhập của ngày khác (PHAT-3b).
  */
-function demNgay(db, bcvh, day) {
-  const rows = den.runCounted(db, den.windowFilter(bcvh, day, '23:59:59'),
-    `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(p.shbg) AS co, MAX(p.nhap_luc) AS nl ${MAU_JOIN} GROUP BY h, tt`, { bcvh });
+function demNgay(db, bcvh, day, { demLoaiBo = false } = {}) {
+  const f = den.windowFilter(bcvh, day, '23:59:59');
+  const rows = runGan(db, f, day, day,
+    `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(p.shbg) AS co, MAX(p.nhap_luc) AS nl ${GAN_JOIN} GROUP BY h, tt`, { bcvh });
   const tong = zeroMap();
   const khung = Object.fromEntries(C.KHUNG_GIO_DEN.map((k) => [k.ma, zeroMap()]));
   let coTt = 0;
@@ -585,7 +607,11 @@ function demNgay(db, bcvh, day) {
     const k = C.KHUNG_GIO_DEN.find((x) => r.h >= x.tu && (x.den === null || r.h < x.den));
     if (k) khung[k.ma][r.tt] += r.n;
   }
-  return { tong, khung, co_tt: coTt, nhap_luc_max: nhapLucMax };
+  const out = { tong, khung, co_tt: coTt, nhap_luc_max: nhapLucMax };
+  if (demLoaiBo) {
+    out.loai_bo = runGan(db, f, day, day, 'SELECT COUNT(*) AS n FROM s JOIN g ON g.tracking_no = s.tracking_no AND g.d = s.arrival_date AND g.rc = @bcvh AND g.rk > 1', { bcvh })[0].n;
+  }
+  return out;
 }
 
 /** so: {mã trạng thái: số SHBG} -> mẫu số, 5 nhóm (số + tỷ lệ), mức cập nhật = 100% trừ tỷ lệ «Chưa có thông tin phát». */
@@ -614,12 +640,13 @@ function tonCho(db, bcvh, day, byUnit) {
   const tu = aq.addDays(day, -C.GIOI_HAN.TON_CHO_LUI_NGAY);
   const f = { dateBasis: 'arrival', receiverCodes: [bcvh], wardKey: null, from: `${tu} 00:00:00`, to: asOf, fromDate: tu, toDate: day };
   const cho = `CAST(strftime('%s', @x_asof) AS INTEGER) - CAST(strftime('%s', s.t) AS INTEGER)`;
-  const rows = den.runCounted(db, f, `SELECT CASE WHEN substr(s.t, 1, 10) < @x_day THEN 'QUA_NGAY'
-      WHEN ${cho} < @x_n1 THEN 'DUOI_2H' WHEN ${cho} < @x_n2 THEN '2_4H' ELSE 'TREN_4H' END AS g, COUNT(*) AS n
-    ${MAU_JOIN} WHERE (p.trang_thai IS NULL OR p.trang_thai = 'CHUA_CO_TT') GROUP BY g`,
+  // DASH-7f: chỉ SHBG mà BCVH này là BCVH muộn nhất TRONG NGÀY của dòng đại diện (s.arrival_date); alias nhóm đổi `g` -> `grp` vì `g` là CTE gán.
+  const rows = runGan(db, f, tu, day, `SELECT CASE WHEN substr(s.t, 1, 10) < @x_day THEN 'QUA_NGAY'
+      WHEN ${cho} < @x_n1 THEN 'DUOI_2H' WHEN ${cho} < @x_n2 THEN '2_4H' ELSE 'TREN_4H' END AS grp, COUNT(*) AS n
+    ${GAN_JOIN} WHERE (p.trang_thai IS NULL OR p.trang_thai = 'CHUA_CO_TT') GROUP BY grp`,
   { bcvh, x_day: day, x_asof: asOf, x_n1: C.NHOM_CHO[0].den_phut * 60, x_n2: C.NHOM_CHO[1].den_phut * 60 });
   const nhom = Object.fromEntries(C.NHOM_CHO.map((n) => [n.ma, 0]));
-  for (const r of rows) nhom[r.g] += r.n;
+  for (const r of rows) nhom[r.grp] += r.n;
   return { as_of: ctx.denLuc || null, nhom };
 }
 
@@ -655,11 +682,13 @@ function tyLeApi(db, { bcvh = 'all', ngay = null } = {}) {
   const ton = Object.fromEntries(C.NHOM_CHO.map((n) => [n.ma, 0]));
   const ngays = [];
   let moc = null;
+  let loaiBo = 0;
   for (const c of dung) {
     const day = ngay || aq.latestFileDate(db, [c], byUnit);
     if (!day) continue;
     ngays.push(day);
-    const d = demNgay(db, c, day);
+    const d = demNgay(db, c, day, { demLoaiBo: true });
+    loaiBo += d.loai_bo;
     congMap(so, d.tong);
     for (const k of C.KHUNG_GIO_DEN) congMap(khung[k.ma], d.khung[k.ma]);
     const t = tonCho(db, c, day, byUnit);
@@ -671,6 +700,7 @@ function tyLeApi(db, { bcvh = 'all', ngay = null } = {}) {
     bcvh, ngay: ngay || (ngays.length ? ngays[ngays.length - 1] : null), cung_ngay: ngaysTatCa.size <= 1,
     ...(tap ? { so_bcvh_trong_tong: tap.trong.length, bcvh_ngoai_tong: tap.ngoai } : {}),
     ...dungTyLe(so),
+    so_shbg_chuyen_tiep_loai_bo: loaiBo, // DASH-7f: số (SHBG, BCVH) đã gán sang BCVH khác có mốc đến muộn hơn trong ngày (một BCVH: bị loại khỏi mẫu số; all: số SHBG được gán lại)
     ...soLieuDenLuc(db, dung),
     theo_khung_gio_den: C.KHUNG_GIO_DEN.map((k) => {
       const t = dungTyLe(khung[k.ma]);

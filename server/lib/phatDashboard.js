@@ -39,7 +39,7 @@ function parseParams(query) {
 
 /** Kết quả phát của MỘT BCVH, MỘT ngày đến (day = null: BCVH chưa có file nào -> mọi số 0). */
 function motBcvh(db, ma, day) {
-  const d = day ? P.demNgay(db, ma, day) : { tong: P.zeroMap(), khung: null, co_tt: 0, nhap_luc_max: null };
+  const d = day ? P.demNgay(db, ma, day, { demLoaiBo: true }) : { tong: P.zeroMap(), khung: null, co_tt: 0, nhap_luc_max: null, loai_bo: 0 };
   return { ma, day, ...d, ty_le: P.dungTyLe(d.tong) };
 }
 
@@ -68,8 +68,10 @@ function ketQuaPhat(db, codes, p) {
   const so = P.zeroMap();
   let coTt = 0;
   let nhapLuc = null;
+  let loaiBo = 0;
   for (const r of perTong) {
     P.congMap(so, r.tong);
+    loaiBo += r.loai_bo;
     coTt += r.co_tt;
     if (r.nhap_luc_max && (!nhapLuc || r.nhap_luc_max > nhapLuc)) nhapLuc = r.nhap_luc_max;
   }
@@ -97,6 +99,7 @@ function ketQuaPhat(db, codes, p) {
     cung_ngay: days.length <= 1,
     ...(tap ? { so_bcvh_trong_tong: tap.trong.length, bcvh_ngoai_tong: tap.ngoai } : {}),
     mau_so: tong.mau_so,
+    so_shbg_chuyen_tiep_loai_bo: loaiBo, // DASH-7f (xem phat.tyLeApi)
     theo_trang_thai: tong.theo_trang_thai,
     ptc: tong.theo_trang_thai.PTC.ty_le,
     muc_cap_nhat: tong.muc_cap_nhat,

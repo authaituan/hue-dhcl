@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-7f: tỷ lệ phát — mỗi SHBG trong ngày chỉ tính cho BCVH có mốc đến muộn nhất (backend)
+
+- **Sửa** `server/lib/phat.js` (CTE `g` + `runGan`/`GAN_JOIN` mới; `demNgay`, `tonCho`, `tyLeApi`) và `server/lib/phatDashboard.js` (`motBcvh`, `ketQuaPhat`): mẫu số, tử số, khung giờ, tồn chờ, giờ nhập, xếp hạng và `tyLeNgay` (trước/sau nhập đợt, hoàn tác) gán mỗi SHBG trong một ngày cho BCVH có `arrival_at` R2 muộn nhất (hòa → mã BCVH nhỏ hơn); hàng đi ngoài không có quy tắc riêng. Thêm trường `so_shbg_chuyen_tiep_loai_bo` (ty-le và ket-qua-phat). Không đổi: `tong-quan-den`, `dashboardDenQuery.js`, `arrivalsQuery.js`, `src/`.
+- **Test** `tests/phat-bcvh-muon-nhat.test.js` (mới, 7 ca; thêm vào `package.json`). **Test cũ sửa (có chủ đích)**: `tests/phat.test.js`, `tests/phat-dashboard.test.js` (danh sách khoá thêm trường mới), `tests/phat-cung-ngay.test.js` (ngày 15/10 có S1 qua 2 BCVH: mẫu số 7 → 6, 2+2+3 → 1+2+3). Báo cáo: `27_DASH7F_TY_LE_PHAT_BCVH_DEN_MUON_NHAT.md`.
+- **Chưa làm**: giao diện chưa dùng trường mới; gộp `tapNgayChung` với tập T của `dashboardDenQuery.js`.
+
+---
+
 ## [2026-10-16] - DASH-7e: «Xử lý và tỷ lệ phát» (tổng) chỉ cộng BCVH có dữ liệu đúng ngày chung (backend)
 
 - **Sửa** `server/lib/phat.js` (`tapNgayChung` mới; `tyLeApi`) và `server/lib/phatDashboard.js` (`ketQuaPhat`): với `bcvh=all` không chọn `ngay`, mẫu số, tử số (5 trạng thái), khung giờ, tồn chờ và giờ nhập chỉ tính tập T (BCVH có «hôm nay» riêng = ngày chung, như DASH-7d). Thêm `so_bcvh_trong_tong`, `bcvh_ngoai_tong`. Không đổi: công thức đếm (A), một BCVH, `ngay` rõ ràng, `pham_vi`, `cung_ngay`, xếp hạng BCVH.
