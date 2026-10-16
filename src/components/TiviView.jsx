@@ -41,7 +41,6 @@ const STAGE_W = 1920;
 const STAGE_H = 1080;
 const REFRESH_MS = 60_000;       // 60 giây tự làm mới
 const RELOAD_MS = 6 * 60 * 60 * 1000; // 6 giờ tải lại trang
-const SLIDE_MS  = 5_000;         // 5 giây đổi thẻ việc
 const HOVER_HIDE_MS = 5_000;     // Ẩn nút thoát sau 5 giây không di chuột
 
 // ─── Hàm tiện ích ────────────────────────────────────────────────────────────
@@ -212,17 +211,128 @@ function useWakeLock() {
   }, []);
 }
 
-// ─── Hook carousel phân trang việc cần làm (5 giây đổi trang) ────────────────
-function useCarouselPages(totalPages) {
-  const [page, setPage] = useState(0);
+// ─── Hook tự cuộn danh sách mượt mà (DASH-9e) ──────────────────────────────
+function useAutoScroll({
+  items,
+  gap = 12,
+  speed = 25,
+  pauseOnHover = false,
+  pauseOnFocus = false,
+}) {
+  const containerRef = useRef(null);
+  const trackRef = useRef(null);
+  const contentRef = useRef(null);
+  const offsetRef = useRef(0);
+  const lastTimeRef = useRef(null);
+  const rafIdRef = useRef(null);
+  const prevItemsKeyRef = useRef('');
+
+  const [canScroll, setCanScroll] = useState(false);
+
+  const itemsKey = useMemo(() => {
+    if (!items || !items.length) return '';
+    return items.map((i) => `${i.bcvh || ''}_${i.ten_bcvh || ''}_${i.loai || ''}_${i.ngay || ''}_${i.muc || ''}`).join('|');
+  }, [items]);
+
   useEffect(() => {
-    if (totalPages <= 1) { setPage(0); return; }
-    const t = setInterval(() => setPage((p) => (p + 1) % totalPages), SLIDE_MS);
-    return () => clearInterval(t);
-  }, [totalPages]);
-  // Reset khi tổng số trang thay đổi
-  useEffect(() => { setPage(0); }, [totalPages]);
-  return page;
+    if (itemsKey !== prevItemsKeyRef.current) {
+      prevItemsKeyRef.current = itemsKey;
+      offsetRef.current = 0;
+      if (trackRef.current) {
+        trackRef.current.style.transform = 'translateY(0px)';
+      }
+    }
+  }, [itemsKey]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const measure = () => {
+      const containerH = container.clientHeight;
+      const contentH = content.offsetHeight;
+      const overflow = contentH > containerH + 1;
+      setCanScroll(overflow);
+      if (!overflow) {
+        offsetRef.current = 0;
+        if (trackRef.current) {
+          trackRef.current.style.transform = 'none';
+        }
+      }
+    };
+
+    measure();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        measure();
+      });
+      ro.observe(container);
+      ro.observe(content);
+      return () => {
+        ro.disconnect();
+      };
+    }
+  }, [itemsKey]);
+
+  useEffect(() => {
+    if (!canScroll) {
+      if (trackRef.current) {
+        trackRef.current.style.transform = 'none';
+      }
+      return;
+    }
+
+    let active = true;
+    lastTimeRef.current = null;
+
+    const step = (now) => {
+      if (!active) return;
+
+      if (lastTimeRef.current === null) {
+        lastTimeRef.current = now;
+      }
+
+      const rawDt = now - lastTimeRef.current;
+      const dt = Math.min(Math.max(rawDt, 0), 100);
+      lastTimeRef.current = now;
+
+      const content = contentRef.current;
+      const track = trackRef.current;
+
+      if (content && track) {
+        const contentH = content.offsetHeight;
+        const loopHeight = contentH + gap;
+
+        if (loopHeight > 0) {
+          offsetRef.current += (speed * dt) / 1000;
+          if (offsetRef.current >= loopHeight) {
+            offsetRef.current -= loopHeight;
+          }
+          track.style.transform = `translateY(-${offsetRef.current}px)`;
+        }
+      }
+
+      rafIdRef.current = requestAnimationFrame(step);
+    };
+
+    rafIdRef.current = requestAnimationFrame(step);
+
+    return () => {
+      active = false;
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [canScroll, gap, speed, pauseOnHover, pauseOnFocus]);
+
+  return {
+    containerRef,
+    trackRef,
+    contentRef,
+    canScroll,
+  };
 }
 
 // ─── Hook scale sân khấu ─────────────────────────────────────────────────────
@@ -282,12 +392,6 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
     });
   }, [rawActionItems]);
 
-  const ACTION_PAGE_SIZE = 4;
-  const totalActionPages = Math.ceil(actionItems.length / ACTION_PAGE_SIZE) || 1;
-  const actionPage = useCarouselPages(totalActionPages);
-  const currentActionItems = useMemo(() => {
-    return actionItems.slice(actionPage * ACTION_PAGE_SIZE, (actionPage + 1) * ACTION_PAGE_SIZE);
-  }, [actionItems, actionPage]);
 
   // Thẻ sản lượng
   const slBuuGui = isAll
@@ -468,10 +572,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
           <div style={{ flex: 1, display: 'flex', gap: 24, minHeight: 0 }}>
             {/* Cột Trái: Việc cần làm */}
             <ColViec
-              items={currentActionItems}
-              totalItems={actionItems.length}
-              currentPage={actionPage}
-              totalPages={totalActionPages}
+              items={actionItems}
               isAll={isAll}
               ngayDuLieu={tongQuan?.ngay_du_lieu}
             />
@@ -744,7 +845,17 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan }) {
 }
 
 // ── Cột Trái: Việc cần làm ────────────────────────────────────────────────────
-function ColViec({ items, totalItems, currentPage, totalPages, isAll, ngayDuLieu }) {
+function ColViec({ items = [], isAll, ngayDuLieu }) {
+  const totalItems = items?.length || 0;
+
+  const tvScroll = useAutoScroll({
+    items,
+    gap: 12,
+    speed: 25,
+    pauseOnHover: false,
+    pauseOnFocus: false,
+  });
+
   const colStyle = {
     width: 500,
     flexShrink: 0,
@@ -765,7 +876,7 @@ function ColViec({ items, totalItems, currentPage, totalPages, isAll, ngayDuLieu
           {isAll ? 'Việc cần làm' : 'Việc của BCVH tôi'}
         </div>
         <div style={{ fontSize: 16, color: TV.textSecondary, lineHeight: 1.2, marginTop: 6, whiteSpace: 'nowrap' }}>
-          đổi thẻ mỗi 5 giây · <span style={{ color: TV.yellow }}>Xử lý ngay</span> trước
+          tự cuộn · <span style={{ color: TV.yellow }}>Xử lý ngay</span> trước
         </div>
       </div>
 
@@ -782,29 +893,46 @@ function ColViec({ items, totalItems, currentPage, totalPages, isAll, ngayDuLieu
           </div>
         </div>
       ) : (
-        <>
-          {/* Tối đa 4 thẻ xếp chồng, cao vừa nội dung (không kéo giãn bằng cột), xếp từ trên xuống */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-            {items.map((item, idx) => (
-              <ActionCardStack key={`${item.loai}-${item.ten_bcvh || ''}-${idx}`} item={item} isAll={isAll} />
-            ))}
-          </div>
-
-          {/* Phân trang khi có hơn 4 thẻ */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'center' }}>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <div key={i} style={{
-                  width: i === currentPage ? 28 : 10,
-                  height: 8,
-                  borderRadius: 4,
-                  background: i === currentPage ? TV.yellow : TV.border,
-                  transition: 'all 0.3s',
-                }} />
+        <div
+          ref={tvScroll.containerRef}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <div
+            ref={tvScroll.trackRef}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              willChange: 'transform',
+            }}
+          >
+            <div ref={tvScroll.contentRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {items.map((item, idx) => (
+                <ActionCardStack
+                  key={`${item.loai}-${item.ten_bcvh || ''}-${idx}`}
+                  item={item}
+                  isAll={isAll}
+                />
               ))}
             </div>
-          )}
-        </>
+            {tvScroll.canScroll && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} aria-hidden="true">
+                {items.map((item, idx) => (
+                  <ActionCardStack
+                    key={`${item.loai}-${item.ten_bcvh || ''}-${idx}-clone`}
+                    item={item}
+                    isAll={isAll}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
