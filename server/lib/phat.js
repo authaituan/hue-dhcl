@@ -624,18 +624,38 @@ function tonCho(db, bcvh, day, byUnit) {
 }
 
 /**
+ * DASH-7e: tập T của tổng «Toàn Trung tâm» = các BCVH có «hôm nay» riêng (ngày file OK mới nhất của chính nó, byUnit = aq.latestFileDates) bằng NGÀY CHUNG
+ * (ngày mới nhất trong các BCVH) — cùng định nghĩa với tongQuanDen của dashboardDenQuery.js (DASH-7d: `ngay_du_lieu`, `inT`). Có `ngay` rõ ràng: mọi BCVH
+ * trong `codes` đều tính ngày đó (T = codes, ngoai = []). Trả { ngay_chung, trong: [mã], ngoai: [{ ma, ngay }] } (ngay = ngày mới nhất của BCVH đó hoặc null).
+ */
+function tapNgayChung(byUnit, codes, ngay = null) {
+  if (ngay) return { ngay_chung: ngay, trong: [...codes], ngoai: [] };
+  const days = codes.map((ma) => ({ ma, day: byUnit.get(ma) || null }));
+  const chung = days.map((x) => x.day).filter(Boolean).sort().pop() || null;
+  return {
+    ngay_chung: chung,
+    trong: days.filter((x) => x.day && x.day === chung).map((x) => x.ma),
+    ngoai: days.filter((x) => !(x.day && x.day === chung)).map((x) => ({ ma: x.ma, ngay: x.day }))
+  };
+}
+
+/**
  * GET /api/phat/ty-le. bcvh = một mã | 'all' (gộp các BCVH có dữ liệu); ngay = null -> «hôm nay» theo quy ước dashboard (ngày file OK mới nhất
  * của TỪNG BCVH, #70). mau_so = SHBG đến ngày đó = san_luong.buu_gui của tong-quan-den cùng ngày.
  */
 function tyLeApi(db, { bcvh = 'all', ngay = null } = {}) {
   const byUnit = aq.latestFileDates(db);
   const codes = bcvh === 'all' ? VALID_BCVH_CODES.filter((c) => byUnit.has(c)) : [bcvh];
+  // DASH-7e: tổng (bcvh=all, không chọn ngày) chỉ cộng các BCVH có «hôm nay» riêng đúng ngày chung (mẫu số, tử số, khung giờ, tồn chờ, giờ nhập).
+  const tap = bcvh === 'all' ? tapNgayChung(byUnit, ngay ? codes : VALID_BCVH_CODES, ngay) : null;
+  const dung = tap ? tap.trong : codes;
+  const ngaysTatCa = new Set(codes.map((c) => ngay || aq.latestFileDate(db, [c], byUnit)).filter(Boolean)); // cung_ngay xét mọi BCVH (như trước)
   const so = zeroMap();
   const khung = Object.fromEntries(C.KHUNG_GIO_DEN.map((k) => [k.ma, zeroMap()]));
   const ton = Object.fromEntries(C.NHOM_CHO.map((n) => [n.ma, 0]));
   const ngays = [];
   let moc = null;
-  for (const c of codes) {
+  for (const c of dung) {
     const day = ngay || aq.latestFileDate(db, [c], byUnit);
     if (!day) continue;
     ngays.push(day);
@@ -648,9 +668,10 @@ function tyLeApi(db, { bcvh = 'all', ngay = null } = {}) {
   }
   ngays.sort();
   return {
-    bcvh, ngay: ngay || (ngays.length ? ngays[ngays.length - 1] : null), cung_ngay: new Set(ngays).size <= 1,
+    bcvh, ngay: ngay || (ngays.length ? ngays[ngays.length - 1] : null), cung_ngay: ngaysTatCa.size <= 1,
+    ...(tap ? { so_bcvh_trong_tong: tap.trong.length, bcvh_ngoai_tong: tap.ngoai } : {}),
     ...dungTyLe(so),
-    ...soLieuDenLuc(db, codes),
+    ...soLieuDenLuc(db, dung),
     theo_khung_gio_den: C.KHUNG_GIO_DEN.map((k) => {
       const t = dungTyLe(khung[k.ma]);
       return { ma: k.ma, nhan: k.nhan, so_den: t.mau_so, theo_trang_thai: t.theo_trang_thai, muc_cap_nhat: t.muc_cap_nhat };
@@ -964,5 +985,5 @@ module.exports = {
   PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
   kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
   demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot,
-  demNgay, dungTyLe, tonCho, zeroMap, congMap // dùng chung với phatDashboard.js (PHAT-3b)
+  tapNgayChung, demNgay, dungTyLe, tonCho, zeroMap, congMap // dùng chung với phatDashboard.js (PHAT-3b)
 };

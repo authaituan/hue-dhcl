@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-7e: «Xử lý và tỷ lệ phát» (tổng) chỉ cộng BCVH có dữ liệu đúng ngày chung (backend)
+
+- **Sửa** `server/lib/phat.js` (`tapNgayChung` mới; `tyLeApi`) và `server/lib/phatDashboard.js` (`ketQuaPhat`): với `bcvh=all` không chọn `ngay`, mẫu số, tử số (5 trạng thái), khung giờ, tồn chờ và giờ nhập chỉ tính tập T (BCVH có «hôm nay» riêng = ngày chung, như DASH-7d). Thêm `so_bcvh_trong_tong`, `bcvh_ngoai_tong`. Không đổi: công thức đếm (A), một BCVH, `ngay` rõ ràng, `pham_vi`, `cung_ngay`, xếp hạng BCVH.
+- **Test** `tests/phat-cung-ngay.test.js` (mới, 8 ca; thêm vào `package.json`). **Test cũ sửa (có chủ đích)**: `tests/phat.test.js` (mẫu số 3 + 5 → 5, giờ nhập chỉ của M2) và `tests/phat-dashboard.test.js` (294 → 245 ở ba chỗ). `npm test`: 592 ca, 591 pass, 1 skip. Báo cáo: `26_DASH7E_TY_LE_PHAT_CUNG_NGAY.md`.
+- **Chưa làm**: giao diện (ghi chú BCVH chậm); mẫu số theo B và tỷ lệ phát hàng chuyển tiếp (DASH-7c-c).
+
+---
+
 ## [2026-10-16] - DASH-7d: «Toàn Trung tâm» chỉ cộng BCVH có dữ liệu đúng ngày chung (backend)
 
 - **Sửa** `server/lib/dashboardDenQuery.js` (`tongQuanDen`): với `bcvh=all`, tập T = BCVH có «hôm nay» riêng bằng `ngay_du_lieu`; sản lượng, hàng đi ngoài, túi/kiện, khối lượng, `luot`, `sau_15h`, `den_luc`, `da_toi_gio` và hai mốc so sánh (`so_bcvh` đếm trong T) chỉ tính trên T. Thêm `so_bcvh_trong_tong`, `bcvh_ngoai_tong` (`[{ma, ngay}]`). Không đổi: `theo_bcvh`, `bcvh_can_chu_y` (x/6), `cung_ngay_du_lieu`, `nap_luc`, `bcvh=<một BCVH>`, «Xử lý và tỷ lệ phát».

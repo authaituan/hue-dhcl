@@ -179,7 +179,7 @@ test('quyền GDVH (#72): xem ĐỦ mọi BCVH như ADMIN, không phụ thuộc 
     assert.equal(all.status, 200, who);
     assert.deepEqual(all.body, admin, `${who}: cùng phản hồi với ADMIN`);
     assert.deepEqual(all.body.pham_vi, VALID_BCVH_CODES);
-    assert.equal((await kq('?bcvh=all', who)).body.mau_so, 294);
+    assert.equal((await kq('?bcvh=all', who)).body.mau_so, 245, 'DASH-7e: chỉ BCVH có dữ liệu ngày chung 20/10 (không gồm M3 mới tới 19/10)');
   }
   // xin BCVH ngoài danh sách được giao, hoặc khi chưa được giao BCVH nào: vẫn 200 và đúng số của BCVH đó
   assert.equal((await kq(`?bcvh=${M2}`, 'gdvhM')).body.mau_so, 50);
@@ -221,19 +221,23 @@ test('một BCVH: mẫu số, 5 trạng thái (số + tỷ lệ), ptc, mức c�
   assert.equal(tq.san_luong.buu_gui, b.mau_so);
 });
 
-test('tất cả BCVH: cộng đúng từng BCVH ở ngày «hôm nay» của riêng nó; cung_ngay=false khi lệch ngày', async () => {
+test('tất cả BCVH (DASH-7e): chỉ cộng BCVH có «hôm nay» riêng đúng ngày chung; cung_ngay=false khi lệch ngày; bcvh_ngoai_tong', async () => {
   const b = (await kq('')).body;
   assert.equal(b.bcvh, 'all');
   assert.deepEqual(b.pham_vi, VALID_BCVH_CODES);
   assert.equal(b.ngay, D, 'ngày mới nhất');
   assert.equal(b.cung_ngay, false, 'M3 mới có dữ liệu tới 19/10');
-  assert.equal(b.mau_so, 60 + 50 + 49 + 80 + 55);
-  assert.equal(b.theo_trang_thai.PTC.so, 36 + 45 + 49 + 0 + 33);
-  assert.equal(b.ptc, Math.round(((36 + 45 + 49 + 33) / 294) * 10000) / 10000);
+  assert.equal(b.mau_so, 60 + 50 + 80 + 55, 'không cộng 49 của M3 (ngày 19/10)');
+  assert.equal(b.theo_trang_thai.PTC.so, 36 + 45 + 0 + 33);
+  assert.equal(b.ptc, Math.round(((36 + 45 + 33) / 245) * 10000) / 10000);
+  assert.equal(b.so_bcvh_trong_tong, 4);
+  assert.deepEqual(b.bcvh_ngoai_tong, [{ ma: M3, ngay: '2026-10-19' }, { ma: M6, ngay: null }], 'M3 chậm; M6 chưa có file nào');
   // ngay chung ép mọi BCVH về một ngày: M3 không có hàng ngày 20/10
   const d = (await kq(`?ngay=${D}`)).body;
   assert.equal(d.cung_ngay, true);
   assert.equal(d.mau_so, 60 + 50 + 80 + 55);
+  assert.equal(d.so_bcvh_trong_tong, 6, 'ngày rõ ràng: giữ hành vi cũ, mọi BCVH trong phạm vi vào tổng');
+  assert.deepEqual(d.bcvh_ngoai_tong, []);
 });
 
 test('ngày không có hàng đến: mẫu số 0, tỷ lệ null, không có số liệu', async () => {
@@ -373,7 +377,7 @@ test('xếp hạng chỉ khi phạm vi có từ 2 BCVH; GDVH thấy đủ các B
     const g = (await kq('', who)).body;
     assert.deepEqual(g.xep_hang_bcvh.map((x) => [x.bcvh, x.hang]), [[M2, 1], [M, 2], [M5, 2]], who);
     assert.deepEqual(g.chua_du_du_lieu, admin.chua_du_du_lieu, who);
-    assert.equal(g.mau_so, 294, `${who}: cộng cả 6 BCVH`);
+    assert.equal(g.mau_so, 245, `${who}: cộng mọi BCVH có dữ liệu ngày chung (DASH-7e)`);
   }
   assert.equal((await kq(`?bcvh=${M2}`, 'gdvhMM2')).body.xep_hang_bcvh, null, 'một BCVH: không xếp hạng');
 });
