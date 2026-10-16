@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - NAS-2: Cấu hình chạy được bản demo trên NAS Synology (Docker; không sửa mã ứng dụng)
+
+- **Sửa** `docker-compose.yml`: truyền đủ biến qua `environment:` (`TZ`, `PORT`, `JWT_SECRET`/`CMS_ALLOWED_IPS` bắt buộc, `JWT_EXPIRY*`, `LOGIN_IP_MAX_FAILS`, `TRUSTED_PROXIES`, `SFTP_*`, `SFTP_SYNC_*`; `SFTP_PORT` mặc định 5454); giữ `network_mode: host`, mount `./data:/app/data`, healthcheck `GET /`. `Dockerfile`: thêm bước kiểm nạp `better-sqlite3` (WAL) + `ssh2-sftp-client` lúc build, giữ `--ignore-scripts`. `.dockerignore`: loại `*.db*`, `**/data`, `backups`, `.github`.
+- **Mới** `.env.nas.example` (chỉ tên biến + giá trị giả), `docs/ai/20_NAS_HUONG_DAN_CHAY.md`. Căn cứ: `19_NAS_TRIEN_KHAI_AUDIT.md`.
+- **Chưa kiểm chứng**: build thật trên NAS (prebuilt `better-sqlite3`/`ssh2`), `docker compose config -q` (máy không có docker), vân tay/tường lửa SFTP 5454, TZ trong container. **Chưa làm** (NAS-3/NAS-4): tạo ADMIN trong container, sao lưu định kỳ, HTTPS.
+
+---
+
 ## [2026-10-15] - SANLUONG-5f-1c: «Đã xem xét» cho mục cần xử lý của «Nạp dữ liệu nguồn» (backend)
 
 - **Mới** `server/lib/napNguonXemXet.js` (bảng `nap_nguon_da_xem_xet`, dấu vân tay, lọc, đánh dấu, hủy); route `POST /api/nap-nguon/da-xem-xet`, `DELETE /api/nap-nguon/da-xem-xet/:id` (`server/routes/napNguon.js`, `requireAdmin`; `SECURITY_LOG` không ghi ghi chú).
