@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-16] - DASH-7c-b: «Toàn Trung tâm» đếm bưu gửi khác nhau xuyên BCVH (backend)
+
+- **Sửa** `server/lib/dashboardDenQuery.js`: hàm mới `countAcross` (CTE xuyên BCVH, cắt giờ theo BCVH của từng dòng TRƯỚC khi chọn dòng sớm nhất); `tongQuanDen` với `bcvh=all` tính tổng bưu gửi, hàng đi ngoài, sau 15:00 và hai mốc so sánh (tử và mẫu cùng tập BCVH có mốc) theo công thức B. Thêm trường `san_luong.tong_cong_theo_bcvh`, `so_shbg_qua_nhieu_bcvh`, `tui_kien`, `khoi_luong_g` (chỉ `bcvh=all`). Số từng BCVH, `luot`, `bcvh=<một BCVH>` không đổi.
+- **Test** `tests/dashboard-den-xuyen-bcvh.test.js` (mới, 8 ca; thêm vào `package.json` → `npm test`: 576 ca, 575 pass, 1 skip). Báo cáo: `24_DASH7C_B_TONG_XUYEN_BCVH.md`.
+- **Chưa làm**: giao diện (`src/`) ghi chú «N bưu gửi qua 2 BCVH»; «Xử lý và tỷ lệ phát» vẫn công thức A (chờ số đo BCVH nào phát hàng chuyển tiếp).
+
+---
+
 ## [2026-10-16] - NAS-2: Cấu hình chạy được bản demo trên NAS Synology (Docker; không sửa mã ứng dụng)
 
 - **Sửa** `docker-compose.yml`: truyền đủ biến qua `environment:` (`TZ`, `PORT`, `JWT_SECRET`/`CMS_ALLOWED_IPS` bắt buộc, `JWT_EXPIRY*`, `LOGIN_IP_MAX_FAILS`, `TRUSTED_PROXIES`, `SFTP_*`, `SFTP_SYNC_*`; `SFTP_PORT` mặc định 5454); giữ `network_mode: host`, mount `./data:/app/data`, healthcheck `GET /`. `Dockerfile`: thêm bước kiểm nạp `better-sqlite3` (WAL) + `ssh2-sftp-client` lúc build, giữ `--ignore-scripts`. `.dockerignore`: loại `*.db*`, `**/data`, `backups`, `.github`.
