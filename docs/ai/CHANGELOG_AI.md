@@ -2,6 +2,24 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-17] - DASH-12b-4: chữ ký cache từ trạng thái trong DB, giảm tính lại khi có file mới, khởi động nóng theo lát
+
+- **Sửa** `server/lib/phatDashboard.js`: tầng 1 khoá theo `dauHieuDb` (`PRAGMA data_version` + `total_changes()`); tầng 2 chữ ký theo (BCVH, ngày) = `sigNgay` + `sigLai` + `sigDot` + `sigFile` tính lười từ DB (nội dung dòng đến, ngày đến kế tiếp D', lịch sử + đợt nhập phát, file); `khoiDongNong` chia lát; `xoaTang1PhatThang` (test). `server/index.js`: gọi khởi động nóng sau khi nghe (PHAT_WARM=0 để tắt; không chạy trong test). `scripts/bench-phat-thang.js` (mới): đo trên CSDL RAM, có ngân sách thời gian. Quyết định #93. Không đổi hợp đồng JSON, quyền, giao diện.
+- **Test** `tests/phat-thang.test.js` 31 ca (+11): nguyên nhân 1–7 + 4b, mỗi ca so sánh trực tiếp cache với tính lại từ đầu (cả khi bỏ tầng 1) và kiểm sự kiện có đổi kết quả; đến lại / khởi động nóng. `tests/phat-dashboard.test.js`: đo PERF bỏ phần khởi động nóng (chuyển sang script đo). `npm test`: 640 ca, 639 đạt, 1 bỏ qua. Đo (xem `31_…`): sau 1 file mới ~0,8 giây (cỡ thật 243k dòng) / ~2,3 giây (cỡ xấu nhất 720k) — trước ~14,9 giây; lần đầu ~4,3 / ~13,4 giây; khởi động nóng lát dài nhất 41 / 102 ms (< 200 ms).
+- **Lưu ý**: truy vấn `sigLai` bắt buộc `INDEXED BY ix_arrival_items_tracking` (không ép: 52 giây / ngày ở 744k dòng, làm treo phép đo). Mỗi lần DB đổi (kể cả ghi không liên quan) tính lại chữ ký ~0,3 / ~0,9 giây.
+- **Chưa làm**: giao diện Tivi; đo trên DB thật / đĩa.
+
+---
+
+## [2026-10-17] - DASH-12b-3: kết quả phát theo NGÀY ĐẾN (lịch sử nhập), «đủ số liệu», tách HÔM NAY | LŨY KẾ (backend + giao diện web)
+
+- **Quy tắc (#92, đổi #91-1)**: mỗi lần đến D của một SHBG tại BCVH lấy bản nhập cuối (`phat_status_history`, bỏ đợt hoàn tác) có ngày nhập VN N, `D ≤ N < D'`; không có → Chưa có TT. `server/lib/phat.js`: `demNgay(..., { theoLichSu })` (`NHAP_CTE` / `NHAP_SELECT`, bản tập hợp ~60–80 ms / BCVH-ngày; bản truy vấn con tương quan ~1,45 giây bị bỏ); `runGan` thêm `{ them, materialize }`. Mặc định `demNgay` giữ nguyên cho `/api/phat/ty-le` và commit / hoàn tác. `server/lib/phatDashboard.js`: `ketQuaPhat` dùng quy tắc mới + khóa `du_so_lieu` (giá trị khóa cũ đổi, gồm xếp hạng; **Tivi đổi số theo**, `TiviView.jsx` không sửa); endpoint tháng: `du_so_lieu` theo ngày, `hom_nay`, lũy kế chỉ ngày đủ, `chenh` chỉ khi hôm nay đủ; cache tầng 2 khoá `v3|` + chữ ký không chặn trên (file mới tính lại cả tháng); chữ ký thêm tổng id đợt hoàn tác.
+- **Giao diện** (`DailyOpsPtcRow.jsx`, `DailyOpsPtcThang.jsx`, `DailyOpsDashboard.jsx`): thẻ PTC lớn hai cột HÔM NAY | TỪ 01/MM, chip chênh, đường diễn biến có vạch mục tiêu 82%; 4 thẻ nhỏ có chân thẻ 44px; hôm nay chưa xử lý hiện số thật (0 / 0,0% / Chưa có TT 100%) + «Hôm nay chưa có xử lý»; đặt `thangPhat` về `null` khi đổi BCVH. Chiều cao hàng thẻ 186 px (trước 189 px, đo trong trình duyệt khung 1366 px).
+- **Test**: `tests/phat-thang.test.js` viết lại (20 ca); `tests/phat-dashboard.test.js` (danh sách khóa `ket-qua-phat` thêm `du_so_lieu`; số khóa `phatConfig` = 7; đo PERF mới); helper `ghiDot` của `phat-dashboard`, `phat-cung-ngay`, `phat-bcvh-muon-nhat` ghi thêm `phat_status_history`. `npm test`: 629 ca, 628 đạt, 1 bỏ qua. Đo (744.000 dòng giả): endpoint tháng 6 × 30 ngày lần đầu ~14 giây (trước ~6,7), sau 1 đợt nhập ~2,0 giây, sau 1 file mới ~14,9 giây (tính lại cả tháng). Báo cáo: `31_…`, `32_…`.
+- **Chưa làm / cần PO**: giảm chi phí tính lại khi có file mới; khởi động nóng; giao diện Tivi; dữ liệu 01–09/10 và số thử (PO).
+
+---
+
 ## [2026-10-17] - DASH-12c: giao diện «từ đầu tháng» cho hàng thẻ kết quả phát (web)
 
 - **Thêm** `src/components/arrivals/DailyOpsPtcThang.jsx` (lũy kế, chênh «điểm so với tháng» theo `chenh` của máy chủ, đường diễn biến ngắt ở `null`, cảnh báo thiếu ngày); `DailyOpsPtcRow.jsx` chèn vào 5 thẻ (prop `thang`); `DailyOpsDashboard.jsx` gọi riêng `ket-qua-phat-thang` (không chặn khối khác, bỏ kết quả cũ khi đổi BCVH). `formatPercent` làm tròn bằng số nguyên (khớp backend). Không đổi `server/`, Tivi, test.

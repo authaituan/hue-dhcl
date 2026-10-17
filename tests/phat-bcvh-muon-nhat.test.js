@@ -68,7 +68,9 @@ function writeFiles() {
 function ghiDot(bcvh, items, nhapLuc, userId) {
   const bid = ctx.db.prepare('INSERT INTO phat_batches (bcvh, user_id, nhap_luc, so_nhap) VALUES (?, ?, ?, ?)').run(bcvh, userId, nhapLuc, items.length).lastInsertRowid;
   const ins = ctx.db.prepare('INSERT INTO phat_status_current (bcvh, shbg, trang_thai, batch_id, nhap_luc) VALUES (?, ?, ?, ?, ?)');
-  ctx.db.transaction(() => { for (const [s, tt] of items) ins.run(bcvh, s, tt, bid, nhapLuc); })();
+  // DASH-12b-3 (#92): kết quả phát theo ngày đến dựng từ LỊCH SỬ NHẬP -> mỗi lần nhập cũng ghi một dòng phat_status_history (như nhập thật)
+  const his = ctx.db.prepare('INSERT INTO phat_status_history (bcvh, shbg, trang_thai, trang_thai_truoc, batch_id, nhap_luc) VALUES (?, ?, ?, NULL, ?, ?)');
+  ctx.db.transaction(() => { for (const [s, tt] of items) { ins.run(bcvh, s, tt, bid, nhapLuc); his.run(bcvh, s, tt, bid, nhapLuc); } })();
 }
 
 before(async () => {

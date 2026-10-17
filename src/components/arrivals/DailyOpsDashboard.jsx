@@ -444,6 +444,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   // «Từ đầu tháng» (DASH-12c): lấy riêng, KHÔNG chặn các khối khác (máy chủ tính ~1 giây khi dữ liệu đổi); lỗi / 403 chỉ làm khối này ẩn số.
   const [thangPhat, setThangPhat] = useState(null);
   const thangReq = useRef(0);
+  const thangBcvh = useRef(null);
 
   // Trạng thái mạng / refresh
   const [initialLoading, setInitialLoading] = useState(true);
@@ -499,6 +500,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
       // «Từ đầu tháng» của thẻ kết quả phát: gọi riêng, bỏ qua kết quả của lần gọi cũ khi đã đổi BCVH / có lần gọi mới hơn
       const reqId = ++thangReq.current;
+      if (thangBcvh.current !== code) { thangBcvh.current = code; setThangPhat(null); } // đổi BCVH / phạm vi: không hiện số tháng của BCVH cũ trong lúc chờ
       apiFetchJson(`/api/arrivals/dashboard/ket-qua-phat-thang?bcvh=${code}`)
         .then((res) => { if (reqId === thangReq.current) setThangPhat(res.ok ? res.data : false); })
         .catch(() => { if (reqId === thangReq.current) setThangPhat(false); });
@@ -561,6 +563,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   // Handler đổi BCVH
   const handleSelectBcvh = (newCode) => {
     setSelectedBcvh(newCode);
+    setThangPhat(null); // không hiện số tháng của BCVH cũ khi vừa đổi
     setHasUserSelected(true);
   };
 
@@ -950,7 +953,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       </div>
 
       {/* 3. HÀNG PTC (PHAT-3c: THẺ PTC LỚN + 4 THẺ NHỎ) */}
-      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat} />
+      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat && thangPhat.bcvh !== (selectedBcvh || 'all') ? null : thangPhat} />
 
       {/* 4. KHỐI «CẦN ĐIỀU HÀNH NGAY HÔM NAY» / «VIỆC CỦA BCVH TÔI» */}
       <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">

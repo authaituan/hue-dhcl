@@ -1,10 +1,12 @@
 # DASH-12b — `ket-qua-phat-thang`: kết quả phát từ đầu tháng (backend)
 
 > Làm theo khảo sát DASH-12a và 4 quyết định PO (17/10/2026). Giao diện là DASH-12c. Phương án B: endpoint mới, không đổi `ket-qua-phat` / `tong-quan-den`.
+>
+> **DASH-12b-3 (#92, cùng ngày) ĐỔI quyết định 1 và cách «ngày có số liệu»**: kết quả phát theo NGÀY ĐẾN dựng từ LỊCH SỬ NHẬP, ngày «đủ số liệu» = Chưa có TT < 10% — xem mục «DASH-12b-3» cuối tài liệu. Các mục bên dưới đã cập nhật theo bản mới; chỗ nào ghi «trạng thái hiện tại» là bản gốc DASH-12b, nay không còn đúng.
 
 ## Quyết định (04_DECISIONS.md #91)
 
-1. Số ngày cũ theo **trạng thái hiện tại** của SHBG (`phat_status_current`, khoá `(bcvh, shbg)`, không có ngày); không dựng lại từ lịch sử. Nhập muộn / hoàn tác đợt làm đổi số ngày cũ.
+1. ~~Số ngày cũ theo trạng thái hiện tại của SHBG~~ — **đã thay bằng #92**: mỗi lần đến D lấy bản nhập cuối có ngày nhập VN N thỏa `D ≤ N < D'` (lịch sử nhập, bỏ đợt hoàn tác).
 2. Số thử (#3, #5–#9) và khai thật 01–09/10 là việc của PO trên dữ liệu; không thêm cờ thử/thật.
 3. `bcvh=all` lệch ngày dữ liệu: dùng ngày chung (`tapNgayChung`), khớp thẻ ngày; cùng tập BCVH cho mọi ngày của tháng.
 4. Chênh lệch: «ngang» khi `|chênh| < 0,5` điểm; chỉ trả khi ≥ 2 ngày có số liệu và mẫu số hôm nay ≥ 50, ngược lại `null`.
@@ -50,7 +52,7 @@
 | `server/lib/phatDashboard.js` | `ketQuaPhatThang`, `tinhThang`, `chenhHienThi`, `dec1`, cache + `chuKyDuLieu`, `xoaCachePhatThang` |
 | `server/lib/phatConfig.js` | `NGUONG_NGANG_DIEM`, `SO_NGAY_TOI_THIEU_SO_SANH`, `SAN_MAU_SO_SO_SANH` |
 | `server/routes/arrivals.js` | route mới (cùng guard với `ket-qua-phat`) |
-| `tests/phat-thang.test.js` (mới, 16 ca; đã thêm vào `package.json`) | xem dưới |
+| `tests/phat-thang.test.js` (mới, 16 ca ở 12b-2; 20 ca sau DASH-12b-3; đã thêm vào `package.json`) | xem dưới |
 | `tests/phat-dashboard.test.js` | sửa 1 ca cũ (số khoá của `phatConfig` 4 → 7) + dòng đo `ketQuaPhatThang` trong kịch bản `PHAT_PERF=1` |
 
 ## Cách gộp
@@ -88,6 +90,63 @@ Máy dev Windows hiện tại (chậm hơn số đo cũ trong `08_PHAT.md`: `ket
 
 Chỉ lần tính lần đầu sau khi khởi động máy chủ còn ~6,7 giây ở cỡ dữ liệu này (cache trong bộ nhớ, mất khi khởi động lại). Vẫn chặn tiến trình (`better-sqlite3` đồng bộ): ~1 giây mỗi lần có đợt nhập. Muốn xoá nốt lần đầu: khởi động nóng (gọi một lần sau khi máy chủ lên) hoặc tính nền — chưa làm.
 
+
+## DASH-12b-3 — quy tắc ngày đến (#92) và hiệu năng
+
+**Thay đổi backend**
+- `server/lib/phat.js`: `demNgay(db, bcvh, day, { demLoaiBo, theoLichSu })`. `theoLichSu = true` dùng `NHAP_CTE` / `NHAP_SELECT` (CTE cụ thể hoá `ls` = lịch sử nhập chưa hoàn tác của các SHBG trong ngày, `nx` = ngày đến kế tiếp D' của từng SHBG tại BCVH; nối theo SHBG, lấy `MAX(id)` trong cửa sổ `[D, D')`; ngày nhập VN = `date(nhap_luc, '+7 hours')`). Mặc định giữ NGUYÊN hành vi cũ cho `/api/phat/ty-le` (`tyLeApi`) và commit / hoàn tác (`tyLeNgay`). `runGan` nhận thêm `{ them, materialize }`. `tonCho` không dùng `demNgay` (giữ nguyên).
+- `server/lib/phatDashboard.js`: `ketQuaPhat` dùng `theoLichSu` và **thêm** khóa `du_so_lieu`; `tinhThang` dùng `duSoLieu` (tập BCVH gộp của ngày) thay `co_tt > 0`, thêm `theo_ngay[].du_so_lieu` và `hom_nay`; `chenh` chỉ khi hôm nay đủ số liệu; cache tầng 2 đổi khoá (`v3|`) và chữ ký theo ngày không chặn trên (xem `08_PHAT.md`); chữ ký thêm tổng id đợt hoàn tác (hai lần hoàn tác trong cùng một giây vẫn đổi chữ ký).
+- Không đổi: `tong-quan-den`, importer, SFTP, `ton_cho`, hợp đồng của `ket-qua-phat` (chỉ thêm khóa; GIÁ TRỊ các khóa cũ đổi theo quy tắc ngày đến, gồm xếp hạng BCVH). **Tivi** gọi `ket-qua-phat` nên số Tivi đổi theo (giao diện Tivi không sửa).
+
+**Việc 0 — khảo sát (đã kiểm chứng, đọc mã)**
+- (a) `phat_status_current` có `batch_id` + `nhap_luc` (UTC ISO `YYYY-MM-DDTHH:MM:SSZ`, do máy chủ `nowIso()`), nhưng khi hoàn tác khôi phục dùng `batch_id` của dòng lịch sử trước hoặc `0` nếu không có (không nối được `phat_batches`) và nó chỉ giữ bản cuối → KHÔNG đủ cho quy tắc 2; nguồn đúng là `phat_status_history` (mỗi lần nhập một dòng: `trang_thai`, `batch_id`, `nhap_luc`). Đổi múi giờ: `date(nhap_luc, '+7 hours')` (Asia/Bangkok không có DST; `C.MUI_GIO`).
+- (b) Đổi trạng thái đã có (PKTC → PTC): `SQL_UPSERT_CURRENT` ghi đè `trang_thai`, `batch_id`, `nhap_luc` của dòng hiện tại. Hoàn tác (`hoanTacDot`): khôi phục dòng hiện tại về trạng thái trước (hoặc xoá), VÀ ghi thêm một dòng lịch sử mang `batch_id` của đợt BỊ hoàn tác; chặn hoàn tác nếu có đợt sau chưa hoàn tác đã đổi cùng SHBG. Vì vậy lọc `phat_batches.trang_thai = 'da_nhap'` loại cả dòng gốc lẫn dòng hoàn tác → chuỗi còn lại đúng sau hoàn tác.
+- (c) Nơi gọi `demNgay`: `tyLeNgay` (commit / hoàn tác «trước / sau», `phat.js`), `tyLeApi` (`/api/phat/ty-le`), `motBcvh` (`ketQuaPhat`: thẻ ngày + xếp hạng BCVH; Tivi qua đó), `tinhThang` (endpoint tháng). `tonCho` có truy vấn riêng. Chỉ `ketQuaPhat` + endpoint tháng đổi sang quy tắc 2.
+- (d) Lịch sử đủ cho mọi lần nhập qua đường nhập chuẩn (không có dòng `phat_status_current` nào mà không có `phat_status_history` trừ dữ liệu chèn tay / dữ liệu thử ngoài đường nhập — chưa kiểm chứng trên DB thật, PO xử lý). Tập ngày đến của SHBG: `arrival_items` (`arrival_date` của chính BCVH) cho D'; ngày D theo quy tắc gán DASH-7f của `demNgay`. Phương án truy vấn: tính TỪNG ngày (không truy vấn một khoảng vì `buildCountedCte` gom mỗi SHBG một dòng) bằng CTE cụ thể hoá; bản truy vấn con tương quan đo ~1,45 giây / BCVH-ngày (không chấp nhận được), bản tập hợp ~60–80 ms.
+
+**Đo hiệu năng** (`PHAT_PERF=1`, dữ liệu giả 6 BCVH × 31 ngày × 4.000 SHBG/ngày = 744.000 dòng; máy dev Windows, dao động theo tải máy — `demNgay` cũ đo 26–59 ms giữa hai lần chạy):
+
+| Tình huống | Số ngày-BCVH tính lại | Thời gian |
+|---|---|---|
+| `demNgay` cũ (trạng thái hiện tại), 1 BCVH 1 ngày | 1 | 26–59 ms |
+| `demNgay(theoLichSu)`, 1 BCVH 1 ngày (truy vấn con tương quan — bỏ) | 1 | ~1.450 ms |
+| `demNgay(theoLichSu)`, 1 BCVH 1 ngày (bản tập hợp — dùng) | 1 | 62–81 ms |
+| Endpoint tháng, 6 BCVH × 30 ngày, không cache / lần đầu | 180 | **~12,6 s / ~14 s** (trước 12b-3: ~6,7 s) |
+| Trúng cache toàn kết quả | 0 | 0 ms |
+| Sau 1 đợt nhập phát của 1 BCVH | 30 | ~2,0 s (trước: ~1,1 s) |
+| Sau 1 file hàng đến mới ở ngày dữ liệu | 180 | **~14,9 s** (trước 12b-3: ~0,9 s, 24 ngày-BCVH) |
+
+**Kết luận hiệu năng (bản DASH-12b-3; đã cải thiện ở DASH-12b-4 bên dưới)**: quy tắc 2 **khả thi** (không phải quay lại «trạng thái hiện tại») nhưng đắt hơn: ~1,5–2 lần mỗi ngày-BCVH, và vì D' (ngày đến kế tiếp) có thể ở bất kỳ ngày sau, **một file mới ở ngày nào cũng làm tính lại cả tháng** (trước đó chỉ vài ngày). Ở cỡ dữ liệu giả lớn nhất (4.000 SHBG/BCVH/ngày) mỗi lần như vậy chặn tiến trình ~12–15 giây (`better-sqlite3` đồng bộ) trên máy đo; nếu số thật nhỏ hơn thì tương ứng nhẹ hơn (chưa kiểm chứng). Hướng giảm (chưa làm): (a) chỉ vô hiệu các ngày trước X khi file mới chứa SHBG đã từng đến (kiểm bằng một truy vấn nhỏ); (b) giới hạn D' trong một cửa sổ nhìn tới trước (khác quy tắc PO — cần quyết); (c) khởi động nóng / tính nền sau mỗi lần nhập; (d) tính cả tháng trong một truy vấn cho mỗi BCVH bằng cửa sổ `ROW_NUMBER` (không dùng `buildCountedCte` một khoảng).
+
+**Test**: `tests/phat-thang.test.js` (20 ca) viết lại theo quy tắc mới: SHBG đến lại (ngày 01 PKTC / ngày 02 PTC), chỉ nhập ngày này / ngày kia, «mang sang» (nhập trước khi đến), biên giờ 23:59:59 / 00:00:00 VN, nhập muộn (95% → 98%) tính cho ngày đến, hoàn tác đợt, hôm nay chưa xử lý (0 / 0,0% / Chưa có TT 100%, `du_so_lieu` false, `chenh` null, không vào lũy kế), biên 9,9 / 10,0 / 10,1%, lũy kế, chuỗi, chênh, `all` ngày chung, cache hai tầng, quyền. Test cũ đổi: `tests/phat-dashboard.test.js` (danh sách khóa `ket-qua-phat` thêm `du_so_lieu`; số khóa `phatConfig` 7); các helper `ghiDot` của `phat-dashboard`, `phat-cung-ngay`, `phat-bcvh-muon-nhat` ghi thêm `phat_status_history` (quy tắc 2 dựng từ lịch sử). Các ca còn lại giữ nguyên số mong đợi.
+
+## DASH-12b-4 — giảm tính lại, chữ ký từ DB, khởi động nóng (nghiệm thu PO 17/10/2026)
+
+**Điều kiện nghiệm thu và cách đáp ứng**
+1. *Chữ ký từ trạng thái trong DB*: tầng 1 khoá theo `dauHieuDb` (`PRAGMA data_version` + `total_changes()`); tầng 2 theo chữ ký tổng hợp nội dung (`sigNgay`, `sigLai`, `sigDot`, `sigFile`) — xem `08_PHAT.md`. Không dùng bộ đếm trong tiến trình. Phát hiện khi khảo sát: `scripts/rederive-arrival.js` UPDATE tại chỗ `arrival_at` / `arrival_at_basis` / `arrival_date`; «Khôi phục» thêm lại dòng với id MỚI; xoá có thể chỉ ở bảng dòng — nên chữ ký dựa trên tổng id + tổng giờ đến chứ không chỉ id lớn nhất / số file.
+2. *Mỗi nguyên nhân có test*: `tests/phat-thang.test.js` — (1) nạp file + dòng mới, (2) xoá dòng chỉ ở bảng dòng, (3) sửa tại chỗ (dời ngày; sửa giờ), (4) đợt nhập mới + lần đến sau + hoàn tác, (4b) CHỈ ngày đến kế tiếp đổi (dòng chèn vào file có sẵn), (5) xoá dòng lịch sử chỉ ở bảng lịch sử, (6) xoá / khôi phục file + dòng, (7) ghi từ KẾT NỐI KHÁC. Sau mỗi sự kiện: cache == tính lại từ đầu trên 4 khung nhìn (all, M, M2, M ngày 05), kiểm cả khi bỏ tầng 1 (`xoaTang1PhatThang`) để chữ ký tầng 2 tự đứng được, và sự kiện thật sự đổi kết quả (ca không rỗng). Đã thử đột biến: ép chữ ký về hằng làm các ca tương ứng ĐỎ (kể cả riêng `sigLai` → ca 4b đỏ).
+3. *Nghi ngờ thì vô hiệu rộng*: ghi bảng không liên quan vẫn đổi dấu hiệu DB (chỉ tính lại chữ ký, 0 ngày); `sigNgay` gộp mọi BCVH; thêm `sigFile`; chốt 10 phút.
+4. *Đo hai cỡ* (bằng `node scripts/bench-phat-thang.js <SHBG/BCVH-ngày> [giây]`, CSDL RAM, dữ liệu giả, ngân sách 110 giây, tháng 30 ngày × 6 BCVH = 180 ngày-BCVH; máy dev Windows) — xem bảng dưới.
+5. *Khởi động nóng theo lát*: mỗi lát một truy vấn rồi nhường vòng lặp; lát dài nhất 41 ms (cỡ thật) / 102 ms (cỡ xấu nhất) < 200 ms → ĐÃ cài (`server/index.js`, sau khi nghe 3 giây; `PHAT_WARM=0` để tắt; không chạy trong test).
+6. Không commit, không `git add`, không đụng DB thật (chỉ DB tạm / RAM).
+
+**Đo (ms; «tính lại» = số ngày-BCVH gọi `demNgay`)**
+
+| Tình huống | Cỡ thật 243.000 dòng (1350/ngày) | Cỡ xấu nhất 720.000 dòng (4000/ngày) |
+|---|---|---|
+| 1. Lần đầu sau khởi động (cache trống) — 180 | 4.302 | 13.379 |
+| 2. Trúng cache (DB không đổi) — 0 | 0 | 0 |
+| 3. Sau 1 đợt nhập phát của 1 BCVH — 30 | 1.006 | 2.781 |
+| 4. Sau 1 file mới (không dòng) ở ngày dữ liệu — 24 | 805 | 2.312 |
+| 5. Sau 1 file mới có 1 dòng mới ở ngày dữ liệu — 24 | 766 | 2.324 |
+| 6. Sau 1 file mới có SHBG đến lại (ngày 04) — 25 | 800 | 2.332 |
+| 7. Sau 1 ghi KHÔNG liên quan (chỉ chữ ký) — 0 | 291 | 940 |
+| 8. Khởi động nóng: tổng / số lát / LÁT dài nhất / độ trễ vòng lặp p50 · p99 · max | 4.726 / 1.152 / **41** / 23 · 40 · 42 | 12.990 / 1.152 / **102** / 64 · 88 · 105 |
+| 9. Yêu cầu đầu sau khởi động nóng — 0 | 13 | 15 |
+
+So với trước 12b-4 (quy tắc chặn trên không có): «sau 1 file mới» từ ~14,9 giây (cả tháng, 180) xuống ~0,8 giây (cỡ thật) / ~2,3 giây (cỡ xấu nhất). Chi phí còn lại: mỗi lần DB đổi phải tính lại chữ ký (~0,3 giây cỡ thật / ~0,9 giây cỡ xấu nhất, chặn tiến trình) — đây là giá của việc không tin bộ đếm trong tiến trình. Một sự cố đã gặp khi đo: truy vấn `sigLai` không ép chỉ mục đã treo phép đo (SQLite chọn quét theo ngày: 52 giây / ngày ở 744.000 dòng); đã ép `INDEXED BY ix_arrival_items_tracking` (2 ms) và ghi lại để tránh lặp.
+
+**Chưa làm / hạn chế**: tính lại chữ ký ở MỖI lần DB đổi (kể cả ghi không liên quan như đổi tên người dùng); đo chỉ trên CSDL RAM dữ liệu giả (trên đĩa / DB thật chưa đo); khởi động nóng chỉ phủ tháng của «ngày dữ liệu» hiện tại; thay `sigNgay` bằng tổng hợp rẻ hơn (vd. theo bảng thay đổi) nếu số thật lớn hơn cỡ xấu nhất.
 
 ## Chưa làm / còn lại
 
