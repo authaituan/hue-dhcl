@@ -11,6 +11,7 @@ import TiviView from './components/TiviView';
 import ProcessingDeliveryView from './components/phat/ProcessingDeliveryView';
 import ReplaceDayView from './components/arrivals/ReplaceDayView';
 import SourceIngestView from './components/arrivals/SourceIngestView';
+import ThamSoView from './components/thamso/ThamSoView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
@@ -255,6 +256,10 @@ export default function App() {
               authUser={authUser}
               onNavigateReplaceDay={handleNavigateReplaceDay}
             />
+          )}
+
+          {activeTab === 'tham_so' && isAdmin && (
+            <ThamSoView authUser={authUser} />
           )}
         </main>
       </div>
