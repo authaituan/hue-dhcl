@@ -11,7 +11,7 @@ import ArrivalsLookup from './ArrivalsLookup';
 import ArrivalsExport from './ArrivalsExport';
 import { ArrivalsNotReceivedBanner, ArrivalsNotReceivedDetail } from './ArrivalsNotReceived';
 import { ArrivalsBd10NotConfirmedBanner, ArrivalsBd10NotConfirmedDetail } from './ArrivalsBd10NotConfirmed';
-import { formatToApiDate } from './dateUtils';
+import { formatToApiDate, parseFromApiDate } from './dateUtils';
 import IngestAttentionBanner from './IngestAttentionBanner';
 
 // Alias dùng chung từ constants/bcvh.js
@@ -41,10 +41,26 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
     // PO: khoảng ngày mặc định chưa chốt. Lấy 7 ngày gần nhất.
     const to = new Date();
     const from = new Date(to.getTime() - 6 * 24 * 60 * 60 * 1000); // 7 days inclusive
+
+    let initFrom = formatToApiDate(from, false);
+    let initTo = formatToApiDate(to, true);
+    if (navParams?.date) {
+      const parsed = parseFromApiDate(navParams.date, false);
+      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
+        initFrom = formatToApiDate(parsed, false);
+        initTo = formatToApiDate(parsed, true);
+      }
+    }
+
+    let initReceiver = [];
+    if (navParams?.bcvh) {
+      initReceiver = Array.isArray(navParams.bcvh) ? navParams.bcvh : [navParams.bcvh];
+    }
+
     return {
-      from: formatToApiDate(from, false),
-      to: formatToApiDate(to, true),
-      receiver_code: [], // sẽ cập nhật lại khi meta load
+      from: initFrom,
+      to: initTo,
+      receiver_code: initReceiver, // sẽ cập nhật lại khi meta load
       ward_key: ''
     };
   });
@@ -79,9 +95,32 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
       setShowBd10Detail(true);
       setShowNotReceivedDetail(false);
     }
+
+    let hasFilterUpdate = false;
+    let newCodes = null;
+    let newFrom = null;
+    let newTo = null;
+
     if (navParams.bcvh) {
-      const codes = Array.isArray(navParams.bcvh) ? navParams.bcvh : [navParams.bcvh];
-      setFilters(prev => ({ ...prev, receiver_code: codes }));
+      newCodes = Array.isArray(navParams.bcvh) ? navParams.bcvh : [navParams.bcvh];
+      hasFilterUpdate = true;
+    }
+    if (navParams.date) {
+      const parsed = parseFromApiDate(navParams.date, false);
+      if (parsed instanceof Date && !isNaN(parsed.getTime())) {
+        newFrom = formatToApiDate(parsed, false);
+        newTo = formatToApiDate(parsed, true);
+        hasFilterUpdate = true;
+      }
+    }
+
+    if (hasFilterUpdate) {
+      setFilters(prev => ({
+        ...prev,
+        ...(newCodes ? { receiver_code: newCodes } : {}),
+        ...(newFrom ? { from: newFrom, to: newTo } : {})
+      }));
+      setData(prev => ({ ...prev, summary: null }));
     }
     onClearNavParams?.();
   }, [navParams, onClearNavParams]);
