@@ -666,6 +666,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
               <ColChuaNhanAll
                 chuaNhanList={chuaNhanBcvhList}
                 ngayDuLieu={tongQuan?.ngay_du_lieu}
+                nguong={tongQuan?.nguong}
               />
             ) : (
               <ColChuaNhanBCVH
@@ -1663,7 +1664,7 @@ function ColKhungGio({ ngayDuLieu }) {
 }
 
 // ── Cột Phải — Bảng 11: Hàng tới rồi, chưa quét? (DASH-11a) ────────────────────
-function ColChuaNhanAll({ chuaNhanList = [], ngayDuLieu }) {
+function ColChuaNhanAll({ chuaNhanList = [], ngayDuLieu, nguong }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
@@ -1787,7 +1788,7 @@ function ColChuaNhanAll({ chuaNhanList = [], ngayDuLieu }) {
                 padding: '4px 14px',
                 whiteSpace: 'nowrap',
               }}>
-                Từ 1 ngày · {formatViVN(tongTu1Ngay)}
+                Từ {nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY} ngày · {formatViVN(tongTu1Ngay)}
               </div>
             </div>
           </div>

@@ -1372,7 +1372,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                           <div 
                             style={{ width: `${pTu1Ngay}%` }} 
                             className="bg-red-600 flex items-center justify-center px-1"
-                            title={`Từ 1 ngày trở lên: ${tu1Ngay} bưu gửi`}
+                            title={`Từ ${tongQuan?.nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY} ngày trở lên: ${tu1Ngay} bưu gửi`}
                           >
                             {tu1Ngay}
                           </div>
@@ -1410,7 +1410,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 bg-red-600 rounded-sm" />
-                <span>Từ 1 ngày trở lên (cần xử lý ngay)</span>
+                <span>Từ {tongQuan?.nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY} ngày trở lên (cần xử lý ngay)</span>
               </div>
             </div>
           </div>
@@ -1443,7 +1443,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 <div className="text-[10px] text-gray-400">Chia theo giờ</div>
               </div>
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-center shadow-sm">
-                <div className="text-[11px] font-bold text-red-700 uppercase mb-1">TỪ 1 NGÀY</div>
+                <div className="text-[11px] font-bold text-red-700 uppercase mb-1">
+                  TỪ {tongQuan?.nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY} NGÀY
+                </div>
                 <div className="text-2xl font-black text-red-700">
                   {currentBcvhRow?.chua_nhan?.cho_tu_1_ngay || 0}
                 </div>
