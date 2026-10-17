@@ -4,6 +4,7 @@
 //
 //   node scripts/import-arrivals.js <file.csv | thư-mục> [--db <đường-dẫn-DB>]
 //   node scripts/import-arrivals.js --check-days [--db <đường-dẫn-DB>] [--today YYYY-MM-DD]
+//   node scripts/import-arrivals.js <file.csv> --chia-ngay [--db <đường-dẫn-DB>]   (SANLUONG-5k: một file nhiều ngày, chia theo ngày đến BCVH)
 //
 // DB mặc định data/hue-dhcl.db (hoặc biến môi trường ARRIVALS_DB). DB phải đã có schema app.
 // Chỉ in số liệu tổng hợp — KHÔNG in nội dung dòng dữ liệu.
@@ -13,9 +14,9 @@
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
-const { ensureArrivalSchema, importArrivalFile, importArrivalDirectory, getMissingBatches, wardKey } = require('../server/lib/arrivalsImport');
+const { ensureArrivalSchema, importArrivalFile, importArrivalFileChiaNgay, importArrivalDirectory, getMissingBatches, wardKey } = require('../server/lib/arrivalsImport');
 
-const USAGE = 'Cách dùng: node scripts/import-arrivals.js <file.csv | thư-mục> [--db <DB>]  |  --check-days [--db <DB>] [--today YYYY-MM-DD]';
+const USAGE = 'Cách dùng: node scripts/import-arrivals.js <file.csv | thư-mục> [--db <DB>]  |  --check-days [--db <DB>] [--today YYYY-MM-DD]  |  <file.csv> --chia-ngay [--db <DB>]';
 
 function parseArgs(argv) {
   const out = { positional: [] };
@@ -23,6 +24,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--db' || a === '--today') out[a.slice(2)] = argv[++i];
     else if (a === '--check-days') out.checkDays = true;
+    else if (a === '--chia-ngay') out.chiaNgay = true;
     else if (a.startsWith('--')) throw new Error(`Tuỳ chọn không hỗ trợ: ${a}`);
     else out.positional.push(a);
   }
@@ -83,6 +85,28 @@ async function main() {
   const target = args.positional[0];
   if (!target) throw new Error(USAGE);
   if (!fs.existsSync(target)) throw new Error(`Không tìm thấy: ${target}`);
+
+  if (args.chiaNgay) {
+    // SANLUONG-5k: một file nhiều ngày, tự chia theo ngày đến BCVH, MỘT giao dịch (docs/ai/32_SANLUONG5K_IMPORT_CHIA_NGAY.md)
+    if (fs.statSync(target).isDirectory()) throw new Error('--chia-ngay chỉ nhận MỘT file, không nhận thư mục');
+    const db = openDb(dbPath);
+    try {
+      const r = await importArrivalFileChiaNgay(db, target);
+      console.log(`File ${r.fileName}: ${r.status}${r.error ? ` — ${r.error}` : ''}${r.ngay ? ` (ngày ${r.ngay})` : ''}`);
+      for (const w of r.canhBao || []) console.log(`  Cảnh báo: ${w}`);
+      if (r.status === 'OK') {
+        console.log('\nNgày       | Dòng  | SHBG  | Nạp mới | Bỏ qua | Ghi chú');
+        for (const g of r.nhom) {
+          console.log(`${g.ngay} | ${String(g.rowCount).padStart(5)} | ${String(g.shbg).padStart(5)} | ${String(g.inserted).padStart(7)} | ${String(g.ignored).padStart(6)} | ${g.alreadyImported ? 'đã nạp' : ''}`);
+        }
+        console.log(`\nTổng: ${r.nhom.length} ngày, ${r.tongDong} dòng, ${r.tongShbg} SHBG (cộng theo ngày), ${r.tongNap} dòng nạp mới, ${r.tongBoQua} dòng bỏ qua.`);
+        return 0;
+      }
+      if (r.status === 'EMPTY' || r.status === 'SKIPPED_NAME') return r.status === 'EMPTY' ? 0 : 1;
+      console.log('Không ghi gì (đã hoàn tác toàn bộ).');
+      return 2;
+    } finally { db.close(); }
+  }
 
   const db = openDb(dbPath);
   try {
