@@ -1,0 +1,42 @@
+# 🎚️ THAMSO-1 — Backend «Tham số hệ thống»: bảng `tham_so` + nhật ký + lớp đọc tương thích + API chỉ ADMIN
+
+> Ngày 17/10/2026 · nhánh `feat/thamso-1-backend` · căn cứ `33_THAMSO0_KHAO_SAT_THAM_SO.md` · quyết định `04_DECISIONS.md` #94.
+> **Chỉ backend.** Giao diện CHƯA đọc tham số mới: `src/` không đổi (bỏ chữ cứng / dự phòng lệch: THAMSO-2; màn ADMIN: THAMSO-3).
+
+## 1. Cái gì đã có
+- **Bảng** `tham_so` (chỉ lưu giá trị GHI ĐÈ; thiếu dòng = mặc định) và `tham_so_nhat_ky` (ai, khi nào, giá trị cũ / mới, lý do, loại `SUA` | `VE_MAC_DINH`) — `ensureThamSoSchema` idempotent, gọi từ `server/db.js`.
+- **Mặc định** ở MỘT chỗ: `server/config/tham-so-mac-dinh.js`. Các file hằng số cũ (`phatConfig.js`, `dashboard-thresholds.js`, `nap-nguon.js`, `thay-the.js`) nay là đối tượng **getter** (enumerable, đóng băng) trả giá trị hiệu lực lúc gọi. Tên xuất khẩu, hình dạng, thứ tự khóa giữ nguyên (so với bản chụp từ `main` — xem test) nên chỗ gọi không phải sửa, trừ 1 chỗ destructuring (mục 3).
+- **Danh bạ** `server/config/tham-so.js`: 25 khóa SỬA ĐƯỢC + 7 khóa CHỈ-ĐỌC (nhóm 2), mỗi khóa có `nhan`, `mo_ta`, `anh_huong`, `vi_du` (hai vế «Đặt X … Đặt Y …»), `nhin_thay_o`, kiểu, min / max, ràng buộc chéo. Giao diện sẽ hiển thị đúng nội dung này.
+- **Lớp đọc / ghi** `server/lib/thamSo.js`: `lay`, `layNhieu`, `phienBan`, `datNhieu`, `veMacDinh`, `danhSach`, `nhatKy`, `khoiTao`, `taoDoiTuong` (+ `__thuDatRam` chỉ để test).
+- **API** `server/routes/thamSo.js` (chỉ ADMIN): `GET /api/tham-so` · `PUT /api/tham-so` · `POST /api/tham-so/ve-mac-dinh` · `GET /api/tham-so/nhat-ky`.
+- **Tách ngưỡng**: `NGUONG_CHUA_CO_TT_CANH_BAO` (0,10) chỉ còn là MỨC TÔ MÀU (sửa được, khóa `chua_co_tt_canh_bao`); định nghĩa ngày «đủ số liệu» (#92-4) dùng hằng MỚI `NGUONG_DU_SO_LIEU` (0,10, CHỈ ĐỌC, khóa `nguong_du_so_lieu`).
+- **Khóa MỚI** `phuong_xa_tang_cao_pct` (20): trước đây là số cứng ở giao diện; `GET /api/arrivals/dashboard/phuong-xa-tang` được THÊM khóa `tang_cao_pct` (ngay sau `gioi_han`).
+
+## 2. Danh bạ khóa
+**Sửa được** (kiểu · min–max): `ptc_dat` (phân số 0,50–0,99) · `chua_co_tt_canh_bao` (0,01–0,50) · `san_xep_hang_bcvh` (nguyên 1–1000) · `nguong_ngang_diem` (thập phân 0,1–5) · `so_ngay_toi_thieu_so_sanh` (1–31) · `san_mau_so_so_sanh` (1–1000) · `lech_san_luong_trong_ngay_pct` / `lech_san_luong_xu_ly_ngay_pct` (1–100; trong < xử lý) · `san_so_sanh_toi_thieu` (1–1000) · `san_so_sanh_phuong_xa` (1–1000) · `gio_bat_dau_danh_gia`, `gio_muon`, `gio_chuyen_chieu` (giờ 0–23) · `bd10_chua_xnd_trong_ngay_pct` / `bd10_chua_xnd_xu_ly_ngay_pct` (1–100; trong < xử lý) · `chua_nhan_xu_ly_ngay_tu_ngay` (1–30) · `phuong_xa_tang_cao_pct` (1–1000) · `nguong_mat_shbg_do` (0,01–0,20 — trần hạ từ 0,50 theo CTO) · `gio_mong_doi_sang`, `gio_mong_doi_chieu` (`HH:MM`; sáng < 12:00 ≤ chiều) · `an_han_phut` (0–240) · `nguong_it` (0,05–0,95) / `nguong_nhieu` (1,1–10) · `so_tuan_mau` (1–12) / `toi_thieu_ngay_mau` (1–12, ≤ số tuần mẫu).
+**Chỉ đọc** (nhóm 2, PUT → 400 `KHOA_CHI_DOC`): `nguong_du_so_lieu`, `ranh_gioi_dot`, `khung_gio_den`, `nhom_cho`, `rang_ngay_nap_truoc`, `rang_ngay_nap_sau`, `ty_le_ngoai_khoang_toi_da`.
+**Quyết định so với ticket**: thêm kiểu `thap_phan` cho `nguong_ngang_diem`, `nguong_it`, `nguong_nhieu` (ticket ghi «thập phân»); `phan_so` và `thap_phan` nhận tối đa 4 chữ số thập phân; `nguong_it` 0,05–0,95 và `nguong_nhieu` 1,1–10 (ticket chỉ nêu ràng buộc chéo `0 < it < 1 < nhieu ≤ 10`, vẫn được kiểm riêng); `khung_gio_den`/`nhom_cho` kiểu `danh_sach`. Ba hằng của importer được `module.exports` thêm (`RANGE_DAYS_BEFORE`, `RANGE_DAYS_AFTER`, `MAX_OUT_OF_RANGE_RATIO`) để danh bạ đọc mặc định — không đổi hành vi importer.
+
+## 3. Lớp đọc và chỗ đã đổi
+- Getter `enumerable: true`, `configurable: false`; đối tượng lồng (`CHUA_NHAN`, `BD10_CHUA_XND`, `LECH_SAN_LUONG`) là bản chụp **đóng băng mới** mỗi lần đọc, cùng thứ tự khóa. `GIO_CHUYEN_CHIEU` vẫn NGOÀI `DASHBOARD_DEN_THRESHOLDS`. Chưa `khoiTao` (script, tiến trình con chỉ nạp file hằng số): trả mặc định (có test chạy tiến trình con).
+- **Chỗ sao chép giá trị lúc nạp module (đã đổi)**: duy nhất `server/lib/dashboardDenQuery.js:17` `const { DASHBOARD_DEN_THRESHOLDS: TH, GIO_CHUYEN_CHIEU } = require(…)` — destructuring gọi getter MỘT lần và đóng băng `GIO_CHUYEN_CHIEU`. Đổi thành `const DT = require(…); const TH = DT.DASHBOARD_DEN_THRESHOLDS;` và dùng `DT.GIO_CHUYEN_CHIEU` ở 4 chỗ (`:136,:198,:345,:346`). Đã `grep` toàn `server/` các dạng destructuring / `Object.assign` / spread / `Object.freeze({ ...CF })`: không còn chỗ nào khác (`napNguonDoc.js:51` `GIO_MONG_DOI` là hàm, đọc lúc gọi). Test bắt buộc: `mucSanLuong`, `mucBd10`, `danhGiaSanLuong`, `tong-quan-den.chuyen_chieu.tu_gio` đổi ngay theo ghi đè.
+- Dòng ghi đè hỏng trong DB (JSON sai, ngoài khoảng, khóa lạ, khóa chỉ-đọc, phá ràng buộc chéo): bỏ qua, dùng mặc định, `console.error` KHÔNG kèm giá trị (có test).
+- **Gán giá trị BẰNG mặc định** (CTO chốt): XÓA dòng ghi đè (không ghim giá trị cũ khi mặc định trong mã đổi sau này), vẫn ghi nhật ký `SUA`; `la_mac_dinh` so với mặc định (không phụ thuộc có dòng hay không).
+
+## 4. Cache #93
+- Khóa tầng 1 của `ketQuaPhatThang` = `dauHieuDb` + `|p<phienBan>` (`chuKyTang1`, `phatDashboard.js`). Tầng 2 KHÔNG đổi (chỉ lưu số đếm thô — đo lại: đổi 3 lần `ptc_dat` + 1 lần `nguong_ngang_diem` qua API, `soLanDemNgay()` không tăng).
+- Cách chứng minh `phienBan` thật sự nằm trong khóa (ticket Việc 5): chọn **cả (a) và (b)** — (a) `chuKyTang1` đổi khi chỉ `phienBan()` đổi (dấu hiệu DB cố định); (b) đổi giá trị trong RAM bằng `__thuDatRam` (không ghi DB) rồi gọi `ketQuaPhatThang` → `nguong` mới. Đã THỬ CỐ Ý bỏ `phienBan` khỏi khóa: hai ca (a), (b) ĐỎ; ca «qua API» vẫn xanh (đúng như ticket cảnh báo: ghi `tham_so` cùng tiến trình làm `total_changes()` đổi nên tầng 1 tự hết hạn) — nên ca đó không chứng minh gì về `phienBan`. Đã khôi phục khóa (xem báo cáo).
+
+## 5. «Đã xem xét» khi đổi tham số nạp nguồn — KẾT QUẢ CHẠY THỬ (sửa nhận định THAMSO-0 mục 2.2)
+THAMSO-0 suy từ mã rằng đổi giờ mong đợi / ngưỡng nghi ngờ làm «dấu «Đã xem xét» cũ mất hiệu lực và mục quay lại «cần xử lý»». **Chạy thử cho kết quả khác** (test «Đã xem xét» khi đổi tham số nạp nguồn): ô đợt SÁNG hôm nay `CHO_FILE` (11:00) đã đánh dấu «đã xem xét» → đổi `gio_mong_doi_sang` = 11:30 thì ô thành `CHUA_DEN_GIO` — mục **rời cả `can_xu_ly` lẫn `da_xem_xet`** (vì `da_xem_xet` chỉ dựng từ các mục đang cần xử lý); đặt lại giá trị cũ → mục vào lại `da_xem_xet` với dấu CŨ (bản ghi `nap_nguon_da_xem_xet` được giữ, dấu vân tay khớp lại). Không bản ghi nào bị hủy hay mồ côi. Văn bản `anh_huong` của 7 khóa nạp nguồn trong danh bạ đã viết theo kết quả thật này.
+Chưa kiểm: `ranh_gioi_dot` (chỉ-đọc nên không đổi được qua API).
+
+## 6. Test
+`tests/tham-so.test.js` — **46 ca**, đăng ký trong `package.json`. Bao gồm: danh bạ (mặc định khớp 4 file hằng số, đủ chú giải, ví dụ hai vế), bản chụp `JSON.stringify` từ `main`, getter enumerable, tiến trình con chưa `khoiTao`, GET, quyền (5 vai trò × 4 endpoint + 401, 403 không ghi gì), kiểm tra hợp lệ (kiểu / `-0` / biên / `HH:MM` / ràng buộc chéo / khóa lạ / chỉ-đọc / lý do / hình dạng thân), tất cả-hoặc-không, ghi + nhật ký + UTC, gán bằng mặc định, hoàn về mặc định (theo khóa, `tat_ca`, phá ràng buộc), nhật ký (thứ tự, lọc, phân trang, ngày giờ Việt Nam, 92 ngày), SECURITY_LOG (không có lý do / giá trị), tương thích (`tong-quan-den`, mức điều hành, `phuong-xa-tang`, `ket-qua-phat`, `ket-qua-phat-thang`, `nap-nguon`, nghi ngờ ít / nhiều, «Đã xem xét», `thay-the`), tách ngưỡng, cache (a)(b)(API), dữ liệu hỏng, schema idempotent.
+Test cũ phải sửa: `tests/phat-dashboard.test.js:162` — `Object.keys(CF).length` 7 → 8 (thêm `NGUONG_DU_SO_LIEU` theo ticket) và thêm khẳng định `CF.NGUONG_DU_SO_LIEU === 0.10`. Không test cũ nào khác đổi.
+
+## 7. Điểm còn nợ / cần PO
+- THAMSO-2: giao diện còn bản sao / chữ cứng (D1–D8 của báo cáo THAMSO-0): màn 13 (`ProcessingDeliveryView.jsx:12-13`), `wardChangeChip` 20 %, chữ «dưới 50 BG» / «chưa tới 12:00» / «vượt 10%» / «từ 1 ngày», dự phòng `an_han_phut || 30`. Cho tới lúc đó **đổi các tham số này không đổi chữ / màu ở các chỗ đó**; `anh_huong` của từng khóa đã nói rõ.
+- THAMSO-3: màn ADMIN; THAMSO-4: `che_do = 'tu_thong_ke'` (cột đã chừa, `CHECK` cho phép nhưng chưa cài).
+- Nhóm 2 `khung_gio_den`/`nhom_cho`: trả đúng cấu trúc hằng số hiện có (`kieu: 'danh_sach'`); giao diện cần quyết định cách hiển thị.
+- `vi_du`/`mo_ta` do Dev AI soạn — PO duyệt lời văn trước khi THAMSO-3 hiển thị.

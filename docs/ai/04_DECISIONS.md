@@ -707,7 +707,7 @@ Căn cứ: sáng 17/10 chưa BCVH nào nhập phát mà thẻ hôm nay hiện PT
 1. **Kết quả phát ghi cho NGÀY ĐẾN của bưu gửi**, kể cả xử lý muộn (hàng đến 16/10 nhập 95% hết ngày 16 rồi 98% sáng 17/10 → 98% vẫn tính cho ngày 16, không tính cho 17).
 2. **Mỗi LẦN ĐẾN D của một SHBG tại một BCVH có trạng thái riêng = bản nhập CUỐI (lịch sử nhập `phat_status_history`, bỏ đợt đã hoàn tác) có ngày nhập VN N, `D ≤ N < D'`** (D' = ngày đến kế tiếp của SHBG tại BCVH; không có D' thì không chặn trên); không có bản nào → Chưa có TT. SHBG đến 16 và 17: nhập PKTC ngày 16, PTC ngày 17 → 16 tính PKTC, 17 tính PTC. Nhập trước khi đến không «mang sang».
 3. Hôm nay chưa xử lý gì → PTC / PKTC / Chuyển hoàn / Lạc hướng đều 0 (0,0%), Chưa có TT = 100%.
-4. Ngày «đủ số liệu» = «Chưa có TT» < `NGUONG_CHUA_CO_TT_CANH_BAO` (0,10; đúng 10,0% là chưa đủ). Ngày chưa đủ: không vào lũy kế, không vào chênh lệch, đường diễn biến ngắt (`null`).
+4. Ngày «đủ số liệu» = «Chưa có TT» < `NGUONG_DU_SO_LIEU` (0,10; đúng 10,0% là chưa đủ). **[THAMSO-1, #94: tên hằng đổi từ `NGUONG_CHUA_CO_TT_CANH_BAO`; hằng đó chỉ còn là mức tô đỏ.]** Ngày chưa đủ: không vào lũy kế, không vào chênh lệch, đường diễn biến ngắt (`null`).
 5. Giao diện tách HÔM NAY và LŨY KẾ TỪ 01/MM (chỉ ngày đủ số liệu).
 6. **Đổi #91-1**: không còn «số ngày cũ theo trạng thái hiện tại duy nhất của SHBG»; dựng từ lịch sử nhập. Nhập muộn / sửa / hoàn tác vẫn đổi số của ngày đến tương ứng, không đổi số các lần đến khác. Mốc dữ liệu đúng / đủ vẫn là việc của PO.
 - Phạm vi áp dụng: `ketQuaPhat` (thẻ ngày, kể cả xếp hạng BCVH) và `ket-qua-phat-thang`; `demNgay` mặc định (`/api/phat/ty-le`, commit / hoàn tác «trước / sau») giữ NGUYÊN hành vi cũ (trạng thái hiện tại). **Tivi** gọi `ket-qua-phat` nên số Tivi đổi theo (giao diện Tivi không sửa ở ticket này).
@@ -720,6 +720,15 @@ Chi tiết: `31_DASH12B_KET_QUA_PHAT_THANG.md` (mục DASH-12b-4), `08_PHAT.md` 
 - Chữ ký của (BCVH b, ngày D) phản ứng với MỌI thứ ảnh hưởng kết quả: dòng đến của D (mọi BCVH), ngày đến kế tiếp D' (SHBG đến lại), đợt nhập phát / hoàn tác / lịch sử của b, file hàng đến quanh D. Mỗi nguyên nhân có test so sánh trực tiếp «cache == tính lại từ đầu» (`tests/phat-thang.test.js`, nguyên nhân 1–7 + 4b), kể cả kiểm riêng tầng 2.
 - Nghi ngờ thì vô hiệu rộng hơn (kể cả ghi bảng không liên quan đổi dấu hiệu → tính lại chữ ký, không tính lại ngày). Không đánh đổi đúng lấy nhanh.
 - Khởi động nóng theo LÁT (mỗi lát một truy vấn rồi nhường vòng lặp): lát dài nhất ≤ 102 ms ở cỡ 720.000 dòng (mục tiêu < 200 ms) nên được cài; tắt `PHAT_WARM=0`.
+
+### 94. «Tham số hệ thống»: bảng `tham_so` + nhật ký + lớp đọc getter + API chỉ ADMIN; nhóm 2 chỉ-đọc; tách ngưỡng «màu» / «đủ số liệu» (PO chốt 17/10/2026 — THAMSO-1, backend)
+Căn cứ: `33_THAMSO0_KHAO_SAT_THAM_SO.md`; chi tiết: `34_THAMSO1_BACKEND_BANG_THAM_SO.md`.
+1. **Phương án A**: bảng `tham_so` chỉ lưu giá trị GHI ĐÈ (thiếu dòng = mặc định, mặc định ở `server/config/tham-so-mac-dinh.js`) + `tham_so_nhat_ky` (ai, khi nào, cũ / mới, lý do, `SUA` | `VE_MAC_DINH`) + lớp đọc `server/lib/thamSo.js` (RAM, nạp lúc khởi động, cập nhật sau mỗi lần ghi). Bốn file hằng số cũ là đối tượng GETTER (enumerable, đóng băng): chỗ gọi không đổi (trừ destructuring `GIO_CHUYEN_CHIEU` ở `dashboardDenQuery.js`).
+2. **Nhóm 2 chỉ-đọc**: `nguong_du_so_lieu`, `ranh_gioi_dot`, `khung_gio_den`, `nhom_cho`, `rang_ngay_nap_truoc/sau`, `ty_le_ngoai_khoang_toi_da` hiển thị được, PUT → 400 `KHOA_CHI_DOC`. Sửa nhóm 2 (kèm cảnh báo đỏ, tính lại) hoặc Phương án B (giá trị hiệu lực theo ngày) chỉ khi PO yêu cầu sau.
+3. **Tách `NGUONG_CHUA_CO_TT_CANH_BAO`**: mức tô đỏ (`chua_co_tt_canh_bao`, sửa được) và `NGUONG_DU_SO_LIEU` (`nguong_du_so_lieu`, chỉ đọc, quy tắc #92-4). `nguong.chua_co_tt_canh_bao` của API giữ nguyên nghĩa là mức màu.
+4. **Hiệu lực NGAY, tính lại cả quá khứ** (không lưu số nào theo ngưỡng). Hoàn về mặc định + lịch sử sửa có; bắt buộc nhập lý do (1–200 ký tự); min / max cứng và ràng buộc chéo kiểm ở máy chủ, tất-cả-hoặc-không; gán giá trị bằng mặc định = xóa dòng ghi đè (vẫn ghi nhật ký). `nguong_mat_shbg_do` trần 0,20 (chốt an toàn của thao tác xóa dữ liệu).
+5. **Cache #93**: khóa tầng 1 thêm `phienBan()` của tham số; tầng 2 giữ nguyên (chỉ số đếm thô). Giao diện CHƯA đọc tham số mới (THAMSO-2 bỏ chữ cứng / dự phòng lệch, THAMSO-3 màn ADMIN). Khóa mới `phuong_xa_tang_cao_pct` (20) → `phuong-xa-tang` THÊM khóa `tang_cao_pct`.
+6. Đổi tham số nạp nguồn (giờ mong đợi, ân hạn, nghi ngờ ít / nhiều, tuần mẫu): chạy thử cho thấy mục «Đã xem xét» không còn cần xử lý thì rời cả hai danh sách, đặt lại giá trị cũ thì dấu cũ còn hiệu lực (sửa nhận định THAMSO-0 mục 2.2).
 
 ## Drift phát hiện
 _(chưa có)_

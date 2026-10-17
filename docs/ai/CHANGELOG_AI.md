@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-17] - THAMSO-1: «Tham số hệ thống» — bảng `tham_so` + nhật ký + lớp đọc getter + API chỉ ADMIN (backend)
+
+- **Thêm** `server/config/tham-so-mac-dinh.js` (mặc định một chỗ), `server/config/tham-so.js` (danh bạ 25 khóa sửa được + 7 chỉ-đọc, kèm `mo_ta`/`anh_huong`/`vi_du`/`nhin_thay_o`), `server/lib/thamSo.js` (lớp đọc / ghi / kiểm tra hợp lệ / nhật ký), `server/routes/thamSo.js` (`/api/tham-so*`, chỉ ADMIN); bảng `tham_so`, `tham_so_nhat_ky` (`server/db.js`).
+- **Sửa** `phatConfig.js`, `dashboard-thresholds.js`, `nap-nguon.js`, `thay-the.js`: đối tượng getter enumerable (hình dạng / thứ tự khóa như cũ; `phatConfig` thêm `NGUONG_DU_SO_LIEU` ở cuối); `dashboardDenQuery.js` bỏ destructuring `GIO_CHUYEN_CHIEU`, `phuong-xa-tang` thêm `tang_cao_pct`; `phatDashboard.js` `duSoLieu` dùng `NGUONG_DU_SO_LIEU`, khóa cache tầng 1 thêm phiên bản tham số; `arrivalsImport.js` chỉ export thêm 3 hằng.
+- **Test** `tests/tham-so.test.js` 46 ca; `tests/phat-dashboard.test.js:162` số khóa `phatConfig` 7 → 8. `npm test` 706 ca (705 đạt, 1 bỏ qua), `npm run build` đạt. Báo cáo: `34_THAMSO1_BACKEND_BANG_THAM_SO.md`; quyết định #94.
+- **Lưu ý**: chạy thử cho thấy đổi tham số nạp nguồn làm mục «Đã xem xét» không còn cần xử lý rời cả hai danh sách (đặt lại thì dấu cũ còn hiệu lực) — sửa nhận định THAMSO-0. Giao diện chưa đọc tham số mới.
+- **Chưa làm**: THAMSO-2 (bỏ chữ cứng / dự phòng lệch ở giao diện), THAMSO-3 (màn ADMIN), THAMSO-4 (ngưỡng theo thống kê).
+
+---
+
 ## [2026-10-17] - DASH-12b-4: chữ ký cache từ trạng thái trong DB, giảm tính lại khi có file mới, khởi động nóng theo lát
 
 - **Sửa** `server/lib/phatDashboard.js`: tầng 1 khoá theo `dauHieuDb` (`PRAGMA data_version` + `total_changes()`); tầng 2 chữ ký theo (BCVH, ngày) = `sigNgay` + `sigLai` + `sigDot` + `sigFile` tính lười từ DB (nội dung dòng đến, ngày đến kế tiếp D', lịch sử + đợt nhập phát, file); `khoiDongNong` chia lát; `xoaTang1PhatThang` (test). `server/index.js`: gọi khởi động nóng sau khi nghe (PHAT_WARM=0 để tắt; không chạy trong test). `scripts/bench-phat-thang.js` (mới): đo trên CSDL RAM, có ngân sách thời gian. Quyết định #93. Không đổi hợp đồng JSON, quyền, giao diện.

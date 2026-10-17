@@ -173,4 +173,17 @@ try {
   console.error('[db] Lỗi tạo bảng phat_*:', err.message);
 }
 
+
+// ==========================================
+// «Tham số hệ thống» (tham_so, tham_so_nhat_ky) — THAMSO-1. Idempotent; schema + lớp đọc ở server/lib/thamSo.js (#94). Giờ lưu UTC.
+// khoiTao nạp giá trị ghi đè vào RAM; các file hằng số (phatConfig, dashboard-thresholds, nap-nguon, thay-the) đọc qua getter.
+// ==========================================
+try {
+  const thamSo = require('./lib/thamSo');
+  thamSo.ensureThamSoSchema(db);
+  thamSo.khoiTao(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng tham_so*:', err.message);
+}
+
 module.exports = db;

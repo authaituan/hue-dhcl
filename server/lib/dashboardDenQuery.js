@@ -14,7 +14,9 @@
 const aq = require('./arrivalsQuery');
 const bd10 = require('./bd10Query');
 const { DASHBOARD_BCVH, bcvhNames } = require('./dashboardQuery');
-const { DASHBOARD_DEN_THRESHOLDS: TH, GIO_CHUYEN_CHIEU } = require('../config/dashboard-thresholds');
+const DT = require('../config/dashboard-thresholds'); // THAMSO-1: KHÔNG destructuring (GIO_CHUYEN_CHIEU là getter, đọc lúc gọi)
+const TH = DT.DASHBOARD_DEN_THRESHOLDS;
+const thamSo = require('./thamSo');
 
 const { QueryParamError, DATE_RE, validYmd, addDays } = aq;
 const BCVH_CODES = DASHBOARD_BCVH.map((b) => b.ma);
@@ -131,7 +133,7 @@ function countAcross(db, wins) {
       (SELECT COALESCE(SUM(CAST(substr(t, 12, 2) AS INTEGER) >= @gc), 0) FROM s) AS chieu,
       (SELECT COALESCE(SUM(nb > 1), 0) FROM s) AS nhieu,
       (SELECT COUNT(DISTINCT r.bd8_no) FROM r WHERE r.bd8_no <> '' AND r.tracking_no IN (SELECT tracking_no FROM s)) AS tui,
-      (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS kg_g`).get({ wins: JSON.stringify(wins), gm: TH.GIO_MUON, gc: GIO_CHUYEN_CHIEU });
+      (SELECT COALESCE(SUM(weight_g), 0) FROM s) AS kg_g`).get({ wins: JSON.stringify(wins), gm: TH.GIO_MUON, gc: DT.GIO_CHUYEN_CHIEU });
   return { ...out, ...row };
 }
 
@@ -193,7 +195,7 @@ function volumeOf(db, c) {
   const f = windowFilter(c.ma, c.day, c.cut);
   const t = runCounted(db, f, `SELECT COUNT(*) AS bg, COALESCE(SUM(${aq.DI_NGOAI_SQL}), 0) AS dn,
       COALESCE(SUM(t >= @muon), 0) AS muon, COALESCE(SUM(t >= @chieu), 0) AS chieu FROM s`,
-  { muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00`, chieu: `${c.day} ${String(GIO_CHUYEN_CHIEU).padStart(2, '0')}:00:00` })[0];
+  { muon: `${c.day} ${String(TH.GIO_MUON).padStart(2, '0')}:00:00`, chieu: `${c.day} ${String(DT.GIO_CHUYEN_CHIEU).padStart(2, '0')}:00:00` })[0];
   const luot = db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT tracking_no, bd10_no, bd8_no FROM arrival_items
     WHERE receiver_code = @ma AND arrival_date = @d AND arrival_at BETWEEN @from AND @to)`).get({ ma: c.ma, d: c.day, from: f.from, to: f.to }).n;
   const y = addDays(c.day, -1);
@@ -340,8 +342,8 @@ function tongQuanDen(db, query, { goiY = [] } = {}) {
     sau_15h: { buu_gui: muonTong, ty_le: ratio4(muonTong, bg), tu_gio: TH.GIO_MUON,
       da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= TH.GIO_MUON && (!useB || c.day === header.ngay_du_lieu)) },
     // DASH-9b: hàng đến CHUYẾN CHIỀU (từ GIO_CHUYEN_CHIEU, mặc định 10:00) — cùng cấu trúc, ngày, tập T và công thức A/B như sau_15h; da_toi_gio theo giờ dữ liệu (den_luc), không theo đồng hồ.
-    chuyen_chieu: { buu_gui: chieuTong, ty_le: ratio4(chieuTong, bg), tu_gio: GIO_CHUYEN_CHIEU,
-      da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= GIO_CHUYEN_CHIEU && (!useB || c.day === header.ngay_du_lieu)) },
+    chuyen_chieu: { buu_gui: chieuTong, ty_le: ratio4(chieuTong, bg), tu_gio: DT.GIO_CHUYEN_CHIEU,
+      da_toi_gio: ctxs.some((c) => c.cut && Number(c.cut.slice(0, 2)) >= DT.GIO_CHUYEN_CHIEU && (!useB || c.day === header.ngay_du_lieu)) },
     bcvh_can_chu_y: { so: canChuY, tong: rows.length },
     theo_bcvh: rows.map(({ _v, ...r }) => r)
   };
@@ -423,7 +425,7 @@ function phuongXaTang(db, query, { goiY = [] } = {}) {
   const nz = (x) => (x === null ? -Infinity : x);
   items.sort((a, b) => nz(b.tang_so_hom_qua) - nz(a.tang_so_hom_qua) || b.hom_nay - a.hom_nay
     || a.bcvh.localeCompare(b.bcvh) || a.ward_key.localeCompare(b.ward_key));
-  return { ...headerOf(db, p, ctxs, goiY), gioi_han: p.gioiHan, items: items.slice(0, p.gioiHan) };
+  return { ...headerOf(db, p, ctxs, goiY), gioi_han: p.gioiHan, tang_cao_pct: thamSo.lay('phuong_xa_tang_cao_pct'), items: items.slice(0, p.gioiHan) }; // THAMSO-1: chỉ THÊM khóa tang_cao_pct
 }
 
 module.exports = {

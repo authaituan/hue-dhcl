@@ -12,6 +12,7 @@
 const aq = require('./arrivalsQuery');
 const P = require('./phat');
 const CF = require('./phatConfig');
+const thamSo = require('./thamSo');
 const { bcvhNames } = require('./dashboardQuery');
 const { VALID_BCVH_CODES } = require('./userBcvh');
 
@@ -38,10 +39,10 @@ function parseParams(query) {
   return { bcvh: b, ngay: d || null };
 }
 
-/** DASH-12b-3: «đủ số liệu» của một kết quả dungTyLe: có hàng đến và tỷ lệ «Chưa có thông tin phát» < ngưỡng cảnh báo (0,10). */
+/** DASH-12b-3: «đủ số liệu» của một kết quả dungTyLe: có hàng đến và tỷ lệ «Chưa có thông tin phát» < NGUONG_DU_SO_LIEU (0,10; THAMSO-1: quy tắc định nghĩa, chỉ đọc, tách khỏi mức tô màu). */
 function duSoLieu(t) {
   const c = t.theo_trang_thai.CHUA_CO_TT.ty_le;
-  return t.mau_so > 0 && c !== null && c < CF.NGUONG_CHUA_CO_TT_CANH_BAO;
+  return t.mau_so > 0 && c !== null && c < CF.NGUONG_DU_SO_LIEU;
 }
 
 /** Kết quả phát của MỘT BCVH, MỘT ngày đến (day = null: BCVH chưa có file nào -> mọi số 0). */
@@ -111,7 +112,7 @@ function ketQuaPhat(db, codes, p) {
     ptc: tong.theo_trang_thai.PTC.ty_le,
     muc_cap_nhat: tong.muc_cap_nhat,
     co_so_lieu_phat: coSoLieu,
-    du_so_lieu: duSoLieu(tong), // DASH-12b-3: ngày đủ số liệu = mẫu số > 0 và «Chưa có TT» < NGUONG_CHUA_CO_TT_CANH_BAO
+    du_so_lieu: duSoLieu(tong), // DASH-12b-3: ngày đủ số liệu = mẫu số > 0 và «Chưa có TT» < NGUONG_DU_SO_LIEU (THAMSO-1)
     so_lieu_den_luc: coSoLieu ? nhapLuc : null,
     so_lieu_den_luc_bangkok: coSoLieu ? P.gioBangkok(nhapLuc) : null,
     nguong: { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO, san_xep_hang_bcvh: CF.SAN_XEP_HANG_BCVH },
@@ -129,7 +130,7 @@ function ketQuaPhat(db, codes, p) {
 //  - DASH-12b-3 (#92, thay #91-1): số của mỗi ngày đến dựng từ LỊCH SỬ NHẬP (demNgay theoLichSu): lần đến D của một SHBG lấy bản nhập cuối có ngày nhập VN N,
 //    D <= N < D' (D' = lần đến kế tiếp). Nhập muộn vẫn tính cho ngày đến tương ứng, không đổi số các lần đến khác.
 //  - Ngày của một BCVH chỉ xét khi BCVH có file OK với file_date = ngày đó (như #73). Ngày «đủ số liệu» (duSoLieu trên TẬP BCVH gộp của ngày: mẫu số > 0 và
-//    «Chưa có TT» < NGUONG_CHUA_CO_TT_CANH_BAO) mới vào lũy kế; ngày chưa đủ bị loại cả tử lẫn mẫu, tỷ lệ trong `theo_ngay` là null (giao diện ngắt đường).
+//    «Chưa có TT» < NGUONG_DU_SO_LIEU) mới vào lũy kế; ngày chưa đủ bị loại cả tử lẫn mẫu, tỷ lệ trong `theo_ngay` là null (giao diện ngắt đường).
 //  - bcvh=all không chọn ngày: tập BCVH = tap.trong của NGÀY CHUNG (khớp thẻ ngày), dùng cho MỌI ngày của tháng để so cùng tập.
 //  - Cache trong bộ nhớ, HAI tầng: toàn kết quả (60 giây + chuKyDuLieu) và từng (BCVH, ngày) (chuKyTheoNgay) — xem ketQuaPhatThang / demNgayCoCache.
 // ==========================================
@@ -157,6 +158,12 @@ function dauHieuDb(db) {
   const tc = db.prepare('SELECT total_changes() AS n').get().n;
   return `${dv}.${tc}`;
 }
+
+/**
+ * THAMSO-1: khóa tầng 1 = dấu hiệu DB + PHIÊN BẢN THAM SỐ (server/lib/thamSo.js). Tầng 1 chứa `nguong`, `du_so_lieu`, `chenh`… phụ thuộc tham số; đưa phiên bản vào khóa
+ * để đổi tham số làm mất hiệu lực tường minh, KHÔNG dựa vào việc ghi `tham_so` tình cờ làm đổi `total_changes()`. Tầng 2 chỉ lưu số đếm thô (không phụ thuộc tham số) nên giữ nguyên.
+ */
+const chuKyTang1 = (db) => `${dauHieuDb(db)}|p${thamSo.phienBan()}`;
 
 /**
  * Bộ nhớ đệm các chữ ký tính từ DB (đắt hơn dấu hiệu nhưng chỉ tính lại khi dấu hiệu đổi). Mỗi chữ ký tính LƯỜI, từng (ngày) / (BCVH) / (BCVH, ngày) một truy vấn
@@ -328,7 +335,7 @@ function tinhThang(db, codes, p, { cache: dungCache = true } = {}) {
 function ketQuaPhatThang(db, codes, p, { cache: dung = true, now = Date.now() } = {}) {
   if (!dung) return tinhThang(db, codes, p, { cache: false });
   const khoa = `${p.bcvh}|${p.ngay || ''}`;
-  const chuKy = dauHieuDb(db);
+  const chuKy = chuKyTang1(db);
   const c = cache.get(khoa);
   if (c && c.chuKy === chuKy && now - c.luc < CACHE_MS) return c.data;
   const data = tinhThang(db, codes, p);
@@ -375,4 +382,4 @@ async function khoiDongNong(db, { nghi = (f) => setImmediate(f), dung = () => fa
   return { so_ngay_bcvh_tinh: demNgayDaDem.n - c0, so_lat: soLat, ms: Date.now() - t0, loi };
 }
 
-module.exports = { parseParams, ketQuaPhat, ketQuaPhatThang, khoiDongNong, xoaCachePhatThang, xoaTang1PhatThang, chenhHienThi, dec1, duSoLieu, LY_DO, soLanDemNgay: () => demNgayDaDem.n };
+module.exports = { parseParams, ketQuaPhat, ketQuaPhatThang, khoiDongNong, xoaCachePhatThang, xoaTang1PhatThang, chenhHienThi, dec1, duSoLieu, LY_DO, dauHieuDb, chuKyTang1, soLanDemNgay: () => demNgayDaDem.n };
