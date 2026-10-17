@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginView from './components/LoginView';
-import DashboardView from './components/DashboardView';
 import NetworkListView from './components/NetworkListView';
 import UserAdminView from './components/UserAdminView';
 import ArrivalsView from './components/arrivals/ArrivalsView';
@@ -42,7 +41,7 @@ const TV_ROLES = ['ADMIN', 'TTVH', 'GDVH', 'TIVI'];
 const ME_RETRY_MS = 10_000;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('ops_today');
   const [authUser, setAuthUser] = useState(getInitialAuthUser);
   const [arrivalsNavParams, setArrivalsNavParams] = useState(null);
 
@@ -76,6 +75,13 @@ export default function App() {
   useEffect(() => {
     if (authUser?.role === 'TIVI') setTvMode(true);
   }, [authUser?.role]);
+
+  // Nếu activeTab còn lưu 'dashboard' từ phiên cũ, rơi về trang mặc định mới
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      setActiveTab('ops_today');
+    }
+  }, [activeTab]);
 
   // Gọi GET /api/auth/me để lấy tivi_scope mới nhất mỗi khi vào chế độ tivi với TIVI role.
   // Không đọc từ JWT vì token có thể được tạo trước khi admin gán phạm vi.
@@ -172,10 +178,9 @@ export default function App() {
     clearToken();
     setAuthUser(null);
     setTvMode(false);
-    // Reset về dashboard: tránh trường hợp đăng nhập lại bằng user khác
-    // (vd STAFF) trong khi đang ở tab "Quản Lý Người Dùng" -> màn hình
-    // trắng vì tab đó bị ẩn theo role nhưng activeTab vẫn giữ giá trị cũ.
-    setActiveTab('dashboard');
+    // Reset về trang mặc định ops_today: tránh trường hợp đăng nhập lại bằng user khác
+    // trong khi đang ở tab quản trị -> màn hình trắng vì tab đó bị ẩn theo role.
+    setActiveTab('ops_today');
   };
 
   // ── Chưa đăng nhập ───────────────────────────────────────────────────────
@@ -210,11 +215,7 @@ export default function App() {
         <Header activeTab={activeTab} />
 
         <main className="flex-1">
-          {activeTab === 'dashboard' && (
-            <DashboardView isAdmin={isAdmin} />
-          )}
-
-          {activeTab === 'ops_today' && (
+          {(activeTab === 'ops_today' || activeTab === 'dashboard') && (
             <DailyOpsDashboard
               authUser={authUser}
               onNavigate={handleNavigate}

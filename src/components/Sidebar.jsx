@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  LayoutDashboard,
   Network,
   UserCog,
   Lock,
@@ -19,9 +18,7 @@ const ROLE_LABELS = { ADMIN: 'ADMIN (quản trị)', TTVH: 'TTVH', GDVH: 'GDVH',
 export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout }) {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  ];
+  const navItems = [];
 
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin = authUser?.role === 'ADMIN';
