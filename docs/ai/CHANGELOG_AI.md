@@ -2,6 +2,30 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-17] - DASH-12c: giao diện «từ đầu tháng» cho hàng thẻ kết quả phát (web)
+
+- **Thêm** `src/components/arrivals/DailyOpsPtcThang.jsx` (lũy kế, chênh «điểm so với tháng» theo `chenh` của máy chủ, đường diễn biến ngắt ở `null`, cảnh báo thiếu ngày); `DailyOpsPtcRow.jsx` chèn vào 5 thẻ (prop `thang`); `DailyOpsDashboard.jsx` gọi riêng `ket-qua-phat-thang` (không chặn khối khác, bỏ kết quả cũ khi đổi BCVH). `formatPercent` làm tròn bằng số nguyên (khớp backend). Không đổi `server/`, Tivi, test.
+- **Kiểm tra**: `npm run build` đạt; dựng thử bằng `react-dom/server` với số giả. **Chưa xem trên màn thật.** Báo cáo: `32_DASH12C_GIAO_DIEN_TU_DAU_THANG.md`.
+- **Chưa làm**: khởi động nóng lần tính đầu; xem trên màn hình thật / mobile.
+
+---
+
+## [2026-10-17] - DASH-12b-2: cache theo từng (BCVH, ngày) cho `ket-qua-phat-thang`
+
+- **Sửa** `server/lib/phatDashboard.js`: thêm tầng cache 2 theo `(BCVH, ngày)` (`demNgayCoCache`, `chuKyTheoNgay`): chữ ký = file hàng đến của mọi BCVH có `file_date ∈ [ngày − 1, ngày + 3]` + đợt nhập phát của chính BCVH; chốt 10 phút; tầng 1 (60 giây + chữ ký toàn cục) giữ nguyên. Thêm `soLanDemNgay()` (đếm cho test / đo). Không đổi route, hợp đồng JSON, quyền.
+- **Test** `tests/phat-thang.test.js` +1 ca (16 ca; đợt nhập BCVH ngoài tập → 0 ngày tính lại; đợt nhập M2 → chỉ 2 ngày; file mới → chỉ ngày trong cửa sổ; kết quả có cache == không cache). `tests/phat-dashboard.test.js`: kịch bản `PHAT_PERF=1` thêm các tình huống. `npm test`: 625 ca, 624 đạt, 1 bỏ qua. Đo (744.000 dòng giả): sau 1 đợt nhập của 1 BCVH ~1,1 giây (trước ~6,4), sau 1 file mới ~0,9 giây, lần đầu sau khởi động ~6,7 giây. Báo cáo: `31_DASH12B_KET_QUA_PHAT_THANG.md`.
+- **Chưa làm**: khởi động nóng / tính nền cho lần đầu; giao diện (DASH-12c).
+
+---
+
+## [2026-10-17] - DASH-12b: `ket-qua-phat-thang` — kết quả phát từ đầu tháng (backend)
+
+- **Thêm** `GET /api/arrivals/dashboard/ket-qua-phat-thang?bcvh=&ngay=` (`server/routes/arrivals.js`, cùng guard với `ket-qua-phat`; TIVI 403): `luy_ke` (tổng tử ÷ tổng mẫu, cộng TỪNG ngày `demNgay`, ngày `co_tt = 0` loại), `theo_ngay` (null khi chưa có số liệu), `chenh` (điểm, theo giá trị làm tròn 1 chữ số, «ngang» khi `|chênh| < 0,5`; null nếu < 2 ngày số liệu hoặc mẫu số hôm nay < 50), `nguong`; cache 60 giây + chữ ký dữ liệu. `server/lib/phatDashboard.js`, 3 hằng ở `server/lib/phatConfig.js`. Số ngày cũ theo trạng thái HIỆN TẠI. Quyết định #91.
+- **Test** `tests/phat-thang.test.js` (mới, 15 ca; thêm vào `package.json`). **Test cũ sửa (có chủ đích)**: `tests/phat-dashboard.test.js` — số khoá của `phatConfig` 4 → 7; thêm dòng đo `ketQuaPhatThang` vào kịch bản `PHAT_PERF=1`. `npm test`: 624 ca, 623 đạt, 1 bỏ qua. Đo: 30 ngày × 6 BCVH không cache ~6,4 giây (dữ liệu giả 744.000 dòng, máy dev), trúng cache 0 ms. Báo cáo: `31_DASH12B_KET_QUA_PHAT_THANG.md`.
+- **Chưa làm**: giao diện (DASH-12c); giảm chi phí lần tính đầu; lọc khung giờ (DASH-10d).
+
+---
+
 ## [2026-10-16] - DASH-10b: Tivi (phạm vi `all`) đọc `ket-qua-phat` (backend)
 
 - **Thêm** `GET /api/arrivals/dashboard/ket-qua-phat` vào `TIVI_ALLOWED` (`server/lib/tivi.js`) và `tiviPhatGuard` ở `server/routes/arrivals.js`: Tivi chỉ qua khi phạm vi `all` và `bcvh` vắng/`all`, còn lại 403. `/api/phat/*` vẫn 403 với Tivi; vai trò khác và cấu trúc trả về không đổi. Quyết định #90.

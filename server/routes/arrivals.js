@@ -127,6 +127,8 @@ function phatScope(req, res, next) {
   next();
 }
 router.get('/arrivals/dashboard/ket-qua-phat', tiviPhatGuard, phatScope, handle((req) => phatDash.ketQuaPhat(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat'));
+// Kết quả phát TỪ ĐẦU THÁNG (DASH-12b): lũy kế + chuỗi theo ngày + chênh lệch; cùng tham số / kiểm định / phạm vi như ket-qua-phat. KHÔNG nằm trong TIVI_ALLOWED -> TIVI 403.
+router.get('/arrivals/dashboard/ket-qua-phat-thang', tiviPhatGuard, phatScope, handle((req) => phatDash.ketQuaPhatThang(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat-thang'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));

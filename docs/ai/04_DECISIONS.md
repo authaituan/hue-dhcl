@@ -694,5 +694,13 @@ Căn cứ: DASH-10a — thẻ PTC và xếp hạng «Cả ngày» trên Tivi c�
 - `GET /api/arrivals/dashboard/ket-qua-phat` thêm vào `TIVI_ALLOWED` (đúng 1 mục; `/api/phat/*` vẫn 403 với Tivi — sửa #74 và #79 ở điểm «TIVI 403»).
 - `tiviPhatGuard`: Tivi chỉ qua khi phạm vi tài khoản là `all` và `bcvh` vắng / rỗng / `all`; phạm vi một BCVH, chưa gán phạm vi, hoặc xin `bcvh` cụ thể → 403 (không ép ngầm như 3 endpoint «đến»). Vai trò khác không đổi; cấu trúc trả về không đổi.
 
+### 91. «Kết quả phát từ đầu tháng»: endpoint riêng, lũy kế = cộng từng ngày, số theo trạng thái hiện tại (PO chốt 17/10/2026 — DASH-12b, backend)
+Căn cứ: khảo sát DASH-12a. Chi tiết: `31_DASH12B_KET_QUA_PHAT_THANG.md`, `08_PHAT.md` mục 4.
+- Phương án B: `GET /api/arrivals/dashboard/ket-qua-phat-thang?bcvh=&ngay=` (mới); `ket-qua-phat` và `tong-quan-den` không đổi. Quyền như `ket-qua-phat`; **TIVI 403** (không thêm vào `TIVI_ALLOWED`).
+- Số ngày cũ theo trạng thái **hiện tại** của SHBG (không dựng lại từ lịch sử): nhập muộn / hoàn tác đổi số ngày cũ. Bản ghi thử và khai thật 01–09/10 do PO xử lý trên dữ liệu; không thêm cờ thử/thật.
+- Lũy kế = tổng tử ÷ tổng mẫu của TỪNG ngày (`demNgay`), không truy vấn một khoảng (SHBG đến hai ngày đếm hai lần); ngày `co_tt = 0` loại cả tử lẫn mẫu; ngày không file không đóng góp. `bcvh=all`: ngày chung (`tapNgayChung`), cùng tập BCVH cho cả tháng.
+- Chênh lệch theo giá trị làm tròn 1 chữ số; `ngang` khi `|chênh| < 0,5` điểm; chỉ trả khi ≥ 2 ngày có số liệu và mẫu số hôm nay ≥ 50, ngược lại `null`. Ba hằng ở `phatConfig.js`, trả qua `nguong`.
+- Cache hai tầng (PO chọn 17/10/2026, DASH-12b-2): toàn kết quả 60 giây + chữ ký dữ liệu; và từng `(BCVH, ngày)` với chữ ký riêng (file hàng đến của mọi BCVH trong cửa sổ `[ngày − 1, ngày + 3]` + đợt nhập phát của chính BCVH đó) — đợt nhập chỉ tính lại BCVH liên quan.
+
 ## Drift phát hiện
 _(chưa có)_

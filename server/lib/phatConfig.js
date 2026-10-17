@@ -15,4 +15,13 @@ const SAN_XEP_HANG_BCVH = 50;
 // Sàn cho xếp hạng phường/xã. CHỈ KHAI BÁO, chưa dùng (để PHAT-3d).
 const SAN_XEP_HANG_PHUONG_XA = 10;
 
-module.exports = Object.freeze({ NGUONG_PTC_DAT, NGUONG_CHUA_CO_TT_CANH_BAO, SAN_XEP_HANG_BCVH, SAN_XEP_HANG_PHUONG_XA });
+// DASH-12b — «kết quả phát từ đầu tháng»: so tỷ lệ hôm nay với lũy kế tháng (đơn vị: điểm phần trăm).
+// |chênh| < NGUONG_NGANG_DIEM -> «ngang». Chỉ trả chênh khi lũy kế có >= SO_NGAY_TOI_THIEU_SO_SANH ngày có số liệu VÀ mẫu số hôm nay >= SAN_MAU_SO_SO_SANH.
+const NGUONG_NGANG_DIEM = 0.5;
+const SO_NGAY_TOI_THIEU_SO_SANH = 2;
+const SAN_MAU_SO_SO_SANH = 50;
+
+module.exports = Object.freeze({
+  NGUONG_PTC_DAT, NGUONG_CHUA_CO_TT_CANH_BAO, SAN_XEP_HANG_BCVH, SAN_XEP_HANG_PHUONG_XA,
+  NGUONG_NGANG_DIEM, SO_NGAY_TOI_THIEU_SO_SANH, SAN_MAU_SO_SO_SANH
+});

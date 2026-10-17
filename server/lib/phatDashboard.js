@@ -112,4 +112,168 @@ function ketQuaPhat(db, codes, p) {
   };
 }
 
-module.exports = { parseParams, ketQuaPhat, LY_DO };
+// ==========================================
+// DASH-12b: GET /api/arrivals/dashboard/ket-qua-phat-thang — kết quả phát TỪ ĐẦU THÁNG (lũy kế + chuỗi theo ngày + chênh lệch). Không đổi ketQuaPhat.
+//  - «Tháng» = tháng chứa NGÀY DỮ LIỆU (ngày của thẻ ngày: p.ngay hoặc ngày file OK mới nhất; bcvh=all: ngày chung — P.tapNgayChung). Khoảng [YYYY-MM-01, ngày].
+//    Ngày 01 mà file chưa về -> ngày dữ liệu vẫn thuộc tháng trước -> lũy kế vẫn là tháng trước (trả `thang` để giao diện ghi rõ).
+//  - TỪNG ngày gọi P.demNgay (đúng như thẻ ngày) rồi CỘNG theo mã trạng thái; tỷ lệ tháng = tổng tử / tổng mẫu. KHÔNG truy vấn một khoảng ngày:
+//    buildCountedCte gom mỗi SHBG một dòng trên cả khoảng nên SHBG đến hai ngày sẽ chỉ được đếm một lần (không khớp thẻ ngày).
+//  - Số của ngày cũ theo trạng thái HIỆN TẠI của SHBG (phat_status_current, khoá (bcvh, shbg), không có ngày) — không dựng lại từ lịch sử:
+//    nhập muộn làm đổi số ngày cũ.
+//  - Ngày của một BCVH chỉ xét khi BCVH có file OK với file_date = ngày đó (như #73). Ngày chưa ai nhập phát (co_tt = 0 trên cả tập BCVH) bị loại
+//    cả tử lẫn mẫu khỏi lũy kế, và các tỷ lệ của ngày đó trong `theo_ngay` là null (giao diện ngắt đường).
+//  - bcvh=all không chọn ngày: tập BCVH = tap.trong của NGÀY CHUNG (khớp thẻ ngày), dùng cho MỌI ngày của tháng để so cùng tập.
+//  - Cache trong bộ nhớ, HAI tầng: toàn kết quả (60 giây + chuKyDuLieu) và từng (BCVH, ngày) (chuKyTheoNgay) — xem ketQuaPhatThang / demNgayCoCache.
+// ==========================================
+const CACHE_MS = 60 * 1000;
+const CACHE_MAX = 64;
+const cache = new Map();
+// Tầng 2 (DASH-12b-2): cache theo TỪNG (BCVH, ngày) với chữ ký riêng — khi dữ liệu đổi chỉ tính lại ngày / BCVH bị ảnh hưởng.
+const DAY_CACHE_MAX = 4000;
+const DAY_CACHE_MAX_AGE_MS = 10 * 60 * 1000; // chốt an toàn: chữ ký không bắt được thay đổi hiếm (vd dùng lại id) -> tối đa 10 phút
+const dayCache = new Map();
+const xoaCachePhatThang = () => { cache.clear(); dayCache.clear(); };
+const demNgayDaDem = { n: 0 }; // đếm số lần gọi demNgay thật (test / đo), không ảnh hưởng nghiệp vụ
+const CF_TT = ['PTC', 'PKTC', 'CHUYEN_HOAN', 'LAC_HUONG', 'CHUA_CO_TT'];
+
+/** Chữ ký trạng thái dữ liệu: đổi khi có đợt nhập phát mới (id, nhap_luc), hoàn tác (hoan_tac_luc) hoặc file / dòng hàng đến mới. */
+function chuKyDuLieu(db) {
+  const b = db.prepare('SELECT COUNT(*) AS n, MAX(id) AS i, MAX(nhap_luc) AS t, MAX(hoan_tac_luc) AS h FROM phat_batches').get();
+  const f = db.prepare('SELECT COUNT(*) AS n, MAX(id) AS i, MAX(imported_at) AS t FROM arrival_import_files').get();
+  const a = db.prepare('SELECT MAX(id) AS i FROM arrival_items').get();
+  return [b.n, b.i, b.t, b.h, f.n, f.i, f.t, a.i].join('|');
+}
+
+/** Tròn nửa lên về 0,1 điểm phần trăm, trả SỐ NGUYÊN đơn vị 0,1 (từ tỷ lệ 4 chữ số `ratio4`, đúng giá trị giao diện hiển thị: ty_le × 100 làm tròn 1 chữ số). */
+const dec1 = (tyLe) => (tyLe === null || tyLe === undefined ? null : Math.floor((Math.round(tyLe * 10000) + 5) / 10));
+/** Chênh (hôm nay − lũy kế) theo giá trị ĐÃ LÀM TRÒN hiển thị: { chenh_diem (điểm), huong } hoặc null nếu thiếu tỷ lệ. */
+function chenhHienThi(tyLeHomNay, tyLeLuyKe) {
+  const a = dec1(tyLeHomNay);
+  const b = dec1(tyLeLuyKe);
+  if (a === null || b === null) return null;
+  const d = a - b; // số nguyên (đơn vị 0,1 điểm): không sai số dấu phẩy động
+  return { chenh_diem: d / 10, huong: Math.abs(d) < CF.NGUONG_NGANG_DIEM * 10 ? 'ngang' : d > 0 ? 'tang' : 'giam' };
+}
+
+/**
+ * Chữ ký theo ngày (DASH-12b-2). demNgay(BCVH b, ngày d) phụ thuộc:
+ *  (1) dữ liệu ĐẾN của ngày d của MỌI BCVH (quy tắc gán DASH-7f xét tranh chấp giữa các BCVH) — dòng có arrival_date = d nằm ở file có file_date trong
+ *      [d − 1, d + 3] (kiểm tra hợp lý arrival_date ∈ [ngày file − 3, + 1], arrivalsImport.js) -> chữ ký = (số file, id lớn nhất, imported_at lớn nhất) của các file đó;
+ *  (2) trạng thái phát của BCVH b (phat_status_current chỉ đổi qua đợt nhập / hoàn tác của b) -> chữ ký = (đếm, id, nhap_luc, hoan_tac_luc lớn nhất) của phat_batches của b.
+ */
+function chuKyTheoNgay(db, ngays) {
+  const tu = aq.addDays(ngays[0], -1);
+  const den = aq.addDays(ngays[ngays.length - 1], 3);
+  const fl = db.prepare('SELECT file_date AS d, id, imported_at AS t FROM arrival_import_files WHERE file_date BETWEEN @a AND @b').all({ a: tu, b: den });
+  const dot = new Map(db.prepare('SELECT bcvh, COUNT(*) AS n, MAX(id) AS i, MAX(nhap_luc) AS t, MAX(hoan_tac_luc) AS h FROM phat_batches GROUP BY bcvh').all()
+    .map((r) => [r.bcvh, `${r.n}.${r.i}.${r.t}.${r.h}`]));
+  const theoNgay = new Map(ngays.map((d) => {
+    const a = aq.addDays(d, -1);
+    const b = aq.addDays(d, 3);
+    let n = 0; let i = 0; let t = '';
+    for (const f of fl) if (f.d >= a && f.d <= b) { n += 1; if (f.id > i) i = f.id; if ((f.t || '') > t) t = f.t || ''; }
+    return [d, `${n}.${i}.${t}`];
+  }));
+  return { ngay: (d) => theoNgay.get(d), dot: (ma) => dot.get(ma) || 'none' };
+}
+
+/** P.demNgay(ma, d) (chỉ lấy tong + co_tt) qua cache theo (BCVH, ngày); chữ ký đổi hoặc quá DAY_CACHE_MAX_AGE_MS thì tính lại. */
+function demNgayCoCache(db, ma, d, ky, now) {
+  const khoa = `${ma}|${d}`;
+  const chuKy = `${ky.ngay(d)}#${ky.dot(ma)}`;
+  const c = dayCache.get(khoa);
+  if (c && c.chuKy === chuKy && now - c.luc < DAY_CACHE_MAX_AGE_MS) return c.kq;
+  demNgayDaDem.n += 1;
+  const r = P.demNgay(db, ma, d);
+  const kq = { tong: r.tong, co_tt: r.co_tt };
+  if (dayCache.size >= DAY_CACHE_MAX) dayCache.clear();
+  dayCache.set(khoa, { chuKy, luc: now, kq });
+  return kq;
+}
+
+function tinhThang(db, codes, p, { cache: dungCache = true } = {}) {
+  const byUnit = aq.latestFileDates(db);
+  const nguong = {
+    ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO,
+    nguong_ngang_diem: CF.NGUONG_NGANG_DIEM, so_ngay_toi_thieu_so_sanh: CF.SO_NGAY_TOI_THIEU_SO_SANH, san_mau_so_so_sanh: CF.SAN_MAU_SO_SO_SANH
+  };
+  let ngay = p.ngay;
+  let trong = codes;
+  let tap = null;
+  if (p.bcvh === 'all') {
+    tap = P.tapNgayChung(byUnit, codes, p.ngay);
+    ngay = tap.ngay_chung;
+    trong = tap.trong;
+  } else if (!ngay) {
+    ngay = byUnit.get(codes[0]) || null;
+  }
+  const dau = { bcvh: p.bcvh, pham_vi: codes, ngay, thang: ngay ? ngay.slice(0, 7) : null };
+  const tapInfo = tap && !p.ngay ? { so_bcvh_trong_tong: tap.trong.length, bcvh_ngoai_tong: tap.ngoai } : {};
+  if (!ngay) return { ...dau, luy_ke: null, theo_ngay: [], chenh: null, nguong };
+
+  const tu = `${ngay.slice(0, 7)}-01`;
+  const ngays = [];
+  for (let d = tu; d <= ngay; d = aq.addDays(d, 1)) ngays.push(d);
+  const files = new Set(db.prepare(`SELECT unit_code AS ma, file_date AS d FROM arrival_import_files
+    WHERE status = 'OK' AND file_date BETWEEN @a AND @b AND unit_code IN (SELECT value FROM json_each(@j))`)
+    .all({ a: tu, b: ngay, j: JSON.stringify(trong) }).map((r) => `${r.ma}|${r.d}`));
+  const chuKyNgay = chuKyTheoNgay(db, ngays);
+  const now = Date.now();
+
+  const luy = P.zeroMap();
+  let soNgaySo = 0;
+  let soNgayFile = 0;
+  let homNay = null;
+  const theoNgay = ngays.map((d) => {
+    const so = P.zeroMap();
+    let coTt = 0;
+    let coFile = false;
+    for (const ma of trong) {
+      if (!files.has(`${ma}|${d}`)) continue; // BCVH không có file ngày này: không đóng góp
+      coFile = true;
+      const r = dungCache ? demNgayCoCache(db, ma, d, chuKyNgay, now) : P.demNgay(db, ma, d);
+      P.congMap(so, r.tong);
+      coTt += r.co_tt;
+    }
+    if (coFile) soNgayFile += 1;
+    const t = P.dungTyLe(so);
+    const coSo = coTt > 0;
+    if (coSo) { P.congMap(luy, so); soNgaySo += 1; }
+    const tl = (m) => (coSo && t.mau_so > 0 ? t.theo_trang_thai[m].ty_le : null);
+    if (d === ngay) homNay = { t, coSo };
+    return {
+      ngay: d, mau_so: t.mau_so, ptc: tl('PTC'), ty_le_pktc: tl('PKTC'), ty_le_chuyen_hoan: tl('CHUYEN_HOAN'),
+      ty_le_lac_huong: tl('LAC_HUONG'), ty_le_chua_co_tt: tl('CHUA_CO_TT'), co_so_lieu_phat: coSo
+    };
+  });
+  const tk = P.dungTyLe(luy);
+  const luyKe = {
+    thang: ngay.slice(0, 7), tu_ngay: tu, den_ngay: ngay, mau_so: tk.mau_so,
+    theo_trang_thai: Object.fromEntries(CF_TT.map((m) => [m, { nhan: tk.theo_trang_thai[m].nhan, so: tk.theo_trang_thai[m].so, ty_le: tk.theo_trang_thai[m].ty_le }])),
+    so_ngay_co_so_lieu: soNgaySo, so_ngay_co_file: soNgayFile, so_ngay_trong_khoang: ngays.length
+  };
+  // Chênh: chỉ khi đủ ngày có số liệu, hôm nay có số liệu phát và mẫu số hôm nay >= sàn; nếu không null (backend không quyết tốt / xấu).
+  let chenh = null;
+  if (homNay && homNay.coSo && soNgaySo >= CF.SO_NGAY_TOI_THIEU_SO_SANH && homNay.t.mau_so >= CF.SAN_MAU_SO_SO_SANH && tk.mau_so > 0) {
+    chenh = Object.fromEntries(CF_TT.map((m) => [m, chenhHienThi(homNay.t.theo_trang_thai[m].ty_le, tk.theo_trang_thai[m].ty_le)]));
+  }
+  return { ...dau, ...tapInfo, luy_ke: luyKe, theo_ngay: theoNgay, chenh, nguong };
+}
+
+/**
+ * codes / p như ketQuaPhat. Cache 60 giây theo (bcvh, ngay) VÀ chữ ký dữ liệu (chuKyDuLieu): đợt nhập / hoàn tác / file hàng đến mới -> tính lại ngay.
+ * opts.cache = false: không dùng cache (kịch bản đo). opts.now: chỉ để test.
+ */
+function ketQuaPhatThang(db, codes, p, { cache: dung = true, now = Date.now() } = {}) {
+  if (!dung) return tinhThang(db, codes, p, { cache: false });
+  const khoa = `${p.bcvh}|${p.ngay || ''}`;
+  const chuKy = chuKyDuLieu(db);
+  const c = cache.get(khoa);
+  if (c && c.chuKy === chuKy && now - c.luc < CACHE_MS) return c.data;
+  const data = tinhThang(db, codes, p);
+  if (cache.size >= CACHE_MAX) cache.clear();
+  cache.set(khoa, { chuKy, luc: now, data });
+  return data;
+}
+
+module.exports = { parseParams, ketQuaPhat, ketQuaPhatThang, xoaCachePhatThang, chenhHienThi, dec1, LY_DO, soLanDemNgay: () => demNgayDaDem.n };

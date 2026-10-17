@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { formatPercent } from './DailyOpsDashboard';
+import PtcThangBlock from './DailyOpsPtcThang';
 
 /**
  * Hàng thẻ PTC dành cho Dashboard «Điều hành hôm nay» (PHAT-3c):
@@ -33,7 +34,7 @@ export function formatBangkokTime(str) {
   return s;
 }
 
-export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
+export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) {
   // Trạng thái D: Lỗi quyền (403) hoặc lỗi mạng khi tải kết quả phát
   if (phatError) {
     return (
@@ -160,6 +161,8 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
             <span>Số liệu đến lúc: {formatBangkokTime(soLieuDenLucBangkok || soLieuDenLuc)}</span>
           </div>
         )}
+
+        <PtcThangBlock thang={thang} ma="PTC" toi />
       </div>
 
       {/* 2. THẺ NHỎ: PHÁT KHÔNG THÀNH CÔNG */}
@@ -175,6 +178,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
         <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
           {!coSoLieu ? '—' : formatPercent(pktc?.ty_le)}
         </div>
+        <PtcThangBlock thang={thang} ma="PKTC" />
       </div>
 
       {/* 3. THẺ NHỎ: CHUYỂN HOÀN */}
@@ -190,6 +194,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
         <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
           {!coSoLieu ? '—' : formatPercent(chuyenHoan?.ty_le)}
         </div>
+        <PtcThangBlock thang={thang} ma="CHUYEN_HOAN" />
       </div>
 
       {/* 4. THẺ NHỎ: LẠC HƯỚNG */}
@@ -205,6 +210,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
         <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
           {!coSoLieu ? '—' : formatPercent(lacHuong?.ty_le)}
         </div>
+        <PtcThangBlock thang={thang} ma="LAC_HUONG" />
       </div>
 
       {/* 5. THẺ NHỎ: CHƯA CÓ THÔNG TIN PHÁT (cảnh báo đỏ nếu >= ngưỡng) */}
@@ -237,6 +243,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
         }`}>
           {!coSoLieu ? '—' : formatPercent(chuaCoTt?.ty_le)}
         </div>
+        <PtcThangBlock thang={thang} ma="CHUA_CO_TT" toi />
       </div>
     </div>
   );

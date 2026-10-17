@@ -158,7 +158,7 @@ test('hằng số máy chủ: hai ngưỡng màu PTC, sàn xếp hạng BCVH 50,
   assert.equal(CF.SAN_XEP_HANG_BCVH, 50);
   assert.equal(CF.SAN_XEP_HANG_PHUONG_XA, 10);
   assert.ok(Object.isFrozen(CF));
-  assert.equal(Object.keys(CF).length, 4);
+  assert.equal(Object.keys(CF).length, 7, 'DASH-12b: thêm 3 hằng so sánh tháng (xem phat-thang.test.js)');
 });
 
 // ---------------- quyền ----------------
@@ -456,6 +456,28 @@ test('PHAT_PERF — đo ton_cho và endpoint mới trên dữ liệu giả 6 BCV
     `  /ty-le gộp 6 BCVH (tyLeApi, gồm ton_cho):                   ${chay(() => P.tyLeApi(ctx.db, { bcvh: 'all', ngay }), 3)} ms`,
     `  endpoint mới ketQuaPhat 6 BCVH (không ton_cho):             ${chay(() => PD.ketQuaPhat(ctx.db, VALID_BCVH_CODES, { bcvh: 'all', ngay }))} ms`
   ];
+  // DASH-12b: ket-qua-phat-thang, tháng 09/2026 (30 ngày dữ liệu giả) × 6 BCVH; không cache và có cache (lần gọi thứ hai trở đi)
+  const ngayThang = ngayStr(SO_NGAY - 2); // 30/09
+  const pThang = { bcvh: 'all', ngay: ngayThang };
+  PD.xoaCachePhatThang();
+  out.push(`  ketQuaPhatThang 6 BCVH × 30 ngày, KHÔNG cache:               ${chay(() => PD.ketQuaPhatThang(ctx.db, VALID_BCVH_CODES, pThang, { cache: false }), 3)} ms`);
+  const a0 = process.hrtime.bigint();
+  PD.ketQuaPhatThang(ctx.db, VALID_BCVH_CODES, pThang); // lần đầu: nạp cache hai tầng
+  out.push(`  ketQuaPhatThang 6 BCVH × 30 ngày, lần đầu (cache trống):      ${(Number(process.hrtime.bigint() - a0) / 1e6).toFixed(0)} ms`);
+  out.push(`  ketQuaPhatThang cùng khoá, trúng cache toàn kết quả:          ${chay(() => PD.ketQuaPhatThang(ctx.db, VALID_BCVH_CODES, pThang))} ms`);
+  // sau một đợt nhập phát của MỘT BCVH: chỉ BCVH đó tính lại (30 ngày) — các BCVH khác lấy từ cache theo ngày
+  const insBatch = () => ctx.db.prepare('INSERT INTO phat_batches (bcvh, user_id, nhap_luc, so_nhap) VALUES (?, ?, ?, 0)').run(M, ids.admin, new Date().toISOString().replace(/\.\d+Z$/, 'Z'));
+  insBatch();
+  const c0 = PD.soLanDemNgay();
+  const b0 = process.hrtime.bigint();
+  PD.ketQuaPhatThang(ctx.db, VALID_BCVH_CODES, pThang);
+  out.push(`  ketQuaPhatThang sau 1 đợt nhập của 1 BCVH (tính lại ${PD.soLanDemNgay() - c0} ngày-BCVH): ${(Number(process.hrtime.bigint() - b0) / 1e6).toFixed(0)} ms`);
+  // sau một file hàng đến mới (cửa sổ [ngày − 1, ngày + 3] của file): tính lại các ngày liên quan của mọi BCVH
+  ctx.db.prepare("INSERT INTO arrival_import_files (unit_code, file_name, file_date, file_time, file_size, sha256, row_count, inserted_count, status) VALUES (?, 'PERF_MOI.csv', ?, '235959', 1, 'perf-moi', 0, 0, 'EMPTY')").run(M, ngayThang);
+  const c1 = PD.soLanDemNgay();
+  const d0 = process.hrtime.bigint();
+  PD.ketQuaPhatThang(ctx.db, VALID_BCVH_CODES, pThang);
+  out.push(`  ketQuaPhatThang sau 1 file mới ở ngày dữ liệu (tính lại ${PD.soLanDemNgay() - c1} ngày-BCVH): ${(Number(process.hrtime.bigint() - d0) / 1e6).toFixed(0)} ms`);
   console.log(out.join('\n'));
   assert.ok(n === VALID_BCVH_CODES.length * SO_NGAY * MOI_NGAY);
 });
