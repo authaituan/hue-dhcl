@@ -51,6 +51,13 @@ function motBcvh(db, ma, day) {
   return { ma, day, ...d, ty_le: P.dungTyLe(d.tong) };
 }
 
+/**
+ * THAMSO-2a: khối `nguong` hiển thị của kết quả phát — MỘT hàm cho `ket-qua-phat` và `GET /api/phat/ty-le` (cùng 3 khóa, cùng thứ tự). Đọc tham số LÚC GỌI (getter, #94), không cache.
+ */
+function nguongKetQuaPhat() {
+  return { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO, san_xep_hang_bcvh: CF.SAN_XEP_HANG_BCVH };
+}
+
 /** Xếp hạng theo PTC giảm dần (đồng hạng: cùng hạng, hạng kế tiếp nhảy cách — 1, 2, 2, 4; hòa thì theo mã BCVH). Chỉ BCVH đủ điều kiện. */
 function xepHang(rows, names) {
   const ok = rows.filter((r) => r.ly_do === null).sort((a, b) => (b.ptc - a.ptc) || (a.ma < b.ma ? -1 : 1));
@@ -115,7 +122,7 @@ function ketQuaPhat(db, codes, p) {
     du_so_lieu: duSoLieu(tong), // DASH-12b-3: ngày đủ số liệu = mẫu số > 0 và «Chưa có TT» < NGUONG_DU_SO_LIEU (THAMSO-1)
     so_lieu_den_luc: coSoLieu ? nhapLuc : null,
     so_lieu_den_luc_bangkok: coSoLieu ? P.gioBangkok(nhapLuc) : null,
-    nguong: { ptc_dat: CF.NGUONG_PTC_DAT, chua_co_tt_canh_bao: CF.NGUONG_CHUA_CO_TT_CANH_BAO, san_xep_hang_bcvh: CF.SAN_XEP_HANG_BCVH },
+    nguong: nguongKetQuaPhat(),
     xep_hang_bcvh: xep,
     chua_du_du_lieu: chuaDu
   };
@@ -382,4 +389,4 @@ async function khoiDongNong(db, { nghi = (f) => setImmediate(f), dung = () => fa
   return { so_ngay_bcvh_tinh: demNgayDaDem.n - c0, so_lat: soLat, ms: Date.now() - t0, loi };
 }
 
-module.exports = { parseParams, ketQuaPhat, ketQuaPhatThang, khoiDongNong, xoaCachePhatThang, xoaTang1PhatThang, chenhHienThi, dec1, duSoLieu, LY_DO, dauHieuDb, chuKyTang1, soLanDemNgay: () => demNgayDaDem.n };
+module.exports = { parseParams, nguongKetQuaPhat, ketQuaPhat, ketQuaPhatThang, khoiDongNong, xoaCachePhatThang, xoaTang1PhatThang, chenhHienThi, dec1, duSoLieu, LY_DO, dauHieuDb, chuKyTang1, soLanDemNgay: () => demNgayDaDem.n };

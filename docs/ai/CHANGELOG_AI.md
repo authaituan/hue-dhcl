@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-17] - THAMSO-2a: `GET /api/phat/ty-le` thêm khối `nguong` (backend, chỉ THÊM khóa)
+
+- **Sửa** `server/routes/phat.js` (`/phat/ty-le` trả `{ ...P.tyLeApi(...), nguong }`, `nguong` ở cuối) và `server/lib/phatDashboard.js` (hàm `nguongKetQuaPhat()` dùng chung cho `ket-qua-phat` và `ty-le`: 3 khóa `ptc_dat`, `chua_co_tt_canh_bao`, `san_xep_hang_bcvh`, đọc tham số lúc gọi). `P.tyLeApi` KHÔNG đổi; `ty-le` không có cache nên tham số mới có hiệu lực ngay; quyền giữ nguyên (ADMIN, TTVH, GDVH; STAFF, TIVI 403).
+- **Test** `tests/tham-so.test.js` +4 ca (a–d). Giao diện màn 13 CHƯA đọc `nguong` (THAMSO-2).
+
+---
+
 ## [2026-10-17] - THAMSO-1: «Tham số hệ thống» — bảng `tham_so` + nhật ký + lớp đọc getter + API chỉ ADMIN (backend)
 
 - **Thêm** `server/config/tham-so-mac-dinh.js` (mặc định một chỗ), `server/config/tham-so.js` (danh bạ 25 khóa sửa được + 7 chỉ-đọc, kèm `mo_ta`/`anh_huong`/`vi_du`/`nhin_thay_o`), `server/lib/thamSo.js` (lớp đọc / ghi / kiểm tra hợp lệ / nhật ký), `server/routes/thamSo.js` (`/api/tham-so*`, chỉ ADMIN); bảng `tham_so`, `tham_so_nhat_ky` (`server/db.js`).

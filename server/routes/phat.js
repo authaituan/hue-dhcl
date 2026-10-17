@@ -20,6 +20,7 @@ const C = require('../config/phat');
 const aq = require('../lib/arrivalsQuery');
 const exp = require('../lib/arrivalsExport');
 const P = require('../lib/phat');
+const PD = require('../lib/phatDashboard');
 const F = require('../lib/phatFile');
 const { VALID_BCVH_CODES } = require('../lib/userBcvh');
 
@@ -295,7 +296,8 @@ router.get('/phat/ty-le', authRequired, xemGuard, wrap(async (req, res) => {
     if (!m || !aq.validYmd(+m[1], +m[2], +m[3])) throw new PhatError(400, 'Tham số "ngay" phải là ngày hợp lệ dạng YYYY-MM-DD');
     ngay = v;
   }
-  res.json(P.tyLeApi(db, { bcvh: rawB, ngay }));
+  // THAMSO-2a: THÊM `nguong` (cùng hình dạng với ket-qua-phat) ở cuối; tyLeApi không đổi, không có cache ở đây nên tham số mới có hiệu lực ngay.
+  res.json({ ...P.tyLeApi(db, { bcvh: rawB, ngay }), nguong: PD.nguongKetQuaPhat() });
 }, 'ty-le'));
 
 module.exports = router;

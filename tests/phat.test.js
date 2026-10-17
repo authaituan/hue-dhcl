@@ -936,7 +936,7 @@ test('tỷ lệ: mẫu số = SHBG đến ngày đó = san_luong của tong-quan
 
   // --- Ngày 02/10 của M2: 3 SHBG (sh10 09:00 PTC, sh21 14:30 PKTC, sh22 20:00 chưa có)
   const d2 = await tl(`?bcvh=${M2}&ngay=2026-10-02`);
-  assert.deepEqual(Object.keys(d2), ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'muc_cap_nhat', 'so_shbg_chuyen_tiep_loai_bo', 'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'theo_khung_gio_den', 'ton_cho']);
+  assert.deepEqual(Object.keys(d2), ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'muc_cap_nhat', 'so_shbg_chuyen_tiep_loai_bo', 'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'theo_khung_gio_den', 'ton_cho', 'nguong']); // THAMSO-2a: chỉ THÊM nguong ở cuối
   assert.deepEqual([d2.bcvh, d2.ngay, d2.cung_ngay, d2.mau_so, d2.muc_cap_nhat], [M2, '2026-10-02', true, 3, 0.6667]);
   assert.deepEqual(Object.keys(d2.theo_trang_thai), ['PTC', 'PKTC', 'CHUYEN_HOAN', 'CHUA_CO_TT', 'LAC_HUONG']);
   assert.deepEqual(d2.theo_trang_thai.PTC, { nhan: 'Phát thành công', so: 1, ty_le: 0.3333 });
