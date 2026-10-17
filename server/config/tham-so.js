@@ -38,16 +38,16 @@ const SUA_DUOC = [
   sua('ptc_dat', {
     nhom: 'ket_qua_phat', nhan: 'Mục tiêu tỷ lệ phát thành công (PTC)', kieu: 'phan_so', min: 0.5, max: 0.99, don_vi: 'tỷ lệ (0,82 = 82%)',
     mo_ta: 'Mức tỷ lệ phát thành công (PTC) được coi là đạt mục tiêu. Từ mức này trở lên thẻ tô xanh, dưới mức này tô vàng; cũng là vạch mục tiêu trên đường diễn biến.',
-    anh_huong: 'Chỉ đổi màu và chữ «đạt / chưa đạt», không đổi con số PTC. Màn «Xử lý và tỷ lệ phát» hiện còn dùng bản sao 82% trong giao diện, sẽ chuyển sang đọc từ máy chủ ở ticket giao diện sau (THAMSO-2).',
+    anh_huong: 'Chỉ đổi màu và chữ «đạt / chưa đạt», không đổi con số PTC. Có hiệu lực ngay ở mọi màn nêu dưới đây.',
     vi_du: 'Đặt 82%: BCVH có PTC 81% bị tô vàng «chưa đạt». Đặt 80%: cùng BCVH đó tô xanh «đạt».',
-    nhin_thay_o: [...NHIN_DH.map((s) => `${s}: thẻ PTC, xếp hạng BCVH`), 'Xử lý và tỷ lệ phát (màn 13): màu thẻ — hiện vẫn theo bản sao 82% trong giao diện']
+    nhin_thay_o: [...NHIN_DH.map((s) => `${s}: thẻ PTC, xếp hạng BCVH`), 'Xử lý và tỷ lệ phát (màn 13): màu thẻ PTC']
   }),
   sua('chua_co_tt_canh_bao', {
     nhom: 'ket_qua_phat', nhan: 'Mức cảnh báo «Chưa có thông tin phát»', kieu: 'phan_so', min: 0.01, max: 0.5, don_vi: 'tỷ lệ (0,10 = 10%)',
     mo_ta: 'Khi tỷ lệ «Chưa có thông tin phát» từ mức này trở lên thì thẻ tô đỏ để nhắc đơn vị nhập kết quả phát. Mức này CHỈ ảnh hưởng màu cảnh báo; việc ngày nào được tính vào lũy kế do quy tắc «ngưỡng đủ số liệu» (chỉ đọc) quyết định.',
-    anh_huong: 'Chỉ đổi màu cảnh báo, không đổi con số nào. Màn «Xử lý và tỷ lệ phát» hiện còn dùng bản sao 10% trong giao diện (sẽ chuyển ở THAMSO-2).',
+    anh_huong: 'Chỉ đổi màu cảnh báo, không đổi con số nào. Có hiệu lực ngay ở mọi màn nêu dưới đây.',
     vi_du: 'Đặt 10%: BCVH còn 12% chưa có thông tin phát → thẻ đỏ. Đặt 15%: cùng BCVH đó không bị tô đỏ.',
-    nhin_thay_o: [...NHIN_DH.map((s) => `${s}: thẻ «Chưa có TT»`), 'Xử lý và tỷ lệ phát (màn 13): màu thẻ — hiện vẫn theo bản sao 10% trong giao diện']
+    nhin_thay_o: [...NHIN_DH.map((s) => `${s}: thẻ «Chưa có TT»`), 'Xử lý và tỷ lệ phát (màn 13): màu thẻ «Chưa có TT»']
   }),
   sua('san_xep_hang_bcvh', {
     nhom: 'ket_qua_phat', nhan: 'Số bưu gửi tối thiểu để được xếp hạng BCVH', kieu: 'so_nguyen', min: 1, max: 1000, don_vi: 'bưu gửi',
@@ -96,7 +96,7 @@ const SUA_DUOC = [
   sua('san_so_sanh_toi_thieu', {
     nhom: 'dieu_hanh_den', nhan: 'Mốc so sánh tối thiểu để đánh giá sản lượng', kieu: 'so_nguyen', min: 1, max: 1000, don_vi: 'bưu gửi',
     mo_ta: 'Mốc so sánh (cùng thứ tuần trước, cùng giờ) phải có ít nhất chừng này bưu gửi mới đánh giá được sản lượng lệch. Ít hơn thì ghi «chưa đủ dữ liệu» để khỏi báo nhầm vì số nhỏ.',
-    anh_huong: `${KHONG_LUU} Chữ «dưới 50 BG» trong giao diện hiện còn viết cứng (sẽ lấy từ máy chủ ở THAMSO-2).`,
+    anh_huong: `${KHONG_LUU} Chữ «dưới … BG» trong giao diện hiện đúng số đã đặt.`,
     vi_du: 'Đặt 50: tuần trước cùng giờ chỉ có 40 bưu gửi → không đánh giá. Đặt 30: vẫn đánh giá bình thường.',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: thẻ sản lượng đến, hàng đi ngoài (chênh so tuần trước)`)
   }),
@@ -110,7 +110,7 @@ const SUA_DUOC = [
   sua('gio_bat_dau_danh_gia', {
     nhom: 'dieu_hanh_den', nhan: 'Giờ dữ liệu bắt đầu đánh giá sản lượng', kieu: 'gio_nguyen', min: 0, max: 23, don_vi: 'giờ',
     mo_ta: 'Chỉ đánh giá mức sản lượng khi giờ của dữ liệu (không phải đồng hồ máy) đã tới giờ này. Sớm hơn thì ghi «chưa tới giờ đánh giá» vì buổi sáng số liệu còn ít.',
-    anh_huong: `${KHONG_LUU} Chữ «chưa tới 12:00» trong giao diện hiện còn viết cứng (sẽ lấy từ máy chủ ở THAMSO-2).`,
+    anh_huong: `${KHONG_LUU} Chữ «chưa tới …:00» trong giao diện hiện đúng giờ đã đặt.`,
     vi_du: 'Đặt 12: dữ liệu mới tới 11:00 → chưa đánh giá; tới 12:00 → bắt đầu đánh giá. Đặt 10: tới 10:00 đã đánh giá.',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: đánh giá sản lượng đến`)
   }),
@@ -138,23 +138,23 @@ const SUA_DUOC = [
   sua('bd10_chua_xnd_xu_ly_ngay_pct', {
     nhom: 'dieu_hanh_den', nhan: 'BD10 đến chưa XNĐ → mức «Xử lý ngay»', kieu: 'phan_tram_nguyen', min: 1, max: 100, don_vi: '%',
     mo_ta: 'Khi tỷ lệ BD10 đến chưa XNĐ từ mức % này trở lên thì việc được xếp mức «Xử lý ngay».',
-    anh_huong: `${KHONG_LUU} Chữ «vượt 10%» ở tiêu đề việc cần làm trong giao diện hiện còn viết cứng (sẽ lấy từ máy chủ ở THAMSO-2).`, rang_buoc: rbCua('bd10_chua_xnd_xu_ly_ngay_pct'),
+    anh_huong: `${KHONG_LUU} Chữ «vượt …%» ở tiêu đề việc cần làm hiện đúng mức đã đặt.`, rang_buoc: rbCua('bd10_chua_xnd_xu_ly_ngay_pct'),
     vi_du: 'Đặt 10%: 12/100 BD10 chưa XNĐ → «Xử lý ngay». Đặt 15%: cùng trường hợp → «Trong ngày».',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: việc cần làm «BD10 đến chưa XNĐ»`)
   }),
   sua('chua_nhan_xu_ly_ngay_tu_ngay', {
     nhom: 'dieu_hanh_den', nhan: 'Số ngày chờ để «Xử lý ngay» (chưa nhận tại BCVH)', kieu: 'so_nguyen', min: 1, max: 30, don_vi: 'ngày',
     mo_ta: 'Bưu gửi đã lập BD10 về BCVH nhưng chưa có xác nhận nhận, đã chờ từ chừng này ngày trở lên thì việc được xếp «Xử lý ngay»; chờ ít hơn chỉ là «Trong ngày». Tên khóa «cho_tu_1_ngay» trong API là tên lịch sử, giữ nguyên dù đổi số ngày.',
-    anh_huong: `${KHONG_LUU} Chữ «từ 1 ngày» trong giao diện hiện còn viết cứng (sẽ lấy từ máy chủ ở THAMSO-2).`,
+    anh_huong: `${KHONG_LUU} Nhãn «từ … ngày» trong giao diện hiện đúng số ngày đã đặt.`,
     vi_du: 'Đặt 1: bưu gửi chờ 1 ngày → «Xử lý ngay». Đặt 2: phải chờ 2 ngày mới «Xử lý ngay», chờ 1 ngày chỉ «Trong ngày».',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: việc cần làm «Chưa có XN nhận tại BCVH»`)
   }),
   sua('phuong_xa_tang_cao_pct', {
     nhom: 'dieu_hanh_den', nhan: 'Phường/xã «tăng cao» (chip đỏ)', kieu: 'phan_tram_nguyen', min: 1, max: 1000, don_vi: '%',
     mo_ta: 'Phường/xã có số bưu gửi tăng so với hôm qua từ mức % này trở lên thì chip hiện màu đỏ («tăng cao»); tăng ít hơn thì chip màu vàng.',
-    anh_huong: 'Máy chủ đã trả giá trị này (khóa «tang_cao_pct» trong phản hồi phường/xã tăng) nhưng giao diện CHƯA đọc: hiện vẫn dùng số 20 viết cứng, sẽ nối ở ticket THAMSO-2.',
+    anh_huong: `Chỉ đổi màu chip (đỏ / vàng), không đổi số bưu gửi hay % tăng. ${KHONG_LUU}`,
     vi_du: 'Đặt 20%: phường tăng 25% → chip đỏ, tăng 15% → chip vàng. Đặt 30%: cả hai đều vàng.',
-    nhin_thay_o: NHIN_DH.map((s) => `${s}: chip phường/xã (hiện chưa theo tham số này)`)
+    nhin_thay_o: NHIN_DH.map((s) => `${s}: chip phường/xã`)
   }),
 
   // ---------------- Nạp dữ liệu nguồn ----------------
@@ -175,7 +175,7 @@ const SUA_DUOC = [
   sua('an_han_phut', {
     nhom: 'nap_nguon', nhan: 'Ân hạn sau giờ mong đợi', kieu: 'so_nguyen', min: 0, max: 240, don_vi: 'phút',
     mo_ta: 'Số phút chờ thêm sau giờ mong đợi trước khi coi ô của hôm nay là «Chờ file».',
-    anh_huong: `${AH_NAP_NGUON} Giao diện hiện còn một số dự phòng 30 phút khi máy chủ không trả giá trị (sẽ bỏ ở THAMSO-2).`,
+    anh_huong: AH_NAP_NGUON,
     vi_du: 'Đặt 60 phút với giờ mong đợi 09:30: đến 10:30 chưa có file mới báo «Chờ file». Đặt 30 phút: báo từ 10:00.',
     nhin_thay_o: ['Nạp dữ liệu nguồn: trạng thái ô hôm nay, dòng «Giờ mong đợi»']
   }),

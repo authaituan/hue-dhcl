@@ -219,6 +219,14 @@ test('danh bạ: mọi khóa (kể cả chỉ-đọc) có mo_ta, anh_huong, vi_d
   assert.match(DB_TS.THEO_KHOA.get('chua_nhan_xu_ly_ngay_tu_ngay').mo_ta, /cho_tu_1_ngay/);
 });
 
+test('danh bạ (THAMSO-3a): không chuỗi nào (nhãn nhóm, mọi trường mọi khóa, thông báo ràng buộc) chứa «THAMSO-» hoặc «viết cứng»', () => {
+  const chuoi = [];
+  const gom = (v) => { if (typeof v === 'string') chuoi.push(v); else if (Array.isArray(v)) v.forEach(gom); else if (v && typeof v === 'object') Object.values(v).forEach(gom); };
+  gom(DB_TS.NHOM); gom(DB_TS.DANH_BA); gom(DB_TS.RANG_BUOC.map((r) => r.thong_bao));
+  assert.ok(chuoi.length > 100);
+  for (const c of chuoi) assert.ok(!/THAMSO-|viết cứng/i.test(c), c);
+});
+
 // Chụp từ `main` (161e68b) TRƯỚC khi sửa: JSON.stringify của từng đối tượng hằng số, đúng thứ tự khóa.
 const CHUP = {
   phatConfig: '{"NGUONG_PTC_DAT":0.82,"NGUONG_CHUA_CO_TT_CANH_BAO":0.1,"SAN_XEP_HANG_BCVH":50,"SAN_XEP_HANG_PHUONG_XA":10,"NGUONG_NGANG_DIEM":0.5,"SO_NGAY_TOI_THIEU_SO_SANH":2,"SAN_MAU_SO_SO_SANH":50',
