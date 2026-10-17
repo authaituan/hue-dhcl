@@ -4,6 +4,7 @@ import { formatPercent } from './DailyOpsDashboard';
 import {
   PTC_THANG_CAU_HINH, PtcSparkline, ChenhChip, PtcThangFooter, chuoiTheoNgay, formatPct1, ddMm, nhanLuyKe
 } from './DailyOpsPtcThang';
+import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
 
 /**
  * Hàng thẻ PTC dành cho Dashboard «Điều hành hôm nay» (PHAT-3c; hai cột HÔM NAY | LŨY KẾ ở DASH-12b-3):
@@ -122,8 +123,8 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   } = ketQuaPhat;
 
   // Lấy ngưỡng từ API (không dùng hằng số riêng)
-  const nguongPtc = nguong?.ptc_dat ?? 0.82;
-  const nguongChuaCoTt = nguong?.chua_co_tt_canh_bao ?? 0.10;
+  const nguongPtc = nguong?.ptc_dat ?? PTC_DAT;
+  const nguongChuaCoTt = nguong?.chua_co_tt_canh_bao ?? CHUA_CO_TT_CANH_BAO;
 
   const pktc = theoTrangThai?.PKTC;
   const chuyenHoan = theoTrangThai?.CHUYEN_HOAN;

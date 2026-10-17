@@ -7,6 +7,13 @@ import { apiFetchJson } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
 import DailyOpsPtcRow from './DailyOpsPtcRow';
 import DailyOpsBcvhRank from './DailyOpsBcvhRank';
+import {
+  SAN_SO_SANH_TOI_THIEU,
+  GIO_BAT_DAU_DANH_GIA,
+  BD10_CHUA_XND_XU_LY_NGAY_PCT,
+  CHUA_NHAN_XU_LY_NGAY_TU_NGAY,
+  PHUONG_XA_TANG_CAO_PCT
+} from '../../lib/thamSoDuPhong';
 
 // Alias dùng chung từ constants/bcvh.js
 const DASHBOARD_BCVH = BCVH_LIST;
@@ -213,19 +220,27 @@ export function formatSoSanh(pct, label, soBcvh = null, tongBcvh = 6) {
 }
 
 // Lý do chưa đánh giá mức sản lượng (danh_gia_san_luong.ly_do của API) -> chữ ngắn để làm chú thích.
-export function lyDoChuaDanhGia(dg) {
+export function lyDoChuaDanhGia(dg, nguong) {
   if (!dg || dg.trang_thai !== 'chua_du_du_lieu') return '';
   if (dg.ly_do === 'thieu_tuan_truoc') return 'Chưa có dữ liệu cùng thứ tuần trước';
-  if (dg.ly_do === 'moc_duoi_san') return 'Mốc tuần trước còn quá ít bưu gửi (dưới 50 BG)';
-  if (dg.ly_do === 'chua_toi_gio') return 'Dữ liệu chưa tới 12:00 nên chưa đánh giá';
+  if (dg.ly_do === 'moc_duoi_san') {
+    const san = nguong?.SAN_SO_SANH_TOI_THIEU ?? SAN_SO_SANH_TOI_THIEU;
+    return `Mốc tuần trước còn quá ít bưu gửi (dưới ${san} BG)`;
+  }
+  if (dg.ly_do === 'chua_toi_gio') {
+    const gio = nguong?.GIO_BAT_DAU_DANH_GIA ?? GIO_BAT_DAU_DANH_GIA;
+    const gioStr = `${String(gio).padStart(2, '0')}:00`;
+    return `Dữ liệu chưa tới ${gioStr} nên chưa đánh giá`;
+  }
   return 'Chưa đủ dữ liệu so tuần trước';
 }
 
 // Chip tăng/giảm số bưu gửi của phường/xã so với hôm qua (quy tắc DASH-2b) — dùng chung cho Dashboard và màn tivi.
 // loai: 'moi_co' (không có tỉ lệ so sánh) | 'bang' (bằng 0, không mũi tên) | 'giam' (xanh) | 'tang_cao' (tăng từ 20%, đỏ) | 'tang' (vàng).
-export function wardChangeChip(item) {
+export function wardChangeChip(item, tangCaoPct = PHUONG_XA_TANG_CAO_PCT) {
   const tang = item.tang_so_hom_qua ?? 0; // số BG tăng/giảm so hôm qua
   const pct = item.tang_so_hom_qua_pct;   // null = mới có (hôm qua 0) hoặc mốc hôm qua dưới sàn phường/xã (SAN_SO_SANH_PHUONG_XA = 10 BG, DASH-6b: chỉ hiện số BG, không %)
+  const threshold = (typeof tangCaoPct === 'number' && !isNaN(tangCaoPct)) ? tangCaoPct : PHUONG_XA_TANG_CAO_PCT;
   if (pct === null || pct === undefined) {
     if (!item.hom_qua) return { loai: 'moi_co', text: 'mới có' };
     if (tang === 0) return { loai: 'bang', text: '— 0 BG' };
@@ -235,7 +250,7 @@ export function wardChangeChip(item) {
   if (tang === 0) return { loai: 'bang', text: '— 0 BG (0%)' };
   if (tang < 0) return { loai: 'giam', text: `▼ ${tang.toLocaleString('vi-VN')} BG (${formatPctChange(pct)})` };
   return {
-    loai: pct >= 20 ? 'tang_cao' : 'tang',
+    loai: pct >= threshold ? 'tang_cao' : 'tang',
     text: `▲ +${tang.toLocaleString('vi-VN')} BG (+${pct.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)`
   };
 }
@@ -263,7 +278,7 @@ export function formatDateTimeSec(dateObj) {
 
 // Diễn giải tiêu đề việc cần làm từ tieu_de_khoa
 // isAllView: true khi đang xem toàn Trung tâm (cần hiện tên BCVH); false khi xem một BCVH (bỏ tên BCVH để tránh lặp)
-function formatActionTitle(item, isAllView) {
+function formatActionTitle(item, isAllView, nguong) {
   const { loai, muc, tieu_de_khoa, ten_bcvh } = item;
   const bcvhSuffix = isAllView ? `: ${ten_bcvh}` : '';
   if (loai === 'chua_nhan_tai_bcvh') {
@@ -274,19 +289,21 @@ function formatActionTitle(item, isAllView) {
   }
   if (loai === 'bd10_chua_xnd') {
     if (muc === 'xu_ly_ngay') {
-      return `BD10 đến chưa XNĐ cao (vượt 10%)${bcvhSuffix}`;
+      const pct = nguong?.BD10_CHUA_XND?.xu_ly_ngay_pct ?? BD10_CHUA_XND_XU_LY_NGAY_PCT;
+      return `BD10 đến chưa XNĐ cao (vượt ${pct}%)${bcvhSuffix}`;
     }
     return `BD10 đến chưa XNĐ${bcvhSuffix}`;
   }
   return `${tieu_de_khoa}${bcvhSuffix}`;
 }
 
-function formatActionDetail(item) {
+function formatActionDetail(item, nguong) {
   const { loai, so_lieu } = item;
   if (loai === 'chua_nhan_tai_bcvh') {
     const choTu1 = so_lieu.cho_tu_1_ngay || 0;
     const cuNhat = so_lieu.cho_lau_nhat_ngay ?? 0;
-    return `Đã chờ ${choTu1 > 0 ? `từ 1 ngày: ${choTu1} bưu gửi` : 'trong ngày'}. Cũ nhất: ${cuNhat} ngày. Chưa tính vào sản lượng đến.`;
+    const tuNgay = nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY;
+    return `Đã chờ ${choTu1 > 0 ? `từ ${tuNgay} ngày: ${choTu1} bưu gửi` : 'trong ngày'}. Cũ nhất: ${cuNhat} ngày. Chưa tính vào sản lượng đến.`;
   }
   if (loai === 'bd10_chua_xnd') {
     return `${so_lieu.chua_xnd} / ${so_lieu.tong_bd10_den} BD10 đến chưa XNĐ (${formatPercent(so_lieu.ty_le)}). Hoàn tất XNĐ để kiểm soát đủ hàng đến.`;
@@ -850,7 +867,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   nhanMocCurrentBcvh.labelHomQua
                 )}</span>
                 <span className="mx-1.5">·</span>
-                <span title={lyDoChuaDanhGia(currentBcvhRow?.danh_gia_san_luong)}>
+                <span title={lyDoChuaDanhGia(currentBcvhRow?.danh_gia_san_luong, tongQuan?.nguong)}>
                   {formatSoSanh(
                     currentBcvhRow?.so_tuan_truoc?.chenh_pct,
                     nhanMocCurrentBcvh.labelTuanTruoc
@@ -1027,10 +1044,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                           </span>
                           <div className="space-y-1">
                             <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
-                              {formatActionTitle(item, isAllView)}
+                              {formatActionTitle(item, isAllView, tongQuan?.nguong)}
                             </h4>
                             <p className="text-xs text-[#57534e]">
-                              {formatActionDetail(item)}
+                              {formatActionDetail(item, tongQuan?.nguong)}
                             </p>
                           </div>
                         </div>
@@ -1087,10 +1104,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                             </span>
                             <div className="space-y-1">
                               <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
-                                {formatActionTitle(item, isAllView)}
+                                {formatActionTitle(item, isAllView, tongQuan?.nguong)}
                               </h4>
                               <p className="text-xs text-[#57534e]">
-                                {formatActionDetail(item)}
+                                {formatActionDetail(item, tongQuan?.nguong)}
                               </p>
                             </div>
                           </div>
@@ -1227,7 +1244,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
                         {isNoData || row.so_tuan_truoc?.chenh_pct === null || row.so_tuan_truoc?.chenh_pct === undefined ? (
-                          <span className="text-[#a8a29e]" title={lyDoChuaDanhGia(row.danh_gia_san_luong)}>—</span>
+                          <span className="text-[#a8a29e]" title={lyDoChuaDanhGia(row.danh_gia_san_luong, tongQuan?.nguong)}>—</span>
                         ) : (
                           <span className={row.so_tuan_truoc.chenh_pct >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
                             {formatPctChange(row.so_tuan_truoc.chenh_pct)}
@@ -1403,7 +1420,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-sm text-amber-900 font-medium">
               {currentBcvhObj?.ten || selectedBcvh} còn <strong className="text-base text-red-700">{currentBcvhRow?.chua_nhan?.buu_gui || 0} bưu gửi</strong> chưa có xác nhận nhận tại BCVH. 
               {currentBcvhRow?.chua_nhan?.cho_tu_1_ngay > 0 ? (
-                <span className="text-red-700 font-bold ml-1">Trong đó {currentBcvhRow.chua_nhan.cho_tu_1_ngay} bưu gửi đã chờ từ 1 ngày: cần xử lý ngay.</span>
+                <span className="text-red-700 font-bold ml-1">Trong đó {currentBcvhRow.chua_nhan.cho_tu_1_ngay} bưu gửi đã chờ từ {tongQuan?.nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY} ngày: cần xử lý ngay.</span>
               ) : (
                 <span className="ml-1">Tất cả bưu gửi đều trong ngày.</span>
               )}
@@ -1452,7 +1469,8 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 ? 'hôm kia, hôm qua, hôm nay (cột cam đỏ)'
                 : `${formatDdMm(addDaysYmd(pxNgay, -2))}, ${formatDdMm(addDaysYmd(pxNgay, -1))}, ${formatDdMm(pxNgay)} (cột cam đỏ)`;
               const soStr = isVnToday(pxNgay) ? 'hôm qua' : formatDdMm(addDaysYmd(pxNgay, -1));
-              return `Chỉ tính sản lượng đến. Ba cột: ${cotStr}. BG = bưu gửi. Chip bên phải: tăng so với ${soStr} (đỏ nếu từ 20% trở lên, vàng nếu thấp hơn, xanh nếu giảm; ${soStr} quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).`;
+              const tangCaoThreshold = phuongXa?.tang_cao_pct ?? PHUONG_XA_TANG_CAO_PCT;
+              return `Chỉ tính sản lượng đến. Ba cột: ${cotStr}. BG = bưu gửi. Chip bên phải: tăng so với ${soStr} (đỏ nếu từ ${tangCaoThreshold}% trở lên, vàng nếu thấp hơn, xanh nếu giảm; ${soStr} quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).`;
             })()}
           </p>
         </div>
@@ -1467,7 +1485,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <div className="space-y-3">
             {phuongXa?.items?.map((item, idx) => {
               const maxVal = Math.max(item.hom_kia || 0, item.hom_qua || 0, item.hom_nay || 0, 1);
-              const chip = wardChangeChip(item);
+              const chip = wardChangeChip(item, phuongXa?.tang_cao_pct);
               const itemNgay = item.ngay || phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu;
 
               return (

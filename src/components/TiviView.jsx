@@ -18,6 +18,13 @@ import {
   isVnToday,
   getNhanSoSanhMoc,
 } from './arrivals/DailyOpsDashboard';
+import {
+  PTC_DAT,
+  CHUA_CO_TT_CANH_BAO,
+  SAN_XEP_HANG_BCVH,
+  BD10_CHUA_XND_XU_LY_NGAY_PCT,
+  CHUA_NHAN_XU_LY_NGAY_TU_NGAY
+} from '../lib/thamSoDuPhong';
 
 // ─── Token màu và font chuẩn Canvas DASH-4c ──────────────────────────────────
 const TV = {
@@ -61,7 +68,7 @@ function bcvhName(ma) {
 }
 
 // Tiêu đề việc cần làm — phiên bản ngắn gọn cho tivi (1 dòng)
-function tvActionTitle(item, isAll) {
+function tvActionTitle(item, isAll, nguong) {
   const { loai, muc, ten_bcvh, tieu_de_khoa } = item;
   const sfx = isAll ? `: ${ten_bcvh}` : '';
   if (loai === 'chua_nhan_tai_bcvh') {
@@ -69,7 +76,10 @@ function tvActionTitle(item, isAll) {
     return `Bưu gửi chưa có XN nhận tại BCVH${sfx}`;
   }
   if (loai === 'bd10_chua_xnd') {
-    if (muc === 'xu_ly_ngay') return `BD10 đến chưa XNĐ cao (vượt 10%)${sfx}`;
+    if (muc === 'xu_ly_ngay') {
+      const pct = nguong?.BD10_CHUA_XND?.xu_ly_ngay_pct ?? BD10_CHUA_XND_XU_LY_NGAY_PCT;
+      return `BD10 đến chưa XNĐ cao (vượt ${pct}%)${sfx}`;
+    }
     return `BD10 đến chưa XNĐ${sfx}`;
   }
   return `${tieu_de_khoa}${sfx}`;
@@ -82,12 +92,13 @@ function tvActionValue(item) {
   return { val: formatViVN(so_lieu?.gia_tri), unit: '' };
 }
 
-function tvActionSub(item, isAll) {
+function tvActionSub(item, isAll, nguong) {
   const { loai, so_lieu, ten_bcvh } = item;
   const pfx = isAll && ten_bcvh ? `${ten_bcvh} · ` : '';
   if (loai === 'chua_nhan_tai_bcvh') {
     const choTu1 = so_lieu?.cho_tu_1_ngay || 0;
-    if (choTu1 > 0) return `${pfx}đã chờ từ 1 ngày: ${formatViVN(choTu1)}`;
+    const tuNgay = nguong?.CHUA_NHAN?.xu_ly_ngay_tu_ngay ?? CHUA_NHAN_XU_LY_NGAY_TU_NGAY;
+    if (choTu1 > 0) return `${pfx}đã chờ từ ${tuNgay} ngày: ${formatViVN(choTu1)}`;
     return `${pfx}trong ngày: ${formatViVN(so_lieu?.buu_gui || 0)} bưu gửi`;
   }
   if (loai === 'bd10_chua_xnd') {
@@ -640,6 +651,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
               items={actionItems}
               isAll={isAll}
               ngayDuLieu={tongQuan?.ngay_du_lieu}
+              nguong={tongQuan?.nguong}
             />
 
             {/* Cột Giữa */}
@@ -661,6 +673,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
                 pxItems={pxItems}
                 bcvhScope={bcvhScope}
                 ngayDuLieu={phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu}
+                tangCaoPct={phuongXa?.tang_cao_pct}
               />
             )}
           </div>
@@ -850,8 +863,8 @@ function PtcCard({ ketQuaPhat, phatLoi, isAll }) {
     ketQuaPhat.ptc !== undefined
   );
 
-  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? 0.82;
-  const nguongChuaCoTt = ketQuaPhat?.nguong?.chua_co_tt_canh_bao ?? 0.10;
+  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? PTC_DAT;
+  const nguongChuaCoTt = ketQuaPhat?.nguong?.chua_co_tt_canh_bao ?? CHUA_CO_TT_CANH_BAO;
   const mucTieuPct = Math.round(nguongDat * 100);
 
   const ptcVal = ketQuaPhat?.ptc;
@@ -1122,7 +1135,7 @@ function RowA({ isAll, slBuuGui, hangDiNgoai, chuyenChieu, tongQuan, ketQuaPhat,
 }
 
 // ── Cột Trái: Việc cần làm ────────────────────────────────────────────────────
-function ColViec({ items = [], isAll, ngayDuLieu }) {
+function ColViec({ items = [], isAll, ngayDuLieu, nguong }) {
   const totalItems = items?.length || 0;
 
   const tvScroll = useAutoScroll({
@@ -1194,6 +1207,7 @@ function ColViec({ items = [], isAll, ngayDuLieu }) {
                   key={`${item.loai}-${item.ten_bcvh || ''}-${idx}`}
                   item={item}
                   isAll={isAll}
+                  nguong={nguong}
                 />
               ))}
             </div>
@@ -1204,6 +1218,7 @@ function ColViec({ items = [], isAll, ngayDuLieu }) {
                     key={`${item.loai}-${item.ten_bcvh || ''}-${idx}-clone`}
                     item={item}
                     isAll={isAll}
+                    nguong={nguong}
                   />
                 ))}
               </div>
@@ -1215,10 +1230,10 @@ function ColViec({ items = [], isAll, ngayDuLieu }) {
   );
 }
 
-function ActionCardStack({ item, isAll }) {
+function ActionCardStack({ item, isAll, nguong }) {
   const isXuLy = item.muc === 'xu_ly_ngay';
   const { val, unit } = tvActionValue(item);
-  const sub = tvActionSub(item, isAll);
+  const sub = tvActionSub(item, isAll, nguong);
 
   return (
     <div style={{
@@ -1259,8 +1274,8 @@ function ActionCardStack({ item, isAll }) {
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
           wordBreak: 'break-word',
-        }} title={tvActionTitle(item, isAll)}>
-          {tvActionTitle(item, isAll)}
+        }} title={tvActionTitle(item, isAll, nguong)}>
+          {tvActionTitle(item, isAll, nguong)}
         </div>
         {sub && (
           <div style={{
@@ -1311,8 +1326,8 @@ function ColXepHang({ ketQuaPhat, phatLoi }) {
   const isSoCu = Boolean(phatLoi) && ketQuaPhat !== null;
 
   const hasData = Boolean(ketQuaPhat && ketQuaPhat.co_so_lieu_phat);
-  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? 0.82;
-  const sanXepHang = ketQuaPhat?.nguong?.san_xep_hang_bcvh ?? 50;
+  const nguongDat = ketQuaPhat?.nguong?.ptc_dat ?? PTC_DAT;
+  const sanXepHang = ketQuaPhat?.nguong?.san_xep_hang_bcvh ?? SAN_XEP_HANG_BCVH;
   const mucTieuPct = Math.round(nguongDat * 100);
 
   const denLucBangkok = ketQuaPhat?.so_lieu_den_luc_bangkok;
@@ -1938,7 +1953,7 @@ const TV_CHIP_STYLE = {
 // Bố cục cột phải bảng 12 ở sân khấu 1920×1080 (chiều cao hàng B ≈ 681 px):
 // thẻ «Chưa nhận» ≈ 297 px + khe 16 px -> thẻ phường/xã ≈ 368 px; 3 dòng × 64 px + 2 khe × 12 px = 216 px
 // vừa trong phần thân ≈ 289 px (trừ đệm và tiêu đề), không đè dòng «Dữ liệu đến … · Làm mới …».
-function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope, ngayDuLieu }) {
+function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope, ngayDuLieu, tangCaoPct }) {
   const colStyle = {
     width: 540,
     flexShrink: 0,
@@ -2032,7 +2047,7 @@ function ColChuaNhanBCVH({ chuaNhan, pxItems, bcvhScope, ngayDuLieu }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {pxItems.slice(0, 3).map((px, i) => {
               const maxV = Math.max(px.hom_kia || 0, px.hom_qua || 0, px.hom_nay || 0, 1);
-              const chip = wardChangeChip(px);
+              const chip = wardChangeChip(px, tangCaoPct);
               const cs = TV_CHIP_STYLE[chip.loai] || TV_CHIP_STYLE.bang;
 
               return (
