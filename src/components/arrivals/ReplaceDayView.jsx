@@ -239,7 +239,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
   const isAdmin = authUser?.role === 'ADMIN';
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* ── THANH CHUYỂN TAB NỘI BỘ ───────────────────────────────────── */}
       <div className="flex items-center gap-2 border-b border-gray-200">
         <button

@@ -276,7 +276,7 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* TIÊU ĐỀ VIEW */}
       <div className="card-soft p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
