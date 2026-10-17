@@ -80,9 +80,9 @@ const MATRIX = [
   ['PUT', '/api/users/khong-ton-tai/bcvh', { codes: [] }, ADMIN_ONLY],
   // Tự đổi mật khẩu — mọi vai trò (mật khẩu hiện tại sai -> 400, qua được cổng quyền)
   ['PUT', '/api/users/me/password', { currentPassword: 'sai-mat-khau', newPassword: '123456' }, ALL],
-  // Mạng lưới: đọc ADMIN/TTVH/GDVH; ghi/nhập/xoá chỉ ADMIN
-  ['GET', '/api/network', undefined, VIEW],
-  ['GET', '/api/network/export-data', undefined, VIEW],
+  // Mạng lưới (THEME-1): toàn bộ chỉ ADMIN
+  ['GET', '/api/network', undefined, ADMIN_ONLY],
+  ['GET', '/api/network/export-data', undefined, ADMIN_ONLY],
   ['POST', '/api/network/import', { rows: [] }, ADMIN_ONLY],
   ['PUT', '/api/network/post-offices/khong-ton-tai', { name: 'x' }, ADMIN_ONLY],
   ['DELETE', '/api/network/post-offices/khong-ton-tai', undefined, ADMIN_ONLY],
@@ -138,13 +138,21 @@ test('ma trận quyền: các route đọc trả 200 cho vai trò được phép
     '/api/dashboard/widgets', '/api/organization/communes', '/api/dashboard/stats'
   ];
   for (const path of reads) {
-    const allowed = path.startsWith('/api/network') || path.startsWith('/api/arrivals') ? VIEW : ALL;
+    const allowed = path.startsWith('/api/network') ? ADMIN_ONLY : path.startsWith('/api/arrivals') ? VIEW : ALL;
     for (const who of allowed) assert.equal((await as(who, 'GET', path)).status, 200, `${who} ${path}`);
   }
   for (const who of ['admin']) {
     assert.equal((await as(who, 'GET', '/api/users')).status, 200);
     assert.equal((await as(who, 'GET', '/api/arrivals/import-status')).status, 200);
     assert.equal((await as(who, 'GET', '/api/dashboard/widgets-meta')).status, 200);
+  }
+});
+
+test('THEME-1: GET /api/network và /api/network/export-data — ADMIN 200; TTVH, GDVH, STAFF 403; không token 401', async () => {
+  for (const path of ['/api/network', '/api/network/export-data']) {
+    assert.equal((await as('admin', 'GET', path)).status, 200, `admin ${path}`);
+    for (const who of ['ttvh', 'gdvh', 'staff']) assert.equal((await as(who, 'GET', path)).status, 403, `${who} ${path}`);
+    assert.equal((await call('GET', path)).status, 401, `không token ${path}`);
   }
 });
 

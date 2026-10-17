@@ -232,7 +232,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'network' && isViewer && (
+          {activeTab === 'network' && isAdmin && (
             <NetworkListView />
           )}
 
