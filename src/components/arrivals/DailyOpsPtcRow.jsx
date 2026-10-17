@@ -1,14 +1,18 @@
 import React from 'react';
 import { AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { formatPercent } from './DailyOpsDashboard';
+import {
+  PTC_THANG_CAU_HINH, PtcSparkline, ChenhChip, PtcThangFooter, chuoiTheoNgay, formatPct1, ddMm, nhanLuyKe
+} from './DailyOpsPtcThang';
 
 /**
- * Hàng thẻ PTC dành cho Dashboard «Điều hành hôm nay» (PHAT-3c):
+ * Hàng thẻ PTC dành cho Dashboard «Điều hành hôm nay» (PHAT-3c; hai cột HÔM NAY | LŨY KẾ ở DASH-12b-3):
  * Gồm: 1 thẻ PTC lớn + 4 thẻ nhỏ (Phát không thành công, Chuyển hoàn, Lạc hướng, Chưa có thông tin phát).
- * - Ngưỡng lấy từ `ketQuaPhat.nguong` (ptc_dat, chua_co_tt_canh_bao).
- * - PTC >= ngưỡng: thẻ xanh; < ngưỡng: thẻ vàng.
- * - Chưa có thông tin phát >= ngưỡng cảnh báo: thẻ đỏ.
- * - co_so_lieu_phat = false: hiện «Chưa có số liệu phát», các thẻ nhỏ hiện «—», tuyệt đối không hiện 0%.
+ * - Ngưỡng lấy từ `ketQuaPhat.nguong` (ptc_dat, chua_co_tt_canh_bao); mục tiêu PTC cũng là vạch nét đứt của đường diễn biến.
+ * - PTC >= ngưỡng: thẻ xanh; < ngưỡng: thẻ vàng. Chưa có thông tin phát >= ngưỡng cảnh báo: thẻ đỏ.
+ * - HÔM NAY hiện SỐ THẬT theo quy tắc ngày đến (#92): chưa xử lý gì thì 0 (0,0%), Chưa có TT 100% kèm «Hôm nay chưa có xử lý» (chỉ «—» khi không có hàng đến).
+ *   Ngày chưa đủ số liệu (`du_so_lieu` = false) không có chip mục tiêu và không vào lũy kế.
+ * - LŨY KẾ TỪ 01/MM: chỉ các ngày đủ số liệu (`thang`: phản hồi ket-qua-phat-thang; null = đang tải; false = lỗi).
  * - Dòng «số liệu đến lúc» chỉ hiện khi `so_lieu_den_luc` có giá trị.
  */
 /**
@@ -33,7 +37,54 @@ export function formatBangkokTime(str) {
   return s;
 }
 
-export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
+/** Một cột số lớn của thẻ PTC lớn: nhãn, số, tử / mẫu (+ ghi chú một dòng). */
+function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-[#0f2747]', ghiChu = null, trong = false }) {
+  return (
+    <div className="min-w-0 shrink-0 w-[88px]">
+      <div className="text-[10px] font-bold text-[#78716c] uppercase tracking-wider whitespace-nowrap">{nhan}</div>
+      {trong ? (
+        <div className="text-[26px] font-black leading-none my-0.5 text-[#a8a29e]">…</div>
+      ) : (
+        <>
+          <div className={`text-[26px] font-black leading-none my-0.5 ${mauChu}`}>{tyLe}</div>
+          <div className="text-[11px] font-semibold text-[#57534e] whitespace-nowrap">{so} / {mau}</div>
+        </>
+      )}
+      {ghiChu && <div className="text-[10px] text-[#a8a29e] mt-0.5 leading-tight">{ghiChu}</div>}
+    </div>
+  );
+}
+
+/** Thẻ nhỏ: nhãn (cả dòng), số hôm nay + tỷ lệ, đường diễn biến nhỏ bên phải, chân thẻ 44px «01/MM→ số · %» + chênh. */
+function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu = null }) {
+  const mauNhan = canhBao ? 'text-[#991b1b]' : 'text-[#78716c]';
+  const mauSo = canhBao ? 'text-[#991b1b]' : 'text-[#0f2747]';
+  const mauTyLe = canhBao ? 'text-[#b91c1c]' : 'text-[#57534e]';
+  return (
+    <div className={`rounded-2xl border shadow-2xs flex flex-col overflow-hidden transition-all ${canhBao ? 'bg-[#fef2f2] border-[#fecaca]' : 'bg-white border-[#e7e5e4]'}`}>
+      <div className="p-4 pb-2 flex-1">
+        <div className="flex items-center justify-between gap-1 mb-1">
+          <span className={`text-[11px] font-bold uppercase tracking-wider line-clamp-1 ${mauNhan}`}>{nhan}</span>
+          {canhBao && nguongChu && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-700 border border-red-200 shrink-0">{nguongChu}</span>
+          )}
+        </div>
+        <div className="flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            <div className={`text-2xl font-black leading-tight ${mauSo}`}>{hienSo ? so.toLocaleString('vi-VN') : '—'}</div>
+            <div className={`text-xs font-semibold ${mauTyLe}`}>{hienSo ? formatPercent(tyLe) : '—'}</div>
+          </div>
+          <div className="w-[64px] shrink-0">
+            <PtcSparkline values={chuoiTheoNgay(thang || null, ma)} nhan={`Diễn biến theo ngày: ${nhan}`} className="w-full h-8" />
+          </div>
+        </div>
+      </div>
+      <PtcThangFooter thang={thang} ma={ma} />
+    </div>
+  );
+}
+
+export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) {
   // Trạng thái D: Lỗi quyền (403) hoặc lỗi mạng khi tải kết quả phát
   if (phatError) {
     return (
@@ -60,10 +111,11 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
   }
 
   const {
-    co_so_lieu_phat: coSoLieu,
+    ngay,
     ptc,
     mau_so: mauSo = 0,
     theo_trang_thai: theoTrangThai,
+    du_so_lieu: duSoLieu,
     so_lieu_den_luc: soLieuDenLuc,
     so_lieu_den_luc_bangkok: soLieuDenLucBangkok,
     nguong
@@ -79,26 +131,36 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
   const chuaCoTt = theoTrangThai?.CHUA_CO_TT;
   const soPtc = theoTrangThai?.PTC?.so ?? 0;
 
-  // Đánh giá đạt/chưa đạt ngưỡng PTC
-  const isPtcDat = coSoLieu && ptc !== null && ptc !== undefined && ptc >= nguongPtc;
-  // Cảnh báo Chưa có thông tin phát
-  const isChuaCoTtCanhBao = coSoLieu && chuaCoTt?.ty_le !== null && chuaCoTt?.ty_le !== undefined && chuaCoTt.ty_le >= nguongChuaCoTt;
+  // Có hàng đến thì hiện số thật (kể cả 0 / 0,0% khi hôm nay chưa xử lý); không có hàng đến thì «—».
+  const hienSo = mauSo > 0;
+  // `du_so_lieu` do máy chủ trả; thiếu (phản hồi cũ) thì coi như đủ khi có hàng đến
+  const duSo = duSoLieu === undefined ? hienSo : !!duSoLieu;
+  const homNayChuaXuLy = hienSo && !duSo;
+
+  const isPtcDat = hienSo && duSo && ptc !== null && ptc !== undefined && ptc >= nguongPtc;
+  // Cảnh báo Chưa có thông tin phát (hôm nay chưa xử lý thì 100% -> cảnh báo đỏ, đúng sự thật)
+  const isChuaCoTtCanhBao = hienSo && chuaCoTt?.ty_le !== null && chuaCoTt?.ty_le !== undefined && chuaCoTt.ty_le >= nguongChuaCoTt;
 
   // Kiểu hiển thị thẻ PTC lớn
   let ptcCardBg = 'bg-white border-[#e7e5e4]';
   let ptcTextColor = 'text-[#292524]';
   let ptcBadge = null;
 
-  if (!coSoLieu) {
-    // Trạng thái C: Chưa có số liệu phát
-    ptcCardBg = 'bg-white border-[#e7e5e4]';
+  if (!hienSo) {
     ptcBadge = (
       <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-300">
-        Chưa có số liệu phát
+        Chưa có hàng đến
+      </span>
+    );
+  } else if (!duSo) {
+    // Hôm nay chưa đủ số liệu: không đánh giá mục tiêu (số 0,0% do chưa xử lý, không phải kết quả kém)
+    ptcTextColor = 'text-[#57534e]';
+    ptcBadge = (
+      <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-300">
+        Chưa đủ số liệu hôm nay
       </span>
     );
   } else if (isPtcDat) {
-    // Trạng thái A: Đạt ngưỡng PTC (thẻ xanh)
     ptcCardBg = 'bg-[#ecfdf5] border-[#a7f3d0]';
     ptcTextColor = 'text-[#047857]';
     ptcBadge = (
@@ -108,7 +170,6 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
       </span>
     );
   } else {
-    // Trạng thái A2: Dưới ngưỡng PTC (thẻ vàng)
     ptcCardBg = 'bg-[#fffbeb] border-[#fde68a]';
     ptcTextColor = 'text-[#b45309]';
     ptcBadge = (
@@ -119,125 +180,86 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError }) {
     );
   }
 
+  // ---- LŨY KẾ (chỉ ngày đủ số liệu) ----
+  const dangTai = thang === null || thang === undefined;
+  const L = thang && thang.luy_ke;
+  const luyPtc = L?.theo_trang_thai?.PTC;
+  const coLuyKe = !!L && L.so_ngay_co_so_lieu > 0 && L.mau_so > 0;
+  const nhanTu = L ? `TỪ ${ddMm(L.tu_ngay)}` : 'TỪ ĐẦU THÁNG';
+  const denNgay = coLuyKe ? nhanLuyKe(thang) : '';
+  const denDuCuoi = denNgay && !denNgay.endsWith('→') ? denNgay.split('→')[1] : null; // hôm nay chưa tính: ghi ngày đủ cuối cùng
+  const luyGhiChu = coLuyKe
+    ? `${denDuCuoi ? `đến ${denDuCuoi} · ` : ''}${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ`
+    : (L ? 'Chưa có ngày đủ số liệu' : null);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-      {/* 1. THẺ PTC LỚN (chiếm 2 cột trên màn lớn) */}
-      <div className={`md:col-span-2 lg:col-span-2 rounded-2xl border p-5 shadow-2xs flex flex-col justify-between transition-all ${ptcCardBg}`}>
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider">
-              Tỷ lệ phát thành công (PTC)
-            </span>
-            {ptcBadge}
-          </div>
+      {/* 1. THẺ PTC LỚN (chiếm 2 cột trên màn lớn): hai cột HÔM NAY | TỪ 01/MM + chip chênh và đường diễn biến có vạch mục tiêu */}
+      <div className={`md:col-span-2 lg:col-span-2 rounded-2xl border p-4 shadow-2xs flex flex-col gap-1.5 transition-all ${ptcCardBg}`}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider">
+            Tỷ lệ phát thành công (PTC)
+          </span>
+          {ptcBadge}
+        </div>
 
-          {!coSoLieu ? (
-            /* Tuyệt đối KHÔNG hiện 0% khi chưa có số liệu phát */
-            <div className="my-2.5">
-              <div className="text-xl sm:text-2xl font-black text-[#78716c] leading-tight">
-                Chưa có số liệu phát
-              </div>
-              <div className="text-xs text-[#a8a29e] mt-1">
-                Mẫu số: {mauSo.toLocaleString('vi-VN')} bưu gửi đến
-              </div>
+        <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-x-3 gap-y-2">
+          <CotSo
+            nhan={`HÔM NAY${ngay ? ` · ${ddMm(ngay)}` : ''}`}
+            so={soPtc.toLocaleString('vi-VN')}
+            mau={mauSo.toLocaleString('vi-VN')}
+            tyLe={hienSo ? formatPercent(ptc) : '—'}
+            mauChu={ptcTextColor}
+            ghiChu={homNayChuaXuLy ? 'Hôm nay chưa có xử lý' : (soLieuDenLuc ? <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" />đến {formatBangkokTime(soLieuDenLucBangkok || soLieuDenLuc).replace(' · ', ' ').replace(/\/\d{4}$/, '')}</span> : null)}
+          />
+          <div className="hidden sm:block w-px bg-black/10 self-stretch shrink-0" />
+          <CotSo
+            nhan={nhanTu}
+            so={(luyPtc?.so ?? 0).toLocaleString('vi-VN')}
+            mau={(L?.mau_so ?? 0).toLocaleString('vi-VN')}
+            tyLe={coLuyKe ? formatPct1(luyPtc?.ty_le) : '—'}
+            trong={dangTai}
+            ghiChu={dangTai ? null : luyGhiChu}
+          />
+          <div className="flex-1 min-w-[120px] flex flex-col justify-between gap-1">
+            <div>
+              {dangTai ? (
+                <span className="text-[11px] text-[#a8a29e]">Từ đầu tháng: …</span>
+              ) : !L ? (
+                <span className="text-[11px] text-[#a8a29e]">Từ đầu tháng: chưa có số liệu</span>
+              ) : (
+                <ChenhChip chenh={thang.chenh?.PTC || null} xauKhiTang={PTC_THANG_CAU_HINH.PTC.xauKhiTang} xuongDong ngan />
+              )}
             </div>
-          ) : (
-            <div className="my-2">
-              <div className={`text-3xl sm:text-4xl font-black leading-none ${ptcTextColor}`}>
-                {formatPercent(ptc)}
-              </div>
-              <div className="text-xs font-semibold text-[#57534e] mt-1.5">
-                {soPtc.toLocaleString('vi-VN')} / {mauSo.toLocaleString('vi-VN')} bưu gửi phát thành công
-              </div>
-            </div>
-          )}
+            <PtcSparkline
+              values={chuoiTheoNgay(thang || null, 'PTC')}
+              muc={nguongPtc}
+              minSpan={0.1}
+              nhan={`Diễn biến PTC theo ngày từ ${L ? ddMm(L.tu_ngay) : '01'}, nét đứt là mục tiêu ${Math.round(nguongPtc * 100)}%`}
+              className="w-full h-8"
+            />
+          </div>
+        </div>
+        <div className="text-[10px] text-[#a8a29e] leading-tight">
+          Đường = diễn biến theo ngày · nét đứt = mục tiêu {Math.round(nguongPtc * 100)}%
         </div>
 
-        {/* Dòng «số liệu đến lúc»: CHỈ hiện khi so_lieu_den_luc có giá trị */}
-        {soLieuDenLuc && (
-          <div className="text-[11px] text-[#78716c] pt-2 mt-2 border-t border-black/5 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-[#a8a29e] shrink-0" />
-            <span>Số liệu đến lúc: {formatBangkokTime(soLieuDenLucBangkok || soLieuDenLuc)}</span>
-          </div>
-        )}
       </div>
 
-      {/* 2. THẺ NHỎ: PHÁT KHÔNG THÀNH CÔNG */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
-        <div>
-          <div className="text-[11px] font-bold text-[#78716c] uppercase tracking-wider mb-1 line-clamp-1">
-            Phát không thành công
-          </div>
-          <div className="text-2xl font-black text-[#0f2747] leading-tight my-1">
-            {!coSoLieu ? '—' : (pktc?.so ?? 0).toLocaleString('vi-VN')}
-          </div>
-        </div>
-        <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-          {!coSoLieu ? '—' : formatPercent(pktc?.ty_le)}
-        </div>
-      </div>
-
-      {/* 3. THẺ NHỎ: CHUYỂN HOÀN */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
-        <div>
-          <div className="text-[11px] font-bold text-[#78716c] uppercase tracking-wider mb-1 line-clamp-1">
-            Chuyển hoàn
-          </div>
-          <div className="text-2xl font-black text-[#0f2747] leading-tight my-1">
-            {!coSoLieu ? '—' : (chuyenHoan?.so ?? 0).toLocaleString('vi-VN')}
-          </div>
-        </div>
-        <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-          {!coSoLieu ? '—' : formatPercent(chuyenHoan?.ty_le)}
-        </div>
-      </div>
-
-      {/* 4. THẺ NHỎ: LẠC HƯỚNG */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
-        <div>
-          <div className="text-[11px] font-bold text-[#78716c] uppercase tracking-wider mb-1 line-clamp-1">
-            Lạc hướng
-          </div>
-          <div className="text-2xl font-black text-[#0f2747] leading-tight my-1">
-            {!coSoLieu ? '—' : (lacHuong?.so ?? 0).toLocaleString('vi-VN')}
-          </div>
-        </div>
-        <div className="text-xs font-semibold text-[#57534e] pt-2 border-t border-[#f5f5f4]">
-          {!coSoLieu ? '—' : formatPercent(lacHuong?.ty_le)}
-        </div>
-      </div>
-
-      {/* 5. THẺ NHỎ: CHƯA CÓ THÔNG TIN PHÁT (cảnh báo đỏ nếu >= ngưỡng) */}
-      <div className={`rounded-2xl border p-4 sm:p-5 shadow-2xs flex flex-col justify-between transition-all ${
-        isChuaCoTtCanhBao
-          ? 'bg-[#fef2f2] border-[#fecaca] text-[#991b1b]'
-          : 'bg-white border-[#e7e5e4]'
-      }`}>
-        <div>
-          <div className="flex items-center justify-between gap-1 mb-1">
-            <span className={`text-[11px] font-bold uppercase tracking-wider line-clamp-1 ${
-              isChuaCoTtCanhBao ? 'text-[#991b1b]' : 'text-[#78716c]'
-            }`}>
-              Chưa có TT phát
-            </span>
-            {isChuaCoTtCanhBao && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-700 border border-red-200 shrink-0">
-                ≥ {Math.round(nguongChuaCoTt * 100)}%
-              </span>
-            )}
-          </div>
-          <div className={`text-2xl font-black leading-tight my-1 ${
-            isChuaCoTtCanhBao ? 'text-[#991b1b]' : 'text-[#0f2747]'
-          }`}>
-            {!coSoLieu ? '—' : (chuaCoTt?.so ?? 0).toLocaleString('vi-VN')}
-          </div>
-        </div>
-        <div className={`text-xs font-semibold pt-2 border-t ${
-          isChuaCoTtCanhBao ? 'border-red-200 text-[#b91c1c]' : 'border-[#f5f5f4] text-[#57534e]'
-        }`}>
-          {!coSoLieu ? '—' : formatPercent(chuaCoTt?.ty_le)}
-        </div>
-      </div>
+      {/* 2–5. BỐN THẺ NHỎ */}
+      <TheNho nhan="Phát không thành công" ma="PKTC" so={pktc?.so ?? 0} tyLe={pktc?.ty_le} hienSo={hienSo} thang={thang} />
+      <TheNho nhan="Chuyển hoàn" ma="CHUYEN_HOAN" so={chuyenHoan?.so ?? 0} tyLe={chuyenHoan?.ty_le} hienSo={hienSo} thang={thang} />
+      <TheNho nhan="Lạc hướng" ma="LAC_HUONG" so={lacHuong?.so ?? 0} tyLe={lacHuong?.ty_le} hienSo={hienSo} thang={thang} />
+      <TheNho
+        nhan="Chưa có TT phát"
+        ma="CHUA_CO_TT"
+        so={chuaCoTt?.so ?? 0}
+        tyLe={chuaCoTt?.ty_le}
+        hienSo={hienSo}
+        thang={thang}
+        canhBao={isChuaCoTtCanhBao}
+        nguongChu={`≥ ${Math.round(nguongChuaCoTt * 100)}%`}
+      />
     </div>
   );
 }

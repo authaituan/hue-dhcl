@@ -22,7 +22,9 @@ export function formatPointDiff(diff) {
 
 export function formatPercent(r) {
   if (r === null || r === undefined || isNaN(r)) return '—';
-  return `${(r * 100).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  // Làm tròn nửa lên về 0,1 điểm bằng SỐ NGUYÊN từ tỷ lệ 4 chữ số của máy chủ: khớp cách máy chủ tính «chênh so với tháng» (DASH-12b), không sai số dấu phẩy động của r * 100.
+  const tenths = Math.floor((Math.round(r * 10000) + 5) / 10);
+  return `${(tenths / 10).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
 export function formatPctChange(pct) {
@@ -439,6 +441,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   const [phuongXa, setPhuongXa] = useState(null);
   const [ketQuaPhat, setKetQuaPhat] = useState(null);
   const [phatError, setPhatError] = useState(null);
+  // «Từ đầu tháng» (DASH-12c): lấy riêng, KHÔNG chặn các khối khác (máy chủ tính ~1 giây khi dữ liệu đổi); lỗi / 403 chỉ làm khối này ẩn số.
+  const [thangPhat, setThangPhat] = useState(null);
+  const thangReq = useRef(0);
+  const thangBcvh = useRef(null);
 
   // Trạng thái mạng / refresh
   const [initialLoading, setInitialLoading] = useState(true);
@@ -491,6 +497,13 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         // Lỗi từ backend nhưng không phải 403: ghi nhận mất kết nối, giữ số cũ
         if (!connectionLostAt) setConnectionLostAt(new Date());
       }
+
+      // «Từ đầu tháng» của thẻ kết quả phát: gọi riêng, bỏ qua kết quả của lần gọi cũ khi đã đổi BCVH / có lần gọi mới hơn
+      const reqId = ++thangReq.current;
+      if (thangBcvh.current !== code) { thangBcvh.current = code; setThangPhat(null); } // đổi BCVH / phạm vi: không hiện số tháng của BCVH cũ trong lúc chờ
+      apiFetchJson(`/api/arrivals/dashboard/ket-qua-phat-thang?bcvh=${code}`)
+        .then((res) => { if (reqId === thangReq.current) setThangPhat(res.ok ? res.data : false); })
+        .catch(() => { if (reqId === thangReq.current) setThangPhat(false); });
 
       // Xử lý riêng kết quả phát để không làm hỏng các khối còn lại (PHAT-3c)
       if (phatRes.ok) {
@@ -550,6 +563,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   // Handler đổi BCVH
   const handleSelectBcvh = (newCode) => {
     setSelectedBcvh(newCode);
+    setThangPhat(null); // không hiện số tháng của BCVH cũ khi vừa đổi
     setHasUserSelected(true);
   };
 
@@ -939,7 +953,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       </div>
 
       {/* 3. HÀNG PTC (PHAT-3c: THẺ PTC LỚN + 4 THẺ NHỎ) */}
-      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} />
+      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat && thangPhat.bcvh !== (selectedBcvh || 'all') ? null : thangPhat} />
 
       {/* 4. KHỐI «CẦN ĐIỀU HÀNH NGAY HÔM NAY» / «VIỆC CỦA BCVH TÔI» */}
       <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">

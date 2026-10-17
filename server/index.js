@@ -80,6 +80,20 @@ const server = app.listen(PORT, () => {
 });
 
 // ==========================================
+// Khởi động nóng «kết quả phát từ đầu tháng» (DASH-12b-4): sau khi máy chủ đã nghe, tính sẵn cache tháng của `all` và từng BCVH, từng (BCVH, ngày) một và nhường
+// vòng lặp giữa các bước (không chặn yêu cầu khác). Tắt bằng PHAT_WARM=0; không chạy trong test / harness (NODE_TEST_CONTEXT). Lỗi chỉ ghi một dòng log.
+// ==========================================
+if (process.env.PHAT_WARM !== '0' && !process.env.NODE_TEST_CONTEXT && process.env.NODE_ENV !== 'test') {
+  let daDong = false;
+  server.on('close', () => { daDong = true; });
+  setTimeout(() => {
+    require('./lib/phatDashboard').khoiDongNong(require('./db'), { dung: () => daDong })
+      .then((r) => console.log(`[phat-thang] khởi động nóng: ${r.so_ngay_bcvh_tinh} ngày-BCVH trong ${r.ms} ms${r.loi ? ` (lỗi: ${r.loi})` : ''}`))
+      .catch((err) => console.error('[phat-thang] khởi động nóng lỗi:', err && err.message));
+  }, 3000).unref();
+}
+
+// ==========================================
 // Hẹn giờ tự động nạp file từ SFTP (SANLUONG-5e, docs/ai/15_SFTP_SCHEDULER.md). MẶC ĐỊNH TẮT: chỉ chạy khi SFTP_SYNC_ENABLED=1 và cấu hình đủ;
 // không chạy trong test / harness (NODE_TEST_CONTEXT). Sai cấu hình -> một dòng log, hẹn giờ không khởi động, máy chủ vẫn chạy. Không bao giờ ném lỗi.
 // ==========================================

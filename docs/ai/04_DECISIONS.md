@@ -694,5 +694,32 @@ Căn cứ: DASH-10a — thẻ PTC và xếp hạng «Cả ngày» trên Tivi c�
 - `GET /api/arrivals/dashboard/ket-qua-phat` thêm vào `TIVI_ALLOWED` (đúng 1 mục; `/api/phat/*` vẫn 403 với Tivi — sửa #74 và #79 ở điểm «TIVI 403»).
 - `tiviPhatGuard`: Tivi chỉ qua khi phạm vi tài khoản là `all` và `bcvh` vắng / rỗng / `all`; phạm vi một BCVH, chưa gán phạm vi, hoặc xin `bcvh` cụ thể → 403 (không ép ngầm như 3 endpoint «đến»). Vai trò khác không đổi; cấu trúc trả về không đổi.
 
+### 91. «Kết quả phát từ đầu tháng»: endpoint riêng, lũy kế = cộng từng ngày, số theo trạng thái hiện tại (PO chốt 17/10/2026 — DASH-12b, backend)
+Căn cứ: khảo sát DASH-12a. Chi tiết: `31_DASH12B_KET_QUA_PHAT_THANG.md`, `08_PHAT.md` mục 4.
+- Phương án B: `GET /api/arrivals/dashboard/ket-qua-phat-thang?bcvh=&ngay=` (mới); `ket-qua-phat` và `tong-quan-den` không đổi. Quyền như `ket-qua-phat`; **TIVI 403** (không thêm vào `TIVI_ALLOWED`).
+- Số ngày cũ theo trạng thái **hiện tại** của SHBG (không dựng lại từ lịch sử): nhập muộn / hoàn tác đổi số ngày cũ. Bản ghi thử và khai thật 01–09/10 do PO xử lý trên dữ liệu; không thêm cờ thử/thật.
+- Lũy kế = tổng tử ÷ tổng mẫu của TỪNG ngày (`demNgay`), không truy vấn một khoảng (SHBG đến hai ngày đếm hai lần); ngày `co_tt = 0` loại cả tử lẫn mẫu; ngày không file không đóng góp. `bcvh=all`: ngày chung (`tapNgayChung`), cùng tập BCVH cho cả tháng.
+- Chênh lệch theo giá trị làm tròn 1 chữ số; `ngang` khi `|chênh| < 0,5` điểm; chỉ trả khi ≥ 2 ngày có số liệu và mẫu số hôm nay ≥ 50, ngược lại `null`. Ba hằng ở `phatConfig.js`, trả qua `nguong`.
+- Cache hai tầng (PO chọn 17/10/2026, DASH-12b-2): toàn kết quả 60 giây + chữ ký dữ liệu; và từng `(BCVH, ngày)` với chữ ký riêng (file hàng đến của mọi BCVH trong cửa sổ `[ngày − 1, ngày + 3]` + đợt nhập phát của chính BCVH đó) — đợt nhập chỉ tính lại BCVH liên quan.
+
+### 92. Kết quả phát theo NGÀY ĐẾN: chỉ tính trạng thái nhập từ ngày đó trở đi; «đủ số liệu»; tách «hôm nay» và «lũy kế» (PO chốt 17/10/2026 — DASH-12b-3; ĐỔI #91-1)
+Căn cứ: sáng 17/10 chưa BCVH nào nhập phát mà thẻ hôm nay hiện PTC 0,1% (5/3.666) và Chuyển hoàn 38 — vì trạng thái phát gắn `(bcvh, shbg)` không có ngày nên SHBG đến hôm nay mà có trạng thái từ trước (đến lại) bị «mang sang». Chi tiết: `31_DASH12B_KET_QUA_PHAT_THANG.md`, `08_PHAT.md` mục 4.
+1. **Kết quả phát ghi cho NGÀY ĐẾN của bưu gửi**, kể cả xử lý muộn (hàng đến 16/10 nhập 95% hết ngày 16 rồi 98% sáng 17/10 → 98% vẫn tính cho ngày 16, không tính cho 17).
+2. **Mỗi LẦN ĐẾN D của một SHBG tại một BCVH có trạng thái riêng = bản nhập CUỐI (lịch sử nhập `phat_status_history`, bỏ đợt đã hoàn tác) có ngày nhập VN N, `D ≤ N < D'`** (D' = ngày đến kế tiếp của SHBG tại BCVH; không có D' thì không chặn trên); không có bản nào → Chưa có TT. SHBG đến 16 và 17: nhập PKTC ngày 16, PTC ngày 17 → 16 tính PKTC, 17 tính PTC. Nhập trước khi đến không «mang sang».
+3. Hôm nay chưa xử lý gì → PTC / PKTC / Chuyển hoàn / Lạc hướng đều 0 (0,0%), Chưa có TT = 100%.
+4. Ngày «đủ số liệu» = «Chưa có TT» < `NGUONG_CHUA_CO_TT_CANH_BAO` (0,10; đúng 10,0% là chưa đủ). Ngày chưa đủ: không vào lũy kế, không vào chênh lệch, đường diễn biến ngắt (`null`).
+5. Giao diện tách HÔM NAY và LŨY KẾ TỪ 01/MM (chỉ ngày đủ số liệu).
+6. **Đổi #91-1**: không còn «số ngày cũ theo trạng thái hiện tại duy nhất của SHBG»; dựng từ lịch sử nhập. Nhập muộn / sửa / hoàn tác vẫn đổi số của ngày đến tương ứng, không đổi số các lần đến khác. Mốc dữ liệu đúng / đủ vẫn là việc của PO.
+- Phạm vi áp dụng: `ketQuaPhat` (thẻ ngày, kể cả xếp hạng BCVH) và `ket-qua-phat-thang`; `demNgay` mặc định (`/api/phat/ty-le`, commit / hoàn tác «trước / sau») giữ NGUYÊN hành vi cũ (trạng thái hiện tại). **Tivi** gọi `ket-qua-phat` nên số Tivi đổi theo (giao diện Tivi không sửa ở ticket này).
+- `ket-qua-phat` CHỈ THÊM khóa `du_so_lieu`; `so_ngay_co_so_lieu` của endpoint tháng đổi nghĩa = số ngày ĐỦ số liệu; thêm `hom_nay` và `theo_ngay[].du_so_lieu`.
+- Giới hạn đã biết: D' lấy từ `arrival_items` của chính BCVH, chưa áp quy tắc gán DASH-7f cho các ngày sau (xấp xỉ).
+
+### 93. Cache «kết quả phát từ đầu tháng»: chữ ký từ TRẠNG THÁI TRONG DB, nghi ngờ thì vô hiệu rộng; khởi động nóng theo lát (PO nghiệm thu 17/10/2026 — DASH-12b-4)
+Chi tiết: `31_DASH12B_KET_QUA_PHAT_THANG.md` (mục DASH-12b-4), `08_PHAT.md` mục 4.
+- Chữ ký vô hiệu tính từ DB (`PRAGMA data_version` + `total_changes()` cho tầng 1; tổng hợp nội dung theo ngày / BCVH cho tầng 2), KHÔNG từ bộ đếm trong tiến trình: nạp SFTP, «Thay thế ngày», «Khôi phục», `scripts/xoa-du-lieu-bcvh.js`, `import-arrivals.js --chia-ngay`, `scripts/rederive-arrival.js` (UPDATE tại chỗ) đều ghi DB từ ngoài khối tính; cache không được trả số cũ sau bất kỳ đường ghi nào.
+- Chữ ký của (BCVH b, ngày D) phản ứng với MỌI thứ ảnh hưởng kết quả: dòng đến của D (mọi BCVH), ngày đến kế tiếp D' (SHBG đến lại), đợt nhập phát / hoàn tác / lịch sử của b, file hàng đến quanh D. Mỗi nguyên nhân có test so sánh trực tiếp «cache == tính lại từ đầu» (`tests/phat-thang.test.js`, nguyên nhân 1–7 + 4b), kể cả kiểm riêng tầng 2.
+- Nghi ngờ thì vô hiệu rộng hơn (kể cả ghi bảng không liên quan đổi dấu hiệu → tính lại chữ ký, không tính lại ngày). Không đánh đổi đúng lấy nhanh.
+- Khởi động nóng theo LÁT (mỗi lát một truy vấn rồi nhường vòng lặp): lát dài nhất ≤ 102 ms ở cỡ 720.000 dòng (mục tiêu < 200 ms) nên được cài; tắt `PHAT_WARM=0`.
+
 ## Drift phát hiện
 _(chưa có)_

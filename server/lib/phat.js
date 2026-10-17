@@ -581,10 +581,32 @@ const GAN_CTE = `g AS (
 const GAN_JOIN = `FROM s JOIN g ON g.tracking_no = s.tracking_no AND g.d = s.arrival_date AND g.rc = @bcvh AND g.rk = 1
   LEFT JOIN phat_status_current p ON p.bcvh = @bcvh AND p.shbg = s.tracking_no`;
 
+/**
+ * DASH-12b-3 (quy tắc PO 17/10/2026): trạng thái của MỖI LẦN ĐẾN D của một SHBG tại BCVH = bản nhập CUỐI CÙNG trong LỊCH SỬ NHẬP (đợt chưa hoàn tác) có
+ * ngày nhập N (giờ Việt Nam = UTC+7 cố định, như C.MUI_GIO 'Asia/Bangkok'; nhap_luc là UTC ISO) thỏa D <= N < D', D' = ngày đến kế tiếp của SHBG tại BCVH
+ * (không có D' thì không chặn trên). Không có bản ghi nào thỏa -> chưa có TT. Dựng từ phat_status_history (mỗi lần nhập ghi một dòng; hoàn tác ghi dòng với
+ * batch_id của đợt BỊ hoàn tác nên cùng bị loại khi lọc phat_batches.trang_thai = 'da_nhap'). D' lấy từ arrival_items của chính BCVH (arrival_date > D),
+ * chưa áp quy tắc gán DASH-7f cho các ngày SAU (xấp xỉ: chỉ khác khi lần đến sau bị gán cho BCVH khác). Viết theo tập hợp (CTE `ls`, `nx` cụ thể hoá + nối theo SHBG) — bản truy vấn con tương quan chậm ~45 lần (~1,4 giây / BCVH-ngày ở 4.000 SHBG).
+ */
+const NHAP_CTE = `ls AS MATERIALIZED (
+    SELECT h.id AS id, h.shbg AS shbg, h.trang_thai AS trang_thai, h.nhap_luc AS nhap_luc, date(h.nhap_luc, '+7 hours') AS dn
+    FROM phat_status_history h JOIN phat_batches pb ON pb.id = h.batch_id AND pb.trang_thai = 'da_nhap'
+    WHERE h.bcvh = @bcvh AND h.shbg IN (SELECT tracking_no FROM s)),
+  nx AS MATERIALIZED (
+    SELECT a.tracking_no AS tn, MIN(a.arrival_date) AS dnext FROM arrival_items a
+    WHERE a.receiver_code = @bcvh AND a.arrival_date > @x_day AND a.tracking_no IN (SELECT tracking_no FROM s) GROUP BY a.tracking_no)`;
+// Một dòng / SHBG của ngày: bản nhập cuối (id lớn nhất) trong cửa sổ [D, D'); MAX(l.id) làm SQLite lấy các cột trần (trang_thai, nhap_luc) của đúng dòng đó.
+const NHAP_SELECT = `SELECT hh AS h, COALESCE(tt0, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(sel) AS co, MAX(nl) AS nl FROM (
+    SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS hh, l.trang_thai AS tt0, l.id AS sel, l.nhap_luc AS nl, MAX(l.id) AS mx
+    FROM s JOIN g ON g.tracking_no = s.tracking_no AND g.d = s.arrival_date AND g.rc = @bcvh AND g.rk = 1
+    LEFT JOIN nx ON nx.tn = s.tracking_no
+    LEFT JOIN ls l ON l.shbg = s.tracking_no AND l.dn >= @x_day AND l.dn < COALESCE(nx.dnext, '9999-12-31')
+    GROUP BY s.tracking_no) GROUP BY h, tt`;
+
 /** Như den.runCounted nhưng thêm CTE `g`; [tu, den] = khoảng ngày xét tranh chấp giữa các BCVH. */
-function runGan(db, f, tu, denNgay, select, extra = {}) {
-  const { sql, params } = aq.buildCountedCte(db, f);
-  return db.prepare(`WITH ${sql}, ${GAN_CTE} ${select}`).all({ ...params, g_tu: tu, g_den: denNgay, g_all: JSON.stringify(VALID_BCVH_CODES), ...extra });
+function runGan(db, f, tu, denNgay, select, extra = {}, { them = '', materialize = false } = {}) {
+  const { sql, params } = aq.buildCountedCte(db, f, { materialize });
+  return db.prepare(`WITH ${sql}, ${GAN_CTE}${them ? `, ${them}` : ''} ${select}`).all({ ...params, g_tu: tu, g_den: denNgay, g_all: JSON.stringify(VALID_BCVH_CODES), ...extra });
 }
 
 /**
@@ -592,10 +614,13 @@ function runGan(db, f, tu, denNgay, select, extra = {}) {
  * co_tt, nhap_luc_max }: co_tt = số SHBG của NGÀY NÀY có dòng trạng thái (kể cả dòng đã đổi về CHUA_CO_TT); nhap_luc_max = giờ nhập (UTC ISO) mới nhất
  * trong các dòng đó, null nếu co_tt = 0 — gắn với đúng ngày, không lấy giờ đợt nhập của ngày khác (PHAT-3b).
  */
-function demNgay(db, bcvh, day, { demLoaiBo = false } = {}) {
+function demNgay(db, bcvh, day, { demLoaiBo = false, theoLichSu = false } = {}) {
   const f = den.windowFilter(bcvh, day, '23:59:59');
-  const rows = runGan(db, f, day, day,
-    `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(p.shbg) AS co, MAX(p.nhap_luc) AS nl ${GAN_JOIN} GROUP BY h, tt`, { bcvh });
+  // theoLichSu = true: quy tắc DASH-12b-3 (NHAP_CTE / NHAP_SELECT); mặc định false giữ NGUYÊN hành vi cũ (trạng thái hiện tại phat_status_current) cho /ty-le, commit / hoàn tác.
+  const rows = theoLichSu
+    ? runGan(db, f, day, day, NHAP_SELECT, { bcvh, x_day: day }, { them: NHAP_CTE, materialize: true })
+    : runGan(db, f, day, day,
+      `SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS h, COALESCE(p.trang_thai, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(p.shbg) AS co, MAX(p.nhap_luc) AS nl ${GAN_JOIN} GROUP BY h, tt`, { bcvh });
   const tong = zeroMap();
   const khung = Object.fromEntries(C.KHUNG_GIO_DEN.map((k) => [k.ma, zeroMap()]));
   let coTt = 0;
