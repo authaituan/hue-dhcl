@@ -7,10 +7,7 @@ import PhatDraftView from './PhatDraftView';
 import PhatCommitResultView from './PhatCommitResultView';
 import PhatHistoryView from './PhatHistoryView';
 import CustomDatePicker from '../common/CustomDatePicker';
-
-// Hai ngưỡng tô màu tạm của ticket PHAT-2
-export const NGUONG_PTC_DAT = 0.82; // PTC >= 82% màu xanh (#059669), dưới 82% màu vàng/cam hổ phách (#b45309)
-export const NGUONG_CHUA_CO_TT_CANH_BAO = 0.10; // Chưa có thông tin phát >= 10% màu đỏ đậm (#991b1b)
+import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
 
 // Định dạng tỷ lệ dạng 0..1 sang chuỗi % một chữ số thập phân dùng dấu phẩy (vd: 0.86 -> 86,0%)
 export function formatRatePercent(r) {
@@ -156,6 +153,8 @@ export default function ProcessingDeliveryView({ authUser }) {
 
   const mauSo = tyLeData?.mau_so ?? 0;
   const theoTT = tyLeData?.theo_trang_thai || {};
+  const nguongPtcDat = tyLeData?.nguong?.ptc_dat ?? PTC_DAT;
+  const nguongChuaCoTt = tyLeData?.nguong?.chua_co_tt_canh_bao ?? CHUA_CO_TT_CANH_BAO;
 
   const getCellColor = (field, rate) => {
     if (!hasPhatData) return '#6b7280';
@@ -163,7 +162,7 @@ export default function ProcessingDeliveryView({ authUser }) {
 
     switch (field) {
       case 'PTC':
-        return rate >= NGUONG_PTC_DAT ? '#059669' : '#b45309';
+        return rate >= nguongPtcDat ? '#059669' : '#b45309';
       case 'PKTC':
         return '#dc2626';
       case 'CHUYEN_HOAN':
@@ -171,7 +170,7 @@ export default function ProcessingDeliveryView({ authUser }) {
       case 'LAC_HUONG':
         return '#7c3aed';
       case 'CHUA_CO_TT':
-        return rate >= NGUONG_CHUA_CO_TT_CANH_BAO ? '#991b1b' : '#334155';
+        return rate >= nguongChuaCoTt ? '#991b1b' : '#334155';
       default:
         return '#374151';
     }
@@ -416,7 +415,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               style={{
                 color: !hasPhatData
                   ? '#6b7280'
-                  : (theoTT.PTC?.ty_le >= NGUONG_PTC_DAT ? '#059669' : '#b45309')
+                  : (theoTT.PTC?.ty_le >= nguongPtcDat ? '#059669' : '#b45309')
               }}
             >
               {formatRatePercent(theoTT.PTC?.ty_le)}
