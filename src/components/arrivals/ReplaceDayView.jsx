@@ -20,6 +20,7 @@ import { BCVH_LIST } from '../../constants/bcvh';
 import CustomDatePicker from './CustomDatePicker';
 import ReplaceDayDialog from './ReplaceDayDialog';
 import ReplaceLogTab from './ReplaceLogTab';
+import { NGUONG_MAT_SHBG_DO } from '../../lib/thamSoDuPhong';
 
 // ==========================================
 // HÀM TIỆN ÍCH ĐỊNH DẠNG
@@ -225,7 +226,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
   const shbgMatThat = Number(soSanh.shbg_mat_that ?? 0);
   const shbgChiOCu = Number(soSanh.shbg_chi_o_cu ?? 0);
   const tyLeMatThat = Number(soSanh.ty_le_mat_that ?? 0);
-  const nguongDo = Number(canhBao.nguong_do ?? 0.05);
+  const nguongDo = Number(canhBao.nguong_do ?? NGUONG_MAT_SHBG_DO);
 
   const isKhongTheThay = Boolean(canhBao.khong_the_thay);
   const warningLevel = canhBao.muc || 'AN_TOAN';

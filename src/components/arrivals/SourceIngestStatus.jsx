@@ -137,14 +137,19 @@ export default function SourceIngestStatus({
             )}
 
             {/* Thông tin giờ mong đợi */}
-            {gioMongDoi && (
+            {gioMongDoi ? (
               <div className="text-[11px] text-gray-500 pt-1 flex items-center gap-1.5 flex-wrap">
                 <Clock className="w-3.5 h-3.5" />
                 <span>
-                  Giờ mong đợi: sáng <strong>{gioMongDoi.sang || '09:30'}</strong>, chiều <strong>{gioMongDoi.chieu || '16:30'}</strong> (ân hạn {gioMongDoi.an_han_phut || 30} phút; số đang đặt tạm)
+                  Giờ mong đợi: sáng <strong>{gioMongDoi.sang || '—'}</strong>, chiều <strong>{gioMongDoi.chieu || '—'}</strong> (ân hạn {gioMongDoi.an_han_phut ?? '—'} phút)
                 </span>
               </div>
-            )}
+            ) : loading ? (
+              <div className="text-[11px] text-gray-500 pt-1 flex items-center gap-1.5 flex-wrap">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Giờ mong đợi: đang tải…</span>
+              </div>
+            ) : null}
           </div>
 
           {/* CỘT NÚT LẤY NGAY & LÀM MỚI */}

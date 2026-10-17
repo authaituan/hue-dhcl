@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, Award } from 'lucide-react';
 import { formatPercent } from './DailyOpsDashboard';
+import { SAN_XEP_HANG_BCVH, PTC_DAT } from '../../lib/thamSoDuPhong';
 
 /**
  * Khối Bảng xếp hạng BCVH theo kết quả phát (PHAT-3c):
@@ -34,8 +35,8 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
 
   const xepHang = ketQuaPhat.xep_hang_bcvh || [];
   const chuaDu = ketQuaPhat.chua_du_du_lieu || [];
-  const sanXepHang = ketQuaPhat?.nguong?.san_xep_hang_bcvh ?? 50;
-  const nguongPtc = ketQuaPhat?.nguong?.ptc_dat ?? 0.82;
+  const sanXepHang = ketQuaPhat?.nguong?.san_xep_hang_bcvh ?? SAN_XEP_HANG_BCVH;
+  const nguongPtc = ketQuaPhat?.nguong?.ptc_dat ?? PTC_DAT;
 
   // Trạng thái E: Không đủ BCVH để xếp hạng (cần tối thiểu 2 BCVH đủ điều kiện)
   const isStateE = xepHang.length < 2;
