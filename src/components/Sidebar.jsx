@@ -9,7 +9,8 @@ import {
   Activity,
   Gauge,
   RefreshCw,
-  Server
+  Server,
+  SlidersHorizontal
 } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
 
@@ -36,6 +37,7 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
     navItems.push({ id: 'useradmin', label: 'Quản lý người dùng', icon: UserCog });
     navItems.push({ id: 'replace_day', label: 'Thay thế ngày', icon: RefreshCw, title: 'Thay thế ngày của một BCVH' });
     navItems.push({ id: 'nap_nguon', label: 'Nạp dữ liệu nguồn', icon: Server, title: 'Nạp dữ liệu nguồn' });
+    navItems.push({ id: 'tham_so', label: 'Tham số hệ thống', icon: SlidersHorizontal, title: 'Cấu hình tham số hệ thống' });
   }
 
   return (
