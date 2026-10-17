@@ -491,6 +491,117 @@ async function importArrivalFile(db, filePath, { source = 'MANUAL' } = {}) {
   return ghiFileDaChuanBi(db, daChuanBi, { source });
 }
 
+// ------------------------------------------
+// SANLUONG-5k — Nạp MỘT file nhiều ngày, tự chia theo NGÀY ĐẾN BCVH (scripts/import-arrivals.js --chia-ngay; docs/ai/32_SANLUONG5K_IMPORT_CHIA_NGAY.md).
+// Mỗi nhóm ngày nạp như một «file ảo» tên HangDen_<mã>_<yyyymmdd ngày đến>_235959.csv (cùng quy ước scripts/split-arrivals-csv.js, #63), file_date = ngày đó,
+// source MANUAL, sha256 + kích thước = của FILE THẬT. Không đổi chuanBiFile / ghiFileDaChuanBi (hành vi nạp thường giữ nguyên).
+// ------------------------------------------
+const CHIA_NGAY_SO_NGAY_TOI_DA = 31;   // số nhóm ngày tối đa của một file
+const CHIA_NGAY_LUI_NGAY = 30;         // ngày đến hợp lý: [ngày trong tên file − 30, ngày trong tên file + 1]
+const CHIA_NGAY_GIO_FILE_AO = '235959';
+const ngayCoThat = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return !!m && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+};
+
+/**
+ * NỬA «CHUẨN BỊ» của --chia-ngay (bất đồng bộ, KHÔNG đụng DB). Trả { fileName, ketLuan: 'SKIPPED_NAME' | 'EMPTY_FILE' | 'READY' | 'REJECTED', error, parsed,
+ * nhom: [{ ngay, tenFile, meta, items }], tongDong, canhBao: [chuỗi], soDongNgoaiKhoang, soDongSaiMa, soDongKhongNgayDen }.
+ * Nhóm: dòng có ngày đến BCVH (R2) trong [fd−30, fd+1] -> nhóm ngày đó; dòng KHÔNG có ngày đến, hoặc có nhưng ngoài khoảng -> nhóm ngày trong TÊN file (như nạp thường:
+ * dòng nằm ở file có file_date = ngày tên file; arrival_date giữ nguyên). Ngoài khoảng > 1% dòng có ngày đến, hoặc mã nhận (BC_nhan_BG) khác mã trong tên > 1% dòng -> REJECTED.
+ */
+async function chuanBiFileChiaNgay(filePath) {
+  const fileName = path.basename(filePath);
+  const parsed = parseFileName(fileName);
+  const goc = { fileName, parsed, nhom: [], tongDong: 0, canhBao: [], soDongNgoaiKhoang: 0, soDongSaiMa: 0, soDongKhongNgayDen: 0, error: null };
+  if (!parsed) return { ...goc, ketLuan: 'SKIPPED_NAME', error: 'Tên file không đúng mẫu HangDen_<mã>_<yyyymmdd>_<hhmmss>.csv — --chia-ngay chỉ nhận tên đúng mẫu' };
+  if (!ngayCoThat(parsed.fileDate)) return { ...goc, ketLuan: 'REJECTED', error: `Ngày trong tên file (${parsed.fileDate}) không có thật` };
+  const { sha256, kichThuoc, rong } = docVaBam(filePath);
+  if (rong) return { ...goc, ketLuan: 'EMPTY_FILE' };
+  try {
+    let records = await readCsvRecords(filePath);
+    if (!records.length) throw new ArrivalFileError('File không có dòng tiêu đề');
+    const { index: columnIndex } = resolveHeader(records[0]);
+    const items = records.slice(1).map((r, i) => toItem(r, i + 2, columnIndex));
+    records = null;
+    if (!items.length) return { ...goc, ketLuan: 'EMPTY_FILE' };
+    const lo = addDays(parsed.fileDate, -CHIA_NGAY_LUI_NGAY);
+    const hi = addDays(parsed.fileDate, RANGE_DAYS_AFTER);
+    const dated = items.filter((i) => i.arrival_date);
+    const ngoai = dated.filter((i) => i.arrival_date < lo || i.arrival_date > hi).length;
+    const saiMa = items.filter((i) => i.receiver_code.trim() !== '' && i.receiver_code.trim() !== parsed.unitCode).length;
+    const canhBao = [];
+    if (ngoai) {
+      const msg = `${ngoai}/${dated.length} dòng có ngày đến BCVH ngoài khoảng ${lo}..${hi}`;
+      if (ngoai / dated.length > MAX_OUT_OF_RANGE_RATIO) throw new ArrivalFileError(`${msg} (> ${MAX_OUT_OF_RANGE_RATIO * 100}%)`);
+      canhBao.push(`${msg} — xếp vào ngày trong tên file (${parsed.fileDate}), giữ nguyên ngày đến`);
+    }
+    if (saiMa) {
+      const msg = `${saiMa}/${items.length} dòng có BC_nhan_BG khác mã ${parsed.unitCode} trong tên file`;
+      if (saiMa / items.length > MAX_OUT_OF_RANGE_RATIO) throw new ArrivalFileError(`${msg} (> ${MAX_OUT_OF_RANGE_RATIO * 100}%)`);
+      canhBao.push(msg);
+    }
+    const khongNgay = items.length - dated.length;
+    if (khongNgay) canhBao.push(`${khongNgay} dòng không có mốc đến BCVH nào — xếp vào ngày trong tên file (${parsed.fileDate})`);
+    const theoNgay = new Map();
+    for (const it of items) {
+      const k = it.arrival_date && it.arrival_date >= lo && it.arrival_date <= hi ? it.arrival_date : parsed.fileDate;
+      if (!theoNgay.has(k)) theoNgay.set(k, []);
+      theoNgay.get(k).push(it);
+    }
+    if (theoNgay.size > CHIA_NGAY_SO_NGAY_TOI_DA) throw new ArrivalFileError(`File phủ ${theoNgay.size} ngày, vượt tối đa ${CHIA_NGAY_SO_NGAY_TOI_DA} ngày`);
+    const nhom = [...theoNgay.keys()].sort().map((ngay) => {
+      const ten = `HangDen_${parsed.unitCode}_${ngay.replace(/-/g, '')}_${CHIA_NGAY_GIO_FILE_AO}.csv`;
+      return { ngay, tenFile: ten, items: theoNgay.get(ngay),
+        meta: { unit_code: parsed.unitCode, file_name: ten, file_date: ngay, file_time: '23:59:59', file_size: kichThuoc, sha256, source: 'MANUAL' } };
+    });
+    return { ...goc, ketLuan: 'READY', nhom, tongDong: items.length, canhBao, soDongNgoaiKhoang: ngoai, soDongSaiMa: saiMa, soDongKhongNgayDen: khongNgay };
+  } catch (err) {
+    return { ...goc, ketLuan: 'REJECTED', error: err instanceof ArrivalFileError ? err.message : `Lỗi hệ thống: ${err.code || err.name || 'ERROR'}` };
+  }
+}
+
+/**
+ * NỬA «GHI» của --chia-ngay: ĐỒNG BỘ, MỘT giao dịch cho cả file (ghiFileDaChuanBi lồng bằng savepoint). Nhóm nào không phải OK / «đã nạp» (CONFLICT cùng tên khác nội dung,
+ * REJECTED, lỗi ghi) -> hoàn tác TOÀN BỘ và trả { status: 'REJECTED' | 'CONFLICT', error, ngay } — không ghi bản ghi từ chối. Nạp lại cùng file: mọi nhóm «đã nạp», 0 dòng mới.
+ * Trả { status: 'OK', nhom: [{ ngay, tenFile, rowCount, shbg, inserted, ignored, alreadyImported }], tongDong, tongNap, tongBoQua, tongShbg }.
+ */
+function ghiFileChiaNgay(db, daChuanBi, { sauMoiNhom = null } = {}) {
+  const hong = { status: null, error: null, ngay: null };
+  const chay = db.transaction(() => {
+    const ketQua = [];
+    for (const g of daChuanBi.nhom) {
+      const r = ghiFileDaChuanBi(db, { fileName: g.tenFile, parsed: parseFileName(g.tenFile), ketLuan: 'READY', trangThaiDuKien: 'OK', meta: g.meta, items: g.items, warning: null, rowCount: g.items.length, stats: summarize(g.items) },
+        { ghiTuChoi: false, source: 'MANUAL' });
+      if (!['OK', 'EMPTY'].includes(r.status)) {
+        hong.status = r.status === 'CONFLICT' ? 'CONFLICT' : 'REJECTED';
+        hong.error = r.error || r.status;
+        hong.ngay = g.ngay;
+        throw new ArrivalFileError('rollback');
+      }
+      ketQua.push({ ngay: g.ngay, tenFile: g.tenFile, rowCount: g.items.length, shbg: new Set(g.items.map((i) => i.tracking_no)).size, inserted: r.inserted || 0, ignored: r.ignored || 0, alreadyImported: !!r.alreadyImported });
+      if (typeof sauMoiNhom === 'function') sauMoiNhom(g.ngay); // chỉ để test (ném lỗi giữa chừng)
+    }
+    return ketQua;
+  });
+  let nhom;
+  try {
+    nhom = chay();
+  } catch (err) {
+    if (hong.status) return { status: hong.status, error: hong.error, ngay: hong.ngay };
+    return { status: 'REJECTED', error: `Lỗi hệ thống: ${err.code || err.name || 'ERROR'} — đã hoàn tác toàn bộ`, ngay: null };
+  }
+  const cong = (k) => nhom.reduce((a, g) => a + g[k], 0);
+  return { status: 'OK', nhom, tongDong: cong('rowCount'), tongNap: cong('inserted'), tongBoQua: cong('ignored'), tongShbg: cong('shbg') };
+}
+
+async function importArrivalFileChiaNgay(db, filePath, opts = {}) {
+  const d = await chuanBiFileChiaNgay(filePath);
+  if (d.ketLuan === 'EMPTY_FILE') return { fileName: d.fileName, status: 'EMPTY', nhom: [], tongDong: 0, tongNap: 0, tongBoQua: 0, tongShbg: 0, canhBao: [] };
+  if (d.ketLuan !== 'READY') return { fileName: d.fileName, status: d.ketLuan === 'SKIPPED_NAME' ? 'SKIPPED_NAME' : 'REJECTED', error: d.error, canhBao: [] };
+  return { fileName: d.fileName, canhBao: d.canhBao, ...ghiFileChiaNgay(db, d, opts) };
+}
+
 /** Nạp mọi file đúng mẫu tên trong thư mục, tuần tự theo (ngày, giờ) trong tên file. */
 async function importArrivalDirectory(db, dir, opts = {}) {
   const names = fs.readdirSync(dir).filter((n) => fs.statSync(path.join(dir, n)).isFile());
@@ -539,6 +650,6 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
-  ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, chuanBiFile, ghiFileDaChuanBi, importArrivalDirectory, getMissingBatches,
+  ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, chuanBiFile, ghiFileDaChuanBi, chuanBiFileChiaNgay, ghiFileChiaNgay, importArrivalFileChiaNgay, importArrivalDirectory, getMissingBatches,
   refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
 };
