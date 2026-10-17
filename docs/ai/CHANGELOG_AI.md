@@ -44,6 +44,22 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 
 ---
 
+## [2026-10-17] - SANLUONG-5k: `import-arrivals.js --chia-ngay` (một file nhiều ngày, chia theo ngày đến)
+
+- **Thêm** `chuanBiFileChiaNgay` / `ghiFileChiaNgay` / `importArrivalFileChiaNgay` ở `server/lib/arrivalsImport.js` (hàm mới, không sửa `chuanBiFile` / `ghiFileDaChuanBi`) và cờ `--chia-ngay` ở `scripts/import-arrivals.js`. Nhóm theo ngày đến R2, mỗi nhóm = file ảo `HangDen_<mã>_<ngày>_235959.csv` (`MANUAL`, sha256 của file thật), MỘT giao dịch; khoảng ngày đến `[tên−30, tên+1]`, > 1 % ngoài khoảng hoặc sai mã nhận ⇒ REJECTED; ≤ 31 nhóm.
+- **Test** `tests/arrivals-chia-ngay.test.js` (mới, 9 ca; thêm vào `package.json`). `npm test`: 629 ca, 628 đạt, 1 bỏ qua. Hướng dẫn: `32_SANLUONG5K_IMPORT_CHIA_NGAY.md`.
+- **Chưa làm**: chưa chạy với file thật; dòng NULL / ngoài khoảng xếp vào ngày tên file (chờ PO xác nhận).
+
+---
+
+## [2026-10-17] - SANLUONG-5j: lệnh xóa dữ liệu hàng đến theo BCVH × khoảng ngày (chạy khô mặc định)
+
+- **Thêm** `scripts/xoa-du-lieu-bcvh.js`: `--bcvh … --tu … --den … [--chay-that --xac-nhan "XOA <tu>..<den>"] [--db …]`; ngày = `file_date`; chặn cứng 533140 (chuỗi chứa mã ở bất kỳ đâu), mã ngoài danh mục, ngày sai, `tu > den`, khoảng > 31 ngày; chạy khô in BCVH × file_date (file, dòng, SHBG, ngày đến nhỏ nhất..lớn nhất), tổng, cảnh báo dòng có ngày đến trong khoảng ở file ngoài khoảng (không xóa), SHBG có trạng thái phát / mồ côi. Chạy thật tái sử dụng lõi «Thay thế ngày» (#83): `giuKhoaChung`, `saoLuu` (tiền tố `truoc-xoa-bcvh`, giữ 5 bản riêng), `donThungRac`, bảng `thay_the_nhat_ky` / `thung_rac_*` (một mẻ mỗi (BCVH, ngày) → khôi phục bằng 5g-5); xóa trong MỘT giao dịch. Không đụng trạng thái phát, «Thay thế ngày», importer, `ket-qua-phat`.
+- **Test** `tests/xoa-du-lieu-bcvh.test.js` (mới, 11 ca; thêm vào `package.json`). `npm test`: 620 ca, 619 đạt, 1 bỏ qua. `npm run build` đạt. Hướng dẫn: `31_SANLUONG5J_XOA_DU_LIEU_BCVH_KHOANG_NGAY.md`.
+- **Chưa làm**: chưa chạy với DB thật (PO chạy khô trước); không có script khôi phục — khôi phục qua API 5g-5 (ADMIN) hoặc chép bản sao lưu.
+
+---
+
 ## [2026-10-16] - DASH-10b: Tivi (phạm vi `all`) đọc `ket-qua-phat` (backend)
 
 - **Thêm** `GET /api/arrivals/dashboard/ket-qua-phat` vào `TIVI_ALLOWED` (`server/lib/tivi.js`) và `tiviPhatGuard` ở `server/routes/arrivals.js`: Tivi chỉ qua khi phạm vi `all` và `bcvh` vắng/`all`, còn lại 403. `/api/phat/*` vẫn 403 với Tivi; vai trò khác và cấu trúc trả về không đổi. Quyết định #90.
