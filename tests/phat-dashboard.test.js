@@ -160,7 +160,8 @@ test('hằng số máy chủ: hai ngưỡng màu PTC, sàn xếp hạng BCVH 50,
   assert.equal(CF.SAN_XEP_HANG_BCVH, 50);
   assert.equal(CF.SAN_XEP_HANG_PHUONG_XA, 10);
   assert.ok(Object.isFrozen(CF));
-  assert.equal(Object.keys(CF).length, 7, 'DASH-12b: thêm 3 hằng so sánh tháng (xem phat-thang.test.js)');
+  assert.equal(Object.keys(CF).length, 8, 'DASH-12b: thêm 3 hằng so sánh tháng (xem phat-thang.test.js); THAMSO-1: thêm NGUONG_DU_SO_LIEU (chỉ đọc)');
+  assert.equal(CF.NGUONG_DU_SO_LIEU, 0.10);
 });
 
 // ---------------- quyền ----------------

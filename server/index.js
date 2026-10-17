@@ -16,6 +16,7 @@ const usersRoutes = require('./routes/users');
 const arrivalsRoutes = require('./routes/arrivals');
 const phatRoutes = require('./routes/phat');
 const napNguonRoutes = require('./routes/napNguon');
+const thamSoRoutes = require('./routes/thamSo');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,6 +55,7 @@ app.use('/api', usersRoutes);
 app.use('/api', arrivalsRoutes);
 app.use('/api', phatRoutes);
 app.use('/api', napNguonRoutes);
+app.use('/api', thamSoRoutes);
 
 // Serve frontend static files in production
 const clientBuildPath = path.join(__dirname, '..', 'dist');

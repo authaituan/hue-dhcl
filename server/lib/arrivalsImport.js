@@ -651,5 +651,6 @@ function getMissingBatches(db, { today = localToday(), expectedPerDay = 2 } = {}
 module.exports = {
   EXPECTED_HEADER, FILE_NAME_RE, ArrivalFileError,
   ensureArrivalSchema, deriveArrival, ARRIVAL_SOURCES, importArrivalFile, chuanBiFile, ghiFileDaChuanBi, chuanBiFileChiaNgay, ghiFileChiaNgay, importArrivalFileChiaNgay, importArrivalDirectory, getMissingBatches,
-  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey
+  refreshWardMap, setWardMapping, wardKey, parseUsDateTime, parseDateTimeCell, normalizeCell, parseFileName, resolveHeader, readCsvRecords, COLUMNS, colKey,
+  RANGE_DAYS_BEFORE, RANGE_DAYS_AFTER, MAX_OUT_OF_RANGE_RATIO // THAMSO-1: chỉ để danh bạ tham số (chỉ-đọc) đọc mặc định
 };
