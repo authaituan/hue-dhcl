@@ -696,6 +696,51 @@ test('thay-the: mức cảnh báo theo nguong_mat_shbg_do (mất 6 / 100: 5 % ->
   assert.equal(TT.NGUONG_MAT_SHBG_DO, 0.1);
 });
 
+// ---------- THAMSO-2a: GET /api/phat/ty-le THÊM khóa `nguong` ----------
+const tyLe = (who = 'admin', qs = `?bcvh=${M}`) => goi('GET', `/api/phat/ty-le${qs}`, who);
+
+test('ty-le (a): có khóa `nguong` đúng 3 khóa, đúng giá trị mặc định, cùng hình dạng / thứ tự với ket-qua-phat; nằm CUỐI phản hồi', async () => {
+  for (const qs of [`?bcvh=${M}`, '?bcvh=all', `?bcvh=${M}&ngay=${D('02')}`]) {
+    const t = (await tyLe('admin', qs)).body;
+    assert.deepEqual(Object.keys(t.nguong), ['ptc_dat', 'chua_co_tt_canh_bao', 'san_xep_hang_bcvh'], qs);
+    assert.deepEqual(t.nguong, { ptc_dat: 0.82, chua_co_tt_canh_bao: 0.1, san_xep_hang_bcvh: 50 }, qs);
+    assert.equal(Object.keys(t).at(-1), 'nguong', qs);
+    assert.deepEqual(t.nguong, (await kqPhat(qs)).body.nguong, `cùng nguong với ket-qua-phat (${qs})`);
+  }
+});
+
+test('ty-le (b): ADMIN PUT /api/tham-so đổi ptc_dat / chua_co_tt_canh_bao / san_xep_hang_bcvh -> ty-le trả giá trị mới NGAY, không khởi động lại; hoàn về mặc định cũng ngay', async () => {
+  await put({ ly_do: 'x', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.9 }, { khoa: 'chua_co_tt_canh_bao', gia_tri: 0.2 }, { khoa: 'san_xep_hang_bcvh', gia_tri: 30 }] });
+  assert.deepEqual((await tyLe()).body.nguong, { ptc_dat: 0.9, chua_co_tt_canh_bao: 0.2, san_xep_hang_bcvh: 30 });
+  assert.deepEqual((await tyLe()).body.nguong, (await kqPhat()).body.nguong, 'ty-le và ket-qua-phat luôn cùng nguong');
+  await sua('ptc_dat', 0.7);
+  assert.equal((await tyLe()).body.nguong.ptc_dat, 0.7);
+  await veMd({ ly_do: 'x', tat_ca: true });
+  assert.deepEqual((await tyLe()).body.nguong, { ptc_dat: 0.82, chua_co_tt_canh_bao: 0.1, san_xep_hang_bcvh: 50 });
+});
+
+test('ty-le (c): mọi khóa cũ còn nguyên — phản hồi trừ `nguong` == P.tyLeApi (không đổi), cùng tên, kiểu, thứ tự khóa', async () => {
+  for (const qs of [`?bcvh=${M}`, '?bcvh=all', `?bcvh=${M}&ngay=${D('02')}`, `?bcvh=${M2}`]) {
+    const t = (await tyLe('admin', qs)).body;
+    const { nguong, ...cu } = t;
+    const [, bcvh, , ngay] = /bcvh=(\w+)(&ngay=([\d-]+))?/.exec(qs);
+    const goc = JSON.parse(JSON.stringify(P.tyLeApi(ctx.db, { bcvh, ngay: ngay || null })));
+    assert.deepEqual(Object.keys(cu), Object.keys(goc), `thứ tự khóa ${qs}`);
+    assert.deepEqual(cu, goc, `giá trị ${qs}`);
+    assert.ok(nguong);
+  }
+  const t = (await tyLe()).body;
+  for (const k of ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'so_shbg_chuyen_tiep_loai_bo', 'theo_khung_gio_den', 'ton_cho']) assert.ok(k in t, k);
+});
+
+test('ty-le (d): quyền không đổi — ADMIN, TTVH, GDVH 200; STAFF, TIVI 403; không token 401; tham số lạ vẫn 400', async () => {
+  for (const who of ['admin', 'ttvh', 'gdvh']) { const r = await tyLe(who); assert.equal(r.status, 200, who); assert.ok(r.body.nguong, who); }
+  for (const who of ['staff', 'tivi']) { const r = await tyLe(who); assert.equal(r.status, 403, who); assert.ok(!r.body || !('nguong' in r.body), who); }
+  assert.equal((await goi('GET', `/api/phat/ty-le?bcvh=${M}`, null)).status, 401);
+  assert.equal((await goi('GET', '/api/phat/ty-le?bcvh=all&lung=1', 'admin')).status, 400);
+  assert.equal((await goi('GET', '/api/phat/ty-le?bcvh=xyz', 'admin')).status, 400);
+});
+
 // =====================================================================
 // 6. Tách ngưỡng «màu» và «đủ số liệu»
 // =====================================================================
