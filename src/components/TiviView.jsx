@@ -493,9 +493,9 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   // ── Đang chờ /api/auth/me trả tivi_scope (chỉ với TIVI role). App.jsx tự thử lại mỗi 10 giây khi lỗi / mất mạng. ──
   if (bcvhScope === undefined) {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6" style={{ background: TV.bgPage }}>
-        <div className="w-16 h-16 border-4 border-gray-700 border-t-emerald-400 rounded-full animate-spin" />
-        <div className="text-2xl text-gray-400" style={{ fontFamily: TV.font }}>Đang kết nối…</div>
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6" style={{ background: TV.bgPage, fontFamily: TV.font }}>
+        <div className="w-16 h-16 border-4 border-[oklch(37.3%_0.034_259.733)] border-t-[oklch(76.5%_0.177_163.223)] rounded-full animate-spin" />
+        <div className="text-2xl text-[oklch(70.7%_0.022_261.325)]" style={{ fontFamily: TV.font }}>Đang kết nối…</div>
       </div>
     );
   }
@@ -512,13 +512,14 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
           <h1 className="text-4xl font-black text-white mb-4">
             Tài khoản chưa được gán phạm vi
           </h1>
-          <p className="text-2xl text-gray-400">
+          <p className="text-2xl text-[oklch(70.7%_0.022_261.325)]">
             Liên hệ quản trị viên để được cấp phạm vi xem.
           </p>
           {isTiviRole && (
             <button
               onClick={() => { clearToken(); onForceLogout?.(); }}
-              className="mt-10 px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white text-xl rounded-xl"
+              className="mt-10 px-8 py-3 bg-[oklch(37.3%_0.034_259.733)] hover:bg-[oklch(44.6%_0.03_256.802)] text-white text-xl rounded-xl"
+              style={{ fontFamily: TV.font }}
             >
               Đăng xuất
             </button>
@@ -531,8 +532,8 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   // ── Loading ban đầu ──────────────────────────────────────────────────────
   if (loading && !tongQuan) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ background: TV.bgPage }}>
-        <div className="w-16 h-16 border-4 border-gray-700 border-t-emerald-400 rounded-full animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: TV.bgPage, fontFamily: TV.font }}>
+        <div className="w-16 h-16 border-4 border-[oklch(37.3%_0.034_259.733)] border-t-[oklch(76.5%_0.177_163.223)] rounded-full animate-spin" />
       </div>
     );
   }
@@ -541,6 +542,7 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
   return (
     <div
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
+      style={{ fontFamily: TV.font }}
       onMouseMove={showExit}
       onTouchStart={showExit}
     >
@@ -610,8 +612,8 @@ export default function TiviView({ authUser, bcvhScope, isTiviRole, onExit, onFo
       >
         {/* Thanh cảnh báo mất kết nối */}
         {lostAt && (
-          <div className="absolute top-0 left-0 right-0 z-10 bg-amber-500 text-black font-bold text-center py-2"
-            style={{ fontSize: 22 }}>
+          <div className="absolute top-0 left-0 right-0 z-10 bg-[oklch(76.9%_0.188_70.08)] text-black font-bold text-center py-2"
+            style={{ fontSize: 22, fontFamily: TV.font }}>
             ⚠ Mất kết nối từ {formatDateTimeSec(lostAt)} — Đang giữ số cũ, tự hồi phục…
           </div>
         )}
