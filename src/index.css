@@ -6,22 +6,99 @@
 @import "@fontsource/montserrat/600.css";
 @import "@fontsource/montserrat/700.css";
 @import "@fontsource/montserrat/800.css";
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/500.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+@import "@fontsource/be-vietnam-pro/700.css";
+
 @theme {
-  --color-page: #F4F4F5;
+  --color-page: #F6F1E7;
   --color-card: #FFFFFF;
-  --color-title: #27272A;
-  --color-body: #71717A;
-  --color-subtext: #A1A1AA;
-  --color-border: #E3E3E7;
-  --color-input-border: #D2D6DA;
-  --color-primary: #F97316;
-  --color-dark: #27272A;
-  --color-success: #22C55E;
+  --color-title: #4A1D6E;
+  --color-body: #5A4A62;
+  --color-subtext: #7A6A80;
+  --color-border: #E4D5AE;
+  --color-input-border: #D9CBA8;
+  --color-primary: #4A1D6E;
+  --color-dark: #2A1B33;
+  --color-success: #1F7A5C;
   --color-info: #0EA5E9;
-  --color-warning: #EAB308;
-  --color-danger: #EF4444;
-  
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-warning: #E0A82E;
+  --color-danger: #B3202A;
+
+  --color-accent: #E0A82E;
+  --color-tim-dam: #3B1450;
+
+  --font-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+
+  /* THEME-2: palette override — xóa khối này để quay lại màu cũ */
+  /* orange -> tím Huế */
+  --color-orange-50: #F5EEFA;
+  --color-orange-100: #EBDDF5;
+  --color-orange-200: #D8BDEB;
+  --color-orange-300: #BF93DB;
+  --color-orange-400: #9F63C4;
+  --color-orange-500: #6B2F94;
+  --color-orange-600: #4A1D6E;
+  --color-orange-700: #3B1450;
+  --color-orange-800: #2D0F3E;
+  --color-orange-900: #220B2F;
+  --color-orange-950: #170720;
+
+  /* gray -> trung tính ấm */
+  --color-gray-50: #FAF6EC;
+  --color-gray-100: #F3EDE0;
+  --color-gray-200: #E4D5AE;
+  --color-gray-300: #D9CBA8;
+  --color-gray-400: #9A8AA0;
+  --color-gray-500: #7A6A80;
+  --color-gray-600: #5A4A62;
+  --color-gray-700: #3F3248;
+  --color-gray-800: #2A1B33;
+  --color-gray-900: #1D1225;
+  --color-gray-950: #120A18;
+
+  /* red -> đỏ son */
+  --color-red-50: #FDEEF0;
+  --color-red-100: #FBE3E5;
+  --color-red-200: #F2B8BE;
+  --color-red-300: #E88A94;
+  --color-red-400: #D9525F;
+  --color-red-500: #C42B38;
+  --color-red-600: #B3202A;
+  --color-red-700: #8E1B28;
+  --color-red-800: #6E1520;
+  --color-red-900: #520F18;
+  --color-red-950: #330A10;
+
+  /* emerald -> xanh ngọc */
+  --color-emerald-50: #EAF6F1;
+  --color-emerald-100: #DDF1E8;
+  --color-emerald-200: #B7E0CE;
+  --color-emerald-300: #86C9AE;
+  --color-emerald-400: #4DAA88;
+  --color-emerald-500: #2E8F6D;
+  --color-emerald-600: #1F7A5C;
+  --color-emerald-700: #176049;
+  --color-emerald-800: #124B3A;
+  --color-emerald-900: #0D3A2D;
+  --color-emerald-950: #07221A;
+
+  /* amber -> vàng cung đình */
+  --color-amber-50: #FFF8E6;
+  --color-amber-100: #FFF1CC;
+  --color-amber-200: #F9E09C;
+  --color-amber-300: #F0CB63;
+  --color-amber-400: #E0A82E;
+  --color-amber-500: #C9951E;
+  --color-amber-600: #A87A12;
+  --color-amber-700: #8A5A00;
+  --color-amber-800: #6E4700;
+  --color-amber-900: #523600;
+  --color-amber-950: #301F00;
 }
 
 @layer base {
@@ -46,8 +123,8 @@
   .card-soft {
     background-color: var(--color-card);
     border-radius: 0.75rem; /* 12px */
-    box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
-    border: none;
+    box-shadow: none;
+    border: 1px solid var(--color-border);
   }
   
   /* KPI & Icons */
@@ -68,7 +145,7 @@
     justify-content: center;
     border-radius: 0.5rem; /* 8px */
     background-color: var(--color-card);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: none;
     transition: all 0.15s ease;
   }
 
@@ -94,13 +171,15 @@
     padding: 8px 32px;
   }
   .btn-primary {
-    background-image: linear-gradient(310deg, var(--color-primary), var(--color-primary));
+    background-color: var(--color-primary);
     color: #fff;
-    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07);
     border: none;
+    border-bottom: 3px solid var(--color-accent);
+    box-shadow: none;
   }
   .btn-primary:hover {
-    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07); /* keeps same or slight adjust */
+    background-color: var(--color-tim-dam);
+    box-shadow: none;
   }
   .btn-outline-primary {
     border: 1px solid var(--color-primary);
@@ -131,7 +210,7 @@
   }
   .input-soft:focus {
     outline: none;
-    border-color: #FDBA74; /* cam nhạt */
+    border-color: var(--color-primary);
   }
   .input-soft:focus-visible {
     outline: 2px solid var(--color-primary);
@@ -171,23 +250,26 @@
     border-radius: 0.5rem;
     color: var(--color-body);
     font-weight: 400;
+    box-shadow: none;
     transition: all 0.15s ease;
   }
   .nav-item:hover {
     background-color: rgba(255, 255, 255, 0.5);
   }
   .nav-item.active {
-    background-color: #fff;
-    box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
-    color: var(--color-title);
+    background-color: var(--color-accent);
+    box-shadow: none;
+    color: var(--color-tim-dam);
     font-weight: 600;
   }
   .nav-item .icon-sm {
     color: var(--color-dark);
+    box-shadow: none;
   }
   .nav-item.active .icon-sm {
-    background-color: var(--color-primary);
-    color: #fff;
+    background-color: #fff;
+    color: var(--color-tim-dam);
+    box-shadow: none;
   }
   
   /* Table */
