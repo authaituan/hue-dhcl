@@ -27,11 +27,11 @@ export default function Sidebar({ activeTab, setActiveTab, authUser, onLogout })
     navItems.push({ id: 'ops_today', label: 'Điều hành hôm nay', icon: Gauge, title: 'Cần điều hành ngay hôm nay' });
     navItems.push({ id: 'arrivals', label: 'Sản lượng đến', icon: Package, title: 'Dữ liệu sản lượng đến' });
     navItems.push({ id: 'processing', label: 'Xử lý và tỷ lệ phát', icon: Activity, title: 'Xử lý và tỷ lệ phát' });
-    navItems.push({ id: 'network', label: 'Quản lý mạng lưới', icon: Network });
   }
 
   if (isAdmin) {
     navItems.push({ id: 'useradmin', label: 'Quản lý người dùng', icon: UserCog });
+    navItems.push({ id: 'network', label: 'Quản lý mạng lưới', icon: Network });
     navItems.push({ id: 'replace_day', label: 'Thay thế ngày', icon: RefreshCw, title: 'Thay thế ngày của một BCVH' });
     navItems.push({ id: 'nap_nguon', label: 'Nạp dữ liệu nguồn', icon: Server, title: 'Nạp dữ liệu nguồn' });
     navItems.push({ id: 'tham_so', label: 'Tham số hệ thống', icon: SlidersHorizontal, title: 'Cấu hình tham số hệ thống' });

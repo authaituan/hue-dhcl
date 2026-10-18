@@ -81,7 +81,18 @@ test('GET /api/network role STAFF -> 403', async () => {
   assert.equal(status, 403);
 });
 
-test('GET /api/network role quản lý -> 200, trả items + pagination, có bưu cục seed', async () => {
+test('THEME-1: TTVH và GDVH bị 403 ở GET /api/network và GET /api/network/export-data', async () => {
+  for (const [hrm, role] of [['NET_TTVH', 'TTVH'], ['NET_GDVH', 'GDVH']]) {
+    seedUser(ctx.db, { hrmCode: hrm, fullName: `Network ${role}`, role, password: STAFF_PASS });
+    const token = (await login(hrm, STAFF_PASS)).body.token;
+    for (const path of ['/api/network', '/api/network/export-data']) {
+      const { status } = await call('GET', path, { token });
+      assert.equal(status, 403, `${role} ${path}`);
+    }
+  }
+});
+
+test('GET /api/network role ADMIN -> 200, trả items + pagination, có bưu cục seed', async () => {
   const { status, body } = await call('GET', '/api/network', { token: mgrToken });
   assert.equal(status, 200);
   assert.ok(Array.isArray(body.items));

@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authRequired, requireRoles } = require('../auth');
-const { ROLES, VIEWER_ROLES } = require('../roles');
+const { ROLES } = require('../roles');
 const { parseFloatOrNull } = require('../lib/helpers');
 const { resolveOrCreateOrgChain } = require('../lib/orgImport');
 
@@ -15,12 +15,12 @@ const router = express.Router();
 // post_offices có thêm 9 cột mới (old_ward_*, district_name, new_ward_*, phone,
 // operational_status, latitude, longitude).
 // Bảng 20 field JSON (import ⇄ export dùng CHUNG key): xem 03_ARCHITECTURE_MAP.md.
-// Quyền (04_DECISIONS.md #49, #53): đọc (GET) ADMIN/TTVH/GDVH; ghi/nhập/xoá chỉ ADMIN.
+// Quyền: TOÀN BỘ module (đọc, ghi, nhập, xuất, xoá) chỉ ADMIN (THEME-1; trước đó 04_DECISIONS.md #49, #53 cho TTVH/GDVH đọc).
 // ==========================================
 
 // GET /api/network — danh sách bưu cục đầy đủ (join commune/province), hỗ trợ
 // search (mã HOẶC tên bưu cục), lọc communeId, phân trang.
-router.get('/network', authRequired, requireRoles(VIEWER_ROLES), (req, res) => {
+router.get('/network', authRequired, requireRoles(ROLES.ADMIN), (req, res) => {
   try {
     const { search, communeId, page = 1, limit = 20 } = req.query;
 
@@ -121,7 +121,7 @@ router.post('/network/import', authRequired, requireRoles(ROLES.ADMIN), (req, re
 
 // GET /api/network/export-data — xuất toàn bộ bưu cục theo 20 field (cùng key
 // với import), không phân trang.
-router.get('/network/export-data', authRequired, requireRoles(VIEWER_ROLES), (req, res) => {
+router.get('/network/export-data', authRequired, requireRoles(ROLES.ADMIN), (req, res) => {
   try {
     const { search, communeId } = req.query;
     let whereClause = ["1=1"];
