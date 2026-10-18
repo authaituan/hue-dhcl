@@ -2,6 +2,25 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-18] - THEME-2: bảng màu và phông «Huế» (PR #93)
+
+- **Sửa** `src/index.css`: `@theme`, khối «THEME-2: palette override» ghi đè các thang `orange`, `gray`, `red`, `emerald`, `amber` (xoá khối này là quay lại màu cũ), lớp tiện ích phẳng (bỏ bóng, viền mảnh); thêm hai gói `@fontsource` (Playfair Display, Be Vietnam Pro) đóng gói offline. Quyết định #96.
+- **Lưu ý**: dùng chung thang màu nên trạng thái chờ / lỗi / mất mạng của Tivi đổi nhẹ (sửa ở THEME-2b). Menu ngang là THEME-3, chưa làm.
+
+---
+
+## [2026-10-18] - THAMSO-1a: `PUT` và `ve-mac-dinh` bỏ qua khoá không đổi giá trị hiệu lực (PR #92)
+
+- **Sửa** `server/lib/thamSo.js`: `ap()` bỏ qua khoá có giá trị bằng giá trị hiệu lực; lô rỗng không ghi nhật ký, không tăng phiên bản. `npm test`: 718 ca.
+
+---
+
+## [2026-10-18] - THEME-1: «Quản lý mạng lưới» chỉ ADMIN (PR #91, commit `36a6cd6` trên main sau merge)
+
+- **Sửa** `server/routes/network.js` (hai route đọc `requireRoles(ROLES.ADMIN)`, bỏ `VIEWER_ROLES`), `App.jsx` (chỉ dựng màn khi `isAdmin`), `Sidebar.jsx` (mục trong khối ADMIN). TTVH, GDVH, STAFF nhận 403. Quyết định #95 (thay #49, #53(a) về quyền đọc). `npm test`: 713 ca.
+
+---
+
 ## [2026-10-17] - THAMSO-2a: `GET /api/phat/ty-le` thêm khối `nguong` (backend, chỉ THÊM khóa)
 
 - **Sửa** `server/routes/phat.js` (`/phat/ty-le` trả `{ ...P.tyLeApi(...), nguong }`, `nguong` ở cuối) và `server/lib/phatDashboard.js` (hàm `nguongKetQuaPhat()` dùng chung cho `ket-qua-phat` và `ty-le`: 3 khóa `ptc_dat`, `chua_co_tt_canh_bao`, `san_xep_hang_bcvh`, đọc tham số lúc gọi). `P.tyLeApi` KHÔNG đổi; `ty-le` không có cache nên tham số mới có hiệu lực ngay; quyền giữ nguyên (ADMIN, TTVH, GDVH; STAFF, TIVI 403).

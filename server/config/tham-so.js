@@ -96,7 +96,7 @@ const SUA_DUOC = [
   sua('san_so_sanh_toi_thieu', {
     nhom: 'dieu_hanh_den', nhan: 'Mốc so sánh tối thiểu để đánh giá sản lượng', kieu: 'so_nguyen', min: 1, max: 1000, don_vi: 'bưu gửi',
     mo_ta: 'Mốc so sánh (cùng thứ tuần trước, cùng giờ) phải có ít nhất chừng này bưu gửi mới đánh giá được sản lượng lệch. Ít hơn thì ghi «chưa đủ dữ liệu» để khỏi báo nhầm vì số nhỏ.',
-    anh_huong: `${KHONG_LUU} Chữ «dưới … BG» trong giao diện hiện đúng số đã đặt.`,
+    anh_huong: `${KHONG_LUU} Chữ «dưới N BG» trong giao diện (N là số đã đặt, mặc định 50) hiện đúng số này.`,
     vi_du: 'Đặt 50: tuần trước cùng giờ chỉ có 40 bưu gửi → không đánh giá. Đặt 30: vẫn đánh giá bình thường.',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: thẻ sản lượng đến, hàng đi ngoài (chênh so tuần trước)`)
   }),
@@ -110,7 +110,7 @@ const SUA_DUOC = [
   sua('gio_bat_dau_danh_gia', {
     nhom: 'dieu_hanh_den', nhan: 'Giờ dữ liệu bắt đầu đánh giá sản lượng', kieu: 'gio_nguyen', min: 0, max: 23, don_vi: 'giờ',
     mo_ta: 'Chỉ đánh giá mức sản lượng khi giờ của dữ liệu (không phải đồng hồ máy) đã tới giờ này. Sớm hơn thì ghi «chưa tới giờ đánh giá» vì buổi sáng số liệu còn ít.',
-    anh_huong: `${KHONG_LUU} Chữ «chưa tới …:00» trong giao diện hiện đúng giờ đã đặt.`,
+    anh_huong: `${KHONG_LUU} Chữ «chưa tới HH:00» trong giao diện (HH là giờ đã đặt, mặc định 12) hiện đúng giờ này.`,
     vi_du: 'Đặt 12: dữ liệu mới tới 11:00 → chưa đánh giá; tới 12:00 → bắt đầu đánh giá. Đặt 10: tới 10:00 đã đánh giá.',
     nhin_thay_o: NHIN_DH.map((s) => `${s}: đánh giá sản lượng đến`)
   }),
