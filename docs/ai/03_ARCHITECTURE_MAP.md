@@ -90,7 +90,7 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET/POST /api/users`, `PUT /api/users/:id`, `.../reset-password`, `.../deactivate`, `.../reactivate`, `GET/PUT /api/users/:id/bcvh` (gán BCVH cho GDVH) | ADMIN | `routes/users.js` |
 | `GET /api/users/search?q=` | ADMIN | `routes/users.js` |
 | `PUT /api/users/me/password` | mọi vai trò (đã đăng nhập) | `routes/users.js` |
-| `GET /api/network`, `GET /api/network/export-data` | ADMIN, TTVH, GDVH | `routes/network.js` |
+| `GET /api/network`, `GET /api/network/export-data` | ADMIN (chỉ ADMIN từ #95, THEME-1) | `routes/network.js` |
 | `POST /api/network/import` | ADMIN | `routes/network.js` |
 | `PUT/DELETE /api/network/post-offices/:id` | ADMIN | `routes/network.js` |
 | `GET /api/organization/communes`, `GET /api/organization/post-offices?communeId=` | đã đăng nhập | `routes/organization.js` |
@@ -146,7 +146,7 @@ Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`, `TIV
 |---|---|---|---|---|---|
 | `/api/users*` (trừ `PUT /users/me/password`), `/users/:id/bcvh` | ✔ | 403 | 403 | 403 | 403 |
 | `PUT /api/users/me/password` | ✔ | ✔ | ✔ | ✔ | 403 |
-| `GET /api/network`, `/network/export-data` | ✔ | ✔ | ✔ | 403 | 403 |
+| `GET /api/network`, `/network/export-data` | ✔ | 403 | 403 | 403 | 403 |
 | `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 | 403 |
 | `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 | 403 |
 | `/api/arrivals/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 | 403 |
@@ -170,7 +170,7 @@ Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DE
 | Menu | Màn hình | Ai thấy |
 |---|---|---|
 | Dashboard | `DashboardView.jsx` (chế độ chỉnh sửa chỉ ADMIN) | mọi người |
-| Quản lý mạng lưới | `NetworkListView.jsx` (danh sách + Thêm/Sửa/Xoá + Import/Export Excel) | ADMIN, TTVH, GDVH (menu hiện chung với "quản lý"; STAFF không thấy) |
+| Quản lý mạng lưới | `NetworkListView.jsx` (danh sách + Thêm/Sửa/Xoá + Import/Export Excel) | chỉ ADMIN (#95, THEME-1; menu trong khối ADMIN) |
 | Quản lý người dùng | `UserAdminView.jsx` | menu hiện cho ADMIN/TTVH/GDVH, nhưng API chỉ ADMIN (TTVH/GDVH nhận 403 — dọn menu ở ticket giao diện) |
 
 ## 5. Dashboard động

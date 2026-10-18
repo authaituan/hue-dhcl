@@ -362,6 +362,7 @@ Quyết định của PO (ghi nguyên):
 4. Giới hạn của GDVH chỉ áp ở xuất file, KHÔNG hạn chế dữ liệu xem (`/arrivals/items`, `/arrivals/lookup` giữ như cũ cho mọi vai trò được xem) (#52).
 **Cách cài (Claude Code)**: `server/roles.js` là nơi duy nhất định nghĩa vai trò; `requireRoles(...)` với danh sách tường minh thay `requireManager` (đã xoá); `requireAdmin` giữ làm lớp bọc cho ADMIN.
 Ma trận route × vai trò: `03_ARCHITECTURE_MAP.md` mục 3. Quyết định #34 (cảnh báo dữ liệu chỉ ADMIN) giữ nguyên, nay áp cho cả TTVH/GDVH; các quyết định cũ nhắc "MANAGER + ADMIN" (#21, #25, #34, #44, #46…) đọc là ADMIN + TTVH + GDVH.
+**[Đã bị thay thế bởi #95 về quyền đọc «Quản lý mạng lưới» (nay chỉ ADMIN).]**
 
 ### 50. Quyền có hiệu lực ngay: tra DB mỗi request (CTO chọn mặc định — PO có thể đổi sau)
 `authRequired` đọc `role` + `deactivated_at` từ `users` theo `id` trong token ở MỌI request (một câu lệnh chuẩn bị sẵn; `req.authChecked` tránh tra hai lần khi route gắn thêm `authRequired`).
@@ -381,6 +382,7 @@ Hệ quả: đổi vai trò / khoá tài khoản có hiệu lực ngay với tok
 (a) Mạng lưới: đọc (`GET /api/network`, `/network/export-data`) cho ADMIN/TTVH/GDVH; ghi/nhập/xoá chỉ ADMIN. (b) Quyền có hiệu lực ngay (#50). (c) Phải còn ít nhất 1 ADMIN hoạt động (#54).
 (d) Tạo ADMIN đầu tiên khi triển khai sạch: để ticket triển khai NAS sau. (e) `/api/organization/*` và `/api/dashboard/stats` giữ nguyên (mọi người đã đăng nhập) — ghi vào backlog để PO xem lại.
 Hệ quả (Claude Code): `GET /api/users/search` (gợi ý người phụ trách) nằm trong `/api/users*` nên chỉ ADMIN — khớp việc chỉ ADMIN sửa người phụ trách bưu cục.
+**[Đã bị thay thế bởi #95 về quyền đọc mạng lưới, mục (a) (nay chỉ ADMIN).]**
 
 ### 54. ADMIN hoạt động cuối cùng + chi tiết kiểm tra role (Claude Code tự chọn, theo mặc định (c) của #53)
 Hạ vai trò hoặc khoá **ADMIN hoạt động cuối cùng** → 400 (`server/lib/adminGuard.js`). Vì người gọi luôn là ADMIN hoạt động (tra DB) và đã bị chặn tự đổi vai trò / tự khoá, lớp này là phòng thủ chiều sâu (qua API hiện chưa tới được; kiểm thử trực tiếp hàm).
@@ -729,6 +731,15 @@ Căn cứ: `33_THAMSO0_KHAO_SAT_THAM_SO.md`; chi tiết: `34_THAMSO1_BACKEND_BAN
 4. **Hiệu lực NGAY, tính lại cả quá khứ** (không lưu số nào theo ngưỡng). Hoàn về mặc định + lịch sử sửa có; bắt buộc nhập lý do (1–200 ký tự); min / max cứng và ràng buộc chéo kiểm ở máy chủ, tất-cả-hoặc-không; gán giá trị bằng mặc định = xóa dòng ghi đè (vẫn ghi nhật ký). `nguong_mat_shbg_do` trần 0,20 (chốt an toàn của thao tác xóa dữ liệu).
 5. **Cache #93**: khóa tầng 1 thêm `phienBan()` của tham số; tầng 2 giữ nguyên (chỉ số đếm thô). Giao diện CHƯA đọc tham số mới (THAMSO-2 bỏ chữ cứng / dự phòng lệch, THAMSO-3 màn ADMIN). Khóa mới `phuong_xa_tang_cao_pct` (20) → `phuong-xa-tang` THÊM khóa `tang_cao_pct`.
 6. Đổi tham số nạp nguồn (giờ mong đợi, ân hạn, nghi ngờ ít / nhiều, tuần mẫu): chạy thử cho thấy mục «Đã xem xét» không còn cần xử lý thì rời cả hai danh sách, đặt lại giá trị cũ thì dấu cũ còn hiệu lực (sửa nhận định THAMSO-0 mục 2.2).
+
+### 95. «Quản lý mạng lưới» chỉ ADMIN (PO chốt 18/10/2026 — THEME-1, PR #91; thay #49 và #53(a) về quyền đọc)
+1. Toàn bộ «Quản lý mạng lưới» (đọc `GET /api/network`, `GET /api/network/export-data`; ghi, nhập, xoá như cũ) chỉ ADMIN. TTVH, GDVH, STAFF nhận 403. Lý do: mục nằm trong nhóm «Quản trị» cùng Quản lý người dùng, Thay thế ngày, Nạp dữ liệu nguồn, Tham số hệ thống.
+2. Cài: `server/routes/network.js` dùng `requireRoles(ROLES.ADMIN)` cho cả hai route đọc (bỏ `VIEWER_ROLES`); `App.jsx` chỉ dựng màn khi `isAdmin`; `Sidebar.jsx` đặt mục trong khối ADMIN. Khảo sát trước khi sửa: chỉ `NetworkListView.jsx` gọi hai route đó. `GET /api/organization/communes` KHÔNG đổi (mọi vai trò đã đăng nhập, #53(e)); hiện chỉ màn mạng lưới dùng nó — để PO xem lại.
+
+### 96. Giao diện phong cách «Huế» phẳng: bảng màu, phông, menu ngang (PO chốt 18/10/2026 — THEME-2, PR #93; menu ngang = THEME-3, CHƯA làm)
+1. Phong cách phẳng (bỏ bóng đổ, viền mảnh). Bảng màu: tím #4A1D6E (chính), vàng #E0A82E (nhấn / cảnh báo), đỏ son #B3202A (nguy hiểm), xanh ngọc #1F7A5C (thành công), nền kem #F6F1E7. Các thang `orange`, `gray`, `red`, `emerald`, `amber` của Tailwind được ghi đè trong `src/index.css` (khối «THEME-2: palette override» — xoá khối này là quay lại màu cũ).
+2. Phông: Playfair Display (tiêu đề) + Be Vietnam Pro (chữ thường), đóng gói OFFLINE bằng `@fontsource` (không tải từ mạng).
+3. Menu bên trái sẽ chuyển sang thanh ngang ở ticket THEME-3 (chưa làm). Màn Tivi không đổi theo ý định; THEME-2 làm đổi nhẹ trạng thái chờ / lỗi / mất mạng của Tivi do dùng chung thang màu — sửa ở THEME-2b.
 
 ## Drift phát hiện
 _(chưa có)_
