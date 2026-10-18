@@ -174,6 +174,9 @@ function ap(db, user, thayDoi, lyDo, loaiNhatKy) {
   const g = (k) => (thayDoi.has(k) ? (thayDoi.get(k) === undefined ? MD[k] : thayDoi.get(k)) : lay(k));
   const rb = kiemTraRangBuoc(g, new Set(thayDoi.keys()));
   if (rb) throw rb;
+  // THAMSO-1a: khóa có giá trị mới == giá trị hiệu lực hiện hành thì bỏ qua (không nhật ký, không dòng ghi đè mới). Cả lô không đổi gì -> không ghi, không tăng phiên bản.
+  for (const [khoa, v] of [...thayDoi]) if (json(v === undefined ? MD[khoa] : v) === json(lay(khoa))) thayDoi.delete(khoa);
+  if (!thayDoi.size) return [];
   const luc = nowIso();
   const ma = nguoiMa(user);
   const them = db.prepare('INSERT INTO tham_so_nhat_ky (khoa, gia_tri_cu, gia_tri_moi, thoi_diem_utc, nguoi_ma, ly_do, loai) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -185,7 +188,7 @@ function ap(db, user, thayDoi, lyDo, loaiNhatKy) {
     for (const [khoa, v] of thayDoi) {
       const cu = lay(khoa);
       const moi = v === undefined ? MD[khoa] : v;
-      // Giá trị bằng mặc định: XÓA dòng ghi đè (không ghim giá trị cũ khi mặc định trong mã đổi sau này), vẫn ghi nhật ký.
+      // Giá trị bằng mặc định (và khác hiện hành): XÓA dòng ghi đè (không ghim giá trị cũ khi mặc định trong mã đổi sau này), vẫn ghi nhật ký.
       if (json(moi) === json(MD[khoa])) { xoa.run(khoa); cuoi.set(khoa, undefined); } else { ghi.run(khoa, json(moi), luc, ma); cuoi.set(khoa, moi); }
       them.run(khoa, json(cu), json(moi), luc, ma, lyDo, loaiNhatKy);
     }

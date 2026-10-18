@@ -452,7 +452,7 @@ test('khởi động lại (khoiTao từ DB) giữ nguyên giá trị đã chỉ
   assert.equal(NN.GIO_MONG_DOI_SANG, '08:45');
 });
 
-test('gán giá trị BẰNG mặc định: XÓA dòng ghi đè (không ghim), vẫn ghi nhật ký loại SUA; la_mac_dinh true', async () => {
+test('gán giá trị BẰNG mặc định: XÓA dòng ghi đè (không ghim), ghi nhật ký loại SUA (khi đang khác mặc định); la_mac_dinh true', async () => {
   await sua('ptc_dat', 0.8);
   assert.equal(soDong(), 1);
   const res = await sua('ptc_dat', 0.82);
@@ -462,9 +462,11 @@ test('gán giá trị BẰNG mặc định: XÓA dòng ghi đè (không ghim), v
   assert.equal(muc(res.body, 'ptc_dat').cap_nhat_luc, null);
   const log = ctx.db.prepare('SELECT gia_tri_cu, gia_tri_moi, loai FROM tham_so_nhat_ky ORDER BY id').all();
   assert.deepEqual(log[1], { gia_tri_cu: '0.8', gia_tri_moi: '0.82', loai: 'SUA' });
-  const dau = await sua('ptc_dat', 0.82); // gán mặc định khi chưa có dòng: vẫn được ghi nhật ký, không tạo dòng
+  const n0 = soNhatKy();
+  const dau = await sua('ptc_dat', 0.82); // gán mặc định khi chưa có dòng: THAMSO-1a — bỏ qua, không nhật ký, không tạo dòng
   assert.equal(dau.status, 200);
   assert.equal(soDong(), 0);
+  assert.equal(soNhatKy(), n0);
 });
 
 test('hoàn về mặc định: theo khóa, ghi nhật ký VE_MAC_DINH với giá trị cũ / mới thật; khóa lạ / chỉ-đọc / trùng / thiếu lý do bị từ chối', async () => {
@@ -866,4 +868,81 @@ test('schema idempotent: ensureThamSoSchema chạy lại không lỗi, không m�
   assert.equal(soDong(), 1);
   assert.throws(() => ctx.db.prepare("INSERT INTO tham_so (khoa, gia_tri, cap_nhat_luc, cap_nhat_boi, che_do) VALUES ('x', '1', 'a', 'b', 'khac')").run(), /CHECK/);
   assert.throws(() => ctx.db.prepare("INSERT INTO tham_so_nhat_ky (khoa, thoi_diem_utc, nguoi_ma, ly_do, loai) VALUES ('x', 'a', 'b', 'c', 'XOA')").run(), /CHECK/);
+});
+
+// =====================================================================
+// THAMSO-1a. Ba tham số điều hành chưa có test riêng + PUT / hoàn mặc định không đổi gì
+// =====================================================================
+const TH = DT.DASHBOARD_DEN_THRESHOLDS;
+const BA_THAM_SO = [
+  { khoa: 'san_so_sanh_toi_thieu', ten: 'SAN_SO_SANH_TOI_THIEU', mac_dinh: 50, moi: 70, min: 1, max: 1000 },
+  { khoa: 'san_so_sanh_phuong_xa', ten: 'SAN_SO_SANH_PHUONG_XA', mac_dinh: 10, moi: 15, min: 1, max: 1000 },
+  { khoa: 'gio_bat_dau_danh_gia', ten: 'GIO_BAT_DAU_DANH_GIA', mac_dinh: 12, moi: 9, min: 0, max: 23 }
+];
+for (const t of BA_THAM_SO) {
+  test(`${t.ten}: mặc định đúng; PUT đổi thì hàm đọc nhận giá trị mới; hoàn mặc định trả giá trị cũ; chặn ngoài min / max`, async () => {
+    assert.equal(MD[t.khoa], t.mac_dinh);
+    assert.equal(TH[t.ten], t.mac_dinh);
+    assert.equal(TS.lay(t.khoa), t.mac_dinh);
+    assert.equal((await sua(t.khoa, t.moi)).status, 200);
+    assert.equal(TH[t.ten], t.moi);
+    assert.equal(TS.lay(t.khoa), t.moi);
+    assert.equal((await nguongDen()).body.nguong[t.ten], t.moi, 'API trả giá trị mới');
+    const ve = await veMd({ ly_do: 'Hoàn lại', khoa: [t.khoa] });
+    assert.equal(ve.status, 200);
+    assert.equal(TH[t.ten], t.mac_dinh);
+    assert.equal(muc(ve.body, t.khoa).la_mac_dinh, true);
+    for (const v of [t.min - 1, t.max + 1]) {
+      const res = await chuaDoi(() => sua(t.khoa, v));
+      assert.deepEqual([res.status, res.body.ma], [400, 'NGOAI_KHOANG'], `${t.khoa} = ${v}`);
+    }
+    for (const v of [t.min, t.max]) assert.equal((await sua(t.khoa, v)).status, 200, `biên ${v}`);
+    assert.equal(TH[t.ten], t.max);
+  });
+}
+
+test('THAMSO-1a (B): PUT giá trị BẰNG hiện hành bị bỏ qua — không nhật ký, không đổi phiên bản, không đổi dòng ghi đè; 200 trả dữ liệu hiện hành', async () => {
+  await sua('ptc_dat', 0.8);
+  const truoc = { nk: soNhatKy(), pb: TS.phienBan(), dong: ctx.db.prepare('SELECT * FROM tham_so').all() };
+  const bang = await put({ ly_do: 'Không đổi', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.8 }, { khoa: 'gio_muon', gia_tri: 15 }] }); // 0.8 = hiện hành; 15 = mặc định đang dùng
+  assert.equal(bang.status, 200);
+  assert.equal(bang.body.phien_ban, truoc.pb);
+  assert.equal(muc(bang.body, 'ptc_dat').gia_tri, 0.8);
+  assert.deepEqual([soNhatKy(), TS.phienBan()], [truoc.nk, truoc.pb]);
+  assert.deepEqual(ctx.db.prepare('SELECT * FROM tham_so').all(), truoc.dong, 'cap_nhat_luc / cap_nhat_boi không đổi');
+});
+
+test('THAMSO-1a (B): lô trộn — khóa không đổi bị bỏ, khóa có đổi vẫn ghi; một lần tăng phiên bản, nhật ký chỉ có khóa đổi', async () => {
+  await sua('ptc_dat', 0.8);
+  const n0 = soNhatKy();
+  const p0 = TS.phienBan();
+  const res = await put({ ly_do: 'Lô trộn', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.8 }, { khoa: 'gio_muon', gia_tri: 16 }] });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.phien_ban, p0 + 1);
+  assert.deepEqual(ctx.db.prepare('SELECT khoa FROM tham_so_nhat_ky ORDER BY id DESC LIMIT 1').all().map((x) => x.khoa), ['gio_muon']);
+  assert.equal(soNhatKy() - n0, 1);
+});
+
+test('THAMSO-1a (B): giá trị bằng hiện hành nhưng lô phá ràng buộc cặp vẫn bị từ chối như cũ (RANG_BUOC), kiểm tra kiểu / khoảng vẫn chạy trước', async () => {
+  const sai = await chuaDoi(() => put({ ly_do: 'x', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.82 }, { khoa: 'gio_mong_doi_sang', gia_tri: '13:00' }] }));
+  assert.deepEqual([sai.status, sai.body.ma], [400, 'RANG_BUOC']);
+  const khoang = await chuaDoi(() => put({ ly_do: 'x', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.82 }, { khoa: 'san_xep_hang_bcvh', gia_tri: 0 }] }));
+  assert.equal(khoang.body.ma, 'NGOAI_KHOANG');
+});
+
+test('THAMSO-1a (C): ve-mac-dinh trên khóa chưa bị ghi đè — 200, không nhật ký, không đổi phiên bản; lô trộn chỉ ghi khóa thật sự đang ghi đè', async () => {
+  const p0 = TS.phienBan();
+  const res = await veMd({ ly_do: 'Không cần', khoa: ['ptc_dat', 'gio_muon'] });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.phien_ban, p0);
+  assert.deepEqual([soNhatKy(), TS.phienBan(), soDong()], [0, p0, 0]);
+  assert.ok(res.body.tham_so.every((x) => x.la_mac_dinh));
+  await sua('ptc_dat', 0.8);
+  const p1 = TS.phienBan();
+  const n1 = soNhatKy();
+  const tron = await veMd({ ly_do: 'Một trong hai', khoa: ['ptc_dat', 'gio_muon'] });
+  assert.equal(tron.status, 200);
+  assert.equal(tron.body.phien_ban, p1 + 1);
+  assert.equal(soNhatKy() - n1, 1);
+  assert.deepEqual(ctx.db.prepare("SELECT khoa, loai FROM tham_so_nhat_ky WHERE loai = 'VE_MAC_DINH'").all(), [{ khoa: 'ptc_dat', loai: 'VE_MAC_DINH' }]);
 });
