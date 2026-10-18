@@ -394,7 +394,7 @@ export default function ThamSoView({ authUser }) {
 
       {/* ── MÀN 3: THANH CỐ ĐỊNH CHÂN TRANG KHI CÓ THAY ĐỔI CHƯA LƯU ──────── */}
       {draftCount > 0 && (
-        <div className="fixed bottom-0 left-[266px] right-0 z-40 bg-white border-t border-orange-200 shadow-2xl px-4 sm:px-6 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-orange-200 shadow-2xl px-4 sm:px-6 py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0" />
