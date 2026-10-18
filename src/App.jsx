@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import Header from './components/Header';
 import LoginView from './components/LoginView';
 import NetworkListView from './components/NetworkListView';
@@ -203,15 +203,15 @@ export default function App() {
 
   // ── Giao diện thường ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex font-sans">
-      <Sidebar
+    <div className="h-screen flex flex-col font-sans">
+      <TopNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         authUser={authUser}
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto pb-[28px]">
         <Header activeTab={activeTab} />
 
         <main className="flex-1">

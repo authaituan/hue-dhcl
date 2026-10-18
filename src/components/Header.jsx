@@ -1,10 +1,9 @@
 import React from 'react';
 
 export default function Header({ activeTab }) {
-
   // Helper function to get screen name
   const getScreenName = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'ops_today': return 'Điều hành hôm nay';
       case 'arrivals': return 'Sản lượng đến';
       case 'processing': return 'Xử lý và tỷ lệ phát';
@@ -18,23 +17,10 @@ export default function Header({ activeTab }) {
   };
 
   return (
-    <header className="h-[72px] px-6 flex items-center justify-between sticky top-0 z-10 bg-transparent">
-      {/* Left side: Breadcrumbs & Title */}
-      <div className="min-w-0 shrink flex-1 mr-4">
-        <nav aria-label="breadcrumb">
-          <ol className="flex items-center space-x-2 text-[14px] text-[var(--color-subtext)] whitespace-nowrap">
-            <li>Trang</li>
-            <li>/</li>
-            <li className="text-[var(--color-title)] truncate" aria-current="page">{getScreenName()}</li>
-          </ol>
-        </nav>
-        <h6 className="font-bold text-[var(--color-title)] mt-0.5 text-base whitespace-nowrap truncate">{getScreenName()}</h6>
-      </div>
-
-      {/* Right side: tên hệ thống */}
-      <div className="hidden lg:block shrink-0 text-[13px] font-semibold text-[var(--color-body)] whitespace-nowrap">
-        Hệ thống điều hành chất lượng - khâu Phát
-      </div>
-    </header>
+    <nav aria-label="breadcrumb" className="text-[13px] text-[#7A6A80] px-6 pt-[18px] mb-[14px]">
+      <span>Trang</span>
+      <span className="mx-1.5">/</span>
+      <strong className="font-bold text-[#4A1D6E]">{getScreenName()}</strong>
+    </nav>
   );
 }
