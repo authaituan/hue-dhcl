@@ -13,8 +13,8 @@ const { seedMinimalOrg, seedUser, uid } = require('./helpers/fixtures');
 
 const PORT = 5909;
 const OK_IP = '10.0.0.5';
-const HRM = 'DASH_STAFF';
-const PASS = 'Staff@123';
+const HRM = 'DASH_TTVH';
+const PASS = 'Ttvh@123';
 
 let ctx;
 let org;
@@ -31,8 +31,8 @@ before(async () => {
   for (let i = 0; i < 50; i++) {
     try { await fetch(`${ctx.baseUrl}/`); break; } catch (e) { await new Promise((r) => setTimeout(r, 100)); }
   }
-  // STAFF cũng đọc được dashboard (chỉ cần đăng nhập)
-  seedUser(ctx.db, { hrmCode: HRM, fullName: 'Dash Staff', role: 'STAFF', password: PASS });
+  // TTVH đọc được dashboard (chỉ cần đăng nhập)
+  seedUser(ctx.db, { hrmCode: HRM, fullName: 'Dash Ttvh', role: 'TTVH', password: PASS });
   const res = await fetch(`${ctx.baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': OK_IP },

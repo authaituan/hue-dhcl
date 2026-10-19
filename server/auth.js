@@ -1,6 +1,6 @@
 // ==========================================
 // AUTH MODULE - JWT + RBAC (Role-Based Access Control)
-// 5 vai trò có tên (server/roles.js): ADMIN, TTVH, GDVH, STAFF, TIVI. Quyền theo từng route dùng
+// 5 vai trò có tên (server/roles.js): ADMIN, TTVH, GDVH, TIVI. Quyền theo từng route dùng
 // requireRoles(...) với danh sách tường minh (docs/ai/04_DECISIONS.md #49–#50); TIVI thêm allowlist trung tâm (#74).
 // Dùng crypto built-in cho password hashing (scrypt) - KHÔNG thêm native dep.
 // ==========================================
@@ -54,11 +54,13 @@ function passwordStamp(passwordHash) {
 }
 
 function signToken(user) {
+  // Không ký token cho tài khoản thiếu/không có vai trò hợp lệ (không có vai trò mặc định).
+  if (!isValidRole(user.role)) throw new Error('Không thể ký token: vai trò tài khoản không hợp lệ');
   const payload = {
     id: user.id,
     hrm_code: user.hrm_code || null,
     full_name: user.full_name || null,
-    role: user.role || ROLES.STAFF
+    role: user.role
   };
   if (payload.role === ROLES.TIVI) {
     // Token dài hạn chỉ dùng được khi tài khoản VẪN là TIVI và mật khẩu chưa đổi (authRequired kiểm mỗi request).
@@ -126,7 +128,7 @@ function authRequired(req, res, next) {
 
 // ------------------------------------------
 // Middleware: chỉ cho các vai trò liệt kê TƯỜNG MINH (chạy SAU authRequired).
-// Không có quy tắc "khác STAFF": vai trò không nằm trong danh sách đều bị 403.
+// Không có quy tắc "khác một vai trò nào đó": vai trò không nằm trong danh sách đều bị 403.
 // ------------------------------------------
 function makeRoleGuard(allowed, message) {
   return function requireRolesMiddleware(req, res, next) {

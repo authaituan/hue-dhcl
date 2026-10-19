@@ -30,7 +30,6 @@ const USERS = {
   admin: { hrm: 'TH_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'TH_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'TH_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'TH_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'TH_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -636,13 +635,13 @@ const datNguon = (src, extra = {}) => X.datNguon({ ketNoi: async () => src, dirs
 const docLog = () => { try { return fs.readFileSync(process.env.SECURITY_LOG, 'utf8'); } catch (e) { return ''; } };
 const choLog = () => new Promise((r) => setTimeout(r, 120));
 
-test('route POST /api/arrivals/thay-the/thuc-hien: ADMIN 200 (tóm tắt, không SHBG, không đường dẫn); TTVH, GDVH, STAFF, TIVI 403; không token 401', async () => {
+test('route POST /api/arrivals/thay-the/thuc-hien: ADMIN 200 (tóm tắt, không SHBG, không đường dẫn); TTVH, GDVH, TIVI 403; không token 401', async () => {
   await napCu(rangeShbg(0, 30));
   const src = nguonChuan(rangeShbg(0, 40));
   datNguon(src);
   const body = thanBody(src);
   const truoc = chup();
-  for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) assert.equal((await goi(who, body)).status, 403, who);
+  for (const who of ['ttvh', 'gdvh', 'tivi']) assert.equal((await goi(who, body)).status, 403, who);
   assert.equal((await goi(null, body)).status, 401);
   assert.equal(chup(), truoc, 'người không đủ quyền không làm đổi gì');
   assert.equal(src.calls.get.length, 0);

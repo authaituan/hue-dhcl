@@ -29,7 +29,6 @@ const USERS = {
   admin: { hrm: 'KP_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KP_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KP_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'KP_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'KP_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -216,7 +215,7 @@ test('nhật ký: lọc bcvh / tu_ngay / den_ngay / nguoi, phân trang, mới tr
   assert.deepEqual([kt.status, kt.body.ma], [404, 'KHONG_TIM_THAY']);
 });
 
-test('quyền: 4 API chỉ ADMIN — không token 401; TTVH, GDVH, STAFF, TIVI 403', async () => {
+test('quyền: 4 API chỉ ADMIN — không token 401; TTVH, GDVH, TIVI 403', async () => {
   const kq = await kichBanNen();
   const ca = [
     ['GET', '/arrivals/thay-the/nhat-ky'], ['GET', `/arrivals/thay-the/nhat-ky/${kq.nhat_ky_id}`],
@@ -226,7 +225,7 @@ test('quyền: 4 API chỉ ADMIN — không token 401; TTVH, GDVH, STAFF, TIVI 4
   const truoc = chup();
   for (const [me, url, body] of ca) {
     assert.equal((await goi(null, me, url, body)).status, 401, `${url} không token`);
-    for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) assert.equal((await goi(who, me, url, body)).status, 403, `${url} ${who}`);
+    for (const who of ['ttvh', 'gdvh', 'tivi']) assert.equal((await goi(who, me, url, body)).status, 403, `${url} ${who}`);
   }
   assert.equal(chup(), truoc, 'bị từ chối thì DB không đổi');
 });

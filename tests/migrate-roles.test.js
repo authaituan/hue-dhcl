@@ -40,7 +40,7 @@ const run = (opts) => { const lines = []; return migrateRoles({ dbPath, ...opts,
 beforeEach(() => { for (const f of backups()) fs.unlinkSync(path.join(dir, f)); });
 
 test('dry-run (mặc định): không đổi gì, không sao lưu; in số tài khoản theo role và số sẽ đổi', async () => {
-  makeDb(['ADMIN', 'MANAGER', 'MANAGER', 'STAFF', 'GDVH', 'TTVH']);
+  makeDb(['ADMIN', 'MANAGER', 'MANAGER', 'TIVI', 'GDVH', 'TTVH']);
   const before_ = rolesOf(dbPath);
   const res = await run({});
   assert.equal(res.exitCode, EXIT_OK);
@@ -64,15 +64,15 @@ test('dry-run / apply không in họ tên, mã HRM hay hash', async () => {
 });
 
 test('--apply: sao lưu (cùng thư mục, có dấu thời gian) rồi MANAGER -> TTVH; role khác giữ nguyên', async () => {
-  makeDb(['ADMIN', 'MANAGER', 'STAFF', 'MANAGER', 'GDVH', 'TTVH']);
+  makeDb(['ADMIN', 'MANAGER', 'TIVI', 'MANAGER', 'GDVH', 'TTVH']);
   const res = await run({ apply: true, now: new Date(2026, 9, 9, 14, 5, 7) });
   assert.equal(res.exitCode, EXIT_OK);
   assert.equal(res.changed, 2);
-  assert.deepEqual(rolesOf(dbPath), ['ADMIN', 'TTVH', 'STAFF', 'TTVH', 'GDVH', 'TTVH']);
+  assert.deepEqual(rolesOf(dbPath), ['ADMIN', 'TTVH', 'TIVI', 'TTVH', 'GDVH', 'TTVH']);
   assert.equal(backups().length, 1);
   assert.equal(path.basename(res.backupPath), `${path.basename(dbPath)}.20261009-140507.bak`);
   assert.equal(path.dirname(res.backupPath), path.dirname(dbPath));
-  assert.deepEqual(rolesOf(res.backupPath), ['ADMIN', 'MANAGER', 'STAFF', 'MANAGER', 'GDVH', 'TTVH'], 'bản sao lưu giữ dữ liệu TRƯỚC khi đổi');
+  assert.deepEqual(rolesOf(res.backupPath), ['ADMIN', 'MANAGER', 'TIVI', 'MANAGER', 'GDVH', 'TTVH'], 'bản sao lưu giữ dữ liệu TRƯỚC khi đổi');
 });
 
 test('idempotent: chạy --apply lần hai không đổi gì và không tạo thêm bản sao lưu', async () => {
@@ -115,17 +115,17 @@ test('DB không tồn tại / không có bảng users -> mã lỗi 1, không t�
 });
 
 test('dòng lệnh: dry-run mặc định (mã 0, không đổi), --apply đổi, role lạ -> mã 2; --db nhận đường dẫn', () => {
-  makeDb(['MANAGER', 'STAFF']);
+  makeDb(['MANAGER', 'TIVI']);
   const cli = (...args) => spawnSync(process.execPath, [SCRIPT, '--db', dbPath, ...args], { encoding: 'utf8' });
 
   const dry = cli();
   assert.equal(dry.status, 0);
-  assert.deepEqual(rolesOf(dbPath), ['MANAGER', 'STAFF']);
+  assert.deepEqual(rolesOf(dbPath), ['MANAGER', 'TIVI']);
   assert.match(dry.stdout, /dry-run/);
 
   const ap = cli('--apply');
   assert.equal(ap.status, 0);
-  assert.deepEqual(rolesOf(dbPath), ['TTVH', 'STAFF']);
+  assert.deepEqual(rolesOf(dbPath), ['TTVH', 'TIVI']);
   assert.equal(backups().length, 1);
 
   makeDb(['MANAGER', 'KHAC']);
@@ -134,4 +134,26 @@ test('dòng lệnh: dry-run mặc định (mã 0, không đổi), --apply đổi
   assert.deepEqual(rolesOf(dbPath), ['MANAGER', 'KHAC']);
 
   assert.equal(spawnSync(process.execPath, [SCRIPT, '--khong-co'], { encoding: 'utf8' }).status, 1);
+});
+
+// STAFF-1: STAFF đã bị gỡ -> gặp là DỪNG (mã 2), in id (không in tên / mã HRM / hash), không đổi gì kể cả MANAGER
+test('gặp role STAFF: mã 2, in danh sách id + hướng dẫn, không đổi dữ liệu, không sao lưu (cả dry-run lẫn --apply)', async () => {
+  for (const apply of [false, true]) {
+    makeDb(['ADMIN', 'MANAGER', 'STAFF', 'STAFF']);
+    const before_ = rolesOf(dbPath);
+    const res = await run({ apply });
+    assert.equal(res.exitCode, EXIT_UNKNOWN_ROLE);
+    assert.equal(res.changed, 0);
+    assert.deepEqual(res.staffIds, ['id2', 'id3']);
+    assert.deepEqual(rolesOf(dbPath), before_, 'không đổi dữ liệu (kể cả MANAGER)');
+    assert.equal(backups().length, 0, 'không sao lưu');
+    const out = res.lines.join('\n');
+    assert.match(out, /còn 2 tài khoản vai trò STAFF/);
+    assert.match(out, /id2/);
+    assert.match(out, /id3/);
+    assert.match(out, /đổi vai trò từng tài khoản trong màn Quản lý người dùng rồi chạy lại/);
+    assert.ok(!/Họ Tên Giả|HRMGIA|hashgia/.test(out), 'không in tên, mã HRM, hash');
+  }
+  const cli = spawnSync(process.execPath, [SCRIPT, '--db', dbPath, '--apply'], { encoding: 'utf8' });
+  assert.equal(cli.status, 2);
 });

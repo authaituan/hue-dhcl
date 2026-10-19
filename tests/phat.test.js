@@ -28,7 +28,6 @@ const USERS = {
   gdvhM2: { hrm: 'PH_GDVH2', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 535470
   gdvhM2b: { hrm: 'PH_GDVH3', pass: 'Gdvh@123', role: 'GDVH' }, // cũng được giao 535470 (người khác, cùng BCVH)
   gdvhNone: { hrm: 'PH_GDVH0', pass: 'Gdvh@123', role: 'GDVH' }, // chưa được giao
-  staff: { hrm: 'PH_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'PH_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -592,9 +591,9 @@ test('commit kiểm lại từng dòng tại thời điểm commit: dòng đã h
 });
 
 // ---------------- Quyền ----------------
-test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa gán, STAFF, TIVI 403; không token 401; bản kiểm tra của người khác 404', async () => {
+test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa gán, TIVI 403; không token 401; bản kiểm tra của người khác 404', async () => {
   const tpl = (who, b) => call('GET', `/api/phat/template?bcvh=${b}&from=2026-10-02&to=2026-10-03`, who);
-  const cho = { admin: [200, 200], ttvh: [200, 200], gdvhM: [200, 403], gdvhM2: [403, 200], gdvhNone: [403, 403], staff: [403, 403], tivi: [403, 403] };
+  const cho = { admin: [200, 200], ttvh: [200, 200], gdvhM: [200, 403], gdvhM2: [403, 200], gdvhNone: [403, 403], tivi: [403, 403] };
   for (const [who, [a, b]] of Object.entries(cho)) {
     assert.equal((await tpl(who, M)).status, a, `template ${who} ${M}`);
     assert.equal((await tpl(who, M2)).status, b, `template ${who} ${M2}`);
@@ -620,9 +619,9 @@ test('quyền: ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán; GDVH chưa
     call('POST', `/api/phat/drafts/${id}/assign-list`, who, { trang_thai: 'PTC', shbg: [sh(1)] }),
     call('POST', `/api/phat/drafts/${id}/commit`, who, { mode: 'hop-le' })
   ]);
-  // PHAT-1b: bản kiểm tra thuộc người tạo (admin): GDVH khác -> 404 (không lộ sự tồn tại); STAFF, TIVI bị chặn từ cổng nhập -> 403
+  // PHAT-1b: bản kiểm tra thuộc người tạo (admin): GDVH khác -> 404 (không lộ sự tồn tại); TIVI bị chặn từ cổng nhập -> 403
   for (const who of ['gdvhM2', 'gdvhNone', 'gdvhM']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(404), who);
-  for (const who of ['staff', 'tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
+  for (const who of ['tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
   assert.deepEqual((await calls(undefined)).map((x) => x.status), Array(8).fill(401));
   assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'ttvh')).status, 200, 'TTVH xem được bản của người khác');
   assert.equal((await call('GET', '/api/phat/drafts/khong-co-id', 'admin')).status, 404);
@@ -805,9 +804,9 @@ test('hoàn tác: 409 khi đợt sau đã đổi SHBG (kèm số SHBG vướng);
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_status_current WHERE bcvh = ?').get(M2).n, 0, 'M2 sạch trạng thái');
 });
 
-test('hoàn tác: quyền — ADMIN, TTVH, hoặc chính người nhập (còn được phép với BCVH); người khác cùng BCVH, GDVH BCVH khác / chưa gán, STAFF, TIVI: 403', async () => {
+test('hoàn tác: quyền — ADMIN, TTVH, hoặc chính người nhập (còn được phép với BCVH); người khác cùng BCVH, GDVH BCVH khác / chưa gán, TIVI: 403', async () => {
   const D = await nhapM2('gdvhM2', [[sh(24), 'Phát thành công', null]], 'D.xlsx');
-  for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone', 'staff', 'tivi']) assert.equal((await undo(who, D.batch_id)).status, 403, who);
+  for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone', 'tivi']) assert.equal((await undo(who, D.batch_id)).status, 403, who);
   assert.match((await undo('gdvhM2b', D.batch_id)).body.error, /Chỉ ADMIN, TTVH hoặc chính người nhập/);
   assert.equal((await undo(undefined, D.batch_id)).status, 401);
   assert.equal(batchRow(D.batch_id).trang_thai, 'da_nhap', 'các lệnh bị từ chối không đổi gì');
@@ -869,7 +868,7 @@ test('danh sách đợt nhập: chỉ BCVH được phép; ai, giờ (UTC + Bang
   assert.match((await ds('gdvhNone')).body.error, /chưa được gán BCVH nào/);
   assert.equal((await ds('gdvhNone', `?bcvh=${M}`)).status, 403);
   assert.equal((await ds('ttvh', `?bcvh=${M}`)).status, 200);
-  for (const who of ['staff', 'tivi']) assert.equal((await ds(who)).status, 403, who);
+  for (const who of ['tivi']) assert.equal((await ds(who)).status, 403, who);
   assert.equal((await ds(undefined)).status, 401);
   // Phân trang và tham số
   const p2 = (await ds('admin', `?bcvh=${M2}&page=2&size=2`)).body;
@@ -1001,7 +1000,7 @@ test('tỷ lệ: mẫu số = SHBG đến ngày đó = san_luong của tong-quan
   assert.equal((await tl(`?bcvh=${M2}&ngay=2026-10-04`)).so_lieu_den_luc, S.nhap_luc);
 });
 
-test('tỷ lệ: tham số và quyền — ADMIN, TTVH, GDVH (mọi BCVH, kể cả chưa gán); STAFF, TIVI 403; không token 401', async () => {
+test('tỷ lệ: tham số và quyền — ADMIN, TTVH, GDVH (mọi BCVH, kể cả chưa gán); TIVI 403; không token 401', async () => {
   const g = (qs, who) => call('GET', `/api/phat/ty-le${qs}`, who);
   for (const who of ['admin', 'ttvh', 'gdvhM', 'gdvhM2', 'gdvhNone']) {
     assert.equal((await g(`?bcvh=${M}`, who)).status, 200, `${who} ${M}`);
@@ -1009,7 +1008,7 @@ test('tỷ lệ: tham số và quyền — ADMIN, TTVH, GDVH (mọi BCVH, kể c
     assert.equal((await g('', who)).status, 200, `${who} all`);
   }
   assert.equal((await g(`?bcvh=${M}&ngay=2026-10-02`, 'gdvhM2')).body.mau_so, (await g(`?bcvh=${M}&ngay=2026-10-02`, 'admin')).body.mau_so);
-  for (const who of ['staff', 'tivi']) assert.equal((await g('', who)).status, 403, who);
+  for (const who of ['tivi']) assert.equal((await g('', who)).status, 403, who);
   assert.equal((await g('', undefined)).status, 401);
   for (const qs of ['?bcvh=999999', '?bcvh=533140&bcvh=535470', '?ngay=2026-02-30', '?ngay=abc', '?ngay=2026-10-02 08:00', '?x=1']) assert.equal((await g(qs, 'admin')).status, 400, qs);
 });
@@ -1095,12 +1094,12 @@ test('PHAT-1b danh sách: ADMIN, TTVH — của mình, hoặc của mọi ngư�
   assert.equal((await dsBan('admin', `?bcvh=${M2}&tat_ca=1&tat_ca=1`)).status, 400);
 });
 
-test('PHAT-1b danh sách: quyền và tham số — GDVH chưa gán / BCVH khác, STAFF, TIVI 403; không token 401; thiếu / sai bcvh, tham số lạ 400', async () => {
+test('PHAT-1b danh sách: quyền và tham số — GDVH chưa gán / BCVH khác, TIVI 403; không token 401; thiếu / sai bcvh, tham số lạ 400', async () => {
   assert.equal((await dsBan('gdvhNone', `?bcvh=${M2}`)).status, 403);
   assert.match((await dsBan('gdvhNone', `?bcvh=${M2}`)).body.error, /chưa được gán BCVH nào/);
   assert.equal((await dsBan('gdvhM', `?bcvh=${M2}`)).status, 403, 'GDVH được gán M, không được xem danh sách M2');
   assert.equal((await dsBan('gdvhM', `?bcvh=${M}`)).status, 200);
-  for (const who of ['staff', 'tivi']) assert.equal((await dsBan(who, `?bcvh=${M2}`)).status, 403, who);
+  for (const who of ['tivi']) assert.equal((await dsBan(who, `?bcvh=${M2}`)).status, 403, who);
   assert.equal((await dsBan(undefined, `?bcvh=${M2}`)).status, 401);
   assert.equal((await dsBan('admin')).status, 400, 'thiếu bcvh');
   assert.equal((await dsBan('admin', '?bcvh=999999')).status, 400);
@@ -1126,7 +1125,7 @@ test('PHAT-1b danh sách: bản hết hạn không hiện (bị dọn); bản c�
   assert.ok(!idsBan(await dsBan('admin', `?bcvh=${M2}&tat_ca=1`)).includes('pb-con-han'));
 });
 
-test('PHAT-1b sở hữu: người khác (cùng BCVH, BCVH khác, chưa gán) -> 404 ở mọi điểm cuối; STAFF, TIVI 403; bản không bị đổi', async () => {
+test('PHAT-1b sở hữu: người khác (cùng BCVH, BCVH khác, chưa gán) -> 404 ở mọi điểm cuối; TIVI 403; bản không bị đổi', async () => {
   const id = await banM2('gdvhM2', 'chu.xlsx');
   const dongTruoc = JSON.stringify(await rowsOf(id, 'gdvhM2'));
   const batchTruoc = ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_batches').get().n;
@@ -1139,7 +1138,7 @@ test('PHAT-1b sở hữu: người khác (cùng BCVH, BCVH khác, chưa gán) ->
     call('POST', `/api/phat/drafts/${id}/commit`, who, { mode: 'hop-le' })
   ]);
   for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(404), who);
-  for (const who of ['staff', 'tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
+  for (const who of ['tivi']) assert.deepEqual((await calls(who)).map((x) => x.status), Array(8).fill(403), who);
   const lo = await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2b');
   assert.equal(lo.body.error, (await call('GET', '/api/phat/drafts/khong-co-id', 'gdvhM2b')).body.error, '404 giống hệt bản không tồn tại');
   assert.equal(JSON.stringify(await rowsOf(id, 'gdvhM2')), dongTruoc, 'các lệnh bị từ chối không đổi gì');
@@ -1211,12 +1210,12 @@ test('PHAT-1b sở hữu: GDVH bị bỏ gán BCVH mất quyền ngay với bả
 });
 
 // ---------------- PHAT-1b (d): xoá cả bản kiểm tra ----------------
-test('PHAT-1b xoá bản: người khác 404, STAFF/TIVI 403, không token 401; người tạo xoá được bản của mình; bản không tồn tại / xoá lần hai 404', async () => {
+test('PHAT-1b xoá bản: người khác 404, TIVI 403, không token 401; người tạo xoá được bản của mình; bản không tồn tại / xoá lần hai 404', async () => {
   const id = await banM2('gdvhM2', 'xoa1.xlsx');
   const dem = () => ctx.db.prepare('SELECT COUNT(*) AS n FROM phat_draft_rows WHERE draft_id = ?').get(id).n;
   const del = (who, i = id) => call('DELETE', `/api/phat/drafts/${i}`, who);
   for (const who of ['gdvhM2b', 'gdvhM', 'gdvhNone']) assert.equal((await del(who)).status, 404, who);
-  for (const who of ['staff', 'tivi']) assert.equal((await del(who)).status, 403, who);
+  for (const who of ['tivi']) assert.equal((await del(who)).status, 403, who);
   assert.equal((await del(undefined)).status, 401);
   assert.equal(dem(), 3, 'các lệnh bị từ chối không đổi gì');
   assert.equal((await call('GET', `/api/phat/drafts/${id}`, 'gdvhM2')).status, 200);
@@ -1462,7 +1461,7 @@ test('PHAT-2b-1 undo-preview và /undo: quyền và thứ tự kiểm như nhau 
   for (const lenh of [pv, undo]) {
     const ten = lenh === pv ? 'undo-preview' : 'undo';
     assert.equal((await lenh(undefined, D.batch_id)).status, 401, `${ten} không đăng nhập`);
-    for (const who of ['staff', 'tivi']) assert.equal((await lenh(who, D.batch_id)).status, 403, `${ten} ${who}`);
+    for (const who of ['tivi']) assert.equal((await lenh(who, D.batch_id)).status, 403, `${ten} ${who}`);
     for (const bad of ['99999999', 'abc', '1.5', '0', '-1']) assert.equal((await lenh('admin', bad)).status, 404, `${ten} ${bad}`);
     assert.equal((await lenh('gdvhM2', '99999999')).status, 404, `${ten}: 404 trước mọi kiểm quyền`);
     // GDVH của BCVH khác: 403 BCVH (hoàn tác, không phải «nhập kết quả phát»)
@@ -1541,7 +1540,6 @@ test('PHAT-2b-1 lọc lịch sử: tu_ngay / den_ngay theo giờ Bangkok (gồm 
   assert.deepEqual((await ds('')).body.items.map((x) => x.id), [e, d, c, b, a]);
   // quyền xem theo BCVH không bị bộ lọc vượt qua
   assert.equal((await ds('&tu_ngay=2026-10-01', 'gdvhM2')).status, 403);
-  assert.equal((await ds(`&nguoi_nhap=${admin}`, 'staff')).status, 403);
   assert.equal((await call('GET', `/api/phat/batches?bcvh=${M2}&nguoi_nhap=${admin}&tu_ngay=2026-10-01`, 'gdvhM2')).status, 200);
 
   // giá trị sai -> 400 tiếng Việt, nêu tên tham số

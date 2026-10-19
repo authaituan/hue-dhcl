@@ -34,7 +34,7 @@ function seedMinimalOrg(db) {
   return { provinceId, communeId, postOfficeId, provinceCode, communeCode, postOfficeCode };
 }
 
-// Seed 1 user với password_hash thật (role: một trong ROLES — ADMIN, TTVH, GDVH, STAFF; test vai trò cũ/lạ truyền chuỗi thẳng) (dùng hashPassword thật từ server/auth.js)
+// Seed 1 user với password_hash thật (role: một trong ROLES — ADMIN, TTVH, GDVH, TIVI; test vai trò cũ/lạ truyền chuỗi thẳng) (dùng hashPassword thật từ server/auth.js)
 // để login qua route /api/auth/login thật lấy JWT thật.
 function seedUser(db, { hrmCode, fullName, role, password }) {
   const id = uid();

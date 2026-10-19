@@ -20,7 +20,6 @@ const USERS = {
   admin: { hrm: 'NN_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'NN_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'NN_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'NN_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'NN_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -317,13 +316,13 @@ test('tổng quan: ánh xạ trạng thái hẹn giờ (TAT / CHO / DANG_CHAY / 
 // =====================================================================
 const DUONG_DAN = ['/api/nap-nguon/tong-quan', '/api/nap-nguon/luoi?tu=2026-10-12&den=2026-10-14', `/api/nap-nguon/o?bcvh=${BC.TH}&ngay=2026-10-12&dot=S`, '/api/nap-nguon/luot', '/api/nap-nguon/luot/1'];
 
-test('quyền: ADMIN 200 (hoặc 404 với lượt không có); TTVH, GDVH, STAFF, TIVI 403; không token 401 — cả năm đầu API', async () => {
+test('quyền: ADMIN 200 (hoặc 404 với lượt không có); TTVH, GDVH, TIVI 403; không token 401 — cả năm đầu API', async () => {
   const r = luot();
   fileLuot(r, ten(BC.TH, '2026-10-12', '093012'));
   const urls = [...DUONG_DAN.slice(0, 4), `/api/nap-nguon/luot/${r}`];
   for (const u of urls) {
     assert.equal((await goi('admin', u)).status, 200, u);
-    for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) assert.equal((await goi(who, u)).status, 403, `${who} ${u}`);
+    for (const who of ['ttvh', 'gdvh', 'tivi']) assert.equal((await goi(who, u)).status, 403, `${who} ${u}`);
     assert.equal((await goi(null, u)).status, 401, u);
   }
   assert.equal((await goi('admin', '/api/nap-nguon/luot/999999')).status, 404);

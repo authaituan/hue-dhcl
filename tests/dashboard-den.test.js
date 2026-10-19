@@ -26,7 +26,7 @@ const USERS = {
   ttvh: { hrm: 'DD_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvhM: { hrm: 'DD_GDVH1', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 533140
   gdvhNone: { hrm: 'DD_GDVH0', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'DD_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  tivi: { hrm: 'DD_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
 let ctx;
@@ -301,7 +301,7 @@ test('phuong-xa-tang: cùng giờ trong ngày, xếp theo mức tăng so hôm qu
   assert.equal((await api(`${PX}?gioi_han=51`, 'ttvh')).status, 400);
 });
 
-test('quyền: ADMIN / TTVH / GDVH xem mọi BCVH (GDVH chưa giao = ADMIN); bcvh_goi_y cho GDVH; STAFF 403; không token 401', async () => {
+test('quyền: ADMIN / TTVH / GDVH xem mọi BCVH (GDVH chưa giao = ADMIN); bcvh_goi_y cho GDVH; TIVI 403; không token 401', async () => {
   for (const p of [TQ, VIEC, PX]) {
     const a = (await api(`${p}?bcvh=${M2}`, 'admin')).body;
     for (const who of ['ttvh', 'gdvhM', 'gdvhNone']) {
@@ -314,7 +314,7 @@ test('quyền: ADMIN / TTVH / GDVH xem mọi BCVH (GDVH chưa giao = ADMIN); bcv
     assert.deepEqual((await api(p, 'gdvhM')).body.bcvh_goi_y, [M]);
     assert.deepEqual((await api(p, 'gdvhNone')).body.bcvh_goi_y, []);
     assert.deepEqual((await api(p, 'ttvh')).body.bcvh_goi_y, []);
-    assert.equal((await api(p, 'staff')).status, 403);
+    assert.equal((await api(p, 'tivi')).status, 403);
     assert.equal((await api(p)).status, 401);
   }
 });

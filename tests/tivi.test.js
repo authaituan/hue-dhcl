@@ -17,7 +17,6 @@ const USERS = {
   admin: { hrm: 'TV_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'TV_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'TV_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'TV_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tvAll: { hrm: 'TV_ALL', pass: 'Tivi@123', role: 'TIVI', scope: 'all' },
   tvM2: { hrm: 'TV_M2', pass: 'Tivi@123', role: 'TIVI', scope: M2 },
   tvNone: { hrm: 'TV_NONE', pass: 'Tivi@123', role: 'TIVI' }
@@ -64,7 +63,7 @@ test('token: TIVI hạn 90 ngày (JWT_EXPIRY_TIVI mặc định), các vai trò 
     assert.equal(p.exp - p.iat, 90 * DAY_S, k);
     assert.equal(p.role, 'TIVI');
   }
-  for (const k of ['admin', 'ttvh', 'gdvh', 'staff']) {
+  for (const k of ['admin', 'ttvh', 'gdvh']) {
     const p = payloadOf(tokens[k]);
     assert.equal(p.exp - p.iat, 8 * 3600, k);
     assert.ok(!('tivi' in p) && !('pwd' in p), `${k}: không có claim của TIVI`);
@@ -131,7 +130,7 @@ test('từ chối mặc định: mọi endpoint khác trả 403 cho TIVI (xuất
   assert.equal((await loginAs(ctx.baseUrl, USERS.tvAll.hrm, USERS.tvAll.pass)).status, 200);
   // Vai trò khác không bị ảnh hưởng
   assert.equal((await get('/api/arrivals/summary?from=2026-10-01&to=2026-10-02', 'ttvh')).status, 200);
-  assert.equal((await get('/api/dashboard/widgets', 'staff')).status, 200);
+  assert.equal((await get('/api/dashboard/widgets', 'ttvh')).status, 200);
 });
 
 test('phạm vi: tham số bcvh do client gửi bị bỏ qua, luôn ép theo phạm vi; phạm vi một BCVH không đọc được BCVH khác', async () => {
@@ -200,10 +199,9 @@ test('DASH-10b: Tivi vẫn 403 ở /api/phat/*; allowlist chỉ thêm đúng ket
   }
 });
 
-test('DASH-10b: không hồi quy — 3 endpoint «đến» vẫn 200 cho Tivi; ket-qua-phat: STAFF 403, ADMIN / TTVH / GDVH 200', async () => {
+test('DASH-10b: không hồi quy — 3 endpoint «đến» vẫn 200 cho Tivi; ket-qua-phat: ADMIN / TTVH / GDVH 200', async () => {
   for (const p of DASH) assert.equal((await get(p, 'tvAll')).status, 200, p);
   assert.equal((await get(DASH[0], 'tvM2')).status, 200);
-  assert.equal((await get(KQP, 'staff')).status, 403);
   for (const who of ['admin', 'ttvh', 'gdvh']) {
     assert.equal((await get(KQP, who)).status, 200, who);
     assert.equal((await get(`${KQP}?bcvh=${M}`, who)).status, 200, `${who} một BCVH`);
@@ -213,7 +211,7 @@ test('DASH-10b: không hồi quy — 3 endpoint «đến» vẫn 200 cho Tivi; k
 test('quản lý tài khoản: chỉ ADMIN tạo / sửa TIVI kèm phạm vi; kiểm giá trị; danh sách có vai trò + phạm vi, không lộ password_hash', async () => {
   const post = (who, body) => call('POST', '/api/users', tokens[who], body);
   const base = { full_name: 'Tivi Mới', password: 'Tivi@123', role: 'TIVI' };
-  for (const who of ['ttvh', 'gdvh', 'staff']) {
+  for (const who of ['ttvh', 'gdvh']) {
     assert.equal((await post(who, { ...base, hrm_code: `TV_X_${who}`, tivi_scope: 'all' })).status, 403, who);
   }
   const c1 = await post('admin', { ...base, hrm_code: 'TV_NEW1', tivi_scope: M });
@@ -238,7 +236,7 @@ test('quản lý tài khoản: chỉ ADMIN tạo / sửa TIVI kèm phạm vi; ki
   assert.equal((await put('ttvh', c2.body.id, { tivi_scope: M })).status, 403);
   assert.equal((await get('/api/users', 'admin')).body.find((u) => u.id === c2.body.id).tivi_scope, 'all');
   // Rời vai trò TIVI -> xoá phạm vi; gửi phạm vi cho vai trò khác -> 400
-  assert.equal((await put('admin', c1.body.id, { role: 'STAFF' })).status, 200);
+  assert.equal((await put('admin', c1.body.id, { role: 'TTVH' })).status, 200);
   assert.equal((await get('/api/users', 'admin')).body.find((u) => u.id === c1.body.id).tivi_scope, null);
   assert.equal((await put('admin', c1.body.id, { tivi_scope: 'all' })).status, 400);
   // Đổi sang TIVI kèm phạm vi trong cùng lần sửa

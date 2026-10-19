@@ -17,23 +17,23 @@ const { seedMinimalOrg, seedUser } = require('./helpers/fixtures');
 const PORT = 5906;
 const MGR_HRM = 'NET_MGR';
 const MGR_PASS = 'Manager@123';
-const STAFF_HRM = 'NET_STAFF';
-const STAFF_PASS = 'Staff@123';
+const TTVH_HRM = 'NET_TTVH';
+const TTVH_PASS = 'Ttvh@123';
 
 let ctx;
 let fixtures;
 let mgrToken;
-let staffToken;
+let ttvhToken;
 
 before(async () => {
   ctx = startTestServer({ port: PORT, dbFileName: `dhcl-test-network-${Date.now()}.db` });
   await waitForServer(ctx.baseUrl);
   fixtures = seedMinimalOrg(ctx.db);
   seedUser(ctx.db, { hrmCode: MGR_HRM, fullName: 'Network Manager', role: 'ADMIN', password: MGR_PASS });
-  seedUser(ctx.db, { hrmCode: STAFF_HRM, fullName: 'Network Staff', role: 'STAFF', password: STAFF_PASS });
+  seedUser(ctx.db, { hrmCode: TTVH_HRM, fullName: 'Network Ttvh', role: 'TTVH', password: TTVH_PASS });
 
   mgrToken = (await login(MGR_HRM, MGR_PASS)).body.token;
-  staffToken = (await login(STAFF_HRM, STAFF_PASS)).body.token;
+  ttvhToken = (await login(TTVH_HRM, TTVH_PASS)).body.token;
 });
 
 after(async () => {
@@ -76,15 +76,15 @@ test('GET /api/network không có token -> 401', async () => {
   assert.equal(res.status, 401);
 });
 
-test('GET /api/network role STAFF -> 403', async () => {
-  const { status } = await call('GET', '/api/network', { token: staffToken });
+test('GET /api/network role TTVH -> 403', async () => {
+  const { status } = await call('GET', '/api/network', { token: ttvhToken });
   assert.equal(status, 403);
 });
 
-test('THEME-1: TTVH và GDVH bị 403 ở GET /api/network và GET /api/network/export-data', async () => {
-  for (const [hrm, role] of [['NET_TTVH', 'TTVH'], ['NET_GDVH', 'GDVH']]) {
-    seedUser(ctx.db, { hrmCode: hrm, fullName: `Network ${role}`, role, password: STAFF_PASS });
-    const token = (await login(hrm, STAFF_PASS)).body.token;
+test('THEME-1: GDVH bị 403 ở GET /api/network và GET /api/network/export-data (TTVH: xem test trên)', async () => {
+  for (const [hrm, role] of [['NET_GDVH', 'GDVH']]) {
+    seedUser(ctx.db, { hrmCode: hrm, fullName: `Network ${role}`, role, password: TTVH_PASS });
+    const token = (await login(hrm, TTVH_PASS)).body.token;
     for (const path of ['/api/network', '/api/network/export-data']) {
       const { status } = await call('GET', path, { token });
       assert.equal(status, 403, `${role} ${path}`);
@@ -107,9 +107,9 @@ test('GET /api/network role ADMIN -> 200, trả items + pagination, có bưu c�
 // POST /api/network/import — tạo mới toàn bộ chuỗi tổ chức + 9 cột mới
 // ==========================================
 
-test('POST /api/network/import role STAFF -> 403', async () => {
+test('POST /api/network/import role TTVH -> 403', async () => {
   const { status } = await call('POST', '/api/network/import', {
-    token: staffToken,
+    token: ttvhToken,
     body: { rows: [{ maMbc: 'X', tenBuuCuc: 'Y' }] }
   });
   assert.equal(status, 403);
@@ -248,10 +248,10 @@ test('PUT /api/network/post-offices/:id không tồn tại -> 404', async () => 
   assert.equal(status, 404);
 });
 
-test('PUT /api/network/post-offices/:id role STAFF -> 403', async () => {
+test('PUT /api/network/post-offices/:id role TTVH -> 403', async () => {
   const po = ctx.db.prepare("SELECT id FROM post_offices WHERE code = 'NETPO'").get();
   const { status } = await call('PUT', `/api/network/post-offices/${po.id}`, {
-    token: staffToken, body: { name: 'Đổi bởi staff' }
+    token: ttvhToken, body: { name: 'Đổi bởi ttvh' }
   });
   assert.equal(status, 403);
 });
@@ -429,8 +429,8 @@ test('DELETE /api/network/post-offices/:id không có gì tham chiếu -> 200 xo
   assert.equal(ctx.db.prepare("SELECT COUNT(*) c FROM post_offices WHERE id = ?").get(po.id).c, 0, 'đã xoá cứng khỏi DB');
 });
 
-test('DELETE /api/network/post-offices/:id role STAFF -> 403', async () => {
+test('DELETE /api/network/post-offices/:id role TTVH -> 403', async () => {
   const po = ctx.db.prepare("SELECT id FROM post_offices WHERE code = 'NETPO'").get();
-  const { status } = await call('DELETE', `/api/network/post-offices/${po.id}`, { token: staffToken });
+  const { status } = await call('DELETE', `/api/network/post-offices/${po.id}`, { token: ttvhToken });
   assert.equal(status, 403);
 });

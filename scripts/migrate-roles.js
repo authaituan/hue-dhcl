@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ==========================================
 // Chuyển đổi vai trò một lần (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49): MANAGER -> TTVH.
-// ADMIN, GDVH, STAFF giữ nguyên.
+// ADMIN, GDVH, TIVI giữ nguyên. STAFF đã bị gỡ: gặp tài khoản STAFF thì DỪNG (mã 2), PO tự đổi vai trò.
 //
 //   node scripts/migrate-roles.js [--db <đường-dẫn-DB>]            # chế độ thử (dry-run), KHÔNG ghi gì
 //   node scripts/migrate-roles.js [--db <đường-dẫn-DB>] --apply    # sao lưu rồi chuyển đổi
@@ -9,7 +9,7 @@
 // DB mặc định data/hue-dhcl.db (hoặc biến môi trường ARRIVALS_DB, như các script khác).
 // - Dry-run: chỉ in số tài khoản theo từng giá trị `role` và số sẽ đổi. KHÔNG in họ tên, mã HRM, hash.
 // - --apply: nếu có gì để đổi -> sao lưu DB (cùng thư mục, tên có dấu thời gian) rồi đổi trong MỘT transaction.
-// - Giá trị `role` lạ (ngoài ADMIN, TTVH, GDVH, STAFF, MANAGER, kể cả rỗng): KHÔNG tự đổi gì cả,
+// - Giá trị `role` lạ (ngoài ADMIN, TTVH, GDVH, TIVI, MANAGER, kể cả rỗng): KHÔNG tự đổi gì cả,
 //   in số lượng và thoát mã lỗi 2 để PO quyết.
 // - Idempotent: chạy lại khi không còn MANAGER thì không làm gì (không sao lưu, không ghi).
 // ==========================================
@@ -72,6 +72,15 @@ async function migrateRoles({ dbPath = DEFAULT_DB, apply = false, log = console.
     for (const [role, n] of [...counts].sort((a, b) => a[0].localeCompare(b[0]))) log(`  ${label(role)}: ${n}`);
     for (const [from, to] of Object.entries(LEGACY_ROLE_MAP)) log(`Sẽ đổi ${from} -> ${to}: ${counts.get(from) || 0} tài khoản`);
 
+    const staffCount = counts.get('STAFF') || 0;
+    if (staffCount) {
+      // STAFF đã bị gỡ: không tự suy ra vai trò thay thế (quyết định phân quyền thuộc PO). Chỉ in id, không in tên/mật khẩu.
+      const ids = db.prepare("SELECT id FROM users WHERE role = 'STAFF' ORDER BY id").all().map((r) => r.id);
+      log(`DỪNG: còn ${staffCount} tài khoản vai trò STAFF (vai trò đã bị gỡ), KHÔNG đổi gì cả. id:`);
+      for (const id of ids) log(`  ${id}`);
+      log('Hướng dẫn: đổi vai trò từng tài khoản trong màn Quản lý người dùng rồi chạy lại.');
+      return { exitCode: EXIT_UNKNOWN_ROLE, changed: 0, staffIds: ids };
+    }
     if (unknown.length) {
       log('DỪNG: có giá trị role lạ, KHÔNG tự đổi gì (kể cả MANAGER). PO quyết cách xử lý:');
       for (const [role, n] of unknown) log(`  ${label(role)}: ${n} tài khoản`);

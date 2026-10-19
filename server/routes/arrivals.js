@@ -18,7 +18,7 @@ const thayTheKhoiPhuc = require('../lib/thayTheKhoiPhuc');
 const router = express.Router();
 
 // ==========================================
-// DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: ADMIN, TTVH, GDVH (STAFF 403, không token 401) — 04_DECISIONS.md #49.
+// DỮ LIỆU "HÀNG ĐẾN" — chỉ đọc. Quyền: ADMIN, TTVH, GDVH (vai trò khác 403, không token 401) — 04_DECISIONS.md #49.
 // GDVH xem đủ 6 BCVH như TTVH, KỂ CẢ "chưa nhận tại BCVH" và "BD10 đến" (#72); giới hạn theo BCVH được giao chỉ áp ở
 // TẢI / XUẤT file (/export-scope, /export, /not-received/export, /bd10-khong-xnd/export — #52, #57, #72).
 // Cảnh báo / chất lượng dữ liệu chỉ ADMIN: /exceptions, /import-status -> 403 với TTVH/GDVH;
@@ -80,7 +80,7 @@ router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(r
 router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 
-// Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF 403.
+// Dashboard «Cần điều hành ngay hôm nay» — phần «đến» (DASH-1, #73). ADMIN, TTVH, GDVH xem mọi BCVH (#72); vai trò khác 403.
 // bcvh_goi_y: BCVH được giao của GDVH (giao diện chọn sẵn), rỗng với vai trò khác. Tham số: bcvh (mã | all), date; phuong-xa-tang thêm gioi_han.
 const goiY = (req) => ({ goiY: req.user.role === ROLES.GDVH ? getAssignedBcvh(req.user.id, db) : [] });
 const TIVI_CHUA_GAN_PHAM_VI = 'Tài khoản màn hình tivi chưa được gán phạm vi (toàn Trung tâm hoặc một BCVH), vui lòng liên hệ quản trị viên';
@@ -101,7 +101,7 @@ router.get('/arrivals/dashboard/tong-quan-den', dashScope, handle((req) => den.t
 router.get('/arrivals/dashboard/viec-can-lam', dashScope, handle((req) => den.viecCanLam(db, req.dashQuery, goiY(req)), 'dashboard-viec-can-lam'));
 router.get('/arrivals/dashboard/phuong-xa-tang', dashScope, handle((req) => den.phuongXaTang(db, req.dashQuery, goiY(req)), 'dashboard-phuong-xa-tang'));
 
-// Kết quả phát cho Dashboard «Điều hành hôm nay» (PHAT-3b, #79). ADMIN, TTVH, GDVH xem được; STAFF 403 (viewerGuard).
+// Kết quả phát cho Dashboard «Điều hành hôm nay» (PHAT-3b, #79). ADMIN, TTVH, GDVH xem được; vai trò khác 403 (viewerGuard).
 // TIVI (DASH-10b): chỉ tài khoản phạm vi 'all' và chỉ khi `bcvh` vắng / 'all' (tiviPhatGuard); phạm vi một BCVH hoặc xin BCVH cụ thể -> 403, không ép ngầm như 3 endpoint «đến».
 // Phạm vi: ADMIN, TTVH, GDVH đều xem ĐỦ 6 BCVH như 3 endpoint dashboard «đến» (#72) — không giới hạn theo user_bcvh (xếp hạng cần so sánh các BCVH);
 // GDVH chưa được giao BCVH nào vẫn có dữ liệu. Giới hạn theo BCVH được giao chỉ còn ở NHẬP / HỦY / LỊCH SỬ / BẢN KIỂM TRA của /api/phat/* (routes/phat.js).
@@ -190,7 +190,7 @@ router.get('/arrivals/import-status', requireAdmin, handle((req) => {
   return q.importStatus(db, { getMissingBatches });
 }, 'import-status'));
 
-// SANLUONG-5g-2 — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC; chưa xoá, chưa nạp — thay thật là 5g-3). Chỉ ADMIN (TTVH, GDVH, STAFF, TIVI -> 403; không token -> 401).
+// SANLUONG-5g-2 — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC; chưa xoá, chưa nạp — thay thật là 5g-3). Chỉ ADMIN (TTVH, GDVH, TIVI -> 403; không token -> 401).
 // POST vì gọi mạng (liệt kê + tải file từ nguồn SFTP). Thân JSON: { bcvh, ngay (YYYY-MM-DD, ngày trong TÊN FILE), tap_file?: [tên file] (mặc định tất cả file của (bcvh, ngày) trên nguồn) }.
 // Lỗi: 400 tham số, 409 đang có lượt đồng bộ / đang có bản xem trước khác, 503 chưa cấu hình SFTP, 502 lỗi nguồn (mạng / xác thực / vân tay / thư mục — KHÔNG thử lại).
 // Ghi SECURITY_LOG một dòng: ai, BCVH, ngày, kết quả (KHÔNG có SHBG, KHÔNG có mật khẩu). Route là nơi nạp lớp kết nối SFTP (sftpConnect.js, nạp lười).
@@ -262,7 +262,7 @@ router.post('/arrivals/thay-the/thuc-hien', requireAdmin, async (req, res) => {
   }
 });
 
-// SANLUONG-5g-5 — NHẬT KÝ «Thay thế ngày» (API ĐỌC) và KHÔI PHỤC từ thùng rác. Tất cả CHỈ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Lõi: thayTheNhatKy.js, thayTheKhoiPhuc.js.
+// SANLUONG-5g-5 — NHẬT KÝ «Thay thế ngày» (API ĐỌC) và KHÔI PHỤC từ thùng rác. Tất cả CHỈ ADMIN (401 không token; 403 TTVH, GDVH, TIVI). Lõi: thayTheNhatKy.js, thayTheKhoiPhuc.js.
 // GET  /arrivals/thay-the/nhat-ky      ?page, page_size (≤ 100), bcvh, tu_ngay, den_ngay (YYYY-MM-DD, ≤ 92 ngày), nguoi (mã HRM) — mới trước
 // GET  /arrivals/thay-the/nhat-ky/:id  chi tiết một lần (không đường dẫn sao lưu, không SHBG, không nội dung dòng thùng rác)
 // POST /arrivals/thay-the/khoi-phuc/xem-truoc  { nhat_ky_id }                              — chỉ đọc

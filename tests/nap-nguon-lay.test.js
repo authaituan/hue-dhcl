@@ -26,7 +26,6 @@ const USERS = {
   admin: { hrm: 'LY_ADMIN', ten: 'Quản Trị Lấy', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'LY_TTVH', ten: 'ttvh', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'LY_GDVH', ten: 'gdvh', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'LY_STAFF', ten: 'staff', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'LY_TIVI', ten: 'tivi', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -166,11 +165,11 @@ test('ghi người bấm: mã + họ tên (từ bảng users), started_at = gi�
 // =====================================================================
 // QUYỀN, THÂN SAI
 // =====================================================================
-test('quyền: ADMIN 202; TTVH, GDVH, STAFF, TIVI 403 (không chạm nguồn); không token 401 — cả lay-ngay lẫn lay-lai', async () => {
+test('quyền: ADMIN 202; TTVH, GDVH, TIVI 403 (không chạm nguồn); không token 401 — cả lay-ngay lẫn lay-lai', async () => {
   const src = nguonGia({ [D1]: {} });
   datNguon(src);
   const bodyLai = { o: [{ bcvh: '533140', ngay: ngay(-1), dot: 'S' }] };
-  for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) {
+  for (const who of ['ttvh', 'gdvh', 'tivi']) {
     assert.equal((await layNgay(who)).status, 403, who);
     assert.equal((await layLai(who, bodyLai)).status, 403, who);
   }

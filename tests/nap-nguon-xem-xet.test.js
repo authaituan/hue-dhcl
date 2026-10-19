@@ -16,7 +16,6 @@ const USERS = {
   admin: { hrm: 'XX_ADMIN', name: 'Quản trị Xét', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'XX_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'XX_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'XX_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'XX_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -217,12 +216,12 @@ test('(f) mục không nằm trong can_xu_ly → 409 KHONG_CAN_XU_LY; MA_LA / lo
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM nap_nguon_da_xem_xet').get().n, 0);
 });
 
-test('(g) quyền: không token 401; TTVH / GDVH / STAFF / TIVI 403 cho cả POST và DELETE; không ghi gì', async () => {
+test('(g) quyền: không token 401; TTVH / GDVH / TIVI 403 cho cả POST và DELETE; không ghi gì', async () => {
   dotLoi();
   const body = { loai: 'DOT', bcvh: TH, ngay: N0, dot: 'S' };
   assert.equal((await danhDau(body, null)).status, 401);
   assert.equal((await huy(1, null)).status, 401);
-  for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) {
+  for (const who of ['ttvh', 'gdvh', 'tivi']) {
     assert.equal((await danhDau(body, who)).status, 403, `POST ${who}`);
     assert.equal((await huy(1, who)).status, 403, `DELETE ${who}`);
   }

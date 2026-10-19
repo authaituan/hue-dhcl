@@ -14,8 +14,7 @@ const { seedDefaultWidgets } = require('../server/lib/dashboardDefaults');
 const PORT = 5910;
 const USERS = {
   admin: { hrm: 'DW_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
-  ttvh: { hrm: 'DW_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
-  staff: { hrm: 'DW_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  ttvh: { hrm: 'DW_TTVH', pass: 'Ttvh@123', role: 'TTVH' }
 };
 const DEFAULT_COUNT = 3;
 
@@ -105,9 +104,9 @@ test('chưa đăng nhập -> 401 cho mọi route dashboard widgets', async () =>
   }
 });
 
-test('STAFF/TTVH đọc được widgets + widgets-data; ghi/meta/order/reset -> 403; ADMIN làm được', async () => {
+test('TTVH đọc được widgets + widgets-data; ghi/meta/order/reset -> 403; ADMIN làm được', async () => {
   const cfg = { title: 'x', source: 'POST_OFFICE', group_by: 'type', chart_type: 'BAR' };
-  for (const who of ['staff', 'ttvh']) {
+  for (const who of ['ttvh']) {
     assert.equal((await api('GET', '/api/dashboard/widgets', who)).status, 200, who);
     assert.equal((await api('GET', '/api/dashboard/widgets-data', who)).status, 200, who);
     assert.equal((await api('GET', '/api/dashboard/widgets-meta', who)).status, 403, who);
@@ -117,14 +116,14 @@ test('STAFF/TTVH đọc được widgets + widgets-data; ghi/meta/order/reset ->
     assert.equal((await api('PUT', '/api/dashboard/widgets-order', who, { ids: [] })).status, 403);
     assert.equal((await api('POST', '/api/dashboard/widgets-reset', who)).status, 403);
   }
-  const r = await api('POST', '/api/dashboard/widgets', 'staff', cfg);
+  const r = await api('POST', '/api/dashboard/widgets', 'ttvh', cfg);
   assert.match(r.body.error, /ADMIN/);
   assert.equal(count('dashboard_widgets'), DEFAULT_COUNT, 'các lần ghi bị 403 không để lại gì');
 
   assert.equal((await admin('GET', '/api/dashboard/widgets-meta')).status, 200);
 });
 
-test('STAFF/TTVH chỉ thấy ô visible; ADMIN thấy tất cả kèm cờ visible', async () => {
+test('TTVH chỉ thấy ô visible; ADMIN thấy tất cả kèm cờ visible', async () => {
   const sysId = addSystemWidget();
   const items = (await admin('GET', '/api/dashboard/widgets')).body.items;
   const hideChart = items.find((x) => x.group_by === 'type');
@@ -134,7 +133,7 @@ test('STAFF/TTVH chỉ thấy ô visible; ADMIN thấy tất cả kèm cờ visi
   const adminList = (await admin('GET', '/api/dashboard/widgets')).body.items;
   assert.equal(adminList.length, DEFAULT_COUNT + 1);
   assert.equal(adminList.find((x) => x.id === sysId).visible, false);
-  for (const who of ['staff', 'ttvh']) {
+  for (const who of ['ttvh']) {
     const list = (await api('GET', '/api/dashboard/widgets', who)).body.items;
     assert.equal(list.length, DEFAULT_COUNT - 1, who);
     assert.ok(!list.some((x) => x.id === sysId || x.id === hideChart.id));
@@ -192,7 +191,7 @@ test('bộ lọc POST_OFFICE: hoạt động riêng lẻ và kết hợp', () =>
 test('widgets-data qua API: 3 ô mặc định có số liệu đúng', async () => {
   await admin('POST', '/api/dashboard/widgets-reset');
   const items = (await admin('GET', '/api/dashboard/widgets')).body.items;
-  const data = (await api('GET', '/api/dashboard/widgets-data', 'staff')).body;
+  const data = (await api('GET', '/api/dashboard/widgets-data', 'ttvh')).body;
   const byGroup = (g) => items.find((x) => x.group_by === g);
   assert.deepEqual(Object.keys(data).sort(), items.map((x) => x.id).sort());
   assert.deepEqual(asMap(data[byGroup('commune').id]), { 'BĐX Hai': 3, 'BĐX Test': 2 });
@@ -202,7 +201,7 @@ test('widgets-data qua API: 3 ô mặc định có số liệu đúng', async ()
 
 test('widgets-data: không tính ô SYSTEM', async () => {
   const sysId = addSystemWidget();
-  const data = (await api('GET', '/api/dashboard/widgets-data', 'staff')).body;
+  const data = (await api('GET', '/api/dashboard/widgets-data', 'ttvh')).body;
   assert.ok(!(sysId in data));
   assert.equal(Object.keys(data).length, DEFAULT_COUNT);
   await admin('POST', '/api/dashboard/widgets-reset');
@@ -212,7 +211,7 @@ test('widgets-data: lỗi 1 ô không làm hỏng cả response', async () => {
   const items = (await admin('GET', '/api/dashboard/widgets')).body.items;
   const target = items.find((x) => x.group_by === 'type');
   ctx.db.prepare("UPDATE dashboard_widgets SET source = 'KHONG_CO' WHERE id = ?").run(target.id);
-  const r = await api('GET', '/api/dashboard/widgets-data', 'staff');
+  const r = await api('GET', '/api/dashboard/widgets-data', 'ttvh');
   assert.equal(r.status, 200);
   assert.deepEqual(Object.keys(r.body[target.id]), ['error']);
   assert.ok(!/SELECT|FROM|KHONG_CO/i.test(JSON.stringify(r.body[target.id])), 'không lộ chi tiết nội bộ');
@@ -407,7 +406,7 @@ test('chống chèn SQL: group_by / bộ lọc / title chứa mã độc không 
   // giá trị lọc dạng id là chuỗi tự do -> chỉ là giá trị tham số (không khớp gì), KHÔNG biến thành "OR 1=1"
   const filtered = await post({ group_by: null, chart_type: 'NUMBER', filters: { commune_id: [evil, evil2, "x' OR 1=1 --"] } });
   assert.equal(filtered.status, 201);
-  const data = (await api('GET', '/api/dashboard/widgets-data', 'staff')).body;
+  const data = (await api('GET', '/api/dashboard/widgets-data', 'ttvh')).body;
   assert.equal(data[filtered.body.item.id].total, 0, 'không khớp bản ghi nào, không bị "OR 1=1"');
 
   // title chứa mã độc: lưu và trả lại như văn bản thường
@@ -429,16 +428,16 @@ test('chống chèn SQL: group_by / bộ lọc / title chứa mã độc không 
 });
 
 test('GET /api/dashboard/stats trả số đếm mạng lưới', async () => {
-  const r = await api('GET', '/api/dashboard/stats', 'staff');
+  const r = await api('GET', '/api/dashboard/stats', 'ttvh');
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.summary, { totalCommunes: 2, totalPostOffices: 5 });
 });
 
 // ------------------ PREVIEW + include_hidden ------------------
-test('widgets-preview: 401 chưa đăng nhập, 403 STAFF/TTVH, 200 ADMIN', async () => {
+test('widgets-preview: 401 chưa đăng nhập, 403 TTVH, 200 ADMIN', async () => {
   const cfg = { title: 'Xem trước', source: 'POST_OFFICE', group_by: 'type', chart_type: 'BAR' };
   assert.equal((await api('POST', '/api/dashboard/widgets-preview', null, cfg)).status, 401);
-  for (const who of ['staff', 'ttvh']) {
+  for (const who of ['ttvh']) {
     const r = await api('POST', '/api/dashboard/widgets-preview', who, cfg);
     assert.equal(r.status, 403, who);
     assert.match(r.body.error, /ADMIN/);
@@ -496,7 +495,7 @@ test('widgets-preview: cấu hình sai -> 400 tiếng Việt; payload chèn SQL 
   assert.equal(count('dashboard_widgets'), widgetsBefore);
 });
 
-test('widgets-data?include_hidden=1: ADMIN thấy cả ô CHART ẩn; TTVH/STAFF bị bỏ qua tham số; không tham số = như cũ', async () => {
+test('widgets-data?include_hidden=1: ADMIN thấy cả ô CHART ẩn; TTVH bị bỏ qua tham số; không tham số = như cũ', async () => {
   await admin('POST', '/api/dashboard/widgets-reset');
   const items = (await admin('GET', '/api/dashboard/widgets')).body.items;
   const hidden = items.find((x) => x.group_by === 'type');
@@ -508,7 +507,7 @@ test('widgets-data?include_hidden=1: ADMIN thấy cả ô CHART ẩn; TTVH/STAFF
   assert.equal(Object.keys(adminHidden).length, DEFAULT_COUNT);
 
   assert.ok(!(hidden.id in (await admin('GET', '/api/dashboard/widgets-data')).body), 'ADMIN không tham số: chỉ ô visible');
-  for (const who of ['ttvh', 'staff']) {
+  for (const who of ['ttvh']) {
     const withParam = (await api('GET', '/api/dashboard/widgets-data?include_hidden=1', who)).body;
     assert.ok(!(hidden.id in withParam), `${who} bỏ qua include_hidden`);
     assert.equal(Object.keys(withParam).length, DEFAULT_COUNT - 1);
