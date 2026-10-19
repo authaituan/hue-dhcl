@@ -6,11 +6,11 @@ import {
 import { AlertCircle } from 'lucide-react';
 
 const STATUS_COLORS = {
-  'IN_USE': 'bg-[#22C55E]',
-  'IN_STOCK': 'bg-[#0EA5E9]',
-  'MAINTENANCE': 'bg-[#EAB308]',
-  'BROKEN': 'bg-[#EF4444]',
-  'LIQUIDATED': 'bg-[#A1A1AA]'
+  'IN_USE': 'bg-[#1F7A5C]',
+  'IN_STOCK': 'bg-[#6B2F94]',
+  'MAINTENANCE': 'bg-[#E0A82E]',
+  'BROKEN': 'bg-[#B3202A]',
+  'LIQUIDATED': 'bg-[#9A8AA0]'
 };
 
 const STATUS_LABELS = {
@@ -21,8 +21,8 @@ const STATUS_LABELS = {
   'LIQUIDATED': 'Thanh lý'
 };
 
-const DONUT_COLORS = ['#F97316', '#0EA5E9', '#82D616', '#F43F5E', '#8B5CF6', '#64748B'];
-const OTHER_COLOR = '#9CA3AF'; // Gray for "Khác"
+const DONUT_COLORS = ['#4A1D6E', '#6B2F94', '#E0A82E', '#1F7A5C', '#5A4A62', '#9A8AA0'];
+const OTHER_COLOR = '#9A8AA0'; // Gray for "Khác"
 
 function prepareChartData(data, groupBy, chartType) {
   if (!data || !data.items) return [];
@@ -105,10 +105,10 @@ export function ChartWidget({ widget, data }) {
           <div className="flex-1 w-full -ml-4 mt-2 min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E7EB" />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#F0E8D4" />
                 <XAxis 
                   dataKey="label" 
-                  tick={{ fill: '#6B7280', fontSize: 11 }}
+                  tick={{ fill: '#7A6A80', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   interval={0}
@@ -117,18 +117,18 @@ export function ChartWidget({ widget, data }) {
                   height={60}
                 />
                 <YAxis 
-                  tick={{ fill: '#6B7280', fontSize: 11 }} 
+                  tick={{ fill: '#7A6A80', fontSize: 11 }} 
                   tickLine={false} 
                   axisLine={false} 
                   width={40}
                 />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                  cursor={{ fill: '#F3F4F6' }}
+                  cursor={{ fill: '#FFFBEF' }}
                 />
                 <Bar dataKey="count" name="Số lượng" radius={[6, 6, 0, 0]} maxBarSize={48}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.isOther ? OTHER_COLOR : '#F97316'} />
+                    <Cell key={`cell-${index}`} fill={entry.isOther ? OTHER_COLOR : '#4A1D6E'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -141,17 +141,17 @@ export function ChartWidget({ widget, data }) {
           <div className="flex-1 w-full -ml-4 mt-2 min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#E5E7EB" />
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#F0E8D4" />
                 <XAxis 
                   type="number"
-                  tick={{ fill: '#6B7280', fontSize: 11 }}
+                  tick={{ fill: '#7A6A80', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis 
                   type="category"
                   dataKey="label" 
-                  tick={{ fill: '#6B7280', fontSize: 11 }} 
+                  tick={{ fill: '#7A6A80', fontSize: 11 }} 
                   tickLine={false} 
                   axisLine={false} 
                   width={100}
@@ -159,11 +159,11 @@ export function ChartWidget({ widget, data }) {
                 />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                  cursor={{ fill: '#F3F4F6' }}
+                  cursor={{ fill: '#FFFBEF' }}
                 />
                 <Bar dataKey="count" name="Số lượng" radius={[0, 6, 6, 0]} maxBarSize={24}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.isOther ? OTHER_COLOR : '#F97316'} />
+                    <Cell key={`cell-${index}`} fill={entry.isOther ? OTHER_COLOR : '#4A1D6E'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -203,10 +203,10 @@ export function ChartWidget({ widget, data }) {
           <div className="flex-1 w-full -ml-4 mt-2 min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E7EB" />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#F0E8D4" />
                 <XAxis 
                   dataKey="label" 
-                  tick={{ fill: '#6B7280', fontSize: 11 }}
+                  tick={{ fill: '#7A6A80', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
@@ -215,7 +215,7 @@ export function ChartWidget({ widget, data }) {
                   height={40}
                 />
                 <YAxis 
-                  tick={{ fill: '#6B7280', fontSize: 11 }} 
+                  tick={{ fill: '#7A6A80', fontSize: 11 }} 
                   tickLine={false} 
                   axisLine={false} 
                   width={40}
@@ -227,9 +227,9 @@ export function ChartWidget({ widget, data }) {
                   type="monotone" 
                   dataKey="count" 
                   name="Số lượng"
-                  stroke="#F97316" 
+                  stroke="#4A1D6E" 
                   strokeWidth={2}
-                  dot={{ r: 4, fill: '#F97316', strokeWidth: 0 }}
+                  dot={{ r: 4, fill: '#4A1D6E', strokeWidth: 0 }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
@@ -242,17 +242,17 @@ export function ChartWidget({ widget, data }) {
           <div className="flex-1 overflow-y-auto pr-2 space-y-4 mt-2 min-h-[250px]">
             {chartData.map((item, idx) => {
               const p = data.total > 0 ? (item.count / data.total) * 100 : 0;
-              let barColor = 'bg-[#F97316]'; // default for list
+              let barColor = 'bg-[#4A1D6E]'; // default for list
               if (item.isOther) {
                 barColor = 'bg-gray-400';
               } else if (group_by === 'status') {
                 // Find matching color from STATUS_COLORS using the original English key or Vietnamese label
                 // item.label is already in Vietnamese (from prepareChartData)
-                if (item.label === 'Đang sử dụng') barColor = 'bg-[#22C55E]';
-                else if (item.label === 'Trong kho') barColor = 'bg-[#0EA5E9]';
-                else if (item.label === 'Bảo trì') barColor = 'bg-[#EAB308]';
-                else if (item.label === 'Hỏng') barColor = 'bg-[#EF4444]';
-                else if (item.label === 'Thanh lý') barColor = 'bg-[#A1A1AA]';
+                if (item.label === 'Đang sử dụng') barColor = 'bg-[#1F7A5C]';
+                else if (item.label === 'Trong kho') barColor = 'bg-[#6B2F94]';
+                else if (item.label === 'Bảo trì') barColor = 'bg-[#E0A82E]';
+                else if (item.label === 'Hỏng') barColor = 'bg-[#B3202A]';
+                else if (item.label === 'Thanh lý') barColor = 'bg-[#9A8AA0]';
                 else barColor = 'bg-gray-400';
               }
 

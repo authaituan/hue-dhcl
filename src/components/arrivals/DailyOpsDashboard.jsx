@@ -1468,8 +1468,8 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             {(() => {
               const pxNgay = phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu;
               const cotStr = isVnToday(pxNgay)
-                ? 'hôm kia, hôm qua, hôm nay (cột cam đỏ)'
-                : `${formatDdMm(addDaysYmd(pxNgay, -2))}, ${formatDdMm(addDaysYmd(pxNgay, -1))}, ${formatDdMm(pxNgay)} (cột cam đỏ)`;
+                ? 'hôm kia, hôm qua, hôm nay (cột tím đậm)'
+                : `${formatDdMm(addDaysYmd(pxNgay, -2))}, ${formatDdMm(addDaysYmd(pxNgay, -1))}, ${formatDdMm(pxNgay)} (cột tím đậm)`;
               const soStr = isVnToday(pxNgay) ? 'hôm qua' : formatDdMm(addDaysYmd(pxNgay, -1));
               const tangCaoThreshold = phuongXa?.tang_cao_pct ?? PHUONG_XA_TANG_CAO_PCT;
               return `Chỉ tính sản lượng đến. Ba cột: ${cotStr}. BG = bưu gửi. Chip bên phải: tăng so với ${soStr} (đỏ nếu từ ${tangCaoThreshold}% trở lên, vàng nếu thấp hơn, xanh nếu giảm; ${soStr} quá ít BG thì chỉ hiện số BG, không có %). Dòng nhỏ: so với cùng thứ tuần trước (cùng giờ).`;
@@ -1509,7 +1509,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       <span className="text-[10px] text-gray-500 mb-1">{item.hom_kia !== null ? `${item.hom_kia} BG` : '—'}</span>
                       <div 
                         style={{ height: item.hom_kia !== null ? `${Math.max(15, (item.hom_kia / maxVal) * 36)}px` : '4px' }} 
-                        className="w-full bg-[#93c5fd] rounded-t-sm"
+                        className="w-full bg-[#D8BDEB] rounded-t-sm"
                       />
                       <span className="text-[9px] text-gray-400 mt-0.5">
                         {isVnToday(itemNgay) ? 'hôm kia' : formatDdMm(addDaysYmd(itemNgay, -2))}
@@ -1521,7 +1521,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       <span className="text-[10px] text-gray-500 mb-1">{item.hom_qua !== null ? `${item.hom_qua} BG` : '—'}</span>
                       <div 
                         style={{ height: item.hom_qua !== null ? `${Math.max(15, (item.hom_qua / maxVal) * 36)}px` : '4px' }} 
-                        className="w-full bg-[#3b82f6] rounded-t-sm"
+                        className="w-full bg-[#6B2F94] rounded-t-sm"
                       />
                       <span className="text-[9px] text-gray-400 mt-0.5">
                         {isVnToday(itemNgay) ? 'hôm qua' : formatDdMm(addDaysYmd(itemNgay, -1))}

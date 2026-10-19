@@ -193,11 +193,11 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="moc" tickFormatter={v => `${v.slice(8,10)}/${v.slice(5,7)}`} tick={{fontSize: 12}} />
-                  <YAxis tickFormatter={v => v.toLocaleString('vi-VN')} tick={{fontSize: 12}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0E8D4" />
+                  <XAxis dataKey="moc" tickFormatter={v => `${v.slice(8,10)}/${v.slice(5,7)}`} tick={{fontSize: 12, fill: '#7A6A80'}} />
+                  <YAxis tickFormatter={v => v.toLocaleString('vi-VN')} tick={{fontSize: 12, fill: '#7A6A80'}} />
                   <RechartsTooltip formatter={(val) => val.toLocaleString('vi-VN')} labelFormatter={v => `Ngày: ${v.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1')}`} />
-                  <Bar dataKey="san_luong" fill="#F97316" radius={[4,4,0,0]} />
+                  <Bar dataKey="san_luong" fill="#4A1D6E" radius={[4,4,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -216,14 +216,14 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
             ) : data.byTimeHour ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={finalHourChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="moc" tickFormatter={v => isAggregated ? `${v}h` : v.slice(11,16)} tick={{fontSize: 12}} />
-                  <YAxis tickFormatter={v => v.toLocaleString('vi-VN')} tick={{fontSize: 12}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0E8D4" />
+                  <XAxis dataKey="moc" tickFormatter={v => isAggregated ? `${v}h` : v.slice(11,16)} tick={{fontSize: 12, fill: '#7A6A80'}} />
+                  <YAxis tickFormatter={v => v.toLocaleString('vi-VN')} tick={{fontSize: 12, fill: '#7A6A80'}} />
                   <RechartsTooltip 
                     formatter={(val) => val.toLocaleString('vi-VN')} 
                     labelFormatter={v => isAggregated ? `Giờ: ${v}h00` : `Thời gian: ${v.replace(/^(\d{4})-(\d{2})-(\d{2}) (\d{2})$/, '$3/$2/$1 $4:00')}`} 
                   />
-                  <Bar dataKey="san_luong" fill="#0ea5e9" radius={[4,4,0,0]} maxBarSize={40} />
+                  <Bar dataKey="san_luong" fill="#6B2F94" radius={[4,4,0,0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

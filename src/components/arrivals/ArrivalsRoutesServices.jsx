@@ -26,13 +26,13 @@ export default function ArrivalsRoutesServices({ data }) {
 
   // Service Donut Chart Data
   const SERVICE_COLORS = {
-    'R': '#0ea5e9', // sky
-    'C': '#f59e0b', // amber
-    'E': '#10b981', // emerald
-    'M': '#8b5cf6', // violet
-    'B': '#ec4899', // pink
+    'R': '#4A1D6E',
+    'C': '#E0A82E',
+    'E': '#1F7A5C',
+    'M': '#6B2F94',
+    'B': '#D8BDEB',
   };
-  const GRAY_COLOR = '#9ca3af';
+  const GRAY_COLOR = '#9A8AA0';
 
   const donutData = (services?.items || []).map(s => ({
     name: s.ten || s.ma,
@@ -111,12 +111,12 @@ export default function ArrivalsRoutesServices({ data }) {
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={routeBarData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#eee" />
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#F0E8D4" />
                 <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 11, fill: '#7A6A80'}} axisLine={false} tickLine={false} />
                 <RechartsTooltip formatter={(val) => val.toLocaleString('vi-VN')} cursor={{fill: 'transparent'}} />
-                <Bar dataKey="Còn lại" stackId="a" fill="#F97316" radius={[0,0,0,0]} />
-                <Bar dataKey="Hàng đi ngoài" stackId="a" fill="#fca5a5" radius={[0,4,4,0]} />
+                <Bar dataKey="Còn lại" stackId="a" fill="#4A1D6E" radius={[0,0,0,0]} />
+                <Bar dataKey="Hàng đi ngoài" stackId="a" fill="#6B2F94" radius={[0,4,4,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -78,12 +78,12 @@ export function PtcSparkline({ values, muc = null, minSpan = 0.04, nhan, classNa
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className={className} role="img" aria-label={nhan} preserveAspectRatio="none">
       {coMuc && (
-        <line x1="0" x2={W} y1={y(Number(muc))} y2={y(Number(muc))} stroke="#10b981" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+        <line x1="0" x2={W} y1={y(Number(muc))} y2={y(Number(muc))} stroke="#1F7A5C" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
       )}
       {doan.map((d, k) => (d.length === 1
-        ? <g key={k}>{dot(x(d[0].i), y(d[0].v), 4, '#a8a29e')}</g>
-        : <polyline key={k} points={d.map((p) => `${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')} fill="none" stroke="#a8a29e" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />))}
-      {dot(x(last.i), y(last.v), 6, '#0f2747')}
+        ? <g key={k}>{dot(x(d[0].i), y(d[0].v), 4, '#9A8AA0')}</g>
+        : <polyline key={k} points={d.map((p) => `${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')} fill="none" stroke="#9A8AA0" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />))}
+      {dot(x(last.i), y(last.v), 6, '#4A1D6E')}
     </svg>
   );
 }
