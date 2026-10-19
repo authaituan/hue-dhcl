@@ -26,7 +26,7 @@
 `loai` (`'LAY_NGAY' | 'LAY_LAI'`, CHECK; NULL = hẹn giờ / script cũ), `nguoi_bam_ma`, `nguoi_bam_ten` (họ tên tại thời điểm bấm), `so_o_yeu_cau` (INTEGER). Giờ bấm = `started_at` (UTC). Không lưu IP, token hay bí mật. Test: chạy hai lần không lỗi; DB cũ (không có cột) nâng cấp được, hàng cũ NULL, `trigger` giữ nguyên.
 
 ## 4. API
-Cả hai: chỉ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Thứ tự kiểm: thân → cấu hình → hẹn giờ → khoá. Lỗi là JSON `{ error, ma, … }`.
+Cả hai: chỉ ADMIN (401 không token; 403 TTVH, GDVH, TIVI). Thứ tự kiểm: thân → cấu hình → hẹn giờ → khoá. Lỗi là JSON `{ error, ma, … }`.
 | Mã | HTTP | Khi nào |
 |---|---|---|
 | (thành công) | **202** | `{ luot_id, bat_dau }`; `lay-lai` kèm `o: [{ bcvh, ngay, dot, da_co_nhap_tay }]` (đã loại trùng). Việc nạp chạy NỀN |

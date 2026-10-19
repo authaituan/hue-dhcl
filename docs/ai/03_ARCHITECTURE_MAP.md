@@ -86,8 +86,8 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/phat/batches?bcvh=&page=&size=[&tu_ngay=&den_ngay=&nguoi_nhap=&trang_thai=]` · `GET /api/phat/batches/:id/undo-preview` · `POST /api/phat/batches/:id/undo` — danh sách đợt nhập có lọc (chỉ BCVH được phép; kèm `nguoi_nhap_lua_chon`, `so_canh_bao`) · xem trước hoàn tác (không ghi) · hoàn tác (ADMIN, TTVH, chính người nhập; 409 nếu đợt sau đã đổi SHBG) — #78 | nhập (như trên) | `routes/phat.js`, `lib/phat.js` |
 | `GET /api/phat/ty-le?bcvh=<mã\|all>&ngay=` — mẫu số, 5 nhóm trạng thái, `muc_cap_nhat`, `so_lieu_den_luc` (+ `_bangkok`), `theo_khung_gio_den[6]`, `ton_cho`; **PHAT-6 (#97): số theo trạng thái / khung giờ theo NGÀY ĐẾN (#92), `demNgay` `theoLichSu`, khớp `ket-qua-phat`; khóa không đổi; `ton_cho` giữ trạng thái hiện tại; commit / hoàn tác vẫn `demNgay` mặc định**, **`nguong`** (THAMSO-2a: `ptc_dat`, `chua_co_tt_canh_bao`, `san_xep_hang_bcvh` — cùng khối với `ket-qua-phat`, đọc tham số lúc gọi) | ADMIN, TTVH, GDVH (mọi BCVH) | `routes/phat.js`, `lib/phat.js`, `lib/phatDashboard.js` (`nguongKetQuaPhat`) |
 | `GET /api/phat/tai-ve?ngay_den=YYYY-MM-DD&bcvh=<mã\|all>[&trang_thai=]` — tải `.xlsx` «Bảng kê kết quả phát theo ngày đến», mỗi SHBG một dòng, 8 cột, ≤ 50.000 dòng (TAIVE-1, #98) | ADMIN, TTVH: mọi BCVH và `all`; GDVH: chỉ BCVH trong `user_bcvh`; khác 403 | `routes/phat.js`, `lib/phatTaiVe.js` (dùng `phat.js`: `GAN_CTE`, `NHAP_CTE`, `NHAP_ROW`) |
-| `GET /api/arrivals/dashboard/ket-qua-phat?bcvh=<mã\|all>&ngay=` — kết quả phát cho Dashboard (PHAT-3b, #79): `bcvh, pham_vi, ngay, cung_ngay, mau_so, theo_trang_thai, ptc, muc_cap_nhat, co_so_lieu_phat, so_lieu_den_luc(+_bangkok), nguong{ptc_dat, chua_co_tt_canh_bao, san_xep_hang_bcvh}, xep_hang_bcvh[{bcvh,ten,mau_so,ptc,hang,theo_trang_thai{4 trạng thái còn lại}}], chua_du_du_lieu[{bcvh,ten,mau_so,ly_do}]`; không khung giờ, không `ton_cho` | ADMIN, TTVH, GDVH (mọi BCVH, như #72); STAFF, TIVI 403 | `routes/arrivals.js`, `lib/phatDashboard.js`, `lib/phatConfig.js` |
-| `GET /api/arrivals/dashboard/ket-qua-phat-thang?bcvh=<mã\|all>&ngay=` — kết quả phát từ đầu tháng (DASH-12b, #91): `bcvh, pham_vi, ngay, thang, luy_ke{…}, theo_ngay[…], chenh{…}\|null, nguong{…}` (xem `08_PHAT.md` mục 4); cache 60 giây | ADMIN, TTVH, GDVH (mọi BCVH); STAFF, TIVI 403 | `routes/arrivals.js`, `lib/phatDashboard.js`, `lib/phatConfig.js` |
+| `GET /api/arrivals/dashboard/ket-qua-phat?bcvh=<mã\|all>&ngay=` — kết quả phát cho Dashboard (PHAT-3b, #79): `bcvh, pham_vi, ngay, cung_ngay, mau_so, theo_trang_thai, ptc, muc_cap_nhat, co_so_lieu_phat, so_lieu_den_luc(+_bangkok), nguong{ptc_dat, chua_co_tt_canh_bao, san_xep_hang_bcvh}, xep_hang_bcvh[{bcvh,ten,mau_so,ptc,hang,theo_trang_thai{4 trạng thái còn lại}}], chua_du_du_lieu[{bcvh,ten,mau_so,ly_do}]`; không khung giờ, không `ton_cho` | ADMIN, TTVH, GDVH (mọi BCVH, như #72); TIVI 403 | `routes/arrivals.js`, `lib/phatDashboard.js`, `lib/phatConfig.js` |
+| `GET /api/arrivals/dashboard/ket-qua-phat-thang?bcvh=<mã\|all>&ngay=` — kết quả phát từ đầu tháng (DASH-12b, #91): `bcvh, pham_vi, ngay, thang, luy_ke{…}, theo_ngay[…], chenh{…}\|null, nguong{…}` (xem `08_PHAT.md` mục 4); cache 60 giây | ADMIN, TTVH, GDVH (mọi BCVH); TIVI 403 | `routes/arrivals.js`, `lib/phatDashboard.js`, `lib/phatConfig.js` |
 | `GET/POST /api/users`, `PUT /api/users/:id`, `.../reset-password`, `.../deactivate`, `.../reactivate`, `GET/PUT /api/users/:id/bcvh` (gán BCVH cho GDVH) | ADMIN | `routes/users.js` |
 | `GET /api/users/search?q=` | ADMIN | `routes/users.js` |
 | `PUT /api/users/me/password` | mọi vai trò (đã đăng nhập) | `routes/users.js` |
@@ -120,11 +120,11 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `GET /api/arrivals/export?receiver_code=&from=&to=[&date_basis=]` — file `.xlsx` (`HangDen_<mã>_<from>_<to>.xlsx`) dữ liệu thô của MỘT BCVH, 9 cột chuỗi; `from`/`to` bắt buộc, ≤ 92 ngày, ≤ 1.000.000 dòng; GDVH chỉ BCVH được giao (403 nếu khác) | ADMIN, TTVH, GDVH (theo BCVH) | `routes/arrivals.js`, `lib/arrivalsExport.js` |
 | `GET /api/arrivals/exceptions?ly_do=&page=&page_size=` — ngoại lệ phân trang (BD10 sớm, đến lại, chưa nhận tại BCVH, không mốc nào) + `theo_ly_do` | ADMIN | `routes/arrivals.js` |
 | `GET /api/arrivals/import-status` — file theo trạng thái, REJECTED/CONFLICT, ngày thiếu đợt | ADMIN | `routes/arrivals.js` |
-| `POST /api/arrivals/thay-the/xem-truoc` — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC, 5g-2, #82): thân `{ bcvh, ngay, tap_file? }` → `{ db, nguon, so_sanh, canh_bao, phat, tap_file_nguon }`; 400 tham số, 409 đang có lượt đồng bộ / bản xem trước khác, 502 lỗi nguồn SFTP, 503 chưa cấu hình `SFTP_*` | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheXemTruoc.js`, `config/thay-the.js` |
-| `POST /api/arrivals/thay-the/thuc-hien` — THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (5g-3, #83): thân `{ bcvh, ngay, tap_file?, tap_file_nguon: [{ten, sha256}], xac_nhan: {ma_bcvh, ngay}, dong_y_mat_du_lieu? }` → tóm tắt (số dòng xóa / nạp, mất thật, `nhat_ky_id`, tên tệp sao lưu); 400, 409 (đang có lượt / nguồn đã đổi / cần đồng ý mất dữ liệu / dữ liệu đã đổi), 422, 502, 503, 507, 500; lỗi nào cũng KHÔNG để lại thay đổi | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/arrivals.js`, `lib/thayTheThucHien.js`, `lib/thayTheXemTruoc.js` |
+| `POST /api/arrivals/thay-the/xem-truoc` — XEM TRƯỚC «Thay thế ngày của một BCVH» (CHỈ ĐỌC, 5g-2, #82): thân `{ bcvh, ngay, tap_file? }` → `{ db, nguon, so_sanh, canh_bao, phat, tap_file_nguon }`; 400 tham số, 409 đang có lượt đồng bộ / bản xem trước khác, 502 lỗi nguồn SFTP, 503 chưa cấu hình `SFTP_*` | ADMIN (TTVH, GDVH, TIVI 403) | `routes/arrivals.js`, `lib/thayTheXemTruoc.js`, `config/thay-the.js` |
+| `POST /api/arrivals/thay-the/thuc-hien` — THỰC HIỆN «Thay thế ngày của một BCVH» nguyên khối (5g-3, #83): thân `{ bcvh, ngay, tap_file?, tap_file_nguon: [{ten, sha256}], xac_nhan: {ma_bcvh, ngay}, dong_y_mat_du_lieu? }` → tóm tắt (số dòng xóa / nạp, mất thật, `nhat_ky_id`, tên tệp sao lưu); 400, 409 (đang có lượt / nguồn đã đổi / cần đồng ý mất dữ liệu / dữ liệu đã đổi), 422, 502, 503, 507, 500; lỗi nào cũng KHÔNG để lại thay đổi | ADMIN (TTVH, GDVH, TIVI 403) | `routes/arrivals.js`, `lib/thayTheThucHien.js`, `lib/thayTheXemTruoc.js` |
 | `GET /api/arrivals/thay-the/nhat-ky` (`page`, `page_size`, `bcvh`, `tu_ngay`, `den_ngay`, `nguoi`) · `GET …/nhat-ky/:id` · `POST …/thay-the/khoi-phuc/xem-truoc` `{nhat_ky_id}` · `POST …/thay-the/khoi-phuc/thuc-hien` `{nhat_ky_id, xac_nhan:{ma_bcvh, ngay}}` — chỉ ADMIN (5g-5, #87; `19_THAY_THE_NGAY_NHAT_KY_KHOI_PHUC.md`) |
-| `GET /api/nap-nguon/tong-quan` · `/luoi?tu=&den=[&bcvh=]` (≤ 62 ngày) · `/o?bcvh=&ngay=&dot=S\|C` · `/luot?trang=&kich_thuoc=` · `/luot/:id` — màn «Nạp dữ liệu nguồn» (5f-1, #85): tình trạng hẹn giờ + lượt gần nhất; lưới ngày × BCVH × đợt với trạng thái ô, `nghi_ngo`, `nguon_co_file`, `can_xu_ly`; khung chi tiết một ô; danh sách / chi tiết lượt (lọc hàng khóa «Thay thế»); 400 tham số sai (kể cả query lạ), 404 lượt không có; chỉ ĐỌC | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/napNguon.js`, `lib/napNguonDoc.js`, `config/nap-nguon.js` |
-| `POST /api/nap-nguon/lay-ngay` (thân `{}`) · `POST /api/nap-nguon/lay-lai` (thân `{ o: [{bcvh, ngay, dot}] }`, ≤ 20 ô) — «Lấy ngay» / «Lấy lại» (5f-2, #86): 202 `{luot_id, bat_dau}` (lay-lai kèm `o[].da_co_nhap_tay`) rồi nạp NỀN; 400, 409 `DANG_CHAY` (kèm `luot_id`) / `TAM_DUNG`, 503 `CHUA_CAU_HINH`; kết quả đọc qua `/luot/:id`; ghi người bấm | ADMIN (TTVH, GDVH, STAFF, TIVI 403) | `routes/napNguon.js`, `lib/napNguonLay.js`, `lib/sftpSync.js` (`luotCoSan`), `lib/sftpScheduler.js` (`tamDungHenGio`) |
+| `GET /api/nap-nguon/tong-quan` · `/luoi?tu=&den=[&bcvh=]` (≤ 62 ngày) · `/o?bcvh=&ngay=&dot=S\|C` · `/luot?trang=&kich_thuoc=` · `/luot/:id` — màn «Nạp dữ liệu nguồn» (5f-1, #85): tình trạng hẹn giờ + lượt gần nhất; lưới ngày × BCVH × đợt với trạng thái ô, `nghi_ngo`, `nguon_co_file`, `can_xu_ly`; khung chi tiết một ô; danh sách / chi tiết lượt (lọc hàng khóa «Thay thế»); 400 tham số sai (kể cả query lạ), 404 lượt không có; chỉ ĐỌC | ADMIN (TTVH, GDVH, TIVI 403) | `routes/napNguon.js`, `lib/napNguonDoc.js`, `config/nap-nguon.js` |
+| `POST /api/nap-nguon/lay-ngay` (thân `{}`) · `POST /api/nap-nguon/lay-lai` (thân `{ o: [{bcvh, ngay, dot}] }`, ≤ 20 ô) — «Lấy ngay» / «Lấy lại» (5f-2, #86): 202 `{luot_id, bat_dau}` (lay-lai kèm `o[].da_co_nhap_tay`) rồi nạp NỀN; 400, 409 `DANG_CHAY` (kèm `luot_id`) / `TAM_DUNG`, 503 `CHUA_CAU_HINH`; kết quả đọc qua `/luot/:id`; ghi người bấm | ADMIN (TTVH, GDVH, TIVI 403) | `routes/napNguon.js`, `lib/napNguonLay.js`, `lib/sftpSync.js` (`luotCoSan`), `lib/sftpScheduler.js` (`tamDungHenGio`) |
 | `GET /api/tham-so` (danh bạ + giá trị hiệu lực + mặc định + ai sửa) · `PUT /api/tham-so` `{ ly_do, thay_doi: [{khoa, gia_tri}] }` (1–30, tất cả hoặc không) · `POST /api/tham-so/ve-mac-dinh` `{ ly_do, khoa: [..] | tat_ca: true }` · `GET /api/tham-so/nhat-ky?khoa&tu&den&page&page_size` — «Tham số hệ thống» (THAMSO-1, #94): CHỈ ADMIN; lỗi `{error, ma}` 400 `THAM_SO_SAI`/`KHOA_LA`/`KHOA_CHI_DOC`/`NGOAI_KHOANG`/`RANG_BUOC`/`THIEU_LY_DO`; nhóm 2 chỉ-đọc |
 
 Bộ lọc chung (trừ meta, lookup, import-status): `from`, `to` (bắt buộc, `YYYY-MM-DD` hoặc `YYYY-MM-DD HH:MM`/`T`, gồm 2 đầu), `date_basis` =
@@ -138,32 +138,32 @@ Dashboard điều hành (`/api/arrivals/dashboard/*`): `date` (`YYYY-MM-DD`, m�
 
 
 ### Vai trò và ma trận quyền (`server/roles.js`, `04_DECISIONS.md` #49–#54)
-Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`, `TIVI` (#74). `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
+Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `TIVI` (#74; STAFF đã gỡ — #99). `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
 `VIEWER_ROLES = ADMIN, TTVH, GDVH`, `isValidRole`). Middleware `authRequired` (`server/auth.js`) tra DB mỗi request: lấy `role` + `deactivated_at` từ `users`
 (không tin vai trò trong token) — khoá/không còn → 401, vai trò ngoài danh sách (vd `MANAGER` chưa chuyển đổi) → 403. `requireRoles(...roles)` nhận danh sách tường minh
 (`requireAdmin` = `requireRoles('ADMIN')`); không còn quy tắc "khác STAFF". `TIVI`: allowlist `TIVI_ALLOWED` (`server/lib/tivi.js`) kiểm ngay trong `authRequired`, ngoài danh sách → 403 (cột TIVI dưới đây); token hạn `JWT_EXPIRY_TIVI`, gắn vai trò + dấu mật khẩu (đổi vai trò / mật khẩu → 401).
 
-| Nhóm route | ADMIN | TTVH | GDVH | STAFF | TIVI |
-|---|---|---|---|---|---|
-| `/api/users*` (trừ `PUT /users/me/password`), `/users/:id/bcvh` | ✔ | 403 | 403 | 403 | 403 |
-| `PUT /api/users/me/password` | ✔ | ✔ | ✔ | ✔ | 403 |
-| `GET /api/network`, `/network/export-data` | ✔ | 403 | 403 | 403 | 403 |
-| `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 | 403 |
-| `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 | 403 |
-| `/api/arrivals/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 | 403 |
-| `/api/arrivals/not-received`, `/bd10-khong-xnd`, `/bd10-trang-thai/*`, `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | ✔ theo bộ lọc (#72; không phụ thuộc BCVH được giao) | 403 | 403 |
-| `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` (cảnh báo dữ liệu; KHÔNG gồm `chua_nhan_tai_bcvh`) | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 | 403 |
-| `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | ✔ | 403 |
-| ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 | 403 |
-| `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | ✔ | 403 |
-| `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (#73) | ✔ | ✔ | ✔ | 403 | ✔ `bcvh` ép theo phạm vi; chưa có phạm vi → 403 |
-| `GET /api/auth/me` | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `/api/phat/template`, `/phat/drafts*`, `/phat/batches` (nhập, danh sách đợt) | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được gán (chưa gán → 403) | 403 | 403 |
-| `GET …/batches/:id/undo-preview`, `POST /api/phat/batches/:id/undo` | ✔ | ✔ | chỉ đợt do mình nhập, BCVH còn được gán | 403 | 403 |
-| `GET /api/phat/ty-le` | ✔ | ✔ | ✔ mọi BCVH (#72) | 403 | 403 (không mở; tivi dùng endpoint dashboard ở PHAT-3d) |
-| `GET /api/phat/tai-ve` (#98) | ✔ mọi BCVH và `all` | ✔ mọi BCVH và `all` | chỉ BCVH được gán (`all` hoặc BCVH khác → 403) | 403 | 403 |
-| `GET /api/arrivals/dashboard/ket-qua-phat` (#79) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (#72; không theo `user_bcvh`) | 403 | 403 (PHAT-3d) |
-| `GET /api/arrivals/dashboard/ket-qua-phat-thang` (#91) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 | 403 |
+| Nhóm route | ADMIN | TTVH | GDVH | TIVI |
+|---|---|---|---|---|
+| `/api/users*` (trừ `PUT /users/me/password`), `/users/:id/bcvh` | ✔ | 403 | 403 | 403 |
+| `PUT /api/users/me/password` | ✔ | ✔ | ✔ | 403 |
+| `GET /api/network`, `/network/export-data` | ✔ | 403 | 403 | 403 |
+| `POST /network/import`, `PUT/DELETE /network/post-offices/:id` | ✔ | 403 | 403 | 403 |
+| `/api/arrivals/*` (meta, summary, by-*, quality-mocs, items, lookup, dashboard/*) | ✔ | ✔ | ✔ | 403 |
+| `/api/arrivals/export-scope`, `/export`, `/not-received/export`, `/bd10-khong-xnd/export` | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được giao (khác → 403) | 403 |
+| `/api/arrivals/not-received`, `/bd10-khong-xnd`, `/bd10-trang-thai/*`, `chua_nhan_tai_bcvh` và `bd10_den_khong_xnd` của `/summary` và `/dashboard/center` | ✔ theo bộ lọc | ✔ theo bộ lọc | ✔ theo bộ lọc (#72; không phụ thuộc BCVH được giao) | 403 |
+| `/api/arrivals/exceptions`, `/import-status`, trường `canh_bao` của `/summary` (cảnh báo dữ liệu; KHÔNG gồm `chua_nhan_tai_bcvh`) | ✔ | 403 (không có `canh_bao`) | 403 (không có `canh_bao`) | 403 |
+| `GET /api/dashboard/widgets*` (đọc) | ✔ | ✔ | ✔ | 403 |
+| ghi/meta/preview/order/reset `/api/dashboard/widgets*` | ✔ | 403 | 403 | 403 |
+| `/api/organization/*`, `/api/dashboard/stats` (giữ nguyên) | ✔ | ✔ | ✔ | 403 |
+| `GET /api/arrivals/dashboard/tong-quan-den`, `/viec-can-lam`, `/phuong-xa-tang` (#73) | ✔ | ✔ | ✔ | ✔ `bcvh` ép theo phạm vi; chưa có phạm vi → 403 |
+| `GET /api/auth/me` | ✔ | ✔ | ✔ | ✔ |
+| `/api/phat/template`, `/phat/drafts*`, `/phat/batches` (nhập, danh sách đợt) | ✔ mọi BCVH | ✔ mọi BCVH | chỉ BCVH được gán (chưa gán → 403) | 403 |
+| `GET …/batches/:id/undo-preview`, `POST /api/phat/batches/:id/undo` | ✔ | ✔ | chỉ đợt do mình nhập, BCVH còn được gán | 403 |
+| `GET /api/phat/ty-le` | ✔ | ✔ | ✔ mọi BCVH (#72) | 403 (không mở; tivi dùng endpoint dashboard ở PHAT-3d) |
+| `GET /api/phat/tai-ve` (#98) | ✔ mọi BCVH và `all` | ✔ mọi BCVH và `all` | chỉ BCVH được gán (`all` hoặc BCVH khác → 403) | 403 |
+| `GET /api/arrivals/dashboard/ket-qua-phat` (#79) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (#72; không theo `user_bcvh`) | 403 (PHAT-3d) |
+| `GET /api/arrivals/dashboard/ket-qua-phat-thang` (#91) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
 (`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
 Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DEPLOYMENT.md` mục 7).

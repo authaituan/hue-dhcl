@@ -45,7 +45,7 @@
 `<thư mục chứa DB>/backups/` (mặc định **`data/backups/`**), tên `truoc-thay-the_<bcvh>_<yyyy-mm-dd>_<yyyymmddThhmmssZ>[_n].db`, giữ **5 bản** mới nhất (chỉ xóa tệp đúng mẫu tên này; cùng giây thì thêm `_2`, `_3`). Kiểm chỗ trống (`fs.statfsSync`): cần ≥ 1,2 × (DB + WAL) + 32 MiB, thiếu → `KHONG_DU_CHO_SAO_LUU` (507); lỗi khác → `SAO_LUU_LOI` (500). Tệp dở bị xóa. Lần thay thất bại SAU sao lưu vẫn để lại bản sao lưu (vô hại; sẽ bị dọn khi quá 5 bản). `data/backups/` nằm trong `/data/` (đã `.gitignore`).
 
 ## 7. Route
-`POST /api/arrivals/thay-the/thuc-hien` — chỉ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Thân JSON:
+`POST /api/arrivals/thay-the/thuc-hien` — chỉ ADMIN (401 không token; 403 TTVH, GDVH, TIVI). Thân JSON:
 ```json
 { "bcvh": "533140", "ngay": "2026-10-10", "tap_file": ["HangDen_…csv"],
   "tap_file_nguon": [{ "ten": "HangDen_…csv", "sha256": "…64 hex…" }],

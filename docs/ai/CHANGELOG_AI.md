@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-19] - DOCS-1: đồng bộ `docs/ai/` với main (theme #100/#101, bỏ STAFF #102/#103, quy tắc GDVH)
+
+- **Chỉ docs, không đổi mã.** Main tại `340ed17` (merge PR #104).
+- **Thêm** `04_DECISIONS.md` #99–#105: bỏ vai trò STAFF (thay #49 về STAFF), quy tắc quyền GDVH (giữ #72), phông, cỡ chữ `--text-xs`, màu biểu đồ / SVG, màu «Cơ cấu dịch vụ», Tivi không đổi.
+- **Sửa** ma trận quyền ở `03_ARCHITECTURE_MAP.md` (bốn vai trò, bỏ cột STAFF), các câu nhắc STAFF còn hiệu lực ở `08_PHAT.md`, `06_DEPLOYMENT.md` (hành vi `migrate-roles.js`), các hợp đồng API ADMIN-only, `05_BACKLOG.md`; cập nhật `00_SNAPSHOT.md` (PR #99–#104, vai trò, `GET /api/phat/tai-ve`, mốc test 743 ca theo báo cáo PR #104, việc đang chờ và việc còn nợ).
+- Các quyết định và mục CHANGELOG cũ, các file audit giữ nguyên chữ.
+
+---
+
 ## [2026-10-19] - TAIVE-1: API «Bảng kê kết quả phát theo ngày đến» (`GET /api/phat/tai-ve`, tải Excel)
 
 - **Thêm** `server/lib/phatTaiVe.js` (đếm + ghi `.xlsx` theo luồng bằng ExcelJS) và route `GET /api/phat/tai-ve` trong `server/routes/phat.js` (thêm khóa `'tai-ve'` vào `CHU_403`). Quyền: ADMIN, TTVH mọi BCVH và `all`; GDVH chỉ BCVH trong `user_bcvh`; khác 403. Giới hạn 50.000 dòng, nhật ký `phat_tai_ve`. Chi tiết ở `08_PHAT.md` §4 và `04_DECISIONS.md` #98.

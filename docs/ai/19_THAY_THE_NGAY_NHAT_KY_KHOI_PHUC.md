@@ -14,7 +14,7 @@
 | `server/routes/arrivals.js` | 4 route mới (dưới) |
 | `tests/thay-the-nhat-ky-khoi-phuc.test.js` | 16 ca; đã thêm vào `npm test` |
 
-## 2. Hợp đồng API (tất cả CHỈ ADMIN: 401 không token; 403 TTVH, GDVH, STAFF, TIVI)
+## 2. Hợp đồng API (tất cả CHỈ ADMIN: 401 không token; 403 TTVH, GDVH, TIVI)
 Lỗi luôn có dạng `{ "error": "<tiếng Việt>", "ma": "<MÃ>" }`.
 
 ### 2.1 `GET /api/arrivals/thay-the/nhat-ky`

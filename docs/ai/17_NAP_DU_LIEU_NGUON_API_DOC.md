@@ -8,7 +8,7 @@
 |---|---|
 | `server/config/nap-nguon.js` | Hằng số TẠM (PO chưa chốt các giá trị đánh dấu *) |
 | `server/lib/napNguonDoc.js` | Lõi thuần: `tongQuan`, `luoi`, `mot`, `dsLuot`, `chiTietLuot`, `NapNguonLoi`. Nhận `db`, `now` (Date, giờ máy chủ), trạng thái hẹn giờ (tiêm) |
-| `server/routes/napNguon.js` | Năm đường dẫn `GET /api/nap-nguon/*`, mỗi đường `requireAdmin` (401 không token; 403 TTVH, GDVH, STAFF, TIVI); đăng ký ở `server/index.js` |
+| `server/routes/napNguon.js` | Năm đường dẫn `GET /api/nap-nguon/*`, mỗi đường `requireAdmin` (401 không token; 403 TTVH, GDVH, TIVI); đăng ký ở `server/index.js` |
 | `tests/nap-nguon-doc.test.js` | 17 ca; đã thêm vào `npm test` |
 Lỗi: `400 THAM_SO_SAI` (tham số sai hoặc LẠ — mọi query ngoài danh sách đều bị từ chối), `404 KHONG_TIM_THAY` (lượt không có / là hàng khóa), `500 LOI_HE_THONG`.
 Tên bảng đọc: `arrival_import_files`, `sftp_source_files`, `sftp_sync_runs`, `sftp_sync_files` (+ `post_offices` cho tên BCVH, `sftpScheduler.docTrangThaiSftp()` trong tiến trình).
