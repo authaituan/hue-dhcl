@@ -5,7 +5,7 @@ import { BCVH_LIST } from '../constants/bcvh';
 import AddUserModal from './AddUserModal';
 import ResetUserPasswordModal from './ResetUserPasswordModal';
 
-const ROLE_OPTIONS = ['STAFF', 'TTVH', 'GDVH', 'ADMIN', 'TIVI'];
+const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI'];
 
 // Chuyển mã tivi_scope thành tên hiển thị dễ đọc
 function formatTiviScope(scope) {
@@ -31,7 +31,7 @@ export default function UserAdminView({ authUser }) {
   // Sửa thông tin inline (họ tên + role + tivi_scope cùng lúc)
   const [editingId, setEditingId] = useState(null);
   const [editingFullName, setEditingFullName] = useState('');
-  const [editingRole, setEditingRole] = useState('STAFF');
+  const [editingRole, setEditingRole] = useState('');
   const [editingTiviScope, setEditingTiviScope] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editSaveError, setEditSaveError] = useState('');
@@ -60,7 +60,7 @@ export default function UserAdminView({ authUser }) {
   const startEdit = (user) => {
     setEditingId(user.id);
     setEditingFullName(user.full_name || '');
-    setEditingRole(user.role || 'STAFF');
+    setEditingRole(user.role || '');
     // Nạp phạm vi hiện tại nếu là TIVI
     setEditingTiviScope(user.tivi_scope || '');
     setEditSaveError('');
@@ -284,9 +284,7 @@ export default function UserAdminView({ authUser }) {
                           // Hiển thị vai trò + phạm vi (nếu TIVI)
                           <div className="space-y-1">
                             <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border inline-flex items-center gap-1 ${
-                              u.role === 'STAFF'
-                                ? 'bg-gray-100 text-gray-700 border-gray-200'
-                                : u.role === 'TIVI'
+                              u.role === 'TIVI'
                                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                                 : 'bg-orange-50 text-orange-600 border-orange-200'
                             }`}>

@@ -489,7 +489,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
       // Kiểm tra 403
       if (tqRes.status === 403 || viecRes.status === 403 || pxRes.status === 403) {
-        setError403('Tài khoản của bạn không có quyền xem thông tin điều hành hôm nay (STAFF không được truy cập).');
+        setError403('Tài khoản của bạn không có quyền xem thông tin điều hành hôm nay (tài khoản không có quyền truy cập).');
         setInitialLoading(false);
         setIsRefreshing(false);
         return;
@@ -528,7 +528,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         setPhatError(null);
       } else if (phatRes.status === 403) {
         setKetQuaPhat(null);
-        setPhatError('Tài khoản không có quyền xem kết quả phát (STAFF không được truy cập).');
+        setPhatError('Tài khoản không có quyền xem kết quả phát (tài khoản không có quyền truy cập).');
       } else {
         setKetQuaPhat(null);
         setPhatError(phatRes.error || 'Không thể tải kết quả phát.');
