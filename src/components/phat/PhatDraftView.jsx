@@ -561,7 +561,7 @@ export default function PhatDraftView({
               <p className="text-xs text-gray-600 leading-relaxed">
                 Xoá bản kiểm tra này? Dữ liệu đã nhập không bị ảnh hưởng.
               </p>
-              <div className="p-3 bg-gray-50 rounded-xl text-xs text-gray-700 font-mono">
+              <div className="p-3 bg-gray-50 rounded-[10px] text-xs text-gray-700 tabular-nums">
                 {deleteModalDraft.ten_file} ({deleteModalDraft.tao_luc_bangkok})
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -633,31 +633,31 @@ export default function PhatDraftView({
       {/* ── 4 HỘP CHỈ SỐ TỔNG HỢP ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Hợp lệ, sẽ nhập */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-200 bg-emerald-50/20">
-          <div className="text-[11px] font-bold text-emerald-800 tracking-wider uppercase">
+        <div className="bg-white rounded-[14px] p-4 shadow-none border border-emerald-200 bg-emerald-50/20">
+          <div className="hue-label text-emerald-800">
             HỢP LỆ, SẼ NHẬP
           </div>
-          <div className="text-3xl font-[900] text-emerald-600 my-1">
+          <div className="hue-num-md text-emerald-600 my-1">
             {formatInt(tongHop.hop_le)}
           </div>
         </div>
 
         {/* Bỏ qua (ô trống) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 bg-gray-50/50">
-          <div className="text-[11px] font-bold text-gray-600 tracking-wider uppercase">
+        <div className="bg-white rounded-[14px] p-4 shadow-none border border-gray-200 bg-gray-50/50">
+          <div className="hue-label text-gray-600">
             BỎ QUA (Ô TRỐNG)
           </div>
-          <div className="text-3xl font-[900] text-gray-600 my-1">
+          <div className="hue-num-md text-gray-600 my-1">
             {formatInt(tongHop.bo_qua_trong)}
           </div>
         </div>
 
         {/* Lỗi, chưa nhập */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-red-200 bg-red-50/20">
-          <div className="text-[11px] font-bold text-red-800 tracking-wider uppercase">
+        <div className="bg-white rounded-[14px] p-4 shadow-none border border-red-200 bg-red-50/20">
+          <div className="hue-label text-red-800">
             LỖI, CHƯA NHẬP
           </div>
-          <div className="text-3xl font-[900] text-red-600 my-1">
+          <div className="hue-num-md text-red-600 my-1">
             {formatInt(tongHop.loi)}
           </div>
         </div>

@@ -11,7 +11,7 @@ export default function ArrivalsRoutesServices({ data }) {
 
   if (!routes?.items?.length && !services?.items?.length && !routes?.chua_co_ten?.san_luong && !services?.chua_co_ten?.san_luong) {
     return (
-      <div className="card-soft mt-6 h-48 flex items-center justify-center text-gray-500">
+      <div className="bg-white rounded-[14px] border border-gray-200 shadow-none mt-6 h-48 flex items-center justify-center text-gray-500">
         Không có dữ liệu trong khoảng đã chọn
       </div>
     );
@@ -74,40 +74,40 @@ export default function ArrivalsRoutesServices({ data }) {
     <div className="space-y-6 mt-6">
       {/* 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card-soft bg-blue-50 border-l-4 border-blue-500 p-4">
+        <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-blue-500 shadow-none p-4">
           <div className="flex items-center justify-between">
-            <p className="text-blue-600 text-sm font-semibold">Đường thư có tên</p>
+            <p className="hue-label text-blue-600 mb-1">Đường thư có tên</p>
             <Truck className="w-5 h-5 text-blue-500 opacity-80" />
           </div>
-          <p className="text-2xl font-bold text-blue-700 mt-2">{routes?.items?.length || 0}</p>
+          <p className="hue-num-sm text-blue-700 mt-2">{routes?.items?.length || 0}</p>
         </div>
-        <div className="card-soft bg-emerald-50 border-l-4 border-emerald-500 p-4">
+        <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-emerald-500 shadow-none p-4">
           <div className="flex items-center justify-between">
-            <p className="text-emerald-600 text-sm font-semibold">Dịch vụ có tên</p>
+            <p className="hue-label text-emerald-600 mb-1">Dịch vụ có tên</p>
             <Package className="w-5 h-5 text-emerald-500 opacity-80" />
           </div>
-          <p className="text-2xl font-bold text-emerald-700 mt-2">{services?.items?.length || 0}</p>
+          <p className="hue-num-sm text-emerald-700 mt-2">{services?.items?.length || 0}</p>
         </div>
-        <div className="card-soft bg-gray-100 border-l-4 border-gray-400 p-4">
+        <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-gray-400 shadow-none p-4">
           <div className="flex items-center justify-between">
-            <p className="text-gray-600 text-sm font-semibold">Chưa có tên đường thư</p>
+            <p className="hue-label text-gray-600 mb-1">Chưa có tên đường thư</p>
             <MapPinOff className="w-5 h-5 text-gray-500 opacity-80" />
           </div>
-          <p className="text-2xl font-bold text-gray-700 mt-2">{(routes?.chua_co_ten?.san_luong || 0).toLocaleString('vi-VN')}</p>
+          <p className="hue-num-sm text-gray-700 mt-2">{(routes?.chua_co_ten?.san_luong || 0).toLocaleString('vi-VN')}</p>
         </div>
-        <div className="card-soft bg-gray-100 border-l-4 border-gray-400 p-4">
+        <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-gray-400 shadow-none p-4">
           <div className="flex items-center justify-between">
-            <p className="text-gray-600 text-sm font-semibold">Chưa có tên dịch vụ</p>
+            <p className="hue-label text-gray-600 mb-1">Chưa có tên dịch vụ</p>
             <ArchiveX className="w-5 h-5 text-gray-500 opacity-80" />
           </div>
-          <p className="text-2xl font-bold text-gray-700 mt-2">{(services?.chua_co_ten?.san_luong || 0).toLocaleString('vi-VN')}</p>
+          <p className="hue-num-sm text-gray-700 mt-2">{(services?.chua_co_ten?.san_luong || 0).toLocaleString('vi-VN')}</p>
         </div>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="card-soft p-4 lg:col-span-2">
-          <h3 className="font-bold text-[var(--color-title)] mb-4">Sản lượng theo đường thư</h3>
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-5 lg:col-span-2">
+          <h3 className="hue-h2 text-[17px] mb-4">Sản lượng theo đường thư</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={routeBarData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -122,8 +122,8 @@ export default function ArrivalsRoutesServices({ data }) {
           </div>
         </div>
 
-        <div className="card-soft p-4">
-          <h3 className="font-bold text-[var(--color-title)] mb-4">Cơ cấu dịch vụ</h3>
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-5">
+          <h3 className="hue-h2 text-[17px] mb-4">Cơ cấu dịch vụ</h3>
           <div className="h-[250px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -167,13 +167,13 @@ export default function ArrivalsRoutesServices({ data }) {
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-soft flex flex-col">
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <h3 className="font-bold text-[var(--color-title)]">Chi tiết Đường thư</h3>
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-cream-line bg-cream-head">
+            <h3 className="hue-h2 text-[17px]">Chi tiết Đường thư</h3>
           </div>
           <div className="overflow-x-auto max-h-[300px] flex-1">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0 z-10">
+              <thead className="bg-cream-head text-gray-600 font-semibold border-b border-cream-line sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-2">Tên</th>
                   <th className="px-4 py-2 text-right">Sản lượng</th>
@@ -183,21 +183,21 @@ export default function ArrivalsRoutesServices({ data }) {
               </thead>
               <tbody>
                 {routes?.items.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-2 font-medium text-[var(--color-title)]">{r.ten}</td>
-                    <td className="px-4 py-2 text-right">{r.san_luong.toLocaleString('vi-VN')}</td>
+                  <tr key={i} className="border-b border-cream-line/50 hover:bg-cream-light/30">
+                    <td className="px-4 py-2 font-medium text-gray-800">{r.ten}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{r.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(r.ty_trong)}</td>
-                    <td className="px-4 py-2 text-right text-gray-500">
+                    <td className="px-4 py-2 text-right tabular-nums text-gray-500">
                       {r.hang_di_ngoai.toLocaleString('vi-VN')}
                     </td>
                   </tr>
                 ))}
                 {routes?.chua_co_ten?.san_luong > 0 && (
-                  <tr className="bg-gray-50/50 italic text-gray-500">
+                  <tr className="bg-cream-light/40 italic text-gray-500 border-b border-cream-line/50">
                     <td className="px-4 py-2 font-medium">{routes.chua_co_ten.ten}</td>
-                    <td className="px-4 py-2 text-right">{routes.chua_co_ten.san_luong.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{routes.chua_co_ten.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(routes.chua_co_ten.ty_trong)}</td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right tabular-nums">
                       {routes.chua_co_ten.hang_di_ngoai.toLocaleString('vi-VN')}
                     </td>
                   </tr>
@@ -207,13 +207,13 @@ export default function ArrivalsRoutesServices({ data }) {
           </div>
         </div>
 
-        <div className="card-soft flex flex-col">
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <h3 className="font-bold text-[var(--color-title)]">Chi tiết Dịch vụ</h3>
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-cream-line bg-cream-head">
+            <h3 className="hue-h2 text-[17px]">Chi tiết Dịch vụ</h3>
           </div>
           <div className="overflow-x-auto max-h-[300px] flex-1">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0 z-10">
+              <thead className="bg-cream-head text-gray-600 font-semibold border-b border-cream-line sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-2">Dịch vụ</th>
                   <th className="px-4 py-2 text-right">Sản lượng</th>
@@ -223,19 +223,19 @@ export default function ArrivalsRoutesServices({ data }) {
               </thead>
               <tbody>
                 {services?.items.map((s, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-2 font-medium text-[var(--color-title)]">{s.ten || s.ma}</td>
-                    <td className="px-4 py-2 text-right">{s.san_luong.toLocaleString('vi-VN')}</td>
+                  <tr key={i} className="border-b border-cream-line/50 hover:bg-cream-light/30">
+                    <td className="px-4 py-2 font-medium text-gray-800">{s.ten || s.ma}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{s.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(s.ty_trong)}</td>
-                    <td className="px-4 py-2 text-right text-gray-500">{s.khoi_luong_tb_g.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-gray-500">{s.khoi_luong_tb_g.toLocaleString('vi-VN')}</td>
                   </tr>
                 ))}
                 {services?.chua_co_ten?.san_luong > 0 && (
-                  <tr className="bg-gray-50/50 italic text-gray-500">
+                  <tr className="bg-cream-light/40 italic text-gray-500 border-b border-cream-line/50">
                     <td className="px-4 py-2 font-medium">{services.chua_co_ten.ten}</td>
-                    <td className="px-4 py-2 text-right">{services.chua_co_ten.san_luong.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{services.chua_co_ten.san_luong.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2">{renderPercentageBar(services.chua_co_ten.ty_trong)}</td>
-                    <td className="px-4 py-2 text-right text-gray-500">{services.chua_co_ten.khoi_luong_tb_g.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-gray-500">{services.chua_co_ten.khoi_luong_tb_g.toLocaleString('vi-VN')}</td>
                   </tr>
                 )}
               </tbody>

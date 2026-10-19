@@ -309,7 +309,7 @@ export default function SourceIngestAttention({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-gray-50/90 text-gray-500 font-semibold border-b border-gray-200 uppercase text-[11px] tracking-wider">
+            <tr className="bg-cream-head text-gray-600 font-bold border-b border-cream-line uppercase text-[12px] tracking-wider">
               <th className="py-3 px-3 w-10 text-center">
                 <button
                   type="button"
@@ -332,7 +332,7 @@ export default function SourceIngestAttention({
               <th className="py-3 px-3 text-right">Hành động</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-cream-line tabular-nums">
             {visibleItems.map((item, idx) => {
               if (!item || typeof item !== 'object') return null;
               const key = getItemKey(item);
@@ -342,7 +342,7 @@ export default function SourceIngestAttention({
               return (
                 <tr
                   key={idx}
-                  className={`hover:bg-gray-50/80 transition-colors ${
+                  className={`hover:bg-cream-light/50 transition-colors ${
                     isChecked ? 'bg-orange-50/30' : ''
                   }`}
                 >

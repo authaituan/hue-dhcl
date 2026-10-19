@@ -7,48 +7,48 @@ export function ArrivalsNotReceivedBanner({ data, onShowDetail }) {
   if (!cn || cn.tong === 0) return null;
 
   return (
-    <div className="bg-amber-50 border-[2px] border-amber-400 rounded-[16px] py-[20px] px-[24px] flex flex-wrap items-center justify-between gap-6">
+    <div className="bg-warning-light border-2 border-amber-400 rounded-[14px] p-5 flex flex-wrap items-center justify-between gap-6 shadow-none">
       <div className="flex items-center gap-6">
         {/* Biểu tượng cảnh báo */}
-        <div className="w-16 h-16 rounded-full bg-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+        <div className="w-[62px] h-[62px] rounded-full bg-amber-500 flex items-center justify-center shrink-0 shadow-none">
           <AlertTriangle className="w-8 h-8 text-white" />
         </div>
         
         {/* Số lượng */}
         <div className="flex flex-col items-center shrink-0">
-          <span className="text-[52px] font-bold text-amber-900 leading-none">{cn.tong.toLocaleString('vi-VN')}</span>
-          <span className="text-amber-700 font-semibold">bưu gửi</span>
+          <span className="hue-num-xl text-orange-600 leading-none">{cn.tong.toLocaleString('vi-VN')}</span>
+          <span className="text-gray-600 font-semibold font-sans">bưu gửi</span>
         </div>
 
         {/* Khối chữ */}
         <div className="flex flex-col gap-1 max-w-[400px]">
-          <span className="font-bold text-amber-900 text-[16px]">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</span>
-          <span className="text-amber-900 text-[14px]">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</span>
-          <span className="font-bold text-amber-900 text-[14px]">Cũ nhất: {cn.cu_nhat_ngay} ngày.</span>
+          <span className="font-bold text-gray-800 text-[16px]">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</span>
+          <span className="text-gray-600 text-[14px]">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</span>
+          <span className="font-bold text-gray-800 text-[14px]">Cũ nhất: {cn.cu_nhat_ngay} ngày.</span>
         </div>
       </div>
 
       <div className="flex items-center gap-4 flex-wrap flex-1 justify-end">
         {/* Thẻ */}
         <div className="flex items-center gap-3">
-          <div className="bg-amber-50 border border-gray-200 border-l-[4px] border-l-amber-400 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
-            <span className="text-[10px] font-bold text-amber-800 uppercase">0–1 ngày</span>
-            <span className="text-[22px] font-bold text-amber-800">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-amber-400 rounded-lg px-4 py-2 flex flex-col min-w-[100px] shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">0–1 ngày</span>
+            <span className="hue-num-xs text-orange-600 leading-tight">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-amber-100 border border-gray-200 border-l-[4px] border-l-amber-600 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
-            <span className="text-[10px] font-bold text-amber-900 uppercase">2 ngày</span>
-            <span className="text-[22px] font-bold text-amber-900">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-rose-300 rounded-lg px-4 py-2 flex flex-col min-w-[100px] shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">2 ngày</span>
+            <span className="hue-num-xs text-orange-600 leading-tight">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-red-50 border border-gray-200 border-l-[4px] border-l-red-600 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
-            <span className="text-[10px] font-bold text-red-700 uppercase">3+ ngày</span>
-            <span className="text-[22px] font-bold text-red-700">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-orange-500 rounded-lg px-4 py-2 flex flex-col min-w-[100px] shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">3+ ngày</span>
+            <span className="hue-num-xs text-orange-600 leading-tight">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
           </div>
         </div>
 
         {/* Nút */}
         <button 
           onClick={onShowDetail}
-          className="bg-amber-600 hover:bg-amber-800 text-white font-bold h-[44px] px-6 rounded-lg transition-colors flex items-center shrink-0"
+          className="bg-amber-700 hover:bg-amber-800 text-white font-bold h-[44px] px-6 rounded-lg transition-colors flex items-center shrink-0"
         >
           Xem danh sách →
         </button>
@@ -244,7 +244,7 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
         {error && <div className="text-red-500 text-sm mb-3">{error}</div>}
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-amber-100 text-amber-900 font-semibold border-b border-gray-200">
+            <thead className="bg-cream-head text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3">SHBG</th>
                 <th className="px-4 py-3">BD8</th>
@@ -259,10 +259,10 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Không có bưu gửi nào trong nhóm này.</td></tr>
               )}
               {items.map((r, i) => (
-                <tr key={r.tracking_no} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
+                <tr key={r.tracking_no} className={`border-b border-cream-line ${i % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
                   <td className="px-4 py-2 font-mono text-xs">{r.tracking_no}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{r.bd8_no}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{r.bd10_no}</td>
+                  <td className="px-4 py-2 tabular-nums text-xs">{r.bd8_no}</td>
+                  <td className="px-4 py-2 tabular-nums text-xs">{r.bd10_no}</td>
                   <td className="px-4 py-2 truncate max-w-[200px] text-xs">{r.route_name}</td>
                   <td className="px-4 py-2 text-xs">{formatTime(r.thoi_diem_lap_bd10)}</td>
                   <td className="px-4 py-2">

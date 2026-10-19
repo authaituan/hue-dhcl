@@ -145,12 +145,12 @@ export default function UserAdminView({ authUser }) {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="card-soft p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="card-soft p-5 rounded-[14px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-[--color-title] flex items-center gap-2">
+          <h1 className="hue-h1 text-2xl flex items-center gap-2">
             <UserCog className="w-5 h-5 text-orange-400" />
             <span>Quản Lý Người Dùng</span>
-          </h2>
+          </h1>
           <p className="text-xs text-[--color-body] mt-1">
             Tạo tài khoản, sửa thông tin/phân quyền, reset mật khẩu, vô hiệu hoá/kích hoạt lại tài khoản.
           </p>
@@ -158,7 +158,7 @@ export default function UserAdminView({ authUser }) {
 
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-orange-500 transition-all shadow-soft"
+          className="flex items-center gap-2 px-4 py-2 rounded-[8px] text-xs font-bold text-white bg-[#4A1D6E] border-b-[3px] border-[#E0A82E] transition-all shadow-none"
         >
           <Plus className="w-4 h-4" />
           <span>Thêm User</span>
@@ -179,7 +179,7 @@ export default function UserAdminView({ authUser }) {
         </div>
       )}
 
-      <div className="card-soft rounded-2xl overflow-hidden">
+      <div className="card-soft rounded-[14px] overflow-hidden">
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3">
             <div className="w-8 h-8 border-3 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
@@ -195,7 +195,7 @@ export default function UserAdminView({ authUser }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-[--color-body] font-semibold border-b border-gray-200 uppercase tracking-wider text-[11px]">
+                <tr className="bg-cream-head text-gray-600 font-bold border-b border-cream-line uppercase tracking-wider text-[12px]">
                   <th className="py-3.5 px-4">Mã HRM</th>
                   <th className="py-3.5 px-4">Họ Và Tên</th>
                   <th className="py-3.5 px-4">Vai Trò (Role)</th>
@@ -204,7 +204,7 @@ export default function UserAdminView({ authUser }) {
                   <th className="py-3.5 px-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-cream-line">
                 {users.map((u) => {
                   const isSelf = authUser && u.id === authUser.id;
                   const isEditing = editingId === u.id;
@@ -214,8 +214,8 @@ export default function UserAdminView({ authUser }) {
                   const isEditingTivi = editingRole === 'TIVI';
 
                   return (
-                    <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${isDeactivated ? 'opacity-60' : ''}`}>
-                      <td className="py-3.5 px-4 font-mono text-orange-400 font-medium">{u.hrm_code}</td>
+                    <tr key={u.id} className={`hover:bg-cream-light/50 transition-colors ${isDeactivated ? 'opacity-60' : ''}`}>
+                      <td className="py-3.5 px-4 tabular-nums text-orange-600 font-semibold">{u.hrm_code}</td>
 
                       {/* Họ Và Tên — sửa inline cùng với Role */}
                       <td className="py-3.5 px-4">
@@ -404,8 +404,8 @@ export default function UserAdminView({ authUser }) {
           </div>
         )}
 
-        <div className="p-4 border-t border-gray-200 bg-gray-50 text-xs text-[--color-body]">
-          Tổng cộng <span className="font-bold text-[--color-title]">{users.length}</span> tài khoản người dùng.
+        <div className="p-4 border-t border-cream-line bg-cream-foot text-xs text-gray-600">
+          Tổng cộng <span className="font-bold text-[#4A1D6E]">{users.length}</span> tài khoản người dùng.
         </div>
       </div>
 

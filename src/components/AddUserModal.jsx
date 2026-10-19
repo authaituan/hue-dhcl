@@ -78,10 +78,10 @@ export default function AddUserModal({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-4">
-      <div className="card-soft w-full max-w-md rounded-2xl border border-gray-200 shadow-soft overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-white">
-          <h3 className="font-bold text-base text-[--color-title] flex items-center gap-2">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="card-soft w-full max-w-md rounded-[14px] border border-gray-200 shadow-none overflow-hidden bg-white">
+        <div className="p-5 border-b border-cream-line flex items-center justify-between bg-white">
+          <h3 className="hue-h2 text-base flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-orange-400" />
             <span>Thêm User Mới</span>
           </h3>
@@ -188,7 +188,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="btn btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-3 rounded-[8px] bg-[#4A1D6E] text-white font-bold border-b-[3px] border-[#E0A82E] flex items-center justify-center gap-2 disabled:opacity-60 shadow-none transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
               <span>{loading ? 'Đang Tạo...' : 'TẠO TÀI KHOẢN'}</span>

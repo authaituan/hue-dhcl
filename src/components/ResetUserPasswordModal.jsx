@@ -44,10 +44,10 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-4">
-      <div className="card-soft w-full max-w-md rounded-2xl border border-gray-200 shadow-soft overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-white">
-          <h3 className="font-bold text-base text-[--color-title] flex items-center gap-2">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="card-soft w-full max-w-md rounded-[14px] border border-gray-200 shadow-none overflow-hidden bg-white">
+        <div className="p-5 border-b border-cream-line flex items-center justify-between bg-white">
+          <h3 className="hue-h2 text-base flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-amber-500" />
             <span>Reset Mật Khẩu</span>
           </h3>
@@ -57,9 +57,9 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-[--color-title]">
+          <div className="p-3 rounded-[10px] bg-cream-light border border-gray-200 text-[--color-title]">
             Đặt lại mật khẩu cho: <span className="font-bold text-[--color-title]">{user.full_name}</span>{' '}
-            <span className="font-mono text-orange-400">({user.hrm_code})</span>. Không cần biết mật khẩu cũ.
+            <span className="tabular-nums text-orange-600 font-semibold">({user.hrm_code})</span>. Không cần biết mật khẩu cũ.
           </div>
 
           {error && (
@@ -113,7 +113,7 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
             <button
               type="submit"
               disabled={loading || success}
-              className="btn btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-3 rounded-[8px] bg-[#4A1D6E] text-white font-bold border-b-[3px] border-[#E0A82E] flex items-center justify-center gap-2 disabled:opacity-60 shadow-none transition-all cursor-pointer"
             >
               <KeyRound className="w-4 h-4" />
               <span>{loading ? 'Đang Đặt Lại...' : success ? 'Đã Xong' : 'ĐẶT LẠI MẬT KHẨU'}</span>

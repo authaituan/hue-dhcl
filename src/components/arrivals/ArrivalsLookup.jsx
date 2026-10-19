@@ -41,15 +41,15 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
 
   return (
     <div className="mt-6">
-      <div className="card-soft p-6">
+      <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-6">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 mb-6">
           <div className="flex-1">
-            <label className="block text-sm font-semibold text-[var(--color-title)] mb-2">Tra cứu Bưu gửi</label>
+            <label className="hue-label block text-orange-600 mb-2">TRA CỨU BƯU GỬI</label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Nhập số hiệu bưu gửi (VD: EB123456789VN)"
-                className="w-full input-soft pl-10 h-11"
+                className="w-full rounded-[10px] border border-[#D9CBA8] pl-10 h-11 text-sm focus:outline-none focus:ring-1 focus:ring-orange-600"
                 value={trackingNo}
                 onChange={e => setTrackingNo(e.target.value)}
               />
@@ -59,7 +59,7 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
           <button
             type="submit"
             disabled={loading || !trackingNo.trim()}
-            className="btn-primary h-11 px-6 shadow-sm flex items-center justify-center whitespace-nowrap"
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-11 px-6 rounded-[10px] border-b-[3px] border-amber-400 shadow-none flex items-center justify-center whitespace-nowrap"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Tra cứu
@@ -77,7 +77,7 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
             ) : (
               <>
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-bold text-lg text-[var(--color-title)]">Kết quả: {result.tracking_no}</h3>
+                  <h3 className="hue-h2 text-lg text-gray-800">Kết quả: <span className="font-mono">{result.tracking_no}</span></h3>
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-100">
                     {result.so_dong} lượt quét
                   </span>
@@ -90,37 +90,37 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
 
                 <div className="space-y-4">
                   {result.dong.map((r, i) => (
-                    <div key={r.id || i} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm relative overflow-hidden">
+                    <div key={r.id || i} className="border border-gray-200 rounded-[14px] p-4 bg-white shadow-none relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
                       <div className="flex flex-wrap gap-x-8 gap-y-4">
                         <div className="min-w-[150px]">
                           <p className="text-xs text-gray-500 font-semibold mb-1">BCVH nhận</p>
-                          <p className="font-medium text-[var(--color-title)]">
+                          <p className="font-medium text-gray-800">
                             {r.receiver_code} - {bcvhList.find(b => b.ma === r.receiver_code)?.ten || 'Không rõ'}
                           </p>
                         </div>
                         <div className="min-w-[150px]">
                           <p className="text-xs text-gray-500 font-semibold mb-1">Địa bàn phát (Phường/Xã)</p>
-                          <p className="font-medium text-[var(--color-title)]">{r.ward_name || '-'}</p>
+                          <p className="font-medium text-gray-800">{r.ward_name || '-'}</p>
                         </div>
                         <div className="min-w-[100px]">
                           <p className="text-xs text-gray-500 font-semibold mb-1">Khối lượng (g)</p>
-                          <p className="font-medium text-[var(--color-title)]">{r.weight_g?.toLocaleString('vi-VN') || '-'}</p>
+                          <p className="font-medium text-gray-800 tabular-nums">{r.weight_g?.toLocaleString('vi-VN') || '-'}</p>
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="mt-4 pt-4 border-t border-cream-line grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Xác nhận túi</p>
-                          <p className="font-mono text-sm">{formatTime(r.bag_confirmed_at)}</p>
+                          <p className="text-sm tabular-nums text-gray-800">{formatTime(r.bag_confirmed_at)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Xác nhận đến BD10</p>
-                          <p className="font-mono text-sm">{formatTime(r.bd10_confirmed_at)}</p>
+                          <p className="text-sm tabular-nums text-gray-800">{formatTime(r.bd10_confirmed_at)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Xác nhận bưu gửi</p>
-                          <p className="font-mono text-sm">{formatTime(r.item_confirmed_at)}</p>
+                          <p className="text-sm tabular-nums text-gray-800">{formatTime(r.item_confirmed_at)}</p>
                         </div>
                       </div>
                       
@@ -144,17 +144,17 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
       </div>
 
       {isAdmin && exceptions && exceptions.length > 0 && (
-        <div className="card-soft border border-gray-200 mt-6">
-          <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none mt-6 overflow-hidden">
+          <div className="p-4 border-b border-cream-line bg-cream-head flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-700" />
-            <h3 className="font-bold text-dark">
+            <h3 className="hue-h2 text-[17px] text-gray-800">
               Bưu gửi ngoại lệ
-              <span className="text-[12px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 ml-2">Chỉ ADMIN</span>
+              <span className="text-[12px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 ml-2 border border-amber-200">Chỉ ADMIN</span>
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
+              <thead className="bg-cream-head text-gray-600 font-semibold border-b border-cream-line">
                 <tr>
                   <th className="px-4 py-3">Số hiệu bưu gửi</th>
                   <th className="px-4 py-3">Thời gian đến BCVH</th>
@@ -165,13 +165,13 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
               </thead>
               <tbody>
                 {exceptions.slice(0, 50).map((ex, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{ex.tracking_no}</td>
-                    <td className="px-4 py-3">{formatTime(ex.arrival_time) || 'Chưa xác định'}</td>
+                  <tr key={i} className="border-b border-cream-line/50 hover:bg-cream-light/30">
+                    <td className="px-4 py-3 font-mono font-medium text-gray-900">{ex.tracking_no}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatTime(ex.arrival_time) || 'Chưa xác định'}</td>
                     <td className="px-4 py-3">{ex.basis_name || '—'}</td>
                     <td className="px-4 py-3">{ex.ward_name}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                         {ex.issue_type}
                       </span>
                     </td>
@@ -180,7 +180,7 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
               </tbody>
             </table>
           </div>
-          <div className="p-3 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
+          <div className="p-3 bg-cream-foot text-xs text-gray-500 border-t border-cream-line">
             Chỉ liệt kê bưu gửi ngoại lệ, tối đa 50 dòng. Danh sách đầy đủ lấy bằng nút Tải dữ liệu để xử lý.
           </div>
         </div>

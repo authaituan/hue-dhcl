@@ -59,13 +59,13 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
     <div className="space-y-6">
       {/* ── TIÊU ĐỀ BƯỚC 1 ────────────────────────────────────────────────── */}
       <div>
-        <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+        <h2 className="hue-h2 text-xl">
           Bước 1. Tải file mẫu để biên soạn
         </h2>
       </div>
 
       {downloadError && (
-        <div className="flex items-center justify-between p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-medium">
+        <div className="flex items-center justify-between p-3.5 bg-red-50 border border-red-200 rounded-[14px] text-red-700 text-xs font-medium">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
             <span>{downloadError}</span>
@@ -73,7 +73,7 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
           <button
             type="button"
             onClick={handleDownload}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-red-700 bg-white border border-red-300 rounded-[8px] hover:bg-red-50 transition-colors cursor-pointer"
           >
             <RefreshCw className="w-3 h-3" />
             <span>Thử lại</span>
@@ -84,8 +84,8 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
       {/* ── NỘI DUNG 2 CỘT ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* CỘT TRÁI (5/12): CHỌN DỮ LIỆU CẦN BIÊN SOẠN */}
-        <div className="lg:col-span-5 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-5">
-          <h3 className="text-sm font-bold text-gray-900">
+        <div className="lg:col-span-5 bg-white border border-gray-200 rounded-[14px] p-6 shadow-none space-y-5">
+          <h3 className="hue-h2 text-[17px]">
             Chọn dữ liệu cần biên soạn
           </h3>
 
@@ -95,7 +95,7 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
             <select
               value={bcvh}
               onChange={(e) => setBcvh(e.target.value)}
-              className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+              className="w-full text-xs font-semibold text-gray-800 bg-white border border-[#D9CBA8] rounded-[10px] p-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
             >
               {BCVH_LIST.map((b) => (
                 <option key={b.ma} value={b.ma}>
@@ -189,18 +189,18 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-[8px] border-b-[3px] border-amber-400 shadow-none transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
               <span>{downloading ? 'Đang tạo file...' : 'Tải file Excel (.xlsx)'}</span>
             </button>
             <span className="text-xs text-gray-500 font-medium">
-              Ví dụ: <strong className="text-gray-700">3.977</strong> dòng cho ngày 02/10
+              Ví dụ: <strong className="text-gray-700 tabular-nums">3.977</strong> dòng cho ngày 02/10
             </span>
           </div>
 
           {/* Chuyển sang bước 2 */}
-          <div className="pt-3 border-t border-gray-100">
+          <div className="pt-3 border-t border-cream-line">
             <button
               type="button"
               onClick={() => onNavigateStep(2)}
@@ -215,9 +215,9 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
         {/* CỘT PHẢI (7/12): HƯỚNG DẪN & PREVIEW FILE */}
         <div className="lg:col-span-7 space-y-5">
           {/* Box trên: Cấu trúc file Excel */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="bg-white border border-gray-200 rounded-[14px] p-6 shadow-none space-y-4">
             <div>
-              <h3 className="text-sm font-bold text-gray-900">
+              <h3 className="hue-h2 text-[17px]">
                 File Excel trông như thế này
               </h3>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
@@ -226,45 +226,45 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
             </div>
 
             {/* Bảng minh họa cấu trúc */}
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+            <div className="overflow-x-auto border border-cream-line rounded-lg">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
-                    <th className="p-2.5 border-r border-gray-200">SHBG</th>
-                    <th className="p-2.5 border-r border-gray-200">Ngày đến</th>
-                    <th className="p-2.5 border-r border-gray-200">Khung giờ đến</th>
-                    <th className="p-2.5 border-r border-gray-200">Đường thư</th>
-                    <th className="p-2.5 bg-orange-100/70 text-orange-900">Trạng thái</th>
+                  <tr className="bg-cream-head text-gray-700 font-bold border-b border-cream-line">
+                    <th className="p-2.5 border-r border-cream-line">SHBG</th>
+                    <th className="p-2.5 border-r border-cream-line">Ngày đến</th>
+                    <th className="p-2.5 border-r border-cream-line">Khung giờ đến</th>
+                    <th className="p-2.5 border-r border-cream-line">Đường thư</th>
+                    <th className="p-2.5 bg-amber-100 text-amber-900">Trạng thái</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-600 font-mono text-[11px]">
-                  <tr className="bg-gray-50/50">
-                    <td className="p-2 border-r border-gray-100">XX000000101VN</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Trước 10h</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-emerald-600 bg-white">Phát thành công</td>
+                <tbody className="divide-y divide-cream-line text-gray-600 text-[11px]">
+                  <tr className="bg-cream-light/20">
+                    <td className="p-2 border-r border-cream-line/50 font-mono">XX000000101VN</td>
+                    <td className="p-2 border-r border-cream-line/50 tabular-nums">02/10/2026</td>
+                    <td className="p-2 border-r border-cream-line/50">Trước 10h</td>
+                    <td className="p-2 border-r border-cream-line/50">Sàn KT KCN - BCVH Thuận Hóa</td>
+                    <td className="p-2 font-semibold text-emerald-600 bg-white">Phát thành công</td>
                   </tr>
-                  <tr className="bg-gray-50/50">
-                    <td className="p-2 border-r border-gray-100">XX000000102VN</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Trước 10h</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-emerald-600 bg-white">Phát thành công</td>
+                  <tr className="bg-cream-light/20">
+                    <td className="p-2 border-r border-cream-line/50 font-mono">XX000000102VN</td>
+                    <td className="p-2 border-r border-cream-line/50 tabular-nums">02/10/2026</td>
+                    <td className="p-2 border-r border-cream-line/50">Trước 10h</td>
+                    <td className="p-2 border-r border-cream-line/50">Sàn KT KCN - BCVH Thuận Hóa</td>
+                    <td className="p-2 font-semibold text-emerald-600 bg-white">Phát thành công</td>
                   </tr>
-                  <tr className="bg-gray-50/50">
-                    <td className="p-2 border-r border-gray-100">XX000000103VN</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">10–12h</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-amber-700 bg-white">Chuyển hoàn ▾</td>
+                  <tr className="bg-cream-light/20">
+                    <td className="p-2 border-r border-cream-line/50 font-mono">XX000000103VN</td>
+                    <td className="p-2 border-r border-cream-line/50 tabular-nums">02/10/2026</td>
+                    <td className="p-2 border-r border-cream-line/50">10–12h</td>
+                    <td className="p-2 border-r border-cream-line/50">Sàn KT KCN - BCVH Thuận Hóa</td>
+                    <td className="p-2 font-semibold text-amber-700 bg-white">Chuyển hoàn ▾</td>
                   </tr>
-                  <tr className="bg-gray-50/50">
-                    <td className="p-2 border-r border-gray-100">XX000000104VN</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">10–12h</td>
-                    <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - Hương Trà</td>
-                    <td className="p-2 bg-yellow-100/70 border border-yellow-300"></td>
+                  <tr className="bg-cream-light/20">
+                    <td className="p-2 border-r border-cream-line/50 font-mono">XX000000104VN</td>
+                    <td className="p-2 border-r border-cream-line/50 tabular-nums">02/10/2026</td>
+                    <td className="p-2 border-r border-cream-line/50">10–12h</td>
+                    <td className="p-2 border-r border-cream-line/50">Sàn KT KCN - Hương Trà</td>
+                    <td className="p-2 bg-amber-100 border border-amber-300"></td>
                   </tr>
                 </tbody>
               </table>

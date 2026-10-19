@@ -113,7 +113,7 @@ export default function ThamSoDrawer({
               <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200">
                 {nhomNhan}
               </span>
-              <span className="font-mono text-xs text-gray-500 truncate" title={param.khoa}>
+              <span className="tabular-nums text-xs text-gray-500 truncate" title={param.khoa}>
                 {param.khoa}
               </span>
             </div>

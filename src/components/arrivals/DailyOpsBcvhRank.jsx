@@ -45,13 +45,13 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
   const maxHang = xepHang.length > 0 ? Math.max(...xepHang.map((r) => r.hang)) : 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-2xs space-y-4">
+    <div className="bg-white rounded-[14px] border border-gray-200 p-5 sm:p-6 shadow-none space-y-4">
       {/* TIÊU ĐỀ KHỐI */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-red-900" />
-            <h3 className="text-lg font-black text-gray-800">
+            <Award className="w-5 h-5 text-orange-600" />
+            <h3 className="hue-h2">
               Xếp hạng BCVH theo kết quả phát
             </h3>
           </div>
@@ -90,23 +90,23 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
           {/* Nếu có đơn vị chưa đủ dữ liệu, liệt kê rõ ràng */}
           {chuaDu.length > 0 && (
             <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-600 uppercase border-b border-gray-200">
+              <div className="bg-cream-head px-4 py-2.5 text-xs font-bold text-gray-600 uppercase border-b border-gray-200">
                 Danh sách BCVH chưa đủ dữ liệu xếp hạng
               </div>
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-cream-line">
                 {chuaDu.map((row) => (
                   <div
                     key={row.bcvh}
                     className="p-3.5 flex items-center justify-between gap-3 bg-white"
                   >
                     <div>
-                      <span className="font-bold text-sm text-red-900">
+                      <span className="font-bold text-sm text-orange-600">
                         {row.ten}
                       </span>
                       <span className="text-xs text-gray-400 ml-1.5">· {row.bcvh}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-gray-600">
+                      <span className="text-xs tabular-nums text-gray-600">
                         {row.mau_so > 0 ? `${row.mau_so.toLocaleString('vi-VN')} bưu gửi` : '0 bưu gửi'}
                       </span>
                       <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-300">
@@ -121,9 +121,9 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
         </div>
       ) : (
         /* BẢNG XẾP HẠNG TIÊU CHUẨN (TRẠNG THÁI A / A2) */
-        <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-2xs">
+        <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-none">
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-gray-50 text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
+            <thead className="bg-cream-head text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-center w-16">Hạng</th>
                 <th className="px-4 py-3">BCVH</th>
@@ -135,7 +135,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
                 <th className="px-4 py-3 text-right">Chưa có TT</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-cream-line">
               {/* 1. CÁC HÀNG ĐƯỢC XẾP HẠNG */}
               {xepHang.map((row) => {
                 const isTop = row.hang === 1;
@@ -157,7 +157,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
                     {/* Cột Hạng: đồng hạng cùng số hạng (1, 2, 2, 4) */}
                     <td className="px-4 py-3 text-center">
                       {isTop ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black border border-emerald-300">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
                           {row.hang}
                         </span>
                       ) : isBottom ? (
@@ -173,47 +173,47 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
 
                     {/* Cột BCVH */}
                     <td className="px-4 py-3">
-                      <div className="font-bold text-red-900 flex items-center gap-1">
+                      <div className="font-bold text-orange-600 flex items-center gap-1">
                         <span>{row.ten}</span>
                         <span className="text-xs font-normal text-gray-400">· {row.bcvh}</span>
                       </div>
                     </td>
 
                     {/* Cột Bưu gửi đến */}
-                    <td className="px-4 py-3 text-right font-mono font-medium">
+                    <td className="px-4 py-3 text-right tabular-nums font-medium">
                       {row.mau_so?.toLocaleString('vi-VN')}
                     </td>
 
                     {/* Cột PTC */}
-                    <td className="px-4 py-3 text-right font-mono font-black">
+                    <td className="px-4 py-3 text-right tabular-nums font-bold">
                       <span className={row.ptc >= nguongPtc ? 'text-emerald-700' : 'text-amber-700'}>
                         {formatPercent(row.ptc)}
                       </span>
                     </td>
 
                     {/* Cột Không TC */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
+                    <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-600">
                       {row.theo_trang_thai?.PKTC?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.PKTC.ty_le)
                         : (row.pktc !== undefined ? formatPercent(row.pktc) : '—')}
                     </td>
 
                     {/* Cột Chuyển hoàn */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
+                    <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-600">
                       {row.theo_trang_thai?.CHUYEN_HOAN?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.CHUYEN_HOAN.ty_le)
                         : (row.chuyen_hoan !== undefined ? formatPercent(row.chuyen_hoan) : '—')}
                     </td>
 
                     {/* Cột Lạc hướng */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
+                    <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-600">
                       {row.theo_trang_thai?.LAC_HUONG?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.LAC_HUONG.ty_le)
                         : (row.lac_huong !== undefined ? formatPercent(row.lac_huong) : '—')}
                     </td>
 
                     {/* Cột Chưa có TT */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
+                    <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-600">
                       {row.theo_trang_thai?.CHUA_CO_TT?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.CHUA_CO_TT.ty_le)
                         : (row.chua_co_tt !== undefined ? formatPercent(row.chua_co_tt) : '—')}
@@ -235,7 +235,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
                       <span className="text-xs font-normal text-gray-400">· {row.bcvh}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-xs">
+                  <td className="px-4 py-3 text-right tabular-nums text-xs">
                     {row.mau_so > 0 ? row.mau_so.toLocaleString('vi-VN') : '0'}
                   </td>
                   <td className="px-4 py-3 text-right" colSpan={5}>

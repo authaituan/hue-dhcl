@@ -212,11 +212,11 @@ export default function ThamSoNhatKy({ allParams = [] }) {
       )}
 
       {/* BẢNG NHẬT KÝ */}
-      <div className="card-soft rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-2xs">
+      <div className="card-soft rounded-[14px] border border-gray-200 bg-white overflow-hidden shadow-none">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <tr className="bg-cream-head border-b border-cream-line text-[12px] font-bold text-gray-600 uppercase tracking-wider">
                 <th className="py-3 px-4">Thời điểm (giờ VN)</th>
                 <th className="py-3 px-4">Người sửa</th>
                 <th className="py-3 px-4">Tham số</th>
@@ -225,7 +225,7 @@ export default function ThamSoNhatKy({ allParams = [] }) {
                 <th className="py-3 px-4">Lý do</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-cream-line tabular-nums">
               {loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-400">
@@ -251,9 +251,9 @@ export default function ThamSoNhatKy({ allParams = [] }) {
                   const isSua = row.loai === 'SUA';
 
                   return (
-                    <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
+                    <tr key={row.id} className="hover:bg-cream-light/50 transition-colors">
                       {/* Thời điểm */}
-                      <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px] text-gray-600">
+                      <td className="py-3 px-4 whitespace-nowrap tabular-nums text-[11px] text-gray-600">
                         {formatUtcToVnDateTime(row.thoi_diem)}
                       </td>
 
@@ -263,7 +263,7 @@ export default function ThamSoNhatKy({ allParams = [] }) {
                           {row.nguoi?.ten || row.nguoi?.ma || '—'}
                         </div>
                         {row.nguoi?.ten && row.nguoi?.ma && (
-                          <div className="text-[10px] text-gray-400 font-mono">
+                          <div className="text-[10px] text-gray-400 tabular-nums">
                             {row.nguoi.ma}
                           </div>
                         )}
@@ -274,7 +274,7 @@ export default function ThamSoNhatKy({ allParams = [] }) {
                         <div className="font-bold text-gray-800 truncate" title={nhan}>
                           {nhan}
                         </div>
-                        <div className="font-mono text-[11px] text-gray-400 truncate" title={row.khoa}>
+                        <div className="tabular-nums text-[11px] text-gray-400 truncate" title={row.khoa}>
                           {row.khoa}
                         </div>
                       </td>

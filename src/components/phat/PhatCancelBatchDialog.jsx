@@ -163,7 +163,7 @@ export default function PhatCancelBatchDialog({
 
             {/* Hộp thống kê bưu gửi sẽ bị đổi */}
             <div className="bg-gray-50/80 border border-gray-200 rounded-xl p-4 space-y-2.5">
-              <div className="text-sm font-[900] text-gray-900">
+              <div className="text-sm font-bold text-gray-900 tabular-nums">
                 {formatInt(previewData?.so_nhap ?? batch?.so_nhap)} bưu gửi sẽ bị đổi:
               </div>
               <div className="space-y-1.5 text-xs text-gray-700">

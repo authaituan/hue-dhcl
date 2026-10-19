@@ -35,6 +35,13 @@
   --font-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Playfair Display", Georgia, serif;
 
+  --color-cream-line: #F0E8D4;
+  --color-cream-head: #FAF5E8;
+  --color-cream-light: #FFFBEF;
+  --color-cream-foot: #FBF7EC;
+  --color-warning-light: #FFF6DC;
+  --color-disabled-bg: #E4DCEB;
+
   /* THEME-2: palette override — xóa khối này để quay lại màu cũ */
   /* orange -> tím Huế */
   --color-orange-50: #F5EEFA;
@@ -171,6 +178,85 @@
 }
 
 @layer components {
+  /* Huế typography */
+  .hue-h1 {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.2;
+  }
+  .hue-h2 {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.3;
+  }
+  .hue-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-orange-500);
+  }
+  .hue-num-xl {
+    font-family: var(--font-serif);
+    font-size: 54px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-lg {
+    font-family: var(--font-serif);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-38 {
+    font-family: var(--font-serif);
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-md {
+    font-family: var(--font-serif);
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-30 {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-sm {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-26 {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .hue-num-xs {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  /* Huế: cỡ chữ cho màn rộng */
+  @media (min-width: 1600px) {
+    :root {
+      --text-xs: 14px;
+      --text-xs--line-height: 1.45;
+    }
+  }
+
   /* Cards */
   .card-soft {
     background-color: var(--color-card);

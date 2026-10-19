@@ -277,7 +277,7 @@ export default function ReplaceLogDetail({
                   <div className="font-bold text-rose-900">Không thể tải chi tiết</div>
                   <div>{error.message}</div>
                   {error.ma && (
-                    <div className="font-mono text-[11px] text-rose-600">Mã lỗi: {error.ma}</div>
+                    <div className="tabular-nums text-[11px] text-rose-600">Mã lỗi: {error.ma}</div>
                   )}
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function ReplaceLogDetail({
                     {detail.sao_luu?.tep && (
                       <div className="sm:col-span-2">
                         <span className="text-gray-500">File sao lưu:</span>{' '}
-                        <span className="font-mono text-[11px] text-gray-700 break-all">
+                        <span className="tabular-nums text-[11px] text-gray-700 break-all">
                           {detail.sao_luu.tep}
                         </span>
                       </div>
@@ -433,7 +433,7 @@ export default function ReplaceLogDetail({
                   <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase text-[10px]">
+                        <thead className="bg-cream-head border-b border-cream-line text-gray-600 font-bold uppercase text-[11px]">
                           <tr>
                             <th className="px-3.5 py-2">Tên file</th>
                             <th className="px-3 py-2">Trạng thái</th>
@@ -442,7 +442,7 @@ export default function ReplaceLogDetail({
                             <th className="px-3 py-2 text-right">Bỏ qua trùng</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-cream-line tabular-nums">
                           {tapFileMoi.length === 0 ? (
                             <tr>
                               <td colSpan={5} className="px-4 py-3 text-center text-gray-400">
@@ -451,8 +451,8 @@ export default function ReplaceLogDetail({
                             </tr>
                           ) : (
                             tapFileMoi.map((f, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50/70">
-                                <td className="px-3.5 py-2 font-mono text-[11px] text-gray-900 break-all font-medium">
+                              <tr key={idx} className="hover:bg-cream-light/50">
+                                <td className="px-3.5 py-2 tabular-nums text-[11px] text-gray-900 break-all font-medium">
                                   {f.ten || '—'}
                                 </td>
                                 <td className="px-3 py-2 whitespace-nowrap text-gray-600">
@@ -485,7 +485,7 @@ export default function ReplaceLogDetail({
                   <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase text-[10px]">
+                        <thead className="bg-cream-head border-b border-cream-line text-gray-600 font-bold uppercase text-[11px]">
                           <tr>
                             <th className="px-3.5 py-2">Tên file</th>
                             <th className="px-3 py-2">Nguồn</th>
@@ -493,7 +493,7 @@ export default function ReplaceLogDetail({
                             <th className="px-3 py-2 text-right">Số dòng</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-cream-line tabular-nums">
                           {tapFileCu.length === 0 ? (
                             <tr>
                               <td colSpan={4} className="px-4 py-3 text-center text-gray-400">
@@ -502,8 +502,8 @@ export default function ReplaceLogDetail({
                             </tr>
                           ) : (
                             tapFileCu.map((f, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50/70">
-                                <td className="px-3.5 py-2 font-mono text-[11px] text-gray-900 break-all font-medium">
+                              <tr key={idx} className="hover:bg-cream-light/50">
+                                <td className="px-3.5 py-2 tabular-nums text-[11px] text-gray-900 break-all font-medium">
                                   {f.ten || '—'}
                                 </td>
                                 <td className="px-3 py-2 whitespace-nowrap text-gray-600">

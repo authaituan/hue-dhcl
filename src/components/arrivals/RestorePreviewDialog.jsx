@@ -178,7 +178,7 @@ export default function RestorePreviewDialog({
                 <div className="font-bold text-rose-900">Không thể xem trước khôi phục</div>
                 <div>{error.message}</div>
                 {error.ma && (
-                  <div className="font-mono text-[11px] text-rose-600">Mã lỗi: {error.ma}</div>
+                  <div className="tabular-nums text-[11px] text-rose-600">Mã lỗi: {error.ma}</div>
                 )}
               </div>
             </div>
@@ -293,7 +293,7 @@ export default function RestorePreviewDialog({
                 <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase text-[10px] tracking-wider">
+                      <thead className="bg-cream-head border-b border-cream-line text-gray-600 font-bold uppercase text-[11px] tracking-wider">
                         <tr>
                           <th className="px-3.5 py-2.5">Tên file</th>
                           <th className="px-3 py-2.5">Trạng thái</th>
@@ -303,7 +303,7 @@ export default function RestorePreviewDialog({
                           <th className="px-3 py-2.5 text-right">Đã có</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-cream-line tabular-nums">
                         {fileList.length === 0 ? (
                           <tr>
                             <td colSpan={6} className="px-4 py-4 text-center text-gray-400">
@@ -317,8 +317,8 @@ export default function RestorePreviewDialog({
                               badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',
                             };
                             return (
-                              <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                                <td className="px-3.5 py-2 font-mono text-[11px] text-gray-900 break-all font-medium">
+                              <tr key={idx} className="hover:bg-cream-light/50 transition-colors">
+                                <td className="px-3.5 py-2 tabular-nums text-[11px] text-gray-900 break-all font-medium">
                                   {f.ten || '—'}
                                 </td>
                                 <td className="px-3 py-2 whitespace-nowrap text-gray-600">

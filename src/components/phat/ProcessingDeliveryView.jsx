@@ -304,7 +304,7 @@ export default function ProcessingDeliveryView({ authUser }) {
       {/* ── THANH ĐIỀU HƯỚNG TRÊN CÙNG: TIÊU ĐỀ & BỘ ĐIỀU KHIỂN ──────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[var(--color-title)] tracking-tight">
+          <h1 className="hue-h1">
             Xử lý và tỷ lệ phát
           </h1>
         </div>
@@ -312,8 +312,8 @@ export default function ProcessingDeliveryView({ authUser }) {
         {/* Cụm công cụ: Ngày, BCVH, Nút thao tác chuyển sang Đợt B */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Bộ chọn Ngày đến */}
-          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm text-xs">
-            <span className="font-semibold text-gray-500 whitespace-nowrap">Ngày đến:</span>
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs">
+            <span className="font-semibold text-gray-600 whitespace-nowrap">Ngày đến:</span>
             <CustomDatePicker
               id="phat-date-input"
               value={selectedDate}
@@ -324,7 +324,7 @@ export default function ProcessingDeliveryView({ authUser }) {
           </div>
 
           {/* Bộ chọn BCVH */}
-          <div className="flex items-center bg-white px-2 py-1.5 rounded-lg border border-gray-200 shadow-sm text-xs">
+          <div className="flex items-center bg-white px-2 py-1.5 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs">
             <select
               id="phat-bcvh-select"
               value={selectedBcvh}
@@ -349,7 +349,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             }}
             disabled={loading}
             title="Tải lại số liệu"
-            className="p-2 text-gray-500 hover:text-orange-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-orange-50 transition-colors disabled:opacity-50 cursor-pointer"
+            className="p-2 text-orange-600 hover:text-orange-700 bg-white border border-[#D9CBA8] rounded-[8px] shadow-none hover:bg-cream-light transition-colors disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -361,7 +361,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               setViewMode('import');
               setCurrentStep(1);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-cream-light border border-[#D9CBA8] text-orange-600 font-semibold text-xs rounded-[8px] shadow-none transition-colors cursor-pointer"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-orange-600" />
             <span>Tải file mẫu</span>
@@ -374,7 +374,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               setViewMode('import');
               setCurrentStep(2);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-[8px] border-b-[3px] border-amber-400 shadow-none transition-colors cursor-pointer"
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span>Nhập trạng thái phát</span>
@@ -384,16 +384,16 @@ export default function ProcessingDeliveryView({ authUser }) {
 
       {/* ── LỖI NẾU CÓ KHI TẢI TỶ LỆ ────────────────────────────────────────── */}
       {tyLeError && (
-        <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-medium">
+        <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-200 rounded-[14px] text-red-700 text-xs font-medium">
           <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
           <span>{tyLeError}</span>
         </div>
       )}
 
       {/* ── THÔNG TIN MẪU SỐ & MỐC TÍNH ────────────────────────────────────── */}
-      <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm text-xs text-gray-600 leading-relaxed">
+      <div className="bg-white border border-gray-200 rounded-[14px] p-3.5 shadow-none text-[13px] text-gray-600 leading-relaxed">
         <span>Mẫu số là số bưu gửi (SHBG) đến BCVH ngày {displayDateStr}, mỗi SHBG tính một lần: </span>
-        <strong className="text-gray-900 font-bold">{formatInt(mauSo)}</strong>.
+        <strong className="text-gray-900 font-bold tabular-nums">{formatInt(mauSo)}</strong>.
         <span> Trạng thái của mỗi SHBG lấy từ lần nhập mới nhất. </span>
         <span>
           {hasPhatData
@@ -405,13 +405,13 @@ export default function ProcessingDeliveryView({ authUser }) {
       {/* ── 5 THẺ CHỈ SỐ TRẠNG THÁI (GRID 5 CỘT) ────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* THẺ 1: PHÁT THÀNH CÔNG (PTC) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-900 flex flex-col justify-between min-h-[148px]">
+        <div className="bg-cream-light rounded-[14px] p-4 border-2 border-orange-600 ring-2 ring-amber-400/50 shadow-none flex flex-col justify-between min-h-[148px]">
           <div>
-            <div className="text-[11px] font-bold text-gray-800 tracking-wide uppercase">
+            <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               PHÁT THÀNH CÔNG (PTC)
             </div>
             <div
-              className="text-4xl font-[900] my-1 tracking-tight leading-none"
+              className="hue-num-lg my-1"
               style={{
                 color: !hasPhatData
                   ? 'var(--color-gray-400)'
@@ -420,13 +420,13 @@ export default function ProcessingDeliveryView({ authUser }) {
             >
               {formatRatePercent(theoTT.PTC?.ty_le)}
             </div>
-            <div className="text-xs font-semibold text-gray-600 mt-1.5">
+            <div className="text-xs font-semibold text-gray-600 mt-1.5 tabular-nums">
               {formatInt(theoTT.PTC?.so)} / {formatInt(mauSo)} bưu gửi
             </div>
           </div>
-          <div className="text-[11px] text-gray-500 font-medium mt-2 pt-2 border-t border-gray-100">
+          <div className="text-[12px] text-gray-500 font-medium mt-2 pt-2 border-t border-cream-line">
             Mức cập nhật kết quả phát{' '}
-            <strong className="text-gray-800 font-bold">
+            <strong className="text-gray-800 font-bold tabular-nums">
               {formatRatePercent(tyLeData?.muc_cap_nhat)}
             </strong>
             {' · '}
@@ -437,72 +437,72 @@ export default function ProcessingDeliveryView({ authUser }) {
         </div>
 
         {/* THẺ 2: PHÁT KHÔNG THÀNH CÔNG */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[148px]">
+        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
           <div>
             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               PHÁT KHÔNG THÀNH CÔNG
             </div>
             <div
-              className="text-3xl font-[900] my-2 tracking-tight leading-none"
+              className="hue-num-lg my-2"
               style={{ color: hasPhatData ? 'var(--color-red-600)' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.PKTC?.ty_le)}
             </div>
-            <div className="text-xs font-medium text-gray-600">
+            <div className="text-xs font-medium text-gray-600 tabular-nums">
               {formatInt(theoTT.PKTC?.so)} bưu gửi
             </div>
           </div>
         </div>
 
         {/* THẺ 3: CHUYỂN HOÀN */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[148px]">
+        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
           <div>
             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               CHUYỂN HOÀN
             </div>
             <div
-              className="text-3xl font-[900] my-2 tracking-tight leading-none"
+              className="hue-num-lg my-2"
               style={{ color: hasPhatData ? 'var(--color-amber-700)' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.CHUYEN_HOAN?.ty_le)}
             </div>
-            <div className="text-xs font-medium text-gray-600">
+            <div className="text-xs font-medium text-gray-600 tabular-nums">
               {formatInt(theoTT.CHUYEN_HOAN?.so)} bưu gửi
             </div>
           </div>
         </div>
 
         {/* THẺ 4: LẠC HƯỚNG */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[148px]">
+        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
           <div>
             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               LẠC HƯỚNG
             </div>
             <div
-              className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#7c3aed' : 'var(--color-gray-400)' }}
+              className="hue-num-lg my-2"
+              style={{ color: hasPhatData ? '#6B2F94' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.LAC_HUONG?.ty_le)}
             </div>
-            <div className="text-xs font-medium text-gray-600">
+            <div className="text-xs font-medium text-gray-600 tabular-nums">
               {formatInt(theoTT.LAC_HUONG?.so)} bưu gửi
             </div>
           </div>
         </div>
 
         {/* THẺ 5: CHƯA CÓ THÔNG TIN PHÁT */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[148px]">
+        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
           <div>
             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               CHƯA CÓ THÔNG TIN PHÁT
             </div>
             <div
-              className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#334155' : 'var(--color-gray-400)' }}
+              className="hue-num-lg my-2"
+              style={{ color: hasPhatData ? '#2A1B33' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.CHUA_CO_TT?.ty_le)}
             </div>
-            <div className="text-xs font-medium text-gray-600">
+            <div className="text-xs font-medium text-gray-600 tabular-nums">
               {formatInt(theoTT.CHUA_CO_TT?.so)} bưu gửi chưa được cập nhật
             </div>
           </div>
@@ -512,9 +512,9 @@ export default function ProcessingDeliveryView({ authUser }) {
       {/* ── BẢNG KHUNG GIỜ ĐẾN (TRÁI) & CÁC LẦN NHẬP GẦN ĐÂY (PHẢI) ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* CỘT TRÁI (8/12): BẢNG THEO KHUNG GIỜ ĐẾN BCVH */}
-        <div className="lg:col-span-8 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <div className="lg:col-span-8 bg-white border border-gray-200 rounded-[14px] p-5 shadow-none overflow-hidden">
           <div className="mb-4">
-            <h2 className="text-sm font-bold text-gray-900">
+            <h2 className="hue-h2 text-[17px]">
               Theo khung giờ đến BCVH
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -524,8 +524,8 @@ export default function ProcessingDeliveryView({ authUser }) {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500 font-bold">
+              <thead className="bg-cream-head text-gray-600 text-xs font-bold border-b border-cream-line">
+                <tr className="border-b border-cream-line text-gray-600 font-bold">
                   <th className="py-2.5 px-3">Khung giờ đến</th>
                   <th className="py-2.5 px-3 text-right">SHBG đến</th>
                   <th className="py-2.5 px-3 text-right">PTC</th>
@@ -535,21 +535,21 @@ export default function ProcessingDeliveryView({ authUser }) {
                   <th className="py-2.5 px-3 text-right">Chưa có thông tin</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
+              <tbody className="divide-y divide-cream-line text-gray-700">
                 {(tyLeData?.theo_khung_gio_den || []).map((row) => {
                   const tt = row.theo_trang_thai || {};
                   const hasBg = (row.so_den || 0) > 0;
 
                   return (
-                    <tr key={row.ma} className="hover:bg-gray-50/70 transition-colors">
+                    <tr key={row.ma} className="hover:bg-cream-light/30 transition-colors">
                       <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">
                         {row.nhan}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-medium text-gray-900 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-medium text-gray-900 whitespace-nowrap tabular-nums">
                         {formatInt(row.so_den)}
                       </td>
                       {/* PTC */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
                         {hasBg ? (
                           <span>
                             <strong
@@ -565,7 +565,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                         )}
                       </td>
                       {/* Không thành công */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
                         {hasBg ? (
                           <span>
                             <strong
@@ -581,7 +581,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                         )}
                       </td>
                       {/* Chuyển hoàn */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
                         {hasBg ? (
                           <span>
                             <strong
@@ -597,7 +597,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                         )}
                       </td>
                       {/* Lạc hướng */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
                         {hasBg ? (
                           <span>
                             <strong
@@ -613,7 +613,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                         )}
                       </td>
                       {/* Chưa có thông tin */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
                         {hasBg ? (
                           <span>
                             <strong
@@ -633,12 +633,12 @@ export default function ProcessingDeliveryView({ authUser }) {
                 })}
               </tbody>
               {/* DÒNG TỔNG CỘNG: CẢ NGÀY */}
-              <tfoot>
-                <tr className="border-t-2 border-gray-300 bg-gray-50/70 font-bold text-gray-900">
+              <tfoot className="border-t-2 border-amber-400 bg-cream-light font-bold text-gray-900">
+                <tr className="font-bold text-gray-900">
                   <td className="py-3 px-3">Cả ngày</td>
-                  <td className="py-3 px-3 text-right">{formatInt(mauSo)}</td>
+                  <td className="py-3 px-3 text-right tabular-nums">{formatInt(mauSo)}</td>
                   {/* PTC */}
-                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
                     <strong
                       className="font-bold mr-1.5"
                       style={{ color: getCellColor('PTC', theoTT.PTC?.ty_le) }}
@@ -648,7 +648,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                     <span className="text-gray-600 font-normal">{formatInt(theoTT.PTC?.so)}</span>
                   </td>
                   {/* PKTC */}
-                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
                     <strong
                       className="font-bold mr-1.5"
                       style={{ color: getCellColor('PKTC', theoTT.PKTC?.ty_le) }}
@@ -658,7 +658,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                     <span className="text-gray-600 font-normal">{formatInt(theoTT.PKTC?.so)}</span>
                   </td>
                   {/* Chuyển hoàn */}
-                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
                     <strong
                       className="font-bold mr-1.5"
                       style={{ color: getCellColor('CHUYEN_HOAN', theoTT.CHUYEN_HOAN?.ty_le) }}
@@ -668,7 +668,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                     <span className="text-gray-600 font-normal">{formatInt(theoTT.CHUYEN_HOAN?.so)}</span>
                   </td>
                   {/* Lạc hướng */}
-                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
                     <strong
                       className="font-bold mr-1.5"
                       style={{ color: getCellColor('LAC_HUONG', theoTT.LAC_HUONG?.ty_le) }}
@@ -678,7 +678,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                     <span className="text-gray-600 font-normal">{formatInt(theoTT.LAC_HUONG?.so)}</span>
                   </td>
                   {/* Chưa có thông tin */}
-                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                  <td className="py-3 px-3 text-right whitespace-nowrap tabular-nums">
                     <strong
                       className="font-bold mr-1.5"
                       style={{ color: getCellColor('CHUA_CO_TT', theoTT.CHUA_CO_TT?.ty_le) }}
@@ -694,10 +694,10 @@ export default function ProcessingDeliveryView({ authUser }) {
         </div>
 
         {/* CỘT PHẢI (4/12): CÁC LẦN NHẬP GẦN ĐÂY */}
-        <div className="lg:col-span-4 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white border border-gray-200 rounded-[14px] p-5 shadow-none flex flex-col justify-between">
           <div>
             <div className="mb-4">
-              <h2 className="text-sm font-bold text-gray-900">
+              <h2 className="hue-h2 text-[17px]">
                 Các lần nhập gần đây
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -741,7 +741,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                   const nguoiNhap = item.nhap_boi?.full_name || 'Người dùng';
 
                   return (
-                    <div key={item.id} className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
+                    <div key={item.id} className="pb-3 border-b border-cream-line last:border-b-0 last:pb-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-xs font-bold text-gray-900">
                           Số liệu tính đến {itemTime ? itemTime.fullDateTime : item.nhap_luc_bangkok}
@@ -753,7 +753,7 @@ export default function ProcessingDeliveryView({ authUser }) {
                             </span>
                           )}
                           {item.trang_thai === 'da_hoan_tac' && (
-                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200 rounded-full">
+                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-[#EFE6D2] text-gray-600 border border-[#D9CBA8] rounded-full">
                               Đã hủy
                             </span>
                           )}
@@ -762,9 +762,9 @@ export default function ProcessingDeliveryView({ authUser }) {
                       <div className="text-xs text-gray-600 mt-1 leading-relaxed">
                         <span className="font-medium text-gray-800">{nguoiNhap}</span>
                         {' · '}
-                        nhập {formatInt(item.so_nhap)}
+                        nhập <span className="tabular-nums font-semibold">{formatInt(item.so_nhap)}</span>
                         {' · '}
-                        lỗi {formatInt(item.so_loi)}
+                        lỗi <span className="tabular-nums font-semibold">{formatInt(item.so_loi)}</span>
                       </div>
                     </div>
                   );
@@ -774,11 +774,11 @@ export default function ProcessingDeliveryView({ authUser }) {
           </div>
 
           {/* Dòng liên kết xem toàn bộ lịch sử */}
-          <div className="pt-4 mt-4 border-t border-gray-100">
+          <div className="pt-4 mt-4 border-t border-cream-line">
             <button
               type="button"
               onClick={() => setViewMode('history')}
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer flex items-center gap-1 underline underline-offset-2"
+              className="text-[13px] font-bold text-red-600 hover:text-red-700 cursor-pointer flex items-center gap-1 hover:underline"
             >
               <span>Xem toàn bộ lịch sử →</span>
             </button>

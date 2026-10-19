@@ -41,14 +41,14 @@ export function formatBangkokTime(str) {
 /** Một cột số lớn của thẻ PTC lớn: nhãn, số, tử / mẫu (+ ghi chú một dòng). */
 function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong = false }) {
   return (
-    <div className="min-w-0 shrink-0 w-[88px]">
-      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{nhan}</div>
+    <div className="min-w-0 shrink-0 w-[96px]">
+      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{nhan}</div>
       {trong ? (
-        <div className="text-[26px] font-black leading-none my-0.5 text-gray-400">…</div>
+        <div className="hue-num-md leading-none my-0.5 text-gray-400">…</div>
       ) : (
         <>
-          <div className={`text-[26px] font-black leading-none my-0.5 ${mauChu}`}>{tyLe}</div>
-          <div className="text-[11px] font-semibold text-gray-600 whitespace-nowrap">{so} / {mau}</div>
+          <div className={`hue-num-md leading-none my-0.5 ${mauChu}`}>{tyLe}</div>
+          <div className="text-[11px] font-semibold text-gray-600 whitespace-nowrap font-sans">{so} / {mau}</div>
         </>
       )}
       {ghiChu && <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{ghiChu}</div>}
@@ -59,10 +59,10 @@ function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong
 /** Thẻ nhỏ: nhãn (cả dòng), số hôm nay + tỷ lệ, đường diễn biến nhỏ bên phải, chân thẻ 44px «01/MM→ số · %» + chênh. */
 function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu = null }) {
   const mauNhan = canhBao ? 'text-red-800' : 'text-gray-500';
-  const mauSo = canhBao ? 'text-red-800' : 'text-dark';
+  const mauSo = canhBao ? 'text-red-800' : 'text-orange-600';
   const mauTyLe = canhBao ? 'text-red-700' : 'text-gray-600';
   return (
-    <div className={`rounded-2xl border shadow-2xs flex flex-col overflow-hidden transition-all ${canhBao ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+    <div className={`rounded-[14px] border shadow-none flex flex-col overflow-hidden transition-all ${canhBao ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
       <div className="p-4 pb-2 flex-1">
         <div className="flex items-center justify-between gap-1 mb-1">
           <span className={`text-[11px] font-bold uppercase tracking-wider line-clamp-1 ${mauNhan}`}>{nhan}</span>
@@ -72,7 +72,7 @@ function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu 
         </div>
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0">
-            <div className={`text-2xl font-black leading-tight ${mauSo}`}>{hienSo ? so.toLocaleString('vi-VN') : '—'}</div>
+            <div className={`hue-num-sm leading-tight ${mauSo}`}>{hienSo ? so.toLocaleString('vi-VN') : '—'}</div>
             <div className={`text-xs font-semibold ${mauTyLe}`}>{hienSo ? formatPercent(tyLe) : '—'}</div>
           </div>
           <div className="w-[64px] shrink-0">
@@ -89,7 +89,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   // Trạng thái D: Lỗi quyền (403) hoặc lỗi mạng khi tải kết quả phát
   if (phatError) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-center gap-3 shadow-2xs">
+      <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-[14px] flex items-center gap-3 shadow-none">
         <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
         <div className="text-xs">
           <span className="font-bold">Kết quả phát: </span>
@@ -103,9 +103,9 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   if (!ketQuaPhat) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="md:col-span-2 lg:col-span-2 h-32 bg-white rounded-2xl border border-gray-200 p-5 animate-pulse" />
+        <div className="md:col-span-2 lg:col-span-2 h-32 bg-white rounded-[14px] border border-gray-200 p-5 animate-pulse" />
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 bg-white rounded-2xl border border-gray-200 p-4 animate-pulse" />
+          <div key={i} className="h-32 bg-white rounded-[14px] border border-gray-200 p-4 animate-pulse" />
         ))}
       </div>
     );
@@ -165,16 +165,16 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
     ptcCardBg = 'bg-emerald-50 border-emerald-200';
     ptcTextColor = 'text-emerald-700';
     ptcBadge = (
-      <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+      <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
         <span>Đạt mục tiêu (≥ {Math.round(nguongPtc * 100)}%)</span>
       </span>
     );
   } else {
-    ptcCardBg = 'bg-amber-50 border-amber-200';
+    ptcCardBg = 'bg-warning-light border-amber-400';
     ptcTextColor = 'text-amber-700';
     ptcBadge = (
-      <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+      <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-white text-amber-700 border border-amber-400 flex items-center gap-1">
         <AlertTriangle className="w-3 h-3 text-amber-600" />
         <span>Chưa đạt mục tiêu (&lt; {Math.round(nguongPtc * 100)}%)</span>
       </span>
@@ -196,9 +196,9 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
       {/* 1. THẺ PTC LỚN (chiếm 2 cột trên màn lớn): hai cột HÔM NAY | TỪ 01/MM + chip chênh và đường diễn biến có vạch mục tiêu */}
-      <div className={`md:col-span-2 lg:col-span-2 rounded-2xl border p-4 shadow-2xs flex flex-col gap-1.5 transition-all ${ptcCardBg}`}>
+      <div className={`md:col-span-2 lg:col-span-2 rounded-[14px] border p-4 shadow-none flex flex-col gap-1.5 transition-all ${ptcCardBg}`}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">
+          <span className="text-[12px] font-bold text-orange-600 uppercase tracking-wider">
             Tỷ lệ phát thành công (PTC)
           </span>
           {ptcBadge}

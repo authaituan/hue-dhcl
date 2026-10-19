@@ -415,14 +415,14 @@ function ImportNetworkModal({ onClose, onSuccess }) {
 
               <div className="border border-gray-200 rounded-xl overflow-auto max-h-[320px]">
                 <table className="w-full text-left text-[11px]">
-                  <thead className="bg-white text-[var(--color-body)] font-semibold border-b border-gray-200 sticky top-0">
+                  <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line sticky top-0">
                     <tr>
                       {headerFields.map((f) => (
                         <th key={f.key} className="py-2 px-3 whitespace-nowrap">{f.label}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 font-mono">
+                  <tbody className="divide-y divide-cream-line tabular-nums">
                     {previewRows.map((r, idx) => {
                       const invalid = !r.maMbc;
                       return (
@@ -905,7 +905,7 @@ function PostOfficeDetailModal({ po, onClose }) {
             <div className="text-[11px] font-semibold text-[var(--color-body)] uppercase mb-1">Mã & Tên Bưu Cục</div>
             <div className="text-sm font-bold text-[var(--color-title)]">{po.code} — {po.name}</div>
             <div className="text-[var(--color-body)] mt-0.5">
-              {po.type && <span className="px-1.5 py-0.5 rounded bg-white text-[var(--color-body)] text-[10px] font-mono border border-[var(--color-border)] mr-1.5">{po.type}</span>}
+              {po.type && <span className="px-1.5 py-0.5 rounded bg-white text-[var(--color-body)] text-[10px] tabular-nums border border-[var(--color-border)] mr-1.5">{po.type}</span>}
               {po.commune_name}
             </div>
           </div>
@@ -916,7 +916,7 @@ function PostOfficeDetailModal({ po, onClose }) {
             {po.phone && (
               <div className="flex items-center gap-1.5 text-[var(--color-body)] mt-1">
                 <Phone className="w-3.5 h-3.5 text-[var(--color-body)]" />
-                <span className="font-mono">{po.phone}</span>
+                <span className="tabular-nums">{po.phone}</span>
               </div>
             )}
           </div>
@@ -925,7 +925,7 @@ function PostOfficeDetailModal({ po, onClose }) {
             <div className="text-[11px] font-semibold text-[var(--color-body)] uppercase mb-1">Toạ Độ & Bản Đồ</div>
             {hasCoords ? (
               <div>
-                <div className="font-mono text-[var(--color-title)]">{po.latitude}, {po.longitude}</div>
+                <div className="tabular-nums text-[var(--color-title)]">{po.latitude}, {po.longitude}</div>
                 <a
                   href={`https://www.google.com/maps?q=${po.latitude},${po.longitude}`}
                   target="_blank"
@@ -1086,13 +1086,13 @@ export default function NetworkListView() {
   return (
     <div className="p-6 space-y-6">
       {/* Header & Filter Bar */}
-      <div className="card-soft p-5 rounded-2xl space-y-4">
+      <div className="card-soft p-5 rounded-[14px] space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-[var(--color-title)] flex items-center gap-2">
+            <h1 className="hue-h1 text-2xl flex items-center gap-2">
               <Network className="w-5 h-5 text-[var(--color-primary)]" />
               <span>Quản Lý Mạng Lưới — Danh Sách</span>
-            </h2>
+            </h1>
             <p className="text-xs text-[var(--color-body)] mt-1">
               Danh mục chuẩn Tỉnh/BĐX/Bưu cục — nguồn tổ chức duy nhất cho toàn hệ thống (BĐT/TP ➔ BĐX ➔ Bưu Cục)
             </p>
@@ -1101,14 +1101,14 @@ export default function NetworkListView() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setIsExportOpen(true)}
-              className="btn btn-outline-primary border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-800 flex items-center gap-2"
+              className="px-3 py-1.5 rounded-[8px] bg-white border border-[#D9CBA8] text-[#4A1D6E] font-semibold text-xs hover:bg-[#F6F1E7] transition-all flex items-center gap-2 cursor-pointer shadow-none"
             >
               <Download className="w-4 h-4" />
               <span>Export Excel</span>
             </button>
             <button
               onClick={() => setIsImportOpen(true)}
-              className="btn btn-outline-primary flex items-center gap-2"
+              className="px-3 py-1.5 rounded-[8px] bg-white border border-[#D9CBA8] text-[#4A1D6E] font-semibold text-xs hover:bg-[#F6F1E7] transition-all flex items-center gap-2 cursor-pointer shadow-none"
             >
               <Upload className="w-4 h-4" />
               <span>Import Excel</span>
@@ -1118,7 +1118,7 @@ export default function NetworkListView() {
                 setEditingPostOffice(null);
                 setIsFormOpen(true);
               }}
-              className="btn btn-dark flex items-center gap-1.5"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#4A1D6E] text-white font-bold border-b-[3px] border-[#E0A82E] text-xs shadow-none cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Thêm Bưu Cục</span>
@@ -1200,7 +1200,7 @@ export default function NetworkListView() {
       )}
 
       {/* Table — ĐÚNG 5 cột gộp cell theo layout PO duyệt */}
-      <div className="card-soft rounded-2xl overflow-hidden">
+      <div className="card-soft rounded-[14px] overflow-hidden">
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3">
             <div className="w-8 h-8 border-3 border-orange-200 border-t-[var(--color-primary)] rounded-full animate-spin"></div>
@@ -1216,7 +1216,7 @@ export default function NetworkListView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-[var(--color-body)] font-semibold border-b border-gray-200 uppercase tracking-wider text-[11px]">
+                <tr className="bg-cream-head text-gray-600 font-bold border-b border-cream-line uppercase tracking-wider text-[12px]">
                   <th className="py-3.5 px-4">Mã & Tên Bưu Cục</th>
                   <th className="py-3.5 px-4">Địa Chỉ & Liên Hệ</th>
                   <th className="py-3.5 px-4">Toạ Độ & Bản Đồ</th>
@@ -1224,17 +1224,17 @@ export default function NetworkListView() {
                   <th className="py-3.5 px-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-cream-line">
                 {pageItems.map((po) => {
                   const hasCoords = po.latitude !== null && po.latitude !== undefined && po.longitude !== null && po.longitude !== undefined;
                   const isActive = po.operational_status === 'ACTIVE' || !po.operational_status;
                   return (
-                    <tr key={po.id} className="hover:bg-gray-50 transition-colors align-top">
+                    <tr key={po.id} className="hover:bg-cream-light/50 transition-colors align-top">
                       {/* Cột 1: Mã & Tên Bưu Cục */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-[var(--color-title)]">{po.code} — {po.name}</div>
                         <div className="text-[10px] text-[var(--color-body)] mt-0.5 flex items-center gap-1">
-                          {po.type && <span className="px-1.5 py-0.5 rounded bg-white text-[var(--color-body)] font-mono border border-[var(--color-border)]">{po.type}</span>}
+                          {po.type && <span className="px-1.5 py-0.5 rounded bg-white text-[var(--color-body)] tabular-nums border border-[var(--color-border)]">{po.type}</span>}
                           <span>• {po.commune_name}</span>
                         </div>
                       </td>
@@ -1251,7 +1251,7 @@ export default function NetworkListView() {
                         {po.phone && (
                           <div className="flex items-center gap-1.5 text-[var(--color-body)] text-[10px] mt-1">
                             <Phone className="w-3 h-3 shrink-0" />
-                            <span className="font-mono">{po.phone}</span>
+                            <span className="tabular-nums">{po.phone}</span>
                           </div>
                         )}
                       </td>
@@ -1260,7 +1260,7 @@ export default function NetworkListView() {
                       <td className="py-3.5 px-4">
                         {hasCoords ? (
                           <>
-                            <div className="text-[var(--color-body)] font-mono text-[10px]">{po.latitude}, {po.longitude}</div>
+                            <div className="text-[var(--color-body)] tabular-nums text-[10px]">{po.latitude}, {po.longitude}</div>
                             <a
                               href={`https://www.google.com/maps?q=${po.latitude},${po.longitude}`}
                               target="_blank"

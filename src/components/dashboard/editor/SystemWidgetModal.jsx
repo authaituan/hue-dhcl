@@ -49,7 +49,7 @@ export default function SystemWidgetModal({ widget, onClose, onSuccess }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 font-sans" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 font-sans">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-full">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="font-bold text-lg text-gray-800">Sửa ô hệ thống</h3>

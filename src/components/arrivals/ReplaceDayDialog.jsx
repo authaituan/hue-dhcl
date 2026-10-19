@@ -279,7 +279,7 @@ export default function ReplaceDayDialog({
                   </div>
                   <div className="leading-relaxed pl-5.5">{submitError.message}</div>
                   {submitError.code && (
-                    <div className="text-[10px] text-red-500 font-mono pl-5.5">
+                    <div className="text-[10px] text-red-500 tabular-nums pl-5.5">
                       Mã: {submitError.code}
                     </div>
                   )}
@@ -315,7 +315,7 @@ export default function ReplaceDayDialog({
               <div className="space-y-3 pt-1">
                 <div className="space-y-1.5">
                   <label htmlFor="input-xac-nhan-bcvh" className="block text-xs font-semibold text-gray-700">
-                    Gõ lại mã BCVH để xác nhận (<span className="font-mono text-orange-600 font-bold">{bcvh}</span>):
+                    Gõ lại mã BCVH để xác nhận (<span className="tabular-nums text-orange-600 font-bold">{bcvh}</span>):
                   </label>
                   <input
                     id="input-xac-nhan-bcvh"
@@ -324,13 +324,13 @@ export default function ReplaceDayDialog({
                     onChange={(e) => setConfirmBcvh(e.target.value)}
                     disabled={isSubmitting}
                     placeholder={`Gõ đúng: ${bcvh}`}
-                    className="w-full text-xs font-mono font-medium px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all disabled:opacity-50"
+                    className="w-full text-xs tabular-nums font-medium px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all disabled:opacity-50"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label htmlFor="input-xac-nhan-ngay" className="block text-xs font-semibold text-gray-700">
-                    Gõ lại ngày dd/mm/yyyy để xác nhận (<span className="font-mono text-orange-600 font-bold">{ngayDmy}</span>):
+                    Gõ lại ngày dd/mm/yyyy để xác nhận (<span className="tabular-nums text-orange-600 font-bold">{ngayDmy}</span>):
                   </label>
                   <input
                     id="input-xac-nhan-ngay"
@@ -339,7 +339,7 @@ export default function ReplaceDayDialog({
                     onChange={(e) => setConfirmDate(e.target.value)}
                     disabled={isSubmitting}
                     placeholder={`Gõ đúng: ${ngayDmy}`}
-                    className="w-full text-xs font-mono font-medium px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all disabled:opacity-50"
+                    className="w-full text-xs tabular-nums font-medium px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all disabled:opacity-50"
                   />
                 </div>
               </div>

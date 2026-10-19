@@ -76,7 +76,7 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
   };
 
   return (
-    <div className="card-soft p-4 sm:p-5 flex flex-col gap-4">
+    <div className="bg-white rounded-[14px] border border-gray-200 p-4 sm:p-5 shadow-none flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
         {/* Dates */}
         <div className="flex-[2_1_340px] flex flex-col gap-1">
@@ -103,7 +103,7 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
         <div className="flex-[1_1_200px] flex flex-col gap-1">
           <label className="text-[12px] font-semibold text-gray-600">Địa bàn phát (phường/xã)</label>
           <select
-            className="h-[44px] px-2.5 border border-input-border rounded-lg bg-white text-[14px]"
+            className="h-[44px] px-2.5 border border-input-border rounded-[10px] bg-white text-[14px]"
             value={local.ward_key}
             onChange={e => setLocal({ ...local, ward_key: e.target.value })}
           >
@@ -119,7 +119,7 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
           type="button"
           onClick={handleApplyClick}
           disabled={loading}
-          className="btn-primary h-[44px] px-[22px] border-0 rounded-lg text-[14px] font-semibold cursor-pointer flex items-center justify-center"
+          className="bg-orange-600 text-white font-bold border-0 border-b-[3px] border-amber-400 h-[44px] px-[22px] rounded-[10px] text-[14px] cursor-pointer flex items-center justify-center hover:bg-orange-700 transition-colors"
         >
           Áp dụng
         </button>
@@ -133,9 +133,9 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
         <div className="flex flex-wrap gap-2">
           <button
             onClick={toggleAllBcvh}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+            className={`px-3 py-1.5 rounded-full text-[13px] font-bold transition-colors border ${
               local.receiver_code.length === bcvhList.length 
-                ? 'bg-orange-500 text-white border-orange-500 shadow-sm' 
+                ? 'bg-amber-400 text-orange-700 border-amber-400 shadow-none' 
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -147,9 +147,9 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
               <button
                 key={b.ma}
                 onClick={() => toggleBcvh(b.ma)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors border ${
                   isSelected 
-                    ? 'bg-orange-500 text-white border-orange-500 shadow-sm' 
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-none' 
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                 }`}
               >

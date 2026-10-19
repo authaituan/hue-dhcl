@@ -121,7 +121,7 @@ export function nhanLuyKe(thang) {
  */
 export function PtcThangFooter({ thang, ma }) {
   const cfg = PTC_THANG_CAU_HINH[ma];
-  const khung = 'h-11 shrink-0 bg-gray-100 border-t border-border px-4 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
+  const khung = 'h-11 shrink-0 bg-cream-foot border-t border-cream-line px-4 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
   if (thang === null || thang === undefined) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: …</div>;
   const L = thang && thang.luy_ke;
   if (!L || !cfg) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: chưa có số liệu</div>;
@@ -129,9 +129,9 @@ export function PtcThangFooter({ thang, ma }) {
   const co = L.so_ngay_co_so_lieu > 0 && L.mau_so > 0;
   return (
     <div className={khung}>
-      <span className="min-w-0 truncate text-gray-600 font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
+      <span className="min-w-0 truncate text-gray-500 font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
         {co ? (
-          <>{nhanLuyKe(thang)} <span className="font-black text-dark">{(tt?.so ?? 0).toLocaleString('vi-VN')}</span> · {formatPct1(tt?.ty_le)}</>
+          <>{nhanLuyKe(thang)} <span className="font-bold text-gray-800 font-sans">{(tt?.so ?? 0).toLocaleString('vi-VN')}</span> · {formatPct1(tt?.ty_le)}</>
         ) : (
           <span className="text-gray-400 font-medium">Chưa có ngày đủ số liệu</span>
         )}

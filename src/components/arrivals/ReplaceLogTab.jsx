@@ -313,7 +313,7 @@ export default function ReplaceLogTab({ authUser }) {
               onChange={(e) => setFilterNguoi(e.target.value.slice(0, 60))}
               disabled={loading}
               placeholder="Mã HRM hoặc script"
-              className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-mono shadow-2xs"
+              className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all tabular-nums shadow-none"
             />
           </div>
 
@@ -417,7 +417,7 @@ export default function ReplaceLogTab({ authUser }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs min-w-[840px]">
-              <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-semibold uppercase text-[10px] tracking-wider">
+              <thead className="bg-cream-head border-b border-cream-line text-gray-600 font-bold uppercase text-[11px] tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Thực hiện lúc</th>
                   <th className="px-3.5 py-3">BCVH</th>
@@ -428,7 +428,7 @@ export default function ReplaceLogTab({ authUser }) {
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-cream-line tabular-nums">
                 {items.map((item) => {
                   const bcvhObj = BCVH_LIST.find((b) => b.ma === item.bcvh);
                   const bcvhLabel = bcvhObj ? `${bcvhObj.ten} (${item.bcvh})` : item.bcvh;
@@ -436,7 +436,7 @@ export default function ReplaceLogTab({ authUser }) {
                   const canRestore = isAdmin && Boolean(item.thung_rac?.con_khoi_phuc_duoc);
 
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50/80 transition-colors">
+                    <tr key={item.id} className="hover:bg-cream-light/50 transition-colors">
                       {/* Thực hiện lúc */}
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 font-medium">
                         {formatDateTime(item.thoi_diem_bangkok, item.thoi_diem)}

@@ -136,7 +136,7 @@ export default function PhatCommitResultView({
           <CheckCircle2 className="w-7 h-7" />
         </div>
         <div>
-          <div className="text-lg font-[900] text-gray-900 tracking-tight">
+          <div className="text-lg font-bold text-gray-900 tracking-tight">
             Đã nhập {formatInt(commitData.so_nhap)} dòng lúc {timeFormatted}
           </div>
           <div className="text-xs text-gray-600 mt-1">
@@ -186,7 +186,7 @@ export default function PhatCommitResultView({
           )}
 
           <div>
-            <h3 className="text-sm font-bold text-gray-900">
+            <h3 className="hue-h2 text-[17px]">
               Tỷ lệ phát ngày {ngayFormatted}, trước và sau lần nhập này
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -194,17 +194,17 @@ export default function PhatCommitResultView({
             </p>
           </div>
 
-          <div className="overflow-x-auto border border-gray-100 rounded-xl">
+          <div className="overflow-x-auto border border-cream-line rounded-lg">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-gray-50/70 text-gray-500 font-bold border-b border-gray-200">
+              <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line">
+                <tr className="border-b border-cream-line text-gray-600 font-bold">
                   <th className="py-2.5 px-3">Trạng thái</th>
                   <th className="py-2.5 px-3 text-right">Trước</th>
                   <th className="py-2.5 px-3 text-right">Sau</th>
                   <th className="py-2.5 px-3 text-right">Chênh</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
+              <tbody className="divide-y divide-cream-line text-gray-700">
                 {STATUS_KEYS.map((st) => {
                   const tRate = truocObj.theo_trang_thai?.[st.ma]?.ty_le ?? null;
                   const sRate = sauObj.theo_trang_thai?.[st.ma]?.ty_le ?? null;
@@ -212,17 +212,17 @@ export default function PhatCommitResultView({
                   const diffColor = getDiffColor(st.ma, sRate, tRate);
 
                   return (
-                    <tr key={st.ma} className="hover:bg-gray-50/50">
+                    <tr key={st.ma} className="hover:bg-cream-light/30">
                       <td className={`py-3 px-3 font-semibold ${st.color}`}>
                         {st.nhan}
                       </td>
-                      <td className="py-3 px-3 text-right text-gray-600 font-medium">
+                      <td className="py-3 px-3 text-right text-gray-600 font-medium tabular-nums">
                         {formatRatePercent(tRate)}
                       </td>
-                      <td className="py-3 px-3 text-right font-[900] text-gray-900">
+                      <td className="py-3 px-3 text-right font-bold text-gray-900 tabular-nums">
                         {formatRatePercent(sRate)}
                       </td>
-                      <td className={`py-3 px-3 text-right font-bold ${diffColor}`}>
+                      <td className={`py-3 px-3 text-right font-bold tabular-nums ${diffColor}`}>
                         {diffStr}
                       </td>
                     </tr>
@@ -240,16 +240,16 @@ export default function PhatCommitResultView({
         {/* CỘT PHẢI (7/12): CHƯA NHẬP & QUY TẮC NHẬP LẦN SAU */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card trên: Chưa nhập, cần xử lý tiếp */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-gray-900">
+          <div className="bg-white border border-gray-200 rounded-[14px] p-6 shadow-none space-y-4">
+            <h3 className="hue-h2 text-[17px]">
               Chưa nhập, cần xử lý tiếp
             </h3>
 
             {/* 2 stat boxes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Box lỗi */}
-              <div className="bg-red-50/60 border border-red-200 rounded-2xl p-4">
-                <div className="text-3xl font-[900] text-red-600">
+              <div className="bg-rose-50 border border-rose-200 rounded-[14px] p-4">
+                <div className="hue-num-md text-red-600 tabular-nums">
                   {formatInt(commitData.loi_can_sua ?? commitData.so_loi ?? 0)}
                 </div>
                 <div className="text-xs text-red-700 font-medium mt-1">
@@ -258,8 +258,8 @@ export default function PhatCommitResultView({
               </div>
 
               {/* Box để trống */}
-              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <div className="text-3xl font-[900] text-gray-700">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4">
+                <div className="hue-num-md text-gray-700 tabular-nums">
                   {formatInt(commitData.bo_qua_trong ?? commitData.so_bo_qua ?? 0)}
                 </div>
                 <div className="text-xs text-gray-500 font-medium mt-1">
