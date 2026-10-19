@@ -147,3 +147,16 @@ export async function apiDownloadExcel(url, defaultFilename = 'download.xlsx') {
 
   return { ok: true, error: null };
 }
+
+// Gán BCVH cho GDVH (GANBCVH-1)
+export async function apiGetUserBcvh(userId) {
+  return apiFetchJson(`/api/users/${userId}/bcvh`);
+}
+
+export async function apiUpdateUserBcvh(userId, codes) {
+  return apiFetchJson(`/api/users/${userId}/bcvh`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes })
+  });
+}
