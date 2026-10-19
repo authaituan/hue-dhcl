@@ -799,5 +799,14 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 4. Cờ không bền: bản nhập cuối quyết định; không có cột «từng vu hồi». Hoàn tác khôi phục cờ từ bản trước.
 5. Nâng cấp thêm cột chạy lúc khởi động: sao lưu file DB trước khi chạy bản mới.
 
+### 107. Tỷ lệ «Đã vu hồi» theo ngày đến và theo tháng (PO chốt 20/10/2026 — VUHOI-2)
+1. Tỷ lệ vu hồi = số bưu gửi PKTC có cờ vu hồi ÷ số bưu gửi PKTC, theo NGÀY ĐẾN (#92), cùng phạm vi BCVH. Không có «sản lượng vu hồi» riêng; mẫu số chính là PKTC của `ket-qua-phat` / `ket-qua-phat-thang`.
+2. Hiển thị (`hien_thi`), thứ tự ưu tiên: tử số 0 → `CHUA_CO_SO_LIEU` (kể cả 0/3, 0/0; không hiện 0%); còn lại mẫu số < 10 → `SO_TUYET_DOI` (vd 1/3, không %, không tô đánh giá); còn lại → `TY_LE`. Ưu tiên «chưa có số liệu» trước «số tuyệt đối» là quyết định của CTO (PO chưa phản đối).
+3. Ngưỡng 10 là HẰNG SỐ trong code (`NGUONG_MAU_SO_VU_HOI`, `server/config/phat.js`), không vào bảng tham số ADMIN (thêm khóa sẽ vỡ test «đúng 25 khóa»).
+4. Tháng: cộng dồn `pktc` và `da_vu_hoi` các ngày đến trong tháng rồi áp quy tắc `hien_thi` trên số cộng dồn. Cờ lấy từ đúng dòng lịch sử mà #92 chọn (`NHAP_ROW.sel`), nên «cờ không bền» (#106-4) vẫn đúng.
+5. Bộ nhớ đệm khóa mới `vh1|BCVH|ngày`, vô hiệu theo `dauHieuDb` (mọi đường ghi); không đụng `v3|`.
+6. Tivi không xem số vu hồi: hai route mới không nằm trong allowlist → TIVI 403 (giống `ket-qua-phat-thang`).
+7. Tháng dùng đúng tập ngày của `ket-qua-phat-thang` (ngày có file OK và «đủ số liệu»), lấy bằng chính `PD.ketQuaPhatThang` cho từng BCVH; Riêng `all` (VUHOI-2c) dùng tập ngày «đủ số liệu» của `ket-qua-phat-thang` bcvh=all (xét trên tập gộp); mỗi BCVH chỉ đóng góp ở ngày thuộc tập đó mà chính nó có file; `theo_bcvh` trong `all` theo cùng tập ngày (Σ theo_bcvh = tong) nên số của một BCVH trong `all` có thể khác khi gọi riêng BCVH đó, giống `ket-qua-phat-thang`.
+
 ## Drift phát hiện
 _(chưa có)_

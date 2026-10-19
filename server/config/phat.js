@@ -98,11 +98,13 @@ const THU_TU_LOI = Object.freeze([MA_LOI.SAI_DINH_DANG, MA_LOI.TRUNG_SHBG, MA_LO
 // Múi giờ hiển thị «số liệu tính đến lúc» (giờ nhập lưu UTC có chữ Z). Việt Nam không có giờ mùa hè nên cố định UTC+7.
 const MUI_GIO = 'Asia/Bangkok';
 const CANH_BAO_GHI_CHU_CAT = `Ghi chú bị cắt (tối đa ${GIOI_HAN.MAX_GHI_CHU} ký tự)`;
+// VUHOI-2: mẫu số PKTC dưới ngưỡng này thì tỷ lệ vu hồi chỉ hiện số tuyệt đối. HẰNG SỐ trong code (không vào bảng tham số ADMIN, #107).
+const NGUONG_MAU_SO_VU_HOI = 10;
 const CANH_BAO_BO_VU_HOI = 'Bỏ đánh dấu vu hồi';
 
 const TRANG_THAI_DOT = Object.freeze({ DA_NHAP: 'da_nhap', DA_HOAN_TAC: 'da_hoan_tac' });
 
 module.exports = {
-  TRANG_THAI, TT_MA, TT_NHAN, TT_CHUA_CO, DA_VU_HOI, DANH_SACH_NHAN, nhanTrangThai, CANH_BAO_BO_VU_HOI, KHUNG_GIO_DEN, NHOM_CHO, GIOI_HAN, maxDong, SHBG_REGEX, SHBG_DO_DAI,
+  TRANG_THAI, TT_MA, TT_NHAN, TT_CHUA_CO, DA_VU_HOI, NGUONG_MAU_SO_VU_HOI, DANH_SACH_NHAN, nhanTrangThai, CANH_BAO_BO_VU_HOI, KHUNG_GIO_DEN, NHOM_CHO, GIOI_HAN, maxDong, SHBG_REGEX, SHBG_DO_DAI,
   META_SHEET, PHIEN_BAN_COT, DUONG_THU_TRONG, MUI_GIO, CANH_BAO_GHI_CHU_CAT, CHUYEN_BAT_THUONG, laChuyenBatThuong, KET_QUA, MA_LOI, THU_TU_LOI, TRANG_THAI_DOT
 };

@@ -2,6 +2,18 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - VUHOI-2: API tỷ lệ «Đã vu hồi» theo ngày đến và theo tháng
+
+- **Thêm** `server/lib/phatVuHoi.js` (lõi tính: `demNgay` dùng `P.runGan` + `P.NHAP_CTE` + `P.NHAP_ROW` nối `phat_status_history` bằng `sel`; `dung` = quy tắc `hien_thi`; `vuHoiNgay`, `vuHoiThang`; cache `vh1|`), `server/config/phat.js` (`NGUONG_MAU_SO_VU_HOI = 10`), `server/routes/arrivals.js` (2 route `/arrivals/dashboard/vu-hoi`, `/vu-hoi-thang` cạnh `ket-qua-phat*`, cùng `tiviPhatGuard`).
+- **Không đổi** `NHAP_*`, `GAN_CTE`, `demNgay`, `phatDashboard.js`, `phatTaiVe.js`, `tivi.js`, cache `v3|`, `src/`, không migration.
+- **Test** MỚI `tests/phat-vu-hoi-ty-le.test.js` (12 ca), thêm vào `npm test`.
+- **VUHOI-2a:** tháng dùng đúng tập ngày của `ket-qua-phat-thang` (qua `PD.ketQuaPhatThang` từng BCVH); TIVI 403 cả hai route (test).
+- **VUHOI-2c:** `bcvh=all` của `vu-hoi-thang` dùng tập ngày «đủ số liệu» của `ket-qua-phat-thang` all (khớp PKTC lũy kế); `theo_bcvh` trong all cùng tập ngày.
+- **Docs:** 04 #107, 08 mục 2c, 03, 00_SNAPSHOT.
+- **Nợ:** giao diện; lần đầu sau mỗi lần ghi DB, tháng `all` chậm (~3–10 giây tùy cỡ dữ liệu).
+
+---
+
 ## [2026-10-19] - VUHOI-1: cờ «Đã vu hồi» của PKTC (cột `da_vu_hoi`), nhập qua Excel / API, file mẫu, hoàn tác
 
 - **Sửa** `server/config/phat.js` (`DA_VU_HOI`, `DANH_SACH_NHAN` 6 nhãn, `nhanTrangThai`, `CANH_BAO_BO_VU_HOI`), `server/lib/phat.js` (migration `themCot` 4 cột; `trangThaiVuHoiTuChu`; `danhGia` / `kiemTraLai` so theo cặp; `docTrangThaiApi` trả `{ trang_thai, da_vu_hoi }`; `nhapDot`, `SQL_UPSERT_CURRENT`, `SQL_INSERT_HISTORY`, `hoanTacDot`, `dongRa`, `layDongMau`, `layDongLoi` mang cờ), `server/lib/phatFile.js` (danh sách chọn 6 nhãn, nhãn «Đã vu hồi» ở file mẫu / file lỗi). Quyết định #106.

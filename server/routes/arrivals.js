@@ -8,6 +8,7 @@ const bd10 = require('../lib/bd10Query');
 const den = require('../lib/dashboardDenQuery');
 const { getAssignedBcvh, VALID_BCVH_CODES } = require('../lib/userBcvh');
 const phatDash = require('../lib/phatDashboard');
+const phatVuHoi = require('../lib/phatVuHoi');
 const { getTiviScope, isValidTiviScope } = require('../lib/tivi');
 const { getMissingBatches } = require('../lib/arrivalsImport');
 const thayThe = require('../lib/thayTheXemTruoc');
@@ -129,6 +130,18 @@ function phatScope(req, res, next) {
 router.get('/arrivals/dashboard/ket-qua-phat', tiviPhatGuard, phatScope, handle((req) => phatDash.ketQuaPhat(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat'));
 // Kết quả phát TỪ ĐẦU THÁNG (DASH-12b): lũy kế + chuỗi theo ngày + chênh lệch; cùng tham số / kiểm định / phạm vi như ket-qua-phat. KHÔNG nằm trong TIVI_ALLOWED -> TIVI 403.
 router.get('/arrivals/dashboard/ket-qua-phat-thang', tiviPhatGuard, phatScope, handle((req) => phatDash.ketQuaPhatThang(db, req.phatCodes, req.phatParams), 'dashboard-ket-qua-phat-thang'));
+// Tỷ lệ «Đã vu hồi» theo NGÀY ĐẾN / THÁNG (VUHOI-2, #107): cùng guard + phạm vi quyền như ket-qua-phat-thang (không nằm trong TIVI_ALLOWED -> TIVI 403). Tham số riêng: ngay_den | thang, bcvh.
+const vuHoiParse = (khoa) => (req, res, next) => {
+  try {
+    req.vuHoiParams = phatVuHoi.parse(req.query, khoa);
+  } catch (err) {
+    if (err instanceof q.QueryParamError) return res.status(400).json({ error: err.message });
+    return next(err);
+  }
+  next();
+};
+router.get('/arrivals/dashboard/vu-hoi', tiviPhatGuard, vuHoiParse('ngay_den'), handle((req) => phatVuHoi.vuHoiNgay(db, req.vuHoiParams), 'dashboard-vu-hoi'));
+router.get('/arrivals/dashboard/vu-hoi-thang', tiviPhatGuard, vuHoiParse('thang'), handle((req) => phatVuHoi.vuHoiThang(db, req.vuHoiParams), 'dashboard-vu-hoi-thang'));
 
 // Xuất Excel dữ liệu thô của MỘT BCVH (SANLUONG-3c-3, 04_DECISIONS.md #55–#58). ADMIN/TTVH: mọi BCVH; GDVH: BCVH được giao.
 router.get('/arrivals/export-scope', handle((req) => ({ bcvh: exp.exportScope(db, req.user) }), 'export-scope'));
