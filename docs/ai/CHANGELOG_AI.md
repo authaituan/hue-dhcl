@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-19] - VUHOI-1: cờ «Đã vu hồi» của PKTC (cột `da_vu_hoi`), nhập qua Excel / API, file mẫu, hoàn tác
+
+- **Sửa** `server/config/phat.js` (`DA_VU_HOI`, `DANH_SACH_NHAN` 6 nhãn, `nhanTrangThai`, `CANH_BAO_BO_VU_HOI`), `server/lib/phat.js` (migration `themCot` 4 cột; `trangThaiVuHoiTuChu`; `danhGia` / `kiemTraLai` so theo cặp; `docTrangThaiApi` trả `{ trang_thai, da_vu_hoi }`; `nhapDot`, `SQL_UPSERT_CURRENT`, `SQL_INSERT_HISTORY`, `hoanTacDot`, `dongRa`, `layDongMau`, `layDongLoi` mang cờ), `server/lib/phatFile.js` (danh sách chọn 6 nhãn, nhãn «Đã vu hồi» ở file mẫu / file lỗi). Quyết định #106.
+- **Không đổi** `TT_MA`, CHECK 5 mã, `demNgay`, `NHAP_CTE` / `NHAP_ROW` / `GAN_CTE`, `phatTaiVe.js`, `phatDashboard.js`, `tivi.js`, `src/`.
+- **Test** MỚI `tests/phat-vu-hoi.test.js` (9 ca), thêm vào `npm test`; `tests/phat.test.js` sửa ca danh sách chọn (6 nhãn).
+- **Lưu ý triển khai:** sao lưu `data/hue-dhcl.db` trước khi chạy bản mới (thêm cột lúc khởi động).
+
+---
+
 ## [2026-10-19] - DOCS-1: đồng bộ `docs/ai/` với main (theme #100/#101, bỏ STAFF #102/#103, quy tắc GDVH)
 
 - **Chỉ docs, không đổi mã.** Main tại `340ed17` (merge PR #104).

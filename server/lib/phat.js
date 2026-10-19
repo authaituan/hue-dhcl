@@ -110,6 +110,12 @@ function ensurePhatSchema(db) {
   themCot(db, 'phat_batches', 'so_khong_doi', 'INTEGER NOT NULL DEFAULT 0');
   themCot(db, 'phat_draft_rows', 'ghi_chu_bi_cat', 'INTEGER NOT NULL DEFAULT 0');
   themCot(db, 'phat_batches', 'so_canh_bao', 'INTEGER'); // NULL được: đợt cũ giữ NULL
+  // VUHOI-1: «đã vu hồi» là cờ phụ của PKTC. current / history: CHECK chéo (cờ chỉ đi với PKTC); dòng cũ đọc ra 0. draft_rows: cờ của dòng nhập + cờ của «hiện có».
+  const CK_VU_HOI = "CHECK (da_vu_hoi IN (0,1) AND (da_vu_hoi = 0 OR trang_thai = 'PKTC'))";
+  themCot(db, 'phat_status_current', 'da_vu_hoi', `INTEGER NOT NULL DEFAULT 0 ${CK_VU_HOI}`);
+  themCot(db, 'phat_status_history', 'da_vu_hoi', `INTEGER NOT NULL DEFAULT 0 ${CK_VU_HOI}`);
+  themCot(db, 'phat_draft_rows', 'da_vu_hoi', 'INTEGER NOT NULL DEFAULT 0 CHECK (da_vu_hoi IN (0,1))');
+  themCot(db, 'phat_draft_rows', 'hien_co_vu_hoi', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 function themCot(db, bang, cot, ddl) {
@@ -149,6 +155,15 @@ function trangThaiTuChu(text) {
   return k ? (TT_THEO_KHOA.get(k) || null) : null;
 }
 
+/** Như trangThaiTuChu nhưng nhận thêm «Đã vu hồi» / DA_VU_HOI -> { trang_thai: 'PKTC', da_vu_hoi: 1 }; trạng thái thường -> da_vu_hoi 0; không khớp -> null. */
+function trangThaiVuHoiTuChu(text) {
+  const k = normalizeKey(text);
+  if (!k) return null;
+  if (k === normalizeKey(C.DA_VU_HOI.nhan)) return { trang_thai: C.DA_VU_HOI.trang_thai, da_vu_hoi: 1 };
+  const ma = TT_THEO_KHOA.get(k);
+  return ma ? { trang_thai: ma, da_vu_hoi: 0 } : null;
+}
+
 const normShbg = (s) => String(s ?? '').trim().toUpperCase();
 const normGhiChu = (s) => {
   const t = String(s ?? '').trim();
@@ -185,7 +200,9 @@ const laTrong = (r) => r.trang_thai === null && !r.trang_thai_file && r.loi_o !=
 function danhGia(r, ctx) {
   const dungDinhDang = C.SHBG_REGEX.test(r.shbg);
   const hienCo = dungDinhDang ? (ctx.hienCo.get(r.shbg) || C.TT_CHUA_CO) : null;
-  const out = (ket_qua, ma_loi = null, chi_tiet_loi = null, canh_bao = null) => ({ trang_thai_hien_co: hienCo, ket_qua, ma_loi, chi_tiet_loi, canh_bao });
+  const hienVh = dungDinhDang && ctx.hienCoVh ? (ctx.hienCoVh.get(r.shbg) ? 1 : 0) : 0; // cờ «đã vu hồi» của trạng thái hiện có
+  const vh = r.da_vu_hoi ? 1 : 0;
+  const out = (ket_qua, ma_loi = null, chi_tiet_loi = null, canh_bao = null) => ({ trang_thai_hien_co: hienCo, hien_co_vu_hoi: hienVh, ket_qua, ma_loi, chi_tiet_loi, canh_bao });
 
   if (laTrong(r)) return out(KET_QUA.BO_QUA_TRONG);
   const loi = (ma, chiTiet) => out(KET_QUA.LOI, ma, chiTiet);
@@ -202,18 +219,20 @@ function danhGia(r, ctx) {
 
   if (r.trang_thai === null) {
     const raw = r.trang_thai_file.length > 40 ? `${r.trang_thai_file.slice(0, 40)}…` : r.trang_thai_file;
-    return loi(MA_LOI.TT_NGOAI_DS, `Trạng thái "${raw}" không nằm trong danh sách (${C.TRANG_THAI.map((t) => t.nhan).join(', ')})`);
+    return loi(MA_LOI.TT_NGOAI_DS, `Trạng thái "${raw}" không nằm trong danh sách (${C.DANH_SACH_NHAN.join(', ')})`);
   }
 
   const tonTai = ctx.trongDen.get(r.shbg);
   if (tonTai === undefined) return loi(MA_LOI.KHONG_CO_TRONG_DEN, 'SHBG không có trong dữ liệu đến của BCVH này');
   if (tonTai === 0) return loi(MA_LOI.KHONG_CO_TRONG_DEN, 'có trong dữ liệu nhưng chưa có giờ đến BCVH');
 
-  if (r.trang_thai === hienCo) return loi(MA_LOI.KHONG_DOI, `Trạng thái không đổi so với hiện có (${C.TT_NHAN[hienCo]})`);
+  // So theo cặp (trang_thai, da_vu_hoi): PKTC -> «Đã vu hồi» là thay đổi hợp lệ.
+  if (r.trang_thai === hienCo && vh === hienVh) return loi(MA_LOI.KHONG_DOI, `Trạng thái không đổi so với hiện có (${C.nhanTrangThai(hienCo, hienVh)})`);
 
   // Cảnh báo vàng (không chặn): chuyển bất thường; ghi chú bị cắt. Nhiều cảnh báo nối bằng " · ".
   const canhBao = [];
-  if (C.laChuyenBatThuong(hienCo, r.trang_thai)) canhBao.push(`Chuyển bất thường: ${C.TT_NHAN[hienCo]} → ${C.TT_NHAN[r.trang_thai]}`);
+  if (C.laChuyenBatThuong(hienCo, r.trang_thai)) canhBao.push(`Chuyển bất thường: ${C.nhanTrangThai(hienCo, hienVh)} → ${C.nhanTrangThai(r.trang_thai, vh)}`);
+  if (hienVh && !vh && r.trang_thai === C.DA_VU_HOI.trang_thai) canhBao.push(C.CANH_BAO_BO_VU_HOI); // PKTC có cờ -> PKTC không cờ: tránh mất cờ vô ý
   if (r.ghi_chu_bi_cat) canhBao.push(C.CANH_BAO_GHI_CHU_CAT);
   return out(KET_QUA.HOP_LE, null, null, canhBao.length ? canhBao.join(' · ') : null);
 }
@@ -240,22 +259,23 @@ function kiemTraLai(db, draft, shbgSet = null) {
   const hopLe = [...new Set(rows.filter((r) => C.SHBG_REGEX.test(r.shbg)).map((r) => r.shbg))];
   const trongDen = new Map();
   const hienCo = new Map();
+  const hienCoVh = new Map();
   if (hopLe.length) {
     const j = JSON.stringify(hopLe);
     for (const r of db.prepare(`SELECT tracking_no AS s, MAX(arrival_at IS NOT NULL) AS g FROM arrival_items
       WHERE receiver_code = @b AND tracking_no IN (SELECT value FROM json_each(@j)) GROUP BY tracking_no`).all({ b: draft.bcvh, j })) trongDen.set(r.s, r.g);
-    for (const r of db.prepare(`SELECT shbg AS s, trang_thai AS t FROM phat_status_current
-      WHERE bcvh = @b AND shbg IN (SELECT value FROM json_each(@j))`).all({ b: draft.bcvh, j })) hienCo.set(r.s, r.t);
+    for (const r of db.prepare(`SELECT shbg AS s, trang_thai AS t, da_vu_hoi AS v FROM phat_status_current
+      WHERE bcvh = @b AND shbg IN (SELECT value FROM json_each(@j))`).all({ b: draft.bcvh, j })) { hienCo.set(r.s, r.t); hienCoVh.set(r.s, r.v); }
   }
 
-  const upd = db.prepare(`UPDATE phat_draft_rows SET trang_thai_hien_co = @h, ket_qua = @k, ma_loi = @m, chi_tiet_loi = @c, canh_bao = @w WHERE id = @id`);
+  const upd = db.prepare(`UPDATE phat_draft_rows SET trang_thai_hien_co = @h, hien_co_vu_hoi = @hv, ket_qua = @k, ma_loi = @m, chi_tiet_loi = @c, canh_bao = @w WHERE id = @id`);
   let doi = 0;
   db.transaction(() => {
     for (const r of rows) {
-      const e = danhGia(r, { nhom, trongDen, hienCo });
-      if (e.trang_thai_hien_co === r.trang_thai_hien_co && e.ket_qua === r.ket_qua && e.ma_loi === r.ma_loi
+      const e = danhGia(r, { nhom, trongDen, hienCo, hienCoVh });
+      if (e.trang_thai_hien_co === r.trang_thai_hien_co && e.hien_co_vu_hoi === r.hien_co_vu_hoi && e.ket_qua === r.ket_qua && e.ma_loi === r.ma_loi
         && e.chi_tiet_loi === r.chi_tiet_loi && e.canh_bao === r.canh_bao) continue;
-      upd.run({ id: r.id, h: e.trang_thai_hien_co, k: e.ket_qua, m: e.ma_loi, c: e.chi_tiet_loi, w: e.canh_bao });
+      upd.run({ id: r.id, h: e.trang_thai_hien_co, hv: e.hien_co_vu_hoi, k: e.ket_qua, m: e.ma_loi, c: e.chi_tiet_loi, w: e.canh_bao });
       doi++;
     }
   })();
@@ -272,14 +292,15 @@ function taoBanKiemTra(db, { bcvh, userId, tenFile, sha256, dong }) {
     id: crypto.randomUUID(), bcvh, user_id: userId, tao_luc: now,
     het_han_luc: plusDays(now, C.GIOI_HAN.GIU_BAN_KIEM_TRA_NGAY), ten_file: tenFile || null, sha256: sha256 || null
   };
-  const ins = db.prepare(`INSERT INTO phat_draft_rows (draft_id, so_dong_goc, shbg, trang_thai_file, trang_thai, ghi_chu, ghi_chu_bi_cat, loi_o)
-    VALUES (@d, @n, @s, @f, @t, @g, @c, @l)`);
+  const ins = db.prepare(`INSERT INTO phat_draft_rows (draft_id, so_dong_goc, shbg, trang_thai_file, trang_thai, da_vu_hoi, ghi_chu, ghi_chu_bi_cat, loi_o)
+    VALUES (@d, @n, @s, @f, @t, @v, @g, @c, @l)`);
   db.transaction(() => {
     db.prepare(`INSERT INTO phat_drafts (id, bcvh, user_id, tao_luc, het_han_luc, ten_file, sha256) VALUES (@id, @bcvh, @user_id, @tao_luc, @het_han_luc, @ten_file, @sha256)`).run(draft);
     for (const r of dong) {
       const chu = String(r.trang_thai_file || '').trim().slice(0, 200);
+      const tt = trangThaiVuHoiTuChu(chu);
       ins.run({
-        d: draft.id, n: r.so_dong_goc, s: normShbg(r.shbg), f: chu, t: trangThaiTuChu(chu),
+        d: draft.id, n: r.so_dong_goc, s: normShbg(r.shbg), f: chu, t: tt ? tt.trang_thai : null, v: tt ? tt.da_vu_hoi : 0,
         g: normGhiChu(r.ghi_chu) || null, c: ghiChuBiCat(r.ghi_chu) ? 1 : 0, l: r.loi_o || null
       });
     }
@@ -351,7 +372,8 @@ const dongRa = (r) => ({
   id: r.id, so_dong_goc: r.so_dong_goc, shbg: r.shbg,
   trang_thai: r.trang_thai, trang_thai_nhan: r.trang_thai ? C.TT_NHAN[r.trang_thai] : null, trang_thai_file: r.trang_thai_file,
   ghi_chu: r.ghi_chu || '', trang_thai_hien_co: r.trang_thai_hien_co, trang_thai_hien_co_nhan: r.trang_thai_hien_co ? C.TT_NHAN[r.trang_thai_hien_co] : null,
-  ket_qua: r.ket_qua, ma_loi: r.ma_loi, ly_do: r.chi_tiet_loi, canh_bao: r.canh_bao
+  ket_qua: r.ket_qua, ma_loi: r.ma_loi, ly_do: r.chi_tiet_loi, canh_bao: r.canh_bao,
+  da_vu_hoi: r.da_vu_hoi ? 1 : 0, hien_co_vu_hoi: r.hien_co_vu_hoi ? 1 : 0
 });
 
 /** Bộ lọc dòng dùng chung cho danh sách / xoá / điền: { ket_qua, ma_loi, q (SHBG chứa), canh_bao }. */
@@ -391,15 +413,15 @@ function dsDong(db, draft, query) {
 // ------------------------------------------
 // Biên tập: sửa, xoá, điền hàng loạt, gán nhanh bằng danh sách. Dòng DA_NHAP bị khoá. Mọi thao tác kiểm tra lại dòng bị ảnh hưởng.
 // ------------------------------------------
-/** Đọc giá trị trạng thái từ API: '' / null = xoá trạng thái; còn lại phải là nhãn hoặc mã hợp lệ (nếu không -> 400). */
+/** Đọc giá trị trạng thái từ API: '' / null = xoá trạng thái; còn lại phải là nhãn hoặc mã hợp lệ (nếu không -> 400). Trả { trang_thai, da_vu_hoi } («Đã vu hồi» = PKTC + cờ). */
 function docTrangThaiApi(v, { choPhepTrong }) {
   if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) {
-    if (choPhepTrong) return null;
-    throw new PhatError(400, `Thiếu trạng thái. Chọn một trong: ${C.TRANG_THAI.map((t) => t.nhan).join(', ')}`);
+    if (choPhepTrong) return { trang_thai: null, da_vu_hoi: 0 };
+    throw new PhatError(400, `Thiếu trạng thái. Chọn một trong: ${C.DANH_SACH_NHAN.join(', ')}`);
   }
-  const ma = typeof v === 'string' ? trangThaiTuChu(v) : null;
-  if (!ma) throw new PhatError(400, `Trạng thái không hợp lệ. Chọn một trong: ${C.TRANG_THAI.map((t) => `${t.ma} (${t.nhan})`).join(', ')}`);
-  return ma;
+  const tt = typeof v === 'string' ? trangThaiVuHoiTuChu(v) : null;
+  if (!tt) throw new PhatError(400, `Trạng thái không hợp lệ. Chọn một trong: ${[...C.TRANG_THAI, C.DA_VU_HOI].map((t) => `${t.ma} (${t.nhan})`).join(', ')}`);
+  return tt;
 }
 
 function chonDong(db, draftId, sel) {
@@ -429,7 +451,7 @@ function suaDong(db, draft, items) {
   const plan = items.map((it) => {
     if (!it || !Number.isInteger(it.id)) throw new PhatError(400, 'Mỗi phần tử cần "id" là số nguyên');
     const p = { id: it.id };
-    if ('trang_thai' in it) p.trang_thai = docTrangThaiApi(it.trang_thai, { choPhepTrong: true });
+    if ('trang_thai' in it) { const tt = docTrangThaiApi(it.trang_thai, { choPhepTrong: true }); p.trang_thai = tt.trang_thai; p.da_vu_hoi = tt.da_vu_hoi; }
     if ('ghi_chu' in it) {
       if (it.ghi_chu !== null && typeof it.ghi_chu !== 'string') throw new PhatError(400, '"ghi_chu" phải là chuỗi');
       p.ghi_chu = normGhiChu(it.ghi_chu) || null;
@@ -448,7 +470,7 @@ function suaDong(db, draft, items) {
       if (!moIds.has(p.id)) continue;
       const sets = []; const prm = { id: p.id };
       if ('trang_thai' in p) {
-        sets.push('trang_thai = @t'); prm.t = p.trang_thai;
+        sets.push('trang_thai = @t', 'da_vu_hoi = @v'); prm.t = p.trang_thai; prm.v = p.da_vu_hoi;
         if (p.trang_thai === null) sets.push("trang_thai_file = ''");
         if (cur.get(p.id).loi_o === 'TRANG_THAI') sets.push('loi_o = NULL');
       }
@@ -474,26 +496,26 @@ function xoaDong(db, draft, sel) {
   return { da_xoa: mo.length, bi_khoa: khoa.map((r) => r.id), khong_tim_thay, tong_hop: tongHop(db, draft.id) };
 }
 
-function datTrangThai(db, draft, ids, ma) {
+function datTrangThai(db, draft, ids, tt) {
   const shbgs = new Set();
   db.transaction(() => {
-    db.prepare(`UPDATE phat_draft_rows SET trang_thai = @t, loi_o = CASE WHEN loi_o = 'TRANG_THAI' THEN NULL ELSE loi_o END
-      WHERE draft_id = @d AND ket_qua <> 'DA_NHAP' AND id IN (SELECT value FROM json_each(@j))`).run({ t: ma, d: draft.id, j: JSON.stringify(ids) });
+    db.prepare(`UPDATE phat_draft_rows SET trang_thai = @t, da_vu_hoi = @v, loi_o = CASE WHEN loi_o = 'TRANG_THAI' THEN NULL ELSE loi_o END
+      WHERE draft_id = @d AND ket_qua <> 'DA_NHAP' AND id IN (SELECT value FROM json_each(@j))`).run({ t: tt.trang_thai, v: tt.da_vu_hoi, d: draft.id, j: JSON.stringify(ids) });
     for (const r of db.prepare('SELECT DISTINCT shbg FROM phat_draft_rows WHERE draft_id = @d AND id IN (SELECT value FROM json_each(@j))').all({ d: draft.id, j: JSON.stringify(ids) })) shbgs.add(r.shbg);
     kiemTraLai(db, draft, shbgs);
   })();
 }
 
 function dienTrangThai(db, draft, body) {
-  const ma = docTrangThaiApi(body && body.trang_thai, { choPhepTrong: false });
+  const tt = docTrangThaiApi(body && body.trang_thai, { choPhepTrong: false });
   const { rows, khong_tim_thay } = chonDong(db, draft.id, body);
   const { mo, khoa } = tachKhoa(rows);
-  if (mo.length) datTrangThai(db, draft, mo.map((r) => r.id), ma);
+  if (mo.length) datTrangThai(db, draft, mo.map((r) => r.id), tt);
   return { da_dien: mo.length, bi_khoa: khoa.map((r) => r.id), khong_tim_thay, tong_hop: tongHop(db, draft.id) };
 }
 
 function ganDanhSach(db, draft, body) {
-  const ma = docTrangThaiApi(body && body.trang_thai, { choPhepTrong: false });
+  const tt = docTrangThaiApi(body && body.trang_thai, { choPhepTrong: false });
   const ds = body && body.shbg;
   if (!Array.isArray(ds) || !ds.length) throw new PhatError(400, 'Cần "shbg": danh sách SHBG (mảng chuỗi)');
   if (ds.length > C.GIOI_HAN.MAX_DONG) throw new PhatError(400, `Danh sách SHBG vượt giới hạn ${C.GIOI_HAN.MAX_DONG} dòng`);
@@ -501,7 +523,7 @@ function ganDanhSach(db, draft, body) {
   const found = db.prepare('SELECT id, shbg, ket_qua FROM phat_draft_rows WHERE draft_id = @d AND shbg IN (SELECT value FROM json_each(@j))')
     .all({ d: draft.id, j: JSON.stringify(want) });
   const { mo, khoa } = tachKhoa(found);
-  if (mo.length) datTrangThai(db, draft, mo.map((r) => r.id), ma);
+  if (mo.length) datTrangThai(db, draft, mo.map((r) => r.id), tt);
   const trongFile = new Set(found.map((r) => r.shbg));
   const khongCo = want.filter((s) => !trongFile.has(s));
   return {
@@ -526,8 +548,8 @@ function layDongLoi(db, draft, { loaiTru = [] } = {}) {
   return rows.map((r) => {
     const i = info.get(r.shbg);
     return {
-      shbg: r.shbg, t: i ? i.t : null, duong_thu: i ? i.d : null, hien_co: r.trang_thai_hien_co,
-      trang_thai: r.trang_thai ? C.TT_NHAN[r.trang_thai] : r.trang_thai_file, ghi_chu: r.ghi_chu || '',
+      shbg: r.shbg, t: i ? i.t : null, duong_thu: i ? i.d : null, hien_co: r.trang_thai_hien_co, hien_co_vu_hoi: r.hien_co_vu_hoi,
+      trang_thai: r.trang_thai ? C.nhanTrangThai(r.trang_thai, r.da_vu_hoi) : r.trang_thai_file, ghi_chu: r.ghi_chu || '',
       so_dong_goc: r.so_dong_goc, ly_do: r.chi_tiet_loi || ''
     };
   });
@@ -548,7 +570,7 @@ function demDongMau(db, { bcvh, from, to, scope }) {
 }
 
 function layDongMau(db, { bcvh, from, to, scope }) {
-  return den.runCounted(db, khungKhoang(bcvh, from, to), `SELECT s.tracking_no AS shbg, s.t AS t, s.route_name AS duong_thu, p.trang_thai AS hien_co, p.ghi_chu AS ghi_chu
+  return den.runCounted(db, khungKhoang(bcvh, from, to), `SELECT s.tracking_no AS shbg, s.t AS t, s.route_name AS duong_thu, p.trang_thai AS hien_co, p.da_vu_hoi AS vu_hoi, p.ghi_chu AS ghi_chu
     ${MAU_JOIN} ${MAU_WHERE} ORDER BY s.t, s.tracking_no`, { bcvh, chua: scope === 'chua' ? 1 : 0 });
 }
 
@@ -808,7 +830,7 @@ function nhapDot(db, draft, user, body) {
     const mark = db.prepare("UPDATE phat_draft_rows SET ket_qua = 'DA_NHAP', ma_loi = NULL, chi_tiet_loi = NULL, canh_bao = NULL, batch_id = ? WHERE id = ?");
     for (const r of ungVien) {
       const prev = cur.get(draft.bcvh, r.shbg);
-      const p = { b: draft.bcvh, s: r.shbg, t: r.trang_thai, g: r.ghi_chu || null, bt: batchId, n: nhapLuc };
+      const p = { b: draft.bcvh, s: r.shbg, t: r.trang_thai, v: r.da_vu_hoi ? 1 : 0, g: r.ghi_chu || null, bt: batchId, n: nhapLuc };
       his.run({ ...p, tt: prev ? prev.trang_thai : null });
       up.run(p);
       mark.run(batchId, r.id);
@@ -919,9 +941,9 @@ function dsDot(db, { codes, page, size, user, loc = {} }) {
   };
 }
 
-const SQL_UPSERT_CURRENT = `INSERT INTO phat_status_current (bcvh, shbg, trang_thai, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @g, @bt, @n)
-  ON CONFLICT(bcvh, shbg) DO UPDATE SET trang_thai = excluded.trang_thai, ghi_chu = excluded.ghi_chu, batch_id = excluded.batch_id, nhap_luc = excluded.nhap_luc`;
-const SQL_INSERT_HISTORY = `INSERT INTO phat_status_history (bcvh, shbg, trang_thai, trang_thai_truoc, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @tt, @g, @bt, @n)`;
+const SQL_UPSERT_CURRENT = `INSERT INTO phat_status_current (bcvh, shbg, trang_thai, da_vu_hoi, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @v, @g, @bt, @n)
+  ON CONFLICT(bcvh, shbg) DO UPDATE SET trang_thai = excluded.trang_thai, da_vu_hoi = excluded.da_vu_hoi, ghi_chu = excluded.ghi_chu, batch_id = excluded.batch_id, nhap_luc = excluded.nhap_luc`;
+const SQL_INSERT_HISTORY = `INSERT INTO phat_status_history (bcvh, shbg, trang_thai, da_vu_hoi, trang_thai_truoc, ghi_chu, batch_id, nhap_luc) VALUES (@b, @s, @t, @v, @tt, @g, @bt, @n)`;
 
 /** Người theo id (nhap_boi / hoan_tac_boi dùng chung); không còn trong bảng users -> chỉ có id. */
 function nguoiTheoId(db, id) {
@@ -1014,11 +1036,15 @@ function hoanTacDot(db, batch, user) {
         soXoa++;
       } else {
         const prev = prevQ.get({ bc: b.bcvh, s: r.shbg, id: r.id });
-        khoiPhuc = { trang_thai: r.trang_thai_truoc, ghi_chu: prev ? prev.ghi_chu : null, batch_id: prev ? prev.batch_id : 0, nhap_luc: prev ? prev.nhap_luc : b.nhap_luc };
-        up.run({ b: b.bcvh, s: r.shbg, t: khoiPhuc.trang_thai, g: khoiPhuc.ghi_chu, bt: khoiPhuc.batch_id, n: khoiPhuc.nhap_luc });
+        // Cờ «đã vu hồi» khôi phục từ bản prev (0 nếu không có prev, hoặc prev không khớp trạng thái cũ — CHECK chỉ cho cờ đi với PKTC).
+        khoiPhuc = {
+          trang_thai: r.trang_thai_truoc, da_vu_hoi: prev && prev.trang_thai === r.trang_thai_truoc && prev.da_vu_hoi ? 1 : 0,
+          ghi_chu: prev ? prev.ghi_chu : null, batch_id: prev ? prev.batch_id : 0, nhap_luc: prev ? prev.nhap_luc : b.nhap_luc
+        };
+        up.run({ b: b.bcvh, s: r.shbg, t: khoiPhuc.trang_thai, v: khoiPhuc.da_vu_hoi, g: khoiPhuc.ghi_chu, bt: khoiPhuc.batch_id, n: khoiPhuc.nhap_luc });
         soKhoiPhuc++;
       }
-      his.run({ b: b.bcvh, s: r.shbg, t: khoiPhuc ? khoiPhuc.trang_thai : C.TT_CHUA_CO, tt: r.trang_thai, g: khoiPhuc ? khoiPhuc.ghi_chu : null, bt: b.id, n: now });
+      his.run({ b: b.bcvh, s: r.shbg, t: khoiPhuc ? khoiPhuc.trang_thai : C.TT_CHUA_CO, v: khoiPhuc ? khoiPhuc.da_vu_hoi : 0, tt: r.trang_thai, g: khoiPhuc ? khoiPhuc.ghi_chu : null, bt: b.id, n: now });
     }
     db.prepare("UPDATE phat_batches SET trang_thai = 'da_hoan_tac', hoan_tac_luc = ?, hoan_tac_boi = ? WHERE id = ?").run(now, user.id, b.id);
 
@@ -1039,7 +1065,7 @@ function hoanTacDot(db, batch, user) {
 }
 
 module.exports = {
-  PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
+  PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, trangThaiVuHoiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
   kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
   demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot,
   tapNgayChung, demNgay, dungTyLe, tonCho, zeroMap, congMap,

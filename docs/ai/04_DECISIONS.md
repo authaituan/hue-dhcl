@@ -792,5 +792,12 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 ### 105. Tivi không đổi theo đợt theme này; phụ thuộc hàm định dạng của DailyOpsDashboard (PO chốt 19/10/2026 — THEME-5a/5b)
 `TiviView.jsx` không đổi. Nó chỉ import hàm định dạng từ `DailyOpsDashboard.jsx` (`formatPercent`, `formatPctChange`, `formatSoSanh`, `formatTimeOnly`, `formatDateTimeSec`, `wardChangeChip`, `formatNhanNgay`, `formatDdMm`, `isVnToday`, `getNhanSoSanhMoc`). Không đổi thân hay giá trị trả về của các hàm này khi sửa `DailyOpsDashboard.jsx`.
 
+### 106. «Đã vu hồi» là cờ phụ của PKTC, không phải trạng thái thứ 6 (PO chốt 19/10/2026 — VUHOI-1)
+1. Cột `da_vu_hoi` (0/1) ở `phat_status_current`, `phat_status_history` với CHECK chéo `da_vu_hoi = 0 OR trang_thai = 'PKTC'`; `phat_draft_rows` chỉ CHECK 0/1. Không đưa `DA_VU_HOI` vào `TT_MA` / `TRANG_THAI` / CHECK 5 mã.
+2. Lý do: giữ nguyên mẫu số và 5 nhóm tỷ lệ (PTC, mức cập nhật, ngưỡng, xếp hạng, Tivi, `tai-ve`); thêm trạng thái thứ 6 sẽ đổi số của mọi màn và CHECK của DB cũ.
+3. Đánh giá thay đổi theo cặp (trang_thai, da_vu_hoi): PKTC → Đã vu hồi hợp lệ; Đã vu hồi → PKTC hợp lệ kèm cảnh báo vàng «Bỏ đánh dấu vu hồi»; đè lên PTC / Chuyển hoàn / Lạc hướng giữ cảnh báo «Chuyển bất thường» sẵn có, không chặn.
+4. Cờ không bền: bản nhập cuối quyết định; không có cột «từng vu hồi». Hoàn tác khôi phục cờ từ bản trước.
+5. Nâng cấp thêm cột chạy lúc khởi động: sao lưu file DB trước khi chạy bản mới.
+
 ## Drift phát hiện
 _(chưa có)_

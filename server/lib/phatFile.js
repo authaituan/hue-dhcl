@@ -148,7 +148,7 @@ async function docFileKiemTra(buffer, tenFile, bcvh) {
 // ------------------------------------------
 // Dựng file mẫu / file lỗi
 // ------------------------------------------
-const CHUOI_DANH_SACH = `"${C.TRANG_THAI.map((t) => t.nhan).join(',')}"`; // 5 nhãn ≈ 82 ký tự (< 255 của Excel)
+const CHUOI_DANH_SACH = `"${C.DANH_SACH_NHAN.join(',')}"`; // 6 nhãn (5 trạng thái + «Đã vu hồi») ≈ 95 ký tự (< 255 của Excel)
 const FILL_KHOA = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
 const FILL_DIEN = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
 
@@ -192,7 +192,7 @@ async function dungSheet(cols, rows, meta) {
     const letter = String.fromCharCode(64 + tt);
     ws.dataValidations.add(`${letter}2:${letter}${last}`, {
       type: 'list', allowBlank: true, formulae: [CHUOI_DANH_SACH], showErrorMessage: true, errorStyle: 'stop',
-      errorTitle: 'Trạng thái', error: 'Chọn một trong 5 trạng thái trong danh sách.'
+      errorTitle: 'Trạng thái', error: 'Chọn một trong 6 trạng thái trong danh sách.'
     });
   }
   // Khóa sheet KHÔNG mật khẩu; chỉ mở khóa 2 cột điền. exceljs: giá trị true = CHO PHÉP (lọc, đổi độ rộng cột).
@@ -202,15 +202,15 @@ async function dungSheet(cols, rows, meta) {
   return wb;
 }
 
-const nhanTT = (ma) => (ma ? C.TT_NHAN[ma] : null);
+const nhanTT = (ma, vuHoi) => (ma ? C.nhanTrangThai(ma, vuHoi) : null);
 
 /** rows từ phat.layDongMau. Trả Buffer .xlsx. */
 async function taoFileMau({ bcvh, from, to, scope, rows }) {
   const out = rows.map((r) => ({
     shbg: chuoi(r.shbg), ngay: ngayVN(r.t), khung: (P.khungGio(r.t) || {}).nhan || null,
     duong_thu: chuoi(r.duong_thu) || C.DUONG_THU_TRONG,
-    hien_co: C.TT_NHAN[r.hien_co || C.TT_CHUA_CO],
-    trang_thai: scope === 'tat-ca' ? nhanTT(r.hien_co) : null, // «tất cả»: nạp sẵn trạng thái hiện có (nếu đã có)
+    hien_co: C.nhanTrangThai(r.hien_co || C.TT_CHUA_CO, r.vu_hoi),
+    trang_thai: scope === 'tat-ca' ? nhanTT(r.hien_co, r.vu_hoi) : null, // «tất cả»: nạp sẵn trạng thái hiện có (nếu đã có)
     ghi_chu: scope === 'tat-ca' ? chuoi(r.ghi_chu) : null
   }));
   const wb = await dungSheet(COT_MAU, out, {
@@ -224,7 +224,7 @@ async function taoFileLoi({ bcvh, rows }) {
   const out = rows.map((r) => ({
     shbg: chuoi(r.shbg), ngay: ngayVN(r.t), khung: (P.khungGio(r.t) || {}).nhan || null,
     duong_thu: r.t ? (chuoi(r.duong_thu) || C.DUONG_THU_TRONG) : null,
-    hien_co: r.hien_co ? C.TT_NHAN[r.hien_co] : null,
+    hien_co: r.hien_co ? C.nhanTrangThai(r.hien_co, r.hien_co_vu_hoi) : null,
     trang_thai: chuoi(r.trang_thai), ghi_chu: chuoi(r.ghi_chu), so_dong_goc: String(r.so_dong_goc), ly_do: chuoi(r.ly_do)
   }));
   const wb = await dungSheet([...COT_MAU, ...COT_LOI], out, {
