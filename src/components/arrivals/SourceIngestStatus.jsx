@@ -60,7 +60,7 @@ export default function SourceIngestStatus({
                 A. Tình trạng chung
               </span>
               {isPolling && (
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full animate-pulse">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Đang theo dõi lượt chạy…</span>
                 </span>

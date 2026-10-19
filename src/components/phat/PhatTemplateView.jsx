@@ -189,7 +189,7 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
               <span>{downloading ? 'Đang tạo file...' : 'Tải file Excel (.xlsx)'}</span>
@@ -243,21 +243,21 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
                     <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
                     <td className="p-2 border-r border-gray-100 font-sans">Trước 10h</td>
                     <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-[#059669] bg-white">Phát thành công</td>
+                    <td className="p-2 font-sans font-semibold text-emerald-600 bg-white">Phát thành công</td>
                   </tr>
                   <tr className="bg-gray-50/50">
                     <td className="p-2 border-r border-gray-100">XX000000102VN</td>
                     <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
                     <td className="p-2 border-r border-gray-100 font-sans">Trước 10h</td>
                     <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-[#059669] bg-white">Phát thành công</td>
+                    <td className="p-2 font-sans font-semibold text-emerald-600 bg-white">Phát thành công</td>
                   </tr>
                   <tr className="bg-gray-50/50">
                     <td className="p-2 border-r border-gray-100">XX000000103VN</td>
                     <td className="p-2 border-r border-gray-100 font-sans">02/10/2026</td>
                     <td className="p-2 border-r border-gray-100 font-sans">10–12h</td>
                     <td className="p-2 border-r border-gray-100 font-sans">Sàn KT KCN - BCVH Thuận Hóa</td>
-                    <td className="p-2 font-sans font-semibold text-[#ea580c] bg-white">Chuyển hoàn ▾</td>
+                    <td className="p-2 font-sans font-semibold text-amber-700 bg-white">Chuyển hoàn ▾</td>
                   </tr>
                   <tr className="bg-gray-50/50">
                     <td className="p-2 border-r border-gray-100">XX000000104VN</td>
@@ -274,9 +274,9 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/30 space-y-1.5 text-xs">
                 <div className="font-bold text-gray-700">Danh sách chọn ở ô Trạng thái</div>
-                <div className="font-semibold text-[#059669]">Phát thành công</div>
-                <div className="font-semibold text-[#dc2626]">Phát không thành công</div>
-                <div className="font-semibold text-[#ea580c]">Chuyển hoàn</div>
+                <div className="font-semibold text-emerald-600">Phát thành công</div>
+                <div className="font-semibold text-red-600">Phát không thành công</div>
+                <div className="font-semibold text-amber-700">Chuyển hoàn</div>
                 <div className="font-semibold text-[#7c3aed]">Lạc hướng</div>
                 <div className="font-semibold text-[#334155]">Chưa có thông tin phát</div>
               </div>

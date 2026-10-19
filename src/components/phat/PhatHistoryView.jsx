@@ -53,9 +53,9 @@ function formatNgayDMY(str) {
 }
 
 const STATUS_KEYS = [
-  { ma: 'PTC', nhan: 'Phát thành công', color: 'text-[#059669]' },
-  { ma: 'PKTC', nhan: 'Phát không thành công', color: 'text-[#dc2626]' },
-  { ma: 'CHUYEN_HOAN', nhan: 'Chuyển hoàn', color: 'text-[#ea580c]' },
+  { ma: 'PTC', nhan: 'Phát thành công', color: 'text-emerald-600' },
+  { ma: 'PKTC', nhan: 'Phát không thành công', color: 'text-red-600' },
+  { ma: 'CHUYEN_HOAN', nhan: 'Chuyển hoàn', color: 'text-amber-700' },
   { ma: 'LAC_HUONG', nhan: 'Lạc hướng', color: 'text-[#7c3aed]' },
   { ma: 'CHUA_CO_TT', nhan: 'Chưa có thông tin phát', color: 'text-[#334155]' }
 ];
@@ -209,14 +209,14 @@ export default function PhatHistoryView({ onBack, authUser }) {
     if (sauRate === null || truocRate === null) return 'text-gray-400';
     const diff = sauRate - truocRate;
     if (diff === 0) return 'text-gray-500';
-    if (ma === 'PTC') return diff > 0 ? 'text-[#059669]' : 'text-[#dc2626]';
-    return diff < 0 ? 'text-[#059669]' : 'text-[#dc2626]';
+    if (ma === 'PTC') return diff > 0 ? 'text-emerald-600' : 'text-red-600';
+    return diff < 0 ? 'text-emerald-600' : 'text-red-600';
   };
 
   const isFilterActive = filterBcvh !== 'all' || filterFromDate !== '' || filterToDate !== '' || filterUser !== '' || filterStatus !== '';
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       {/* ── THANH TIÊU ĐỀ & ĐIỀU HƯỚNG ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
         <div>
@@ -240,7 +240,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
 
       {/* ── BANNER D: THÀNH CÔNG SAU KHI HỦY ĐỢT NHẬP (NẾU CÓ) ──────────────── */}
       {cancelSuccessData && (
-        <div className="bg-emerald-50/80 border-2 border-[#10b981] rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="bg-emerald-50/80 border-2 border-emerald-500 rounded-2xl p-6 shadow-sm space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-[900] text-gray-900 tracking-tight">
@@ -323,7 +323,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
                           onClick={() => setSelectedDateIndex(idx)}
                           className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
                             isSelected
-                              ? 'bg-[#ea580c] text-white shadow-sm'
+                              ? 'bg-orange-600 text-white shadow-sm'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >

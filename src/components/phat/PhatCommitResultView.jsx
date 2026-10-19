@@ -4,9 +4,9 @@ import { apiFetch } from '../../utils/api';
 import { formatInt, formatRatePercent } from './ProcessingDeliveryView';
 
 const STATUS_KEYS = [
-  { ma: 'PTC', nhan: 'Phát thành công', color: 'text-[#059669]' },
-  { ma: 'PKTC', nhan: 'Phát không thành công', color: 'text-[#dc2626]' },
-  { ma: 'CHUYEN_HOAN', nhan: 'Chuyển hoàn', color: 'text-[#ea580c]' },
+  { ma: 'PTC', nhan: 'Phát thành công', color: 'text-emerald-600' },
+  { ma: 'PKTC', nhan: 'Phát không thành công', color: 'text-red-600' },
+  { ma: 'CHUYEN_HOAN', nhan: 'Chuyển hoàn', color: 'text-amber-700' },
   { ma: 'LAC_HUONG', nhan: 'Lạc hướng', color: 'text-[#7c3aed]' },
   { ma: 'CHUA_CO_TT', nhan: 'Chưa có thông tin phát', color: 'text-[#334155]' }
 ];
@@ -116,9 +116,9 @@ export default function PhatCommitResultView({
     if (sauRate === null || truocRate === null) return 'text-gray-400';
     const diff = sauRate - truocRate;
     if (diff === 0) return 'text-gray-500';
-    if (ma === 'PTC') return diff > 0 ? 'text-[#059669]' : 'text-[#dc2626]';
+    if (ma === 'PTC') return diff > 0 ? 'text-emerald-600' : 'text-red-600';
     // Với các trạng thái lỗi/chưa có/hoàn: giảm là tốt (xanh lá), tăng là đỏ
-    return diff < 0 ? 'text-[#059669]' : 'text-[#dc2626]';
+    return diff < 0 ? 'text-emerald-600' : 'text-red-600';
   };
 
   return (
@@ -131,8 +131,8 @@ export default function PhatCommitResultView({
       </div>
 
       {/* ── BANNER XANH XÁC NHẬN NHẬP THÀNH CÔNG ─────────────────────────── */}
-      <div className="bg-emerald-50/80 border-2 border-[#10b981] rounded-2xl p-6 shadow-sm flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-[#059669] text-white flex items-center justify-center shrink-0 shadow-sm">
+      <div className="bg-emerald-50/80 border-2 border-emerald-500 rounded-2xl p-6 shadow-sm flex items-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
           <CheckCircle2 className="w-7 h-7" />
         </div>
         <div>
@@ -168,7 +168,7 @@ export default function PhatCommitResultView({
                       onClick={() => setSelectedDayIndex(idx)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
                         isSelected
-                          ? 'bg-[#ea580c] text-white shadow-sm'
+                          ? 'bg-orange-600 text-white shadow-sm'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
@@ -249,7 +249,7 @@ export default function PhatCommitResultView({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Box lỗi */}
               <div className="bg-red-50/60 border border-red-200 rounded-2xl p-4">
-                <div className="text-3xl font-[900] text-[#dc2626]">
+                <div className="text-3xl font-[900] text-red-600">
                   {formatInt(commitData.loi_can_sua ?? commitData.so_loi ?? 0)}
                 </div>
                 <div className="text-xs text-red-700 font-medium mt-1">
@@ -277,7 +277,7 @@ export default function PhatCommitResultView({
                 type="button"
                 onClick={handleDownloadErrors}
                 disabled={downloadingErrors || !(commitData.loi_can_sua ?? commitData.so_loi)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors disabled:opacity-40 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>

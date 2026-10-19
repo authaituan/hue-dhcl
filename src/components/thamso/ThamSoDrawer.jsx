@@ -293,7 +293,7 @@ export default function ThamSoDrawer({
           {param.anh_huong && (
             <div className="space-y-1.5">
               <label className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                 <span>Đổi thì ảnh hưởng gì?</span>
               </label>
               <div className="text-xs text-gray-700 leading-relaxed p-3.5 bg-blue-50/50 rounded-xl border border-blue-100">

@@ -235,15 +235,15 @@ export default function RestoreConfirmDialog({
           ) : (
             <>
               {/* Thông báo hướng dẫn xác nhận */}
-              <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-900 text-xs leading-relaxed">
-                <p className="font-semibold text-sm mb-1 text-orange-950">
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+                <p className="font-semibold text-sm mb-1 text-amber-900">
                   Gõ lại mã BCVH và ngày để xác nhận.
                 </p>
                 <p>
                   Khôi phục sẽ thêm lại{' '}
-                  <span className="font-bold text-orange-950">{formatNumber(soDongSeThem)}</span> dòng cho đơn vị{' '}
-                  <span className="font-bold text-orange-950">{targetBcvh}</span> ngày{' '}
-                  <span className="font-bold text-orange-950">{ngayDmy}</span>.
+                  <span className="font-bold text-amber-900">{formatNumber(soDongSeThem)}</span> dòng cho đơn vị{' '}
+                  <span className="font-bold text-amber-900">{targetBcvh}</span> ngày{' '}
+                  <span className="font-bold text-amber-900">{ngayDmy}</span>.
                 </p>
               </div>
 

@@ -82,7 +82,7 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
                     {result.so_dong} lượt quét
                   </span>
                   {result.so_dong > 1 && (
-                    <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs font-semibold rounded-full border border-orange-100">
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-800 text-xs font-semibold rounded-full border border-amber-100">
                       Đến lại
                     </span>
                   )}
@@ -146,10 +146,10 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
       {isAdmin && exceptions && exceptions.length > 0 && (
         <div className="card-soft border border-gray-200 mt-6">
           <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#7a5200]" />
-            <h3 className="font-bold text-[#0f2747]">
+            <Clock className="w-4 h-4 text-amber-700" />
+            <h3 className="font-bold text-dark">
               Bưu gửi ngoại lệ
-              <span className="text-[12px] font-semibold text-[#7a5200] bg-[#fff4d6] rounded-full px-2 py-0.5 ml-2">Chỉ ADMIN</span>
+              <span className="text-[12px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 ml-2">Chỉ ADMIN</span>
             </h3>
           </div>
           <div className="overflow-x-auto">
@@ -171,7 +171,7 @@ export default function ArrivalsLookup({ bcvhList, isAdmin, exceptions }) {
                     <td className="px-4 py-3">{ex.basis_name || '—'}</td>
                     <td className="px-4 py-3">{ex.ward_name}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#fff4d6] text-[#7a5200]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">
                         {ex.issue_type}
                       </span>
                     </td>

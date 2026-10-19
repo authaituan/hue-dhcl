@@ -155,7 +155,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
 
   if (!isSingleUnit) {
     return (
-      <div className="bg-white rounded-[14px] border border-[#e7e5e4] p-10 text-center text-[#57534e]">
+      <div className="bg-white rounded-[14px] border border-gray-200 p-10 text-center text-gray-600">
         <p className="text-[15px] font-medium">Chọn một BCVH để xem trạng thái BD10 đến.</p>
       </div>
     );
@@ -163,7 +163,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
 
   if (isOverMaxDays) {
     return (
-      <div className="bg-white rounded-[14px] border border-[#e7e5e4] p-10 text-center text-[#57534e]">
+      <div className="bg-white rounded-[14px] border border-gray-200 p-10 text-center text-gray-600">
         <p className="text-[15px] font-medium">Khung ngày tối đa 92 ngày để xem trạng thái BD10 đến.</p>
       </div>
     );
@@ -171,7 +171,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
 
   if (loadingDay) {
     return (
-      <div className="flex items-center justify-center h-64 text-[#78716c]">
+      <div className="flex items-center justify-center h-64 text-gray-500">
         <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
       </div>
     );
@@ -187,7 +187,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
 
   if (!byDayData || byDayData.ngay_du_lieu_moi_nhat === null || !byDayData.theo_ngay || byDayData.theo_ngay.length === 0) {
     return (
-      <div className="bg-white rounded-[14px] border border-[#e7e5e4] p-10 text-center text-[#57534e]">
+      <div className="bg-white rounded-[14px] border border-gray-200 p-10 text-center text-gray-600">
         <p className="text-[15px] font-medium">Chưa có dữ liệu BD10 đến cho BCVH này trong khung ngày.</p>
       </div>
     );
@@ -229,13 +229,13 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         const diffStr = diff.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
         let compText = 'không đổi';
-        let compClass = 'text-[#57534e] font-medium';
+        let compClass = 'text-gray-600 font-medium';
         if (currPct < prevPct) {
           compText = `giảm ${diffStr} điểm`;
-          compClass = 'text-[#15803d] font-bold';
+          compClass = 'text-emerald-700 font-bold';
         } else if (currPct > prevPct) {
           compText = `tăng ${diffStr} điểm`;
-          compClass = 'text-[#b91c1c] font-bold';
+          compClass = 'text-red-700 font-bold';
         }
 
         compResult = {
@@ -261,7 +261,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
   const isViewingLatest = !isAllRange && selectedDate === byDayData.ngay_du_lieu_moi_nhat;
 
   return (
-    <div className="space-y-6 text-[#292524]">
+    <div className="space-y-6 text-gray-800">
       {/* 1. HÀNG CHIP */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -298,12 +298,12 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
               </button>
             </>
           ) : (
-            <span className="text-[14px] font-medium text-[#292524]">
+            <span className="text-[14px] font-medium text-gray-800">
               Đang xem: cả khung {formatDayMonth(fromDate)} → {formatDate(toDate)}
             </span>
           )}
         </div>
-        <div className="text-[12px] text-[#78716c]">
+        <div className="text-[12px] text-gray-500">
           Mặc định là ngày dữ liệu mới nhất. Bấm cột khác để xem ngày đó; bỏ chọn để xem cả khung ngày.
         </div>
       </div>
@@ -311,19 +311,19 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       {/* 2. BỐN THẺ KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Thẻ 1: Tổng BD10 đến */}
-        <div className="bg-white border border-[#e7e5e4] rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold uppercase text-[#57534e] tracking-wider mb-2">
+            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
               TỔNG BD10 ĐẾN
             </div>
-            <div className="text-[38px] font-bold text-[#292524] leading-tight">
+            <div className="text-[38px] font-bold text-gray-800 leading-tight">
               {currentStats.tong.toLocaleString('vi-VN')}
             </div>
-            <div className="text-[15px] font-bold text-[#292524] mt-1">
+            <div className="text-[15px] font-bold text-gray-800 mt-1">
               {(currentStats.bg_tong || 0).toLocaleString('vi-VN')} bưu gửi
             </div>
           </div>
-          <div className="text-[12px] text-[#78716c] mt-2">
+          <div className="text-[12px] text-gray-500 mt-2">
             {!isAllRange 
               ? `BD10 do bưu cục khác lập, nhận tại BCVH này, có ngày ${formatDayMonth(selectedDate)}`
               : 'BD10 do bưu cục khác lập, nhận tại BCVH này, trong khung ngày'}
@@ -331,60 +331,60 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Thẻ 2: Đã XNĐ BD10 */}
-        <div className="bg-white border border-[#e7e5e4] rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold uppercase text-[#57534e] tracking-wider mb-2">
+            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
               ĐÃ XNĐ BD10
             </div>
-            <div className="text-[38px] font-bold text-[#15803d] leading-tight">
+            <div className="text-[38px] font-bold text-emerald-700 leading-tight">
               {currentStats.da_xnd.toLocaleString('vi-VN')}
             </div>
-            <div className="text-[15px] font-bold text-[#15803d] mt-1">
+            <div className="text-[15px] font-bold text-emerald-700 mt-1">
               {(currentStats.bg_da_xnd || 0).toLocaleString('vi-VN')} bưu gửi
             </div>
           </div>
-          <div className="text-[12px] text-[#78716c] mt-2">
+          <div className="text-[12px] text-gray-500 mt-2">
             {daXndNote}
           </div>
         </div>
 
         {/* Thẻ 3: Chưa XNĐ BD10 */}
-        <div className="bg-[#fff1f2] border-2 border-[#fb7185] rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-red-50 border-2 border-red-400 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold uppercase text-[#9f1239] tracking-wider mb-2">
+            <div className="text-[12px] font-bold uppercase text-red-800 tracking-wider mb-2">
               CHƯA XNĐ BD10
             </div>
-            <div className="text-[38px] font-bold text-[#9f1239] leading-tight">
+            <div className="text-[38px] font-bold text-red-800 leading-tight">
               {currentStats.chua_xnd.toLocaleString('vi-VN')}
             </div>
-            <div className="text-[15px] font-bold text-[#9f1239] mt-1">
+            <div className="text-[15px] font-bold text-red-800 mt-1">
               {(currentStats.bg_chua_xnd || 0).toLocaleString('vi-VN')} bưu gửi
             </div>
           </div>
-          <div className="text-[12px] text-[#9f1239] mt-2">
+          <div className="text-[12px] text-red-800 mt-2">
             Đã có XN túi / XN bưu gửi, chưa XNĐ
           </div>
         </div>
 
         {/* Thẻ 4: Tỉ lệ chưa XNĐ */}
-        <div className="bg-white border border-[#e7e5e4] rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold uppercase text-[#57534e] tracking-wider mb-2">
+            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
               TỈ LỆ CHƯA XNĐ
             </div>
             <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-[38px] font-bold text-[#be123c] leading-tight">
+              <span className="text-[38px] font-bold text-red-700 leading-tight">
                 {pct(currentStats.ty_le_chua_xnd)}
               </span>
-              <span className="text-[13px] font-semibold text-[#be123c]">
+              <span className="text-[13px] font-semibold text-red-700">
                 ({currentStats.chua_xnd.toLocaleString('vi-VN')} / {currentStats.tong.toLocaleString('vi-VN')} BD10)
               </span>
             </div>
-            <div className="text-[13px] font-bold text-[#292524] mt-1">
+            <div className="text-[13px] font-bold text-gray-800 mt-1">
               Theo bưu gửi: {pct(currentStats.ty_le_chua_xnd_bg)} ({(currentStats.bg_chua_xnd || 0).toLocaleString('vi-VN')} / {(currentStats.bg_tong || 0).toLocaleString('vi-VN')})
             </div>
           </div>
-          <div className="text-[12px] text-[#78716c] mt-2">
+          <div className="text-[12px] text-gray-500 mt-2">
             {isAllRange ? (
               `Cả khung ${formatDayMonth(fromDate)} → ${formatDate(toDate)}`
             ) : compResult ? (
@@ -403,24 +403,24 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
 
       {/* 3. DÒNG NHẮC VÀNG */}
       {isViewingLatest && (
-        <div className="bg-[#fffbeb] border border-dashed border-[#fcd34d] text-[#92400e] text-[13px] rounded-[10px] py-2.5 px-4 font-medium">
+        <div className="bg-amber-50 border border-dashed border-amber-300 text-amber-800 text-[13px] rounded-[10px] py-2.5 px-4 font-medium">
           Ngày mới nhất: BD10 có thể chưa kịp XNĐ. Xem cả khung ngày để thấy tồn đọng.
         </div>
       )}
 
       {/* 4. KHỐI BIỂU ĐỒ «BD10 đến theo ngày (dd/MM → dd/MM)» */}
-      <div className="bg-white border border-[#e7e5e4] rounded-[16px] p-[20px_24px] space-y-4">
+      <div className="bg-white border border-gray-200 rounded-[16px] p-[20px_24px] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-[15px] font-bold text-[#292524]">
+          <h3 className="text-[15px] font-bold text-gray-800">
             BD10 đến theo ngày ({formatDayMonth(fromDate)} → {formatDayMonth(toDate)})
           </h3>
-          <div className="flex items-center gap-5 text-[13px] text-[#57534e]">
+          <div className="flex items-center gap-5 text-[13px] text-gray-600">
             <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-sm bg-[#86efac] shrink-0" />
+              <span className="w-3.5 h-3.5 rounded-sm bg-emerald-300 shrink-0" />
               <span>Đã XNĐ</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-sm bg-[#e11d48] shrink-0" />
+              <span className="w-3.5 h-3.5 rounded-sm bg-red-600 shrink-0" />
               <span>Chưa XNĐ (số đỏ trên cột)</span>
             </div>
           </div>
@@ -448,7 +448,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                   {/* Số chưa XNĐ đỏ trên cột */}
                   <div className="h-[22px] flex items-center justify-center">
                     {d.chua_xnd > 0 && (
-                      <span className="text-[12px] font-bold text-[#9f1239]">
+                      <span className="text-[12px] font-bold text-red-800">
                         {d.chua_xnd.toLocaleString('vi-VN')}
                       </span>
                     )}
@@ -476,14 +476,14 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                           {/* Phần trên: Chưa XNĐ (đỏ) */}
                           {d.chua_xnd > 0 && (
                             <div 
-                              className="w-full bg-[#e11d48]" 
+                              className="w-full bg-red-600" 
                               style={{ height: `${chuaXndPct}%` }}
                             />
                           )}
                           {/* Phần dưới: Đã XNĐ (xanh) */}
                           {d.da_xnd > 0 && (
                             <div 
-                              className="w-full bg-[#86efac]" 
+                              className="w-full bg-emerald-300" 
                               style={{ height: `${daXndPct}%` }}
                             />
                           )}
@@ -498,10 +498,10 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                     onClick={() => handleToggleDate(d.ngay)}
                     className="flex flex-col items-center mt-2 cursor-pointer w-full"
                   >
-                    <span className={`text-[12px] ${isSelected ? 'font-bold text-[#1d4ed8]' : 'text-[#57534e]'}`}>
+                    <span className={`text-[12px] ${isSelected ? 'font-bold text-[#1d4ed8]' : 'text-gray-600'}`}>
                       {formatDayMonth(d.ngay)}
                     </span>
-                    <span className="text-[11px] text-[#78716c] tabular-nums">
+                    <span className="text-[11px] text-gray-500 tabular-nums">
                       {d.tong.toLocaleString('vi-VN')}
                     </span>
                   </button>
@@ -513,14 +513,14 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       </div>
 
       {/* 5. KHỐI THEO BƯU CỤC LẬP BD10 */}
-      <div className="bg-white border border-[#e7e5e4] rounded-[16px] p-[20px_24px] space-y-4">
+      <div className="bg-white border border-gray-200 rounded-[16px] p-[20px_24px] space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-[15px] font-bold text-[#292524]">
+          <h3 className="text-[15px] font-bold text-gray-800">
             Theo bưu cục lập BD10 {selectedDate ? `(ngày ${formatDayMonth(selectedDate)})` : '(cả khung)'}
           </h3>
           <button
             onClick={onShowDetail}
-            className="bg-[#e11d48] hover:bg-[#be123c] text-white font-bold px-4 py-2 rounded-[10px] text-sm transition-colors flex items-center gap-1 shrink-0"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-[10px] text-sm transition-colors flex items-center gap-1 shrink-0"
           >
             <span>Xem danh sách BD10 chưa XNĐ</span>
             <ArrowRight className="w-4 h-4 ml-1" />
@@ -528,9 +528,9 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Bảng bưu cục lập */}
-        <div className="overflow-x-auto border border-[#e7e5e4] rounded-lg">
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
           {loadingPostOffice ? (
-            <div className="flex items-center justify-center py-12 text-[#78716c]">
+            <div className="flex items-center justify-center py-12 text-gray-500">
               <RefreshCw className="w-6 h-6 animate-spin text-orange-500 mr-2" />
               <span>Đang tải số liệu bưu cục lập...</span>
             </div>
@@ -539,12 +539,12 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
               {errorPostOffice}
             </div>
           ) : !byPostOfficeData || byPostOfficeData.theo_buu_cuc_lap.length === 0 ? (
-            <div className="p-8 text-center text-[#78716c] text-sm">
+            <div className="p-8 text-center text-gray-500 text-sm">
               Không có dữ liệu bưu cục lập trong khoảng đang chọn.
             </div>
           ) : (
             <table className="w-full text-sm text-left">
-              <thead className="bg-[#fafaf9] text-[#57534e] text-[12px] font-bold uppercase border-b-2 border-[#e7e5e4]">
+              <thead className="bg-gray-50 text-gray-600 text-[12px] font-bold uppercase border-b-2 border-gray-200">
                 <tr>
                   <th className="px-4 py-3">BƯU CỤC LẬP</th>
                   <th className="px-4 py-3 text-right">TỔNG BD10 ĐẾN</th>
@@ -553,59 +553,59 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                   <th className="px-4 py-3 text-right">TỈ LỆ CHƯA XNĐ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#e7e5e4]">
+              <tbody className="divide-y divide-gray-200">
                 {byPostOfficeData.theo_buu_cuc_lap.map((row) => (
-                  <tr key={row.ma_buu_cuc} className="hover:bg-[#fbfbfa] transition-colors">
+                  <tr key={row.ma_buu_cuc} className="hover:bg-white transition-colors">
                     <td className="px-4 py-3">
                       {row.ten_buu_cuc ? (
                         <>
-                          <span className="font-medium text-[#292524]">{row.ten_buu_cuc}</span>
-                          <span className="text-xs text-[#78716c] ml-1.5">· {row.ma_buu_cuc}</span>
+                          <span className="font-medium text-gray-800">{row.ten_buu_cuc}</span>
+                          <span className="text-xs text-gray-500 ml-1.5">· {row.ma_buu_cuc}</span>
                         </>
                       ) : (
-                        <span className="font-medium text-[#292524]">{row.ma_buu_cuc}</span>
+                        <span className="font-medium text-gray-800">{row.ma_buu_cuc}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#292524]">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-gray-800">
                       {row.tong.toLocaleString('vi-VN')}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#15803d]">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-700">
                       {row.da_xnd.toLocaleString('vi-VN')}
                     </td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums">
                       {row.chua_xnd > 0 ? (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#ffe4e6] text-[#be123c] font-bold text-[13px]">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold text-[13px]">
                           {row.chua_xnd.toLocaleString('vi-VN')}
                         </span>
                       ) : (
-                        <span className="text-[#78716c]">0</span>
+                        <span className="text-gray-500">0</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-[#be123c]">
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-red-700">
                       {pct(row.ty_le_chua_xnd)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-[#fafaf9] border-t-2 border-[#e7e5e4] font-bold">
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-bold">
                 <tr>
-                  <td className="px-4 py-3 text-[#292524]">Cộng</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-[#292524]">
+                  <td className="px-4 py-3 text-gray-800">Cộng</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-gray-800">
                     {byPostOfficeData.tong.tong.toLocaleString('vi-VN')}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-[#15803d]">
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-700">
                     {byPostOfficeData.tong.da_xnd.toLocaleString('vi-VN')}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums">
                     {byPostOfficeData.tong.chua_xnd > 0 ? (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#ffe4e6] text-[#be123c] font-bold text-[13px]">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold text-[13px]">
                         {byPostOfficeData.tong.chua_xnd.toLocaleString('vi-VN')}
                       </span>
                     ) : (
-                      <span className="text-[#78716c]">0</span>
+                      <span className="text-gray-500">0</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-[#be123c]">
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-red-700">
                     {pct(byPostOfficeData.tong.ty_le_chua_xnd)}
                   </td>
                 </tr>
@@ -616,7 +616,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       </div>
 
       {/* 6. DÒNG GHI CHÚ CUỐI */}
-      <div className="bg-[#fffbeb] border border-dashed border-[#fcd34d] text-[#92400e] text-[13px] rounded-[10px] py-2.5 px-4 font-medium">
+      <div className="bg-amber-50 border border-dashed border-amber-300 text-amber-800 text-[13px] rounded-[10px] py-2.5 px-4 font-medium">
         Ngoài các số trên: BD10 chưa có mốc nào (không xác định được ngày): {(byDayData.ngoai_khung?.khong_co_moc || 0).toLocaleString('vi-VN')} · BD10 lập đi từ chính BCVH này và BD10 trống: không tính.
       </div>
     </div>

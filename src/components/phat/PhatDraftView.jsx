@@ -522,8 +522,8 @@ export default function PhatDraftView({
                       </div>
                       <div className="text-[11px] text-gray-600 mt-1 flex items-center gap-2">
                         <span>Tổng: <strong className="text-gray-900">{formatInt(d.tong_dong)}</strong></span>
-                        <span className="text-[#059669]">Hợp lệ: {formatInt(d.hop_le)}</span>
-                        <span className="text-[#dc2626]">Lỗi: {formatInt(d.loi)}</span>
+                        <span className="text-emerald-600">Hợp lệ: {formatInt(d.hop_le)}</span>
+                        <span className="text-red-600">Lỗi: {formatInt(d.loi)}</span>
                       </div>
                     </div>
 
@@ -637,7 +637,7 @@ export default function PhatDraftView({
           <div className="text-[11px] font-bold text-emerald-800 tracking-wider uppercase">
             HỢP LỆ, SẼ NHẬP
           </div>
-          <div className="text-3xl font-[900] text-[#059669] my-1">
+          <div className="text-3xl font-[900] text-emerald-600 my-1">
             {formatInt(tongHop.hop_le)}
           </div>
         </div>
@@ -647,7 +647,7 @@ export default function PhatDraftView({
           <div className="text-[11px] font-bold text-gray-600 tracking-wider uppercase">
             BỎ QUA (Ô TRỐNG)
           </div>
-          <div className="text-3xl font-[900] text-[#4b5563] my-1">
+          <div className="text-3xl font-[900] text-gray-600 my-1">
             {formatInt(tongHop.bo_qua_trong)}
           </div>
         </div>
@@ -657,7 +657,7 @@ export default function PhatDraftView({
           <div className="text-[11px] font-bold text-red-800 tracking-wider uppercase">
             LỖI, CHƯA NHẬP
           </div>
-          <div className="text-3xl font-[900] text-[#dc2626] my-1">
+          <div className="text-3xl font-[900] text-red-600 my-1">
             {formatInt(tongHop.loi)}
           </div>
         </div>
@@ -918,11 +918,11 @@ export default function PhatDraftView({
                         {/* Kết quả kiểm tra: Chốt 2 - Hiện nguyên văn chi_tiet_loi / ly_do */}
                         <td className="p-2.5">
                           {isError ? (
-                            <span className="font-semibold text-[#dc2626]">
+                            <span className="font-semibold text-red-600">
                               {r.ly_do || r.chi_tiet_loi || r.ma_loi}
                             </span>
                           ) : isHopLe ? (
-                            <span className="font-medium text-[#059669]">
+                            <span className="font-medium text-emerald-600">
                               Hợp lệ, sẽ đổi trạng thái
                             </span>
                           ) : isDaNhap ? (
@@ -1068,7 +1068,7 @@ export default function PhatDraftView({
               ids: null,
               so_nhap: tongHop.hop_le
             })}
-            className="px-5 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-40 cursor-pointer"
+            className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-40 cursor-pointer"
           >
             Nhập {formatInt(tongHop.hop_le)} dòng hợp lệ
           </button>
@@ -1109,7 +1109,7 @@ export default function PhatDraftView({
                 type="button"
                 onClick={handleCommit}
                 disabled={committing}
-                className="px-4 py-2 text-xs font-bold text-white bg-[#ea580c] hover:bg-[#c2410c] rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {committing ? 'Đang ghi nhận...' : 'Xác nhận nhập'}
               </button>

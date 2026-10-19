@@ -38,7 +38,7 @@ export default function SourceIngestReviewed({
     if (!item || typeof item !== 'object') return null;
     if (item.loai === 'NGAY') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-800 border border-orange-200">
+        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
           {item.nghi_ngo === 'NHIEU' ? 'Nghi ngờ nhiều' : 'Nghi ngờ ít'}
         </span>
       );
@@ -58,7 +58,7 @@ export default function SourceIngestReviewed({
         );
       case 'NGUON_CO_FILE_CHUA_NAP':
         return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-orange-600 border border-dashed border-orange-400">
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-amber-700 border border-dashed border-amber-400">
             Nguồn có file, chưa nạp
           </span>
         );
