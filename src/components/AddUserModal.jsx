@@ -3,9 +3,8 @@ import { X, UserPlus, AlertCircle, Tv } from 'lucide-react';
 import { apiFetchJson } from '../utils/api';
 import { BCVH_LIST } from '../constants/bcvh';
 
-const ROLE_OPTIONS = ['STAFF', 'TTVH', 'GDVH', 'ADMIN', 'TIVI'];
+const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI'];
 const ROLE_HINTS = {
-  STAFF: ' (chỉ xem Dashboard, mặc định)',
   TTVH: ' (xem toàn bộ dữ liệu 6 BCVH)',
   GDVH: ' (xem toàn bộ dữ liệu 6 BCVH)',
   ADMIN: ' (toàn quyền)',
@@ -20,7 +19,7 @@ const TIVI_SCOPE_OPTIONS = [
 export default function AddUserModal({ onClose, onSuccess }) {
   const [hrmCode, setHrmCode] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('STAFF');
+  const [role, setRole] = useState('');
   const [tiviScope, setTiviScope] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,6 +37,10 @@ export default function AddUserModal({ onClose, onSuccess }) {
     e.preventDefault();
     if (!hrmCode.trim() || !fullName.trim()) {
       setError('Vui lòng nhập đầy đủ Mã HRM và Họ và Tên');
+      return;
+    }
+    if (!role) {
+      setError('Vui lòng chọn vai trò');
       return;
     }
     if (password.length < 6) {
@@ -137,6 +140,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
               onChange={handleRoleChange}
               className="w-full input-soft p-3 rounded-xl text-xs"
             >
+              <option value="" disabled>— Chọn vai trò —</option>
               {ROLE_OPTIONS.map((r) => (
                 <option key={r} value={r}>{r}{ROLE_HINTS[r]}</option>
               ))}
@@ -187,7 +191,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !role}
               className="w-full py-3 rounded-[8px] bg-[#4A1D6E] text-white font-bold border-b-[3px] border-[#E0A82E] flex items-center justify-center gap-2 disabled:opacity-60 shadow-none transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />

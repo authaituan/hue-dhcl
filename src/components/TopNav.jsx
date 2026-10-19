@@ -6,7 +6,6 @@ const ROLE_LABELS = {
   ADMIN: 'ADMIN (quản trị)',
   TTVH: 'TTVH',
   GDVH: 'GDVH',
-  STAFF: 'STAFF (chỉ xem)',
 };
 
 const ADMIN_ITEMS = [
