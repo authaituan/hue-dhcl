@@ -218,12 +218,12 @@ export default function PhatHistoryView({ onBack, authUser }) {
   return (
     <div className="p-6 space-y-6">
       {/* ── THANH TIÊU ĐỀ & ĐIỀU HƯỚNG ────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-cream-line pb-4">
         <div>
           <div className="text-xs text-gray-500 font-medium">
             Xử lý và tỷ lệ phát › Lịch sử nhập
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight mt-1">
+          <h1 className="hue-h1 mt-1">
             Lịch sử nhập trạng thái phát
           </h1>
         </div>
@@ -231,7 +231,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#D9CBA8] hover:bg-cream-light text-orange-600 text-xs font-bold rounded-[8px] shadow-none transition-colors cursor-pointer self-start sm:self-auto"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Về Xử lý và tỷ lệ phát</span>
@@ -240,14 +240,14 @@ export default function PhatHistoryView({ onBack, authUser }) {
 
       {/* ── BANNER D: THÀNH CÔNG SAU KHI HỦY ĐỢT NHẬP (NẾU CÓ) ──────────────── */}
       {cancelSuccessData && (
-        <div className="bg-emerald-50/80 border-2 border-emerald-500 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="bg-emerald-50/80 border-2 border-emerald-500 rounded-[14px] p-6 shadow-none space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-[900] text-gray-900 tracking-tight">
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
                 Đã hủy đợt nhập #{cancelSuccessData.batch_id} lúc {formatBangkokDateTime(cancelSuccessData.hoan_tac_luc_bangkok)}
               </h2>
               <p className="text-xs text-gray-700 mt-1 leading-relaxed">
-                Khôi phục trạng thái cũ: <strong className="font-bold text-gray-900">{formatInt(cancelSuccessData.so_khoi_phuc)}</strong> bưu gửi. Xóa trạng thái: <strong className="font-bold text-gray-900">{formatInt(cancelSuccessData.so_xoa_trang_thai)}</strong> bưu gửi. Tỷ lệ phát đã được tính lại.
+                Khôi phục trạng thái cũ: <strong className="font-bold text-gray-900 tabular-nums">{formatInt(cancelSuccessData.so_khoi_phuc)}</strong> bưu gửi. Xóa trạng thái: <strong className="font-bold text-gray-900 tabular-nums">{formatInt(cancelSuccessData.so_xoa_trang_thai)}</strong> bưu gửi. Tỷ lệ phát đã được tính lại.
               </p>
             </div>
             <button
@@ -261,27 +261,27 @@ export default function PhatHistoryView({ onBack, authUser }) {
           </div>
 
           {/* Bảng so sánh Trước/Sau bên trong banner */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
+          <div className="bg-white border border-gray-200 rounded-[14px] p-5 shadow-none space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900">
                 Ngày {ngayFormatted}, trước và sau khi hủy đợt nhập
               </h3>
-              <span className="text-[11px] text-gray-500">
+              <span className="text-[11px] text-gray-500 tabular-nums">
                 Mẫu số {formatInt(mauSo)} bưu gửi đến.
               </span>
             </div>
 
-            <div className="overflow-x-auto border border-gray-100 rounded-xl">
+            <div className="overflow-x-auto border border-cream-line rounded-lg">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/70 text-gray-500 font-bold border-b border-gray-200">
+                <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line">
+                  <tr className="border-b border-cream-line text-gray-600 font-bold">
                     <th className="py-2 px-3">Trạng thái</th>
                     <th className="py-2 px-3 text-right">Trước</th>
                     <th className="py-2 px-3 text-right">Sau</th>
                     <th className="py-2 px-3 text-right">Chênh</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
+                <tbody className="divide-y divide-cream-line text-gray-700">
                   {STATUS_KEYS.map((st) => {
                     const tRate = currentTruoc.theo_trang_thai?.[st.ma]?.ty_le ?? null;
                     const sRate = currentSau.theo_trang_thai?.[st.ma]?.ty_le ?? null;
@@ -289,17 +289,17 @@ export default function PhatHistoryView({ onBack, authUser }) {
                     const diffColor = getDiffColor(st.ma, sRate, tRate);
 
                     return (
-                      <tr key={st.ma} className="hover:bg-gray-50/50">
+                      <tr key={st.ma} className="hover:bg-cream-light/30">
                         <td className={`py-2 px-3 font-semibold ${st.color}`}>
                           {st.nhan}
                         </td>
-                        <td className="py-2 px-3 text-right text-gray-600 font-medium">
+                        <td className="py-2 px-3 text-right text-gray-600 font-medium tabular-nums">
                           {formatRatePercent(tRate)}
                         </td>
-                        <td className="py-2 px-3 text-right font-[900] text-gray-900">
+                        <td className="py-2 px-3 text-right font-bold text-gray-900 tabular-nums">
                           {formatRatePercent(sRate)}
                         </td>
-                        <td className={`py-2 px-3 text-right font-bold ${diffColor}`}>
+                        <td className={`py-2 px-3 text-right font-bold tabular-nums ${diffColor}`}>
                           {diffStr}
                         </td>
                       </tr>
@@ -351,7 +351,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
       )}
 
       {/* ── BỘ LỌC (BẢNG 17) ──────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
+      <div className="bg-white border border-gray-200 rounded-[14px] p-5 shadow-none space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 items-end">
           {/* 1. BCVH */}
           <div>
@@ -364,7 +364,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
                 setFilterBcvh(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+              className="w-full text-xs font-semibold text-gray-800 bg-white border border-[#D9CBA8] rounded-[10px] p-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
             >
               <option value="all">Tất cả BCVH được xem</option>
               {BCVH_LIST.map((b) => (
@@ -416,7 +416,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
                 setFilterUser(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+              className="w-full text-xs font-semibold text-gray-800 bg-white border border-[#D9CBA8] rounded-[10px] p-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
             >
               <option value="">Tất cả</option>
               {nguoiNhapLuaChon.map((u) => (
@@ -438,7 +438,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
                 setFilterStatus(e.target.value);
                 setPage(1);
               }}
-              className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
+              className="w-full text-xs font-semibold text-gray-800 bg-white border border-[#D9CBA8] rounded-[10px] p-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
             >
               <option value="">Tất cả</option>
               <option value="da_nhap">Đã nhập</option>
@@ -451,7 +451,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
             <button
               type="button"
               onClick={handleResetFilter}
-              className="w-full text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl p-2.5 shadow-2xs transition-colors cursor-pointer"
+              className="w-full text-xs font-bold text-gray-700 bg-white hover:bg-cream-light border border-[#D9CBA8] rounded-[8px] p-2.5 shadow-none transition-colors cursor-pointer"
             >
               Xóa lọc
             </button>
@@ -468,7 +468,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
       </div>
 
       {/* ── BẢNG DANH SÁCH ĐỢT NHẬP (BẢNG 17) ────────────────────────────── */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-[14px] shadow-none overflow-hidden">
         {loading ? (
           <div className="py-20 text-center space-y-3">
             <RefreshCw className="w-7 h-7 text-orange-600 animate-spin mx-auto" />
@@ -485,7 +485,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
             <button
               type="button"
               onClick={() => loadBatches(filterBcvh, filterFromDate, filterToDate, filterUser, filterStatus, page)}
-              className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+              className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-[#D9CBA8] rounded-[8px] hover:bg-cream-light transition-colors shadow-none cursor-pointer inline-flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Thử lại</span>
@@ -498,8 +498,8 @@ export default function PhatHistoryView({ onBack, authUser }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-gray-50/80 text-gray-500 font-bold border-b border-gray-200">
+              <thead className="bg-cream-head text-gray-600 text-xs font-bold border-b border-cream-line">
+                <tr className="border-b border-cream-line text-gray-600 font-bold">
                   <th className="py-3 px-4">Đợt</th>
                   <th className="py-3 px-4">Giờ nhập</th>
                   <th className="py-3 px-4">Người nhập</th>
@@ -512,20 +512,20 @@ export default function PhatHistoryView({ onBack, authUser }) {
                   <th className="py-3 px-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
+              <tbody className="divide-y divide-cream-line text-gray-700">
                 {items.map((b) => {
                   const bcvhName = bcvhMap[b.bcvh] || b.bcvh;
                   const isDaNhap = b.trang_thai === 'da_nhap';
 
                   return (
-                    <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={b.id} className="hover:bg-cream-light/30 transition-colors">
                       {/* Đợt */}
-                      <td className="py-3.5 px-4 font-bold text-gray-900">
+                      <td className="py-3.5 px-4 font-bold text-gray-900 tabular-nums">
                         #{b.id}
                       </td>
 
                       {/* Giờ nhập */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 font-medium">
+                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-700 font-medium tabular-nums">
                         {formatBangkokDateTime(b.nhap_luc_bangkok)}
                       </td>
 
@@ -545,19 +545,19 @@ export default function PhatHistoryView({ onBack, authUser }) {
                       </td>
 
                       {/* Đã nhập */}
-                      <td className="py-3.5 px-4 text-right font-bold text-gray-900">
+                      <td className="py-3.5 px-4 text-right font-bold text-gray-900 tabular-nums">
                         {formatInt(b.so_nhap)}
                       </td>
 
                       {/* Lỗi */}
-                      <td className="py-3.5 px-4 text-right font-medium text-gray-600">
+                      <td className="py-3.5 px-4 text-right font-medium text-gray-600 tabular-nums">
                         {formatInt(b.so_loi)}
                       </td>
 
                       {/* Cảnh báo: > 0 nhãn vàng; 0 chữ xám «Không có»; null chữ xám «Không rõ» */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {b.so_canh_bao > 0 ? (
-                          <span className="inline-block px-2.5 py-1 text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
+                          <span className="inline-block px-2.5 py-1 text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded-full tabular-nums">
                             {b.so_canh_bao} cảnh báo
                           </span>
                         ) : b.so_canh_bao === 0 ? (
@@ -575,10 +575,10 @@ export default function PhatHistoryView({ onBack, authUser }) {
                           </span>
                         ) : (
                           <div className="space-y-0.5">
-                            <span className="inline-block px-2.5 py-0.5 text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200 rounded-full">
+                            <span className="inline-block px-2.5 py-0.5 text-[11px] font-semibold bg-[#EFE6D2] text-gray-600 border border-[#D9CBA8] rounded-full">
                               Đã hủy
                             </span>
-                            <div className="text-[11px] text-gray-400">
+                            <div className="text-[11px] text-gray-400 tabular-nums">
                               Hủy bởi {b.hoan_tac_boi?.full_name || 'Người dùng'}, {formatBangkokDateTime(b.hoan_tac_luc_bangkok)}
                             </div>
                           </div>
@@ -592,7 +592,7 @@ export default function PhatHistoryView({ onBack, authUser }) {
                             <button
                               type="button"
                               onClick={() => setSelectedBatchForCancel(b)}
-                              className="px-3 py-1.5 text-xs font-bold text-red-600 bg-white border border-red-300 rounded-xl hover:bg-red-50 hover:border-red-400 transition-colors shadow-2xs cursor-pointer"
+                              className="px-3 py-1.5 text-xs font-bold text-red-600 bg-white border border-red-300 rounded-[8px] hover:bg-red-50 hover:border-red-400 transition-colors shadow-none cursor-pointer"
                             >
                               Hủy đợt nhập
                             </button>

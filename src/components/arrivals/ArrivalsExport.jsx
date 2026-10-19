@@ -103,10 +103,10 @@ export default function ArrivalsExport({ filters, exportScope, bcvhList }) {
         <button
           onClick={handleDownload}
           disabled={!isEnabled || loading}
-          className={`h-[44px] px-[22px] border-0 rounded-lg text-[14px] font-semibold flex items-center justify-center ${
+          className={`h-[44px] px-[22px] border-0 rounded-lg text-[14px] flex items-center justify-center ${
             isEnabled && !loading
-              ? 'btn-primary cursor-pointer' 
-              : 'bg-gray-300 text-white cursor-not-allowed'
+              ? 'bg-orange-600 text-white font-bold border-b-[3px] border-amber-400 cursor-pointer' 
+              : 'bg-disabled-bg text-gray-400 cursor-not-allowed font-semibold'
           }`}
         >
           {loading ? (

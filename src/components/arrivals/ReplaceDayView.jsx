@@ -241,13 +241,13 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* ── THANH CHUYỂN TAB NỘI BỘ ───────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b border-gray-200">
+      <div className="flex items-center gap-2 border-b border-[#E4D5AE]">
         <button
           type="button"
           onClick={() => setActiveTab('replace')}
-          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-[3px] transition-all cursor-pointer inline-flex items-center gap-2 ${
             activeTab === 'replace'
-              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              ? 'border-amber-400 text-orange-600 bg-orange-50/40 rounded-t-xl'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
@@ -258,9 +258,9 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
         <button
           type="button"
           onClick={() => setActiveTab('log')}
-          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-[3px] transition-all cursor-pointer inline-flex items-center gap-2 ${
             activeTab === 'log'
-              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              ? 'border-amber-400 text-orange-600 bg-orange-50/40 rounded-t-xl'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
@@ -272,16 +272,16 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
       {/* ── TAB 1: THAY THẾ NGÀY ────────────────────────────────────────── */}
       <div className={activeTab === 'replace' ? 'space-y-6' : 'hidden'}>
       {/* ── CARD TIÊU ĐỀ & MÔ TẢ ────────────────────────────────────────── */}
-      <div className="card-soft p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="card-soft p-5 sm:p-6 rounded-[14px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200 uppercase tracking-wide">
               ADMIN ONLY
             </span>
-            <h2 className="text-xl font-bold text-[--color-title] flex items-center gap-2">
+            <h1 className="hue-h1 text-2xl flex items-center gap-2">
               <RefreshCw className="w-5 h-5 text-orange-500" />
               <span>Thay Thế Ngày Của Một BCVH</span>
-            </h2>
+            </h1>
           </div>
           <p className="text-xs text-[--color-body] mt-1.5 leading-relaxed max-w-3xl">
             Thay thế toàn bộ dữ liệu sản lượng đến của một ngày tại một đơn vị bằng dữ liệu từ máy chủ nguồn.
@@ -374,7 +374,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
           </div>
           <div className="leading-relaxed pl-6">{previewError.message}</div>
           {previewError.code && (
-            <div className="text-[10px] text-red-600 font-mono pl-6">
+            <div className="text-[10px] text-red-600 tabular-nums pl-6">
               Mã lỗi: {previewError.code}
             </div>
           )}
@@ -399,7 +399,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               </div>
             </div>
 
-            <div className="text-right text-[11px] text-emerald-800 font-mono">
+            <div className="text-right text-[11px] text-emerald-800 tabular-nums">
               Nhật ký: <strong className="font-bold text-emerald-950">#{executionResult.nhat_ky_id}</strong>
             </div>
           </div>
@@ -432,7 +432,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
             </div>
             <div className="sm:col-span-2">
               <span className="text-gray-500 text-[11px] block">Tệp sao lưu an toàn:</span>
-              <strong className="font-mono text-[11px] text-gray-800 break-all">
+              <strong className="tabular-nums text-[11px] text-gray-800 break-all">
                 {executionResult.sao_luu?.tep || '—'}
               </strong>
             </div>
@@ -451,7 +451,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               <div className="divide-y divide-emerald-100 bg-white/80 rounded-xl border border-emerald-100 overflow-hidden text-xs">
                 {executionResult.tap_file_moi.map((t, idx) => (
                   <div key={idx} className="p-2.5 flex items-center justify-between gap-2">
-                    <span className="font-mono text-[11px] text-gray-900 truncate">{t.ten}</span>
+                    <span className="tabular-nums text-[11px] text-gray-900 truncate">{t.ten}</span>
                     <div className="flex items-center gap-3 shrink-0 text-[11px]">
                       <span className="text-gray-600 font-semibold">{formatNumber(t.so_dong)} dòng</span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
@@ -727,7 +727,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               ) : (
                 <div className="overflow-x-auto max-h-72 nav-scrollbar">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0 z-10 text-[11px]">
+                    <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line sticky top-0 z-10 text-[12px]">
                       <tr>
                         <th className="py-2.5 px-3 w-10 text-center">Chọn</th>
                         <th className="py-2.5 px-3">Tên tệp</th>
@@ -736,7 +736,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
                         <th className="py-2.5 px-3">Kết luận</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-cream-line tabular-nums">
                       {nguonFiles.map((f) => {
                         const isChecked = selectedFiles.includes(f.ten);
                         return (
@@ -750,10 +750,10 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
                                 aria-label={`Chọn tệp ${f.ten}`}
                               />
                             </td>
-                            <td className="py-2 px-3 font-mono text-[11px] text-gray-900 truncate max-w-[180px]" title={f.ten}>
+                            <td className="py-2 px-3 tabular-nums text-[11px] text-gray-900 truncate max-w-[180px]" title={f.ten}>
                               {f.ten}
                             </td>
-                            <td className="py-2 px-3 text-right font-mono text-[11px] text-gray-600 whitespace-nowrap">
+                            <td className="py-2 px-3 text-right tabular-nums text-[11px] text-gray-600 whitespace-nowrap">
                               {f.kich_thuoc ? `${Math.round(f.kich_thuoc / 1024)} KB` : '—'}
                             </td>
                             <td className="py-2 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">
@@ -804,7 +804,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               ) : (
                 <div className="overflow-x-auto max-h-72 nav-scrollbar">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0 z-10 text-[11px]">
+                    <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line sticky top-0 z-10 text-[12px]">
                       <tr>
                         <th className="py-2.5 px-3">Tên tệp</th>
                         <th className="py-2.5 px-3">Nguồn</th>
@@ -812,10 +812,10 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
                         <th className="py-2.5 px-3">Trạng thái</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-cream-line tabular-nums">
                       {dbFiles.map((df) => (
-                        <tr key={df.id || df.file_name} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-2 px-3 font-mono text-[11px] text-gray-900 truncate max-w-[200px]" title={df.file_name}>
+                        <tr key={df.id || df.file_name} className="hover:bg-cream-light/50 transition-colors">
+                          <td className="py-2 px-3 tabular-nums text-[11px] text-gray-900 truncate max-w-[200px]" title={df.file_name}>
                             {df.file_name}
                           </td>
                           <td className="py-2 px-3 whitespace-nowrap">
@@ -853,7 +853,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 text-[11px]">
+                  <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line text-[12px]">
                     <tr>
                       <th className="py-2.5 px-4">Ngày đến (arrival_date)</th>
                       <th className="py-2.5 px-4 text-right">Bưu gửi cũ</th>
@@ -861,7 +861,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
                       <th className="py-2.5 px-4 text-right">Chênh lệch</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-cream-line tabular-nums">
                     {soSanh.theo_ngay_den.map((row, idx) => {
                       const diff = Number(row.shbg_moi ?? 0) - Number(row.shbg_cu ?? 0);
                       return (

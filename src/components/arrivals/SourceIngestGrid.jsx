@@ -269,7 +269,7 @@ export default function SourceIngestGrid({
       <div className="overflow-x-auto min-h-[300px]">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-gray-50/80 text-gray-600 border-b border-gray-200 text-[11px]">
+            <tr className="bg-cream-head text-gray-600 border-b border-cream-line text-[12px]">
               <th className="py-2.5 px-3 font-bold w-28 uppercase tracking-wider">
                 Ngày
               </th>
@@ -279,7 +279,7 @@ export default function SourceIngestGrid({
                 return (
                   <th key={b.ma} className="py-2.5 px-2 text-center font-bold">
                     <div>{tenClean}</div>
-                    <div className="text-[10px] text-gray-400 font-mono font-normal">
+                    <div className="text-[10px] text-gray-400 tabular-nums font-normal">
                       {b.ma}
                     </div>
                   </th>
@@ -287,7 +287,7 @@ export default function SourceIngestGrid({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-cream-line tabular-nums">
             {filteredDays.length === 0 ? (
               <tr>
                 <td
@@ -446,7 +446,7 @@ function CellButton({ cell, dot, bcvh, ngay, ngayBatDau, reviewedItem, onClick }
   if (trangThai === 'CHUA_BAT_DAU') {
     return (
       <span
-        className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] text-gray-300 font-mono cursor-default"
+        className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] text-gray-300 tabular-nums cursor-default"
         title={ngayBatDau ? `Trước ngày BCVH này bắt đầu có dữ liệu (${formatYmdToDmy(ngayBatDau)})` : 'Chưa bắt đầu'}
       >
         &nbsp;
@@ -458,7 +458,7 @@ function CellButton({ cell, dot, bcvh, ngay, ngayBatDau, reviewedItem, onClick }
   if (trangThai === 'CHUA_DEN_GIO') {
     return (
       <span
-        className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] text-gray-400 font-mono cursor-default"
+        className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] text-gray-400 tabular-nums cursor-default"
         title="Chưa đến giờ mong đợi"
       >
         —

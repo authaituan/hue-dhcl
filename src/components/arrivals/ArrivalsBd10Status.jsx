@@ -311,12 +311,12 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       {/* 2. BỐN THẺ KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Thẻ 1: Tổng BD10 đến */}
-        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between shadow-none">
           <div>
-            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
+            <div className="hue-label mb-2">
               TỔNG BD10 ĐẾN
             </div>
-            <div className="text-[38px] font-bold text-gray-800 leading-tight">
+            <div className="hue-num-38 text-orange-600 leading-tight">
               {currentStats.tong.toLocaleString('vi-VN')}
             </div>
             <div className="text-[15px] font-bold text-gray-800 mt-1">
@@ -331,12 +331,12 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Thẻ 2: Đã XNĐ BD10 */}
-        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between shadow-none">
           <div>
-            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
+            <div className="hue-label mb-2">
               ĐÃ XNĐ BD10
             </div>
-            <div className="text-[38px] font-bold text-emerald-700 leading-tight">
+            <div className="hue-num-38 text-emerald-700 leading-tight">
               {currentStats.da_xnd.toLocaleString('vi-VN')}
             </div>
             <div className="text-[15px] font-bold text-emerald-700 mt-1">
@@ -349,15 +349,15 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Thẻ 3: Chưa XNĐ BD10 */}
-        <div className="bg-red-50 border-2 border-red-400 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-rose-50 border-2 border-rose-300 rounded-[14px] p-[16px_18px] flex flex-col justify-between shadow-none">
           <div>
-            <div className="text-[12px] font-bold uppercase text-red-800 tracking-wider mb-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-red-700 mb-2">
               CHƯA XNĐ BD10
             </div>
-            <div className="text-[38px] font-bold text-red-800 leading-tight">
+            <div className="hue-num-38 text-red-700 leading-tight">
               {currentStats.chua_xnd.toLocaleString('vi-VN')}
             </div>
-            <div className="text-[15px] font-bold text-red-800 mt-1">
+            <div className="text-[15px] font-bold text-red-700 mt-1">
               {(currentStats.bg_chua_xnd || 0).toLocaleString('vi-VN')} bưu gửi
             </div>
           </div>
@@ -367,13 +367,13 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Thẻ 4: Tỉ lệ chưa XNĐ */}
-        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between">
+        <div className="bg-white border border-gray-200 rounded-[14px] p-[16px_18px] flex flex-col justify-between shadow-none">
           <div>
-            <div className="text-[12px] font-bold uppercase text-gray-600 tracking-wider mb-2">
+            <div className="hue-label mb-2">
               TỈ LỆ CHƯA XNĐ
             </div>
             <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-[38px] font-bold text-red-700 leading-tight">
+              <span className="hue-num-38 text-red-700 leading-tight">
                 {pct(currentStats.ty_le_chua_xnd)}
               </span>
               <span className="text-[13px] font-semibold text-red-700">
@@ -409,9 +409,9 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       )}
 
       {/* 4. KHỐI BIỂU ĐỒ «BD10 đến theo ngày (dd/MM → dd/MM)» */}
-      <div className="bg-white border border-gray-200 rounded-[16px] p-[20px_24px] space-y-4">
+      <div className="bg-white border border-gray-200 rounded-[14px] p-5 space-y-4 shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-[15px] font-bold text-gray-800">
+          <h3 className="hue-h2 text-[17px]">
             BD10 đến theo ngày ({formatDayMonth(fromDate)} → {formatDayMonth(toDate)})
           </h3>
           <div className="flex items-center gap-5 text-[13px] text-gray-600">
@@ -513,14 +513,14 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
       </div>
 
       {/* 5. KHỐI THEO BƯU CỤC LẬP BD10 */}
-      <div className="bg-white border border-gray-200 rounded-[16px] p-[20px_24px] space-y-4">
+      <div className="bg-white border border-gray-200 rounded-[14px] p-5 space-y-4 shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-[15px] font-bold text-gray-800">
+          <h3 className="hue-h2 text-[17px]">
             Theo bưu cục lập BD10 {selectedDate ? `(ngày ${formatDayMonth(selectedDate)})` : '(cả khung)'}
           </h3>
           <button
             onClick={onShowDetail}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-[10px] text-sm transition-colors flex items-center gap-1 shrink-0"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-[8px] text-sm transition-colors flex items-center gap-1 shrink-0"
           >
             <span>Xem danh sách BD10 chưa XNĐ</span>
             <ArrowRight className="w-4 h-4 ml-1" />
@@ -528,7 +528,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
         </div>
 
         {/* Bảng bưu cục lập */}
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <div className="overflow-x-auto border border-cream-line rounded-lg">
           {loadingPostOffice ? (
             <div className="flex items-center justify-center py-12 text-gray-500">
               <RefreshCw className="w-6 h-6 animate-spin text-orange-500 mr-2" />
@@ -544,7 +544,7 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
             </div>
           ) : (
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-600 text-[12px] font-bold uppercase border-b-2 border-gray-200">
+              <thead className="bg-cream-head text-gray-600 text-[12px] font-bold uppercase border-b border-cream-line">
                 <tr>
                   <th className="px-4 py-3">BƯU CỤC LẬP</th>
                   <th className="px-4 py-3 text-right">TỔNG BD10 ĐẾN</th>
@@ -553,9 +553,9 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                   <th className="px-4 py-3 text-right">TỈ LỆ CHƯA XNĐ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-cream-line">
                 {byPostOfficeData.theo_buu_cuc_lap.map((row) => (
-                  <tr key={row.ma_buu_cuc} className="hover:bg-white transition-colors">
+                  <tr key={row.ma_buu_cuc} className="hover:bg-cream-light/30 transition-colors">
                     <td className="px-4 py-3">
                       {row.ten_buu_cuc ? (
                         <>
@@ -566,46 +566,46 @@ export default function ArrivalsBd10Status({ filters, onShowDetail, bcvhList }) 
                         <span className="font-medium text-gray-800">{row.ma_buu_cuc}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-gray-800">
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-800">
                       {row.tong.toLocaleString('vi-VN')}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-700">
+                    <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
                       {row.da_xnd.toLocaleString('vi-VN')}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums">
+                    <td className="px-4 py-3 text-right tabular-nums">
                       {row.chua_xnd > 0 ? (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold text-[13px]">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-red-700 font-bold text-[13px] border border-rose-200">
                           {row.chua_xnd.toLocaleString('vi-VN')}
                         </span>
                       ) : (
                         <span className="text-gray-500">0</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-red-700">
+                    <td className="px-4 py-3 text-right tabular-nums text-red-700">
                       {pct(row.ty_le_chua_xnd)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-bold">
+              <tfoot className="bg-cream-light border-t-2 border-amber-400 font-bold">
                 <tr>
                   <td className="px-4 py-3 text-gray-800">Cộng</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-gray-800">
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-800">
                     {byPostOfficeData.tong.tong.toLocaleString('vi-VN')}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-700">
+                  <td className="px-4 py-3 text-right tabular-nums text-emerald-700">
                     {byPostOfficeData.tong.da_xnd.toLocaleString('vi-VN')}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums">
+                  <td className="px-4 py-3 text-right tabular-nums">
                     {byPostOfficeData.tong.chua_xnd > 0 ? (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold text-[13px]">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-red-700 font-bold text-[13px] border border-rose-200">
                         {byPostOfficeData.tong.chua_xnd.toLocaleString('vi-VN')}
                       </span>
                     ) : (
                       <span className="text-gray-500">0</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-red-700">
+                  <td className="px-4 py-3 text-right tabular-nums text-red-700">
                     {pct(byPostOfficeData.tong.ty_le_chua_xnd)}
                   </td>
                 </tr>

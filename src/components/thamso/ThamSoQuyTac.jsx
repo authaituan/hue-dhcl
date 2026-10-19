@@ -53,7 +53,7 @@ export default function ThamSoQuyTac({ items = [] }) {
                     <h3 className="font-bold text-sm text-[var(--color-title)] leading-snug">
                       {item.nhan}
                     </h3>
-                    <div className="font-mono text-[11px] text-gray-400 mt-0.5">
+                    <div className="tabular-nums text-[11px] text-gray-400 mt-0.5">
                       {item.khoa}
                     </div>
                   </div>
@@ -92,7 +92,7 @@ export default function ThamSoQuyTac({ items = [] }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-lg font-black text-slate-900">
+                    <div className="text-lg font-bold text-slate-900">
                       {formatGiaTriHienThi(item.gia_tri ?? item.mac_dinh, item.kieu, item.don_vi)}
                     </div>
                   )}

@@ -71,32 +71,32 @@ function BcvhComparisonTable({ filters, bcvhList, cardSanLuong }) {
   if (filters.receiver_code.length < 2) return null;
 
   return (
-    <div className="card-soft overflow-hidden">
-      <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-        <h3 className="font-bold text-[var(--color-title)]">So sánh các BCVH đang chọn</h3>
+    <div className="bg-white rounded-[14px] border border-gray-200 shadow-none overflow-hidden">
+      <div className="p-4 border-b border-gray-100 bg-cream-head flex justify-between items-center">
+        <h3 className="hue-h2 text-[17px]">So sánh các BCVH đang chọn</h3>
         {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
+          <thead className="bg-cream-head text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
             <tr>
               <th className="px-4 py-3">BCVH</th>
-              <th className="px-4 py-3 text-right">Sản lượng đến</th>
-              <th className="px-4 py-3 text-right">Túi/kiện</th>
-              <th className="px-4 py-3 text-right">Khối lượng (kg)</th>
-              <th className="px-4 py-3 text-right">Hàng đi ngoài</th>
-              <th className="px-4 py-3 text-right">Đủ trạng thái (SHBG, BD8, BD10)</th>
+              <th className="px-4 py-3 text-right">SẢN LƯỢNG ĐẾN</th>
+              <th className="px-4 py-3 text-right">TÚI/KIỆN</th>
+              <th className="px-4 py-3 text-right">KHỐI LƯỢNG (KG)</th>
+              <th className="px-4 py-3 text-right">HÀNG ĐI NGOÀI</th>
+              <th className="px-4 py-3 text-right">ĐỦ TRẠNG THÁI</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-cream-line">
             {tableData.map(row => (
-              <tr key={row.code} className="border-b border-gray-50 hover:bg-gray-50/50">
-                <td className="px-4 py-3 font-medium">{row.ten}</td>
-                <td className="px-4 py-3 text-right font-bold text-orange-500">{row.san_luong.toLocaleString('vi-VN')}</td>
-                <td className="px-4 py-3 text-right">{row.tui_kien.toLocaleString('vi-VN')}</td>
-                <td className="px-4 py-3 text-right">{(row.khoi_luong_g / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1})}</td>
-                <td className="px-4 py-3 text-right">{row.hang_di_ngoai.toLocaleString('vi-VN')}</td>
-                <td className="px-4 py-3 text-right">{row.du_trang_thai.toLocaleString('vi-VN')}</td>
+              <tr key={row.code} className="hover:bg-amber-50/40">
+                <td className="px-4 py-3 font-medium text-orange-600">{row.ten}</td>
+                <td className="px-4 py-3 text-right font-bold text-orange-600 tabular-nums">{row.san_luong.toLocaleString('vi-VN')}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{row.tui_kien.toLocaleString('vi-VN')}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{(row.khoi_luong_g / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1})}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{row.hang_di_ngoai.toLocaleString('vi-VN')}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{row.du_trang_thai.toLocaleString('vi-VN')}</td>
               </tr>
             ))}
           </tbody>
@@ -144,53 +144,38 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
       {/* Thẻ chỉ số */}
       {sum ? (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="card-soft p-4 flex flex-col justify-center bg-orange-50 border-l-4 border-orange-500">
-            <div className="flex items-center gap-2 mb-1">
-              <Package className="w-4 h-4 text-orange-500" />
-              <span className="text-xs text-orange-600 font-semibold uppercase">Sản lượng đến</span>
-            </div>
-            <span className="text-3xl font-bold text-orange-600 mt-1">{sum.san_luong.toLocaleString('vi-VN')}</span>
-            <span className="text-xs text-orange-400 mt-1">đã lọc trùng</span>
+          <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-orange-500 p-4 flex flex-col justify-between shadow-none">
+            <div className="hue-label mb-1">SẢN LƯỢNG ĐẾN</div>
+            <span className="hue-num-30 text-orange-600 my-1">{sum.san_luong.toLocaleString('vi-VN')}</span>
+            <span className="text-xs text-gray-400">đã lọc trùng</span>
           </div>
-          <div className="card-soft p-4 flex flex-col justify-center bg-blue-50 border-l-4 border-blue-500">
-            <div className="flex items-center gap-2 mb-1">
-              <MapPin className="w-4 h-4 text-blue-500" />
-              <span className="text-xs text-blue-600 font-semibold uppercase">Địa bàn phát</span>
-            </div>
-            <span className="text-2xl font-bold text-blue-600 mt-1">
+          <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-orange-500 p-4 flex flex-col justify-between shadow-none">
+            <div className="hue-label mb-1">ĐỊA BÀN PHÁT</div>
+            <span className="hue-num-30 text-orange-600 my-1">
               {sum.dia_ban_phat.co}{isAllBcvh ? `/40` : ''}
             </span>
-            <span className="text-xs text-blue-400 mt-1">phường/xã {isAllBcvh ? 'của thành phố có bưu gửi' : 'có bưu gửi đến'}</span>
+            <span className="text-xs text-gray-400">phường/xã {isAllBcvh ? 'của thành phố' : 'có bưu gửi'}</span>
           </div>
-          <div className="card-soft p-4 flex flex-col justify-center bg-teal-50 border-l-4 border-teal-500">
-            <div className="flex items-center gap-2 mb-1">
-              <Scale className="w-4 h-4 text-teal-500" />
-              <span className="text-xs text-teal-600 font-semibold uppercase">Khối lượng</span>
-            </div>
-            <span className="text-2xl font-bold text-teal-600 mt-1">
-              {(sum.khoi_luong_g / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1})} kg
+          <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-orange-500 p-4 flex flex-col justify-between shadow-none">
+            <div className="hue-label mb-1">KHỐI LƯỢNG</div>
+            <span className="hue-num-30 text-orange-600 my-1">
+              {(sum.khoi_luong_g / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1})} <span className="text-sm font-sans font-bold text-gray-600">kg</span>
             </span>
-            <span className="text-xs text-teal-400 mt-1 invisible">&nbsp;</span>
+            <span className="text-xs text-gray-400 invisible">&nbsp;</span>
           </div>
-          <div className="card-soft p-4 flex flex-col justify-center bg-purple-50 border-l-4 border-purple-500">
-            <div className="flex items-center gap-2 mb-1">
-              <Box className="w-4 h-4 text-purple-500" />
-              <span className="text-xs text-purple-600 font-semibold uppercase">Túi / kiện</span>
-            </div>
-            <span className="text-2xl font-bold text-purple-600 mt-1">{sum.tui_kien.toLocaleString('vi-VN')}</span>
-            <span className="text-xs text-purple-400 mt-1 invisible">&nbsp;</span>
+          <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-orange-500 p-4 flex flex-col justify-between shadow-none">
+            <div className="hue-label mb-1">TÚI/KIỆN</div>
+            <span className="hue-num-30 text-orange-600 my-1">{sum.tui_kien.toLocaleString('vi-VN')}</span>
+            <span className="text-xs text-gray-400 invisible">&nbsp;</span>
           </div>
-          <div className="card-soft p-4 flex flex-col justify-center bg-rose-50 border-l-4 border-rose-500">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertOctagon className="w-4 h-4 text-rose-500" />
-              <span className="text-xs text-rose-600 font-semibold uppercase">Hàng đi ngoài</span>
-            </div>
-            <span className="text-2xl font-bold text-rose-600 mt-1">{sum.hang_di_ngoai.toLocaleString('vi-VN')}</span>
-            <span className="text-xs text-rose-400 mt-1">Tỉ trọng: {sum.ty_le_hang_di_ngoai.toLocaleString('vi-VN')}%</span>
+          <div className="bg-white rounded-[14px] border border-gray-200 border-t-4 border-t-orange-500 p-4 flex flex-col justify-between shadow-none">
+            <div className="hue-label mb-1">HÀNG ĐI NGOÀI</div>
+            <span className="hue-num-30 text-orange-600 my-1">{sum.hang_di_ngoai.toLocaleString('vi-VN')}</span>
+            <span className="text-xs text-gray-400">Tỉ trọng: {sum.ty_le_hang_di_ngoai.toLocaleString('vi-VN')}%</span>
           </div>
         </div>
       ) : (
-        <div className="card-soft p-4 flex items-center justify-center text-red-500 h-24 text-sm font-medium">
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-4 flex items-center justify-center text-red-500 h-24 text-sm font-medium">
           Lỗi tải dữ liệu chỉ số tổng quan. {data.errors?.summary}
         </div>
       )}
@@ -198,8 +183,8 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
       <BcvhComparisonTable filters={filters} bcvhList={bcvhList} cardSanLuong={sum?.san_luong} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-soft p-4">
-          <h3 className="font-bold text-[var(--color-title)] mb-4">Sản lượng theo ngày</h3>
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-5">
+          <h3 className="hue-h2 text-[17px] mb-4">Sản lượng theo ngày</h3>
           <div className="h-64 w-full">
             {data.errors?.byTimeDay ? (
               <div className="flex items-center justify-center h-full text-red-500 text-sm font-medium">
@@ -218,9 +203,9 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
             )}
           </div>
         </div>
-        <div className="card-soft p-4">
+        <div className="bg-white rounded-[14px] border border-gray-200 shadow-none p-5">
           <div className="mb-4">
-            <h3 className="font-bold text-[var(--color-title)]">Sản lượng theo giờ</h3>
+            <h3 className="hue-h2 text-[17px]">Sản lượng theo giờ</h3>
             {isAggregated && <p className="text-xs text-gray-500 mt-1">Cộng dồn theo giờ trong ngày</p>}
           </div>
           <div className="h-64 w-full">
@@ -250,9 +235,9 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
         </div>
       </div>
 
-      <div className="card-soft">
-        <div className="p-4 border-b border-gray-100 bg-gray-50">
-          <h3 className="font-bold text-[var(--color-title)]">Sản lượng theo Địa bàn phát</h3>
+      <div className="bg-white rounded-[14px] border border-gray-200 shadow-none overflow-hidden">
+        <div className="p-4 border-b border-cream-line bg-cream-head">
+          <h3 className="hue-h2 text-[17px]">Sản lượng theo Địa bàn phát</h3>
         </div>
         {data.errors?.byWard ? (
           <div className="p-4 text-red-500 text-sm font-medium">Lỗi tải dữ liệu địa bàn: {data.errors.byWard}</div>
@@ -260,7 +245,7 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
           <>
             <div className="overflow-auto max-h-[400px]">
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0 z-10">
+                <thead className="bg-cream-head text-gray-600 text-xs font-bold uppercase border-b border-cream-line sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-3 whitespace-nowrap w-[220px]">Phường / Xã</th>
                     <th className="px-4 py-3 whitespace-nowrap min-w-[100px]"></th>
@@ -271,7 +256,7 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
                 </thead>
                 <tbody>
                   {data.byWard?.items.map(w => (
-                    <tr key={w.ward_key} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <tr key={w.ward_key} className="border-b border-cream-line/50 hover:bg-cream-light/40">
                       <td className="px-4 py-2 font-medium">{w.ward_name || w.ward_key}</td>
                       <td className="px-4 py-2">
                         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden flex items-center">
@@ -285,7 +270,7 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
                   ))}
                   {/* Nhóm đặc biệt */}
                   {data.byWard?.nhom_phan_loai.filter(n => n.san_luong > 0).map(n => (
-                    <tr key={n.nhom} className="bg-orange-50/50 hover:bg-orange-50 border-b border-orange-100">
+                    <tr key={n.nhom} className="bg-orange-50/50 hover:bg-orange-50 border-b border-cream-line">
                       <td className="px-4 py-2 font-medium text-orange-800">{n.ten}</td>
                       <td className="px-4 py-2"></td>
                       <td className="px-4 py-2 text-right tabular-nums text-orange-800 font-semibold">{n.san_luong.toLocaleString('vi-VN')}</td>
@@ -296,7 +281,7 @@ export default function ArrivalsOverview({ data, filters, bcvhList, isAdmin }) {
                 </tbody>
               </table>
             </div>
-            <div className="p-3 bg-gray-50 text-xs text-gray-500 italic border-t border-gray-200">
+            <div className="p-3 bg-cream-foot text-xs text-gray-500 italic border-t border-cream-line">
               Ghi chú: hàng chuyển hoàn và hàng tỉnh khác đã tính vào tổng sản lượng đến.
             </div>
           </>

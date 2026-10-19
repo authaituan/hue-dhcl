@@ -101,7 +101,7 @@ export default function SourceIngestReviewed({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-gray-50/90 text-gray-500 font-semibold border-b border-gray-200 uppercase text-[11px] tracking-wider">
+              <tr className="bg-cream-head text-gray-600 font-bold border-b border-cream-line uppercase text-[12px] tracking-wider">
                 <th className="py-3 px-3">Ngày</th>
                 <th className="py-3 px-3">BCVH</th>
                 <th className="py-3 px-3">Đợt</th>
@@ -111,7 +111,7 @@ export default function SourceIngestReviewed({
                 <th className="py-3 px-3 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-cream-line tabular-nums">
               {sortedItems.map((item, idx) => {
                 if (!item || typeof item !== 'object') return null;
 
@@ -125,7 +125,7 @@ export default function SourceIngestReviewed({
                 const hasGhiChu = typeof item.ghi_chu === 'string' && item.ghi_chu.trim().length > 0;
 
                 return (
-                  <tr key={item.id || idx} className="hover:bg-gray-50/80 transition-colors">
+                  <tr key={item.id || idx} className="hover:bg-cream-light/50 transition-colors">
                     {/* NGÀY */}
                     <td className="py-2.5 px-3 font-medium text-gray-900 whitespace-nowrap">
                       {typeof item.ngay === 'string' ? formatYmdToDmy(item.ngay) : '—'}
@@ -157,7 +157,7 @@ export default function SourceIngestReviewed({
                     {/* NGƯỜI, LÚC */}
                     <td className="py-2.5 px-3 whitespace-nowrap text-xs">
                       <div className="font-semibold text-gray-900">{reviewerName}</div>
-                      <div className="text-[11px] text-gray-500 font-mono mt-0.5">{timeVn}</div>
+                      <div className="text-[11px] text-gray-500 tabular-nums mt-0.5">{timeVn}</div>
                     </td>
 
                     {/* GHI CHÚ */}

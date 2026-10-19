@@ -235,7 +235,7 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-dark">Dữ liệu sản lượng đến</h1>
+          <h1 className="hue-h1">Dữ liệu sản lượng đến</h1>
           <p className="text-sm text-gray-600 mt-1">
             Bưu gửi đến Bưu cục Vận hành · {filters.receiver_code.length === DASHBOARD_BCVH.length 
               ? 'Tất cả 6 BCVH' 
@@ -303,10 +303,10 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    className={`whitespace-nowrap py-3 px-1 border-b-[3px] text-sm transition-colors ${
                       activeTab === tab.id
-                        ? 'border-orange-500 text-orange-500'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-amber-400 text-orange-600 font-bold'
+                        : 'border-transparent text-gray-600 hover:text-gray-800'
                     }`}
                   >
                     {tab.label}

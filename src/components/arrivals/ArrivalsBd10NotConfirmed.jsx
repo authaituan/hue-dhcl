@@ -9,20 +9,20 @@ export function ArrivalsBd10NotConfirmedBanner({ data, onShowDetail }) {
   if (!b || b.tong_bd10_den === 0) return null;
 
   return (
-    <div className="bg-red-50 border-[2px] border-red-400 rounded-[16px] py-[18px] px-[24px] flex flex-wrap items-center justify-between gap-6">
+    <div className="bg-rose-50 border-2 border-rose-300 rounded-[14px] py-[18px] px-[24px] flex flex-wrap items-center justify-between gap-6 shadow-none">
       <div className="flex items-center gap-6">
         {/* Biểu tượng */}
-        <div className="w-[52px] h-[52px] rounded-full bg-red-600 flex items-center justify-center shrink-0 shadow-sm">
-          <FileCheck className="w-7 h-7 text-white" />
+        <div className="w-[62px] h-[62px] rounded-full bg-red-600 flex items-center justify-center shrink-0 shadow-none">
+          <FileCheck className="w-8 h-8 text-white" />
         </div>
         
         {/* Số lượng */}
         <div className="flex flex-col items-center shrink-0">
           <div className="flex items-baseline gap-2">
-            <span className="text-[52px] font-bold text-red-800 leading-none">{b.khong_xnd.toLocaleString('vi-VN')}</span>
-            <span className="text-red-800 font-bold text-[14px]">BD10</span>
+            <span className="hue-num-xl text-red-700 leading-none">{b.khong_xnd.toLocaleString('vi-VN')}</span>
+            <span className="text-red-700 font-bold text-[14px] font-sans">BD10</span>
           </div>
-          <span className="text-[20px] font-bold text-red-700 leading-none mt-1">{pct(b.ty_le)}</span>
+          <span className="text-[20px] font-bold text-red-700 leading-none mt-1 font-sans">{pct(b.ty_le)}</span>
         </div>
 
         {/* Khối chữ */}
@@ -35,15 +35,15 @@ export function ArrivalsBd10NotConfirmedBanner({ data, onShowDetail }) {
       <div className="flex items-center gap-4 flex-wrap flex-1 justify-end">
         {/* Hàng thẻ nhỏ 1 */}
         <div className="flex items-center gap-3">
-          <div className="bg-orange-50 border border-gray-200 border-l-[4px] border-l-orange-500 rounded-r-lg px-3 py-2 flex flex-col min-w-[140px]">
-            <span className="text-[11px] font-bold text-orange-700 uppercase">CHUYẾN TỪ TTKT (530100)</span>
-            <span className="text-[18px] font-bold text-orange-700 mt-0.5">
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-amber-400 rounded-lg px-3 py-2 flex flex-col min-w-[140px] shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">CHUYẾN TỪ TTKT (530100)</span>
+            <span className="hue-num-xs text-orange-600 mt-0.5">
               {b.theo_nhom['530100'].khong_xnd.toLocaleString('vi-VN')} / {b.theo_nhom['530100'].tong.toLocaleString('vi-VN')} · {pct(b.theo_nhom['530100'].ty_le)}
             </span>
           </div>
-          <div className="bg-[#f0f9ff] border border-gray-200 border-l-[4px] border-l-[#0ea5e9] rounded-r-lg px-3 py-2 flex flex-col min-w-[140px]">
-            <span className="text-[11px] font-bold text-[#0369a1] uppercase">TỪ BƯU CỤC KHÁC</span>
-            <span className="text-[18px] font-bold text-[#0369a1] mt-0.5">
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-emerald-500 rounded-lg px-3 py-2 flex flex-col min-w-[140px] shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">TỪ BƯU CỤC KHÁC</span>
+            <span className="hue-num-xs text-orange-600 mt-0.5">
               {b.theo_nhom['khac'].khong_xnd.toLocaleString('vi-VN')} / {b.theo_nhom['khac'].tong.toLocaleString('vi-VN')} · {pct(b.theo_nhom['khac'].ty_le)}
             </span>
           </div>
@@ -51,24 +51,24 @@ export function ArrivalsBd10NotConfirmedBanner({ data, onShowDetail }) {
 
         {/* Hàng thẻ nhỏ 2 */}
         <div className="flex items-center gap-2">
-          <div className="bg-amber-50 border border-gray-200 border-l-[4px] border-l-amber-400 rounded-r-lg px-3 py-1.5 flex flex-col">
-            <span className="text-[11px] font-bold text-amber-800 uppercase">0–1 NGÀY</span>
-            <span className="text-[18px] font-bold text-amber-800">{b.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-amber-400 rounded-lg px-3 py-1.5 flex flex-col shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">0–1 NGÀY</span>
+            <span className="hue-num-xs text-orange-600">{b.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-amber-100 border border-gray-200 border-l-[4px] border-l-amber-600 rounded-r-lg px-3 py-1.5 flex flex-col">
-            <span className="text-[11px] font-bold text-amber-900 uppercase">2 NGÀY</span>
-            <span className="text-[18px] font-bold text-amber-900">{b.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-rose-300 rounded-lg px-3 py-1.5 flex flex-col shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">2 NGÀY</span>
+            <span className="hue-num-xs text-orange-600">{b.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-red-50 border border-gray-200 border-l-[4px] border-l-red-600 rounded-r-lg px-3 py-1.5 flex flex-col">
-            <span className="text-[11px] font-bold text-red-700 uppercase">3+ NGÀY</span>
-            <span className="text-[18px] font-bold text-red-700">{b.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-white border border-gray-200 border-t-[3px] border-t-orange-500 rounded-lg px-3 py-1.5 flex flex-col shadow-none">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">3+ NGÀY</span>
+            <span className="hue-num-xs text-orange-600">{b.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
           </div>
         </div>
 
         {/* Nút */}
         <button 
           onClick={onShowDetail}
-          className="bg-red-600 hover:bg-red-700 text-white font-bold h-[40px] px-5 rounded-[10px] transition-colors flex items-center shrink-0 ml-2"
+          className="bg-red-600 hover:bg-red-700 text-white font-bold h-[44px] px-6 rounded-lg transition-colors flex items-center shrink-0 ml-2"
         >
           Xem danh sách →
         </button>
@@ -236,7 +236,7 @@ export function ArrivalsBd10NotConfirmedDetail({ data, filters, onBack }) {
         {error && <div className="text-red-500 text-sm mb-3">{error}</div>}
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-red-50 text-red-800 font-semibold border-b-[2px] border-red-300">
+            <thead className="bg-cream-head text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3">Số hiệu BD10</th>
                 <th className="px-4 py-3">Lập</th>
@@ -252,17 +252,17 @@ export function ArrivalsBd10NotConfirmedDetail({ data, filters, onBack }) {
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Không có BD10 nào trong nhóm này.</td></tr>
               )}
               {items.map((r, i) => (
-                <tr key={`${r.so_hieu_bd10}-${r.ma_bcvh}`} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
-                  <td className="px-4 py-2 font-mono text-xs">{r.so_hieu_bd10}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{r.lap6}</td>
+                <tr key={`${r.so_hieu_bd10}-${r.ma_bcvh}`} className={`border-b border-cream-line ${i % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
+                  <td className="px-4 py-2 tabular-nums text-xs">{r.so_hieu_bd10}</td>
+                  <td className="px-4 py-2 tabular-nums text-xs">{r.lap6}</td>
                   <td className="px-4 py-2 text-xs">{r.ngay.replace(/^(\d{4})-(\d{2})-(\d{2})/, '$3/$2/$1')}</td>
                   <td className="px-4 py-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${getPillColor(r.tuoi)}`}>
                       {r.tuoi} ngày
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-right">{r.so_buu_gui.toLocaleString('vi-VN')}</td>
-                  <td className="px-4 py-2 text-right">{r.so_bd8.toLocaleString('vi-VN')}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{r.so_buu_gui.toLocaleString('vi-VN')}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{r.so_bd8.toLocaleString('vi-VN')}</td>
                   <td className="px-4 py-2">
                     {r.co_xn_tui && r.co_xn_bg ? (
                       <span className="px-2 py-0.5 rounded-sm text-[11px] font-bold bg-emerald-50 text-emerald-700">Túi + bưu gửi</span>

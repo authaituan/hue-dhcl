@@ -212,7 +212,7 @@ export default function RestoreConfirmDialog({
                     <Database className="w-3.5 h-3.5 text-gray-500" />
                     <span>Bản sao lưu trước khôi phục:</span>
                   </div>
-                  <div className="font-mono text-[11px] text-gray-600 break-all">
+                  <div className="tabular-nums text-[11px] text-gray-600 break-all">
                     {resultData.sao_luu.tep}
                   </div>
                   <div className="text-[11px] text-gray-500">
@@ -255,7 +255,7 @@ export default function RestoreConfirmDialog({
                     <div className="font-bold text-rose-900">Không thể thực hiện khôi phục</div>
                     <div>{errorInfo.message}</div>
                     {errorInfo.ma && (
-                      <div className="font-mono text-[11px] text-rose-600">Mã lỗi: {errorInfo.ma}</div>
+                      <div className="tabular-nums text-[11px] text-rose-600">Mã lỗi: {errorInfo.ma}</div>
                     )}
                   </div>
                 </div>
@@ -278,7 +278,7 @@ export default function RestoreConfirmDialog({
                   <div className="space-y-4">
                     <div className="space-y-1.5">
                       <label htmlFor="confirm-bcvh-input" className="block text-xs font-semibold text-gray-700">
-                        Mã BCVH (gõ chính xác <span className="font-mono text-orange-600 font-bold">{targetBcvh}</span>):
+                        Mã BCVH (gõ chính xác <span className="tabular-nums text-orange-600 font-bold">{targetBcvh}</span>):
                       </label>
                       <input
                         id="confirm-bcvh-input"
@@ -288,7 +288,7 @@ export default function RestoreConfirmDialog({
                         onChange={(e) => setConfirmBcvh(e.target.value)}
                         disabled={isSubmitting}
                         placeholder={targetBcvh}
-                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-mono"
+                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all tabular-nums"
                       />
                       {!isBcvhMatch && confirmBcvh.length > 0 && (
                         <p className="text-[11px] text-rose-500">Mã BCVH chưa khớp</p>
@@ -297,7 +297,7 @@ export default function RestoreConfirmDialog({
 
                     <div className="space-y-1.5">
                       <label htmlFor="confirm-ngay-input" className="block text-xs font-semibold text-gray-700">
-                        Ngày (năm-tháng-ngày, gõ chính xác <span className="font-mono text-orange-600 font-bold">{targetNgay}</span>):
+                        Ngày (năm-tháng-ngày, gõ chính xác <span className="tabular-nums text-orange-600 font-bold">{targetNgay}</span>):
                       </label>
                       <input
                         id="confirm-ngay-input"
@@ -306,7 +306,7 @@ export default function RestoreConfirmDialog({
                         onChange={(e) => setConfirmNgay(e.target.value)}
                         disabled={isSubmitting}
                         placeholder={targetNgay}
-                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-mono"
+                        className="w-full text-xs px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all tabular-nums"
                       />
                       {!isNgayMatch && confirmNgay.length > 0 && (
                         <p className="text-[11px] text-rose-500">Ngày chưa khớp (định dạng YYYY-MM-DD)</p>

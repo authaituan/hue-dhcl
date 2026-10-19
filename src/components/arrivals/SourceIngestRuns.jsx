@@ -165,7 +165,7 @@ export default function SourceIngestRuns({
       <div className="overflow-x-auto min-h-[200px]">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-gray-50/60 text-gray-500 font-semibold border-b border-gray-200 text-[11px] uppercase tracking-wider">
+            <tr className="bg-cream-head text-gray-600 font-bold border-b border-cream-line text-[12px] uppercase tracking-wider">
               <th className="py-2.5 px-3">Lượt</th>
               <th className="py-2.5 px-3">Bắt đầu</th>
               <th className="py-2.5 px-3">Cách chạy</th>
@@ -177,7 +177,7 @@ export default function SourceIngestRuns({
               <th className="py-2.5 px-3 text-right">Kết quả</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-cream-line tabular-nums">
             {loading ? (
               <tr>
                 <td colSpan={9} className="py-8 text-center text-xs text-gray-400">
@@ -208,12 +208,12 @@ export default function SourceIngestRuns({
                   <tr
                     key={r.id}
                     onClick={() => handleOpenRunDetail(r.id)}
-                    className={`hover:bg-orange-50/40 transition-colors cursor-pointer ${
+                    className={`hover:bg-cream-light/50 transition-colors cursor-pointer ${
                       hasError ? 'bg-red-50/40' : ''
                     }`}
                     title="Bấm để xem danh sách file của lượt"
                   >
-                    <td className="py-2.5 px-3 font-bold text-gray-900 font-mono">
+                    <td className="py-2.5 px-3 font-bold text-gray-900 tabular-nums">
                       #{r.id}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap text-gray-700">
@@ -227,19 +227,19 @@ export default function SourceIngestRuns({
                         </span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-gray-700">
+                    <td className="py-2.5 px-3 text-right tabular-nums text-gray-700">
                       {r.liet_ke !== undefined && r.liet_ke !== null ? formatNumber(r.liet_ke) : '0'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
+                    <td className="py-2.5 px-3 text-right tabular-nums font-bold text-emerald-700">
                       {r.da_nap !== undefined && r.da_nap !== null ? formatNumber(r.da_nap) : '0'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-gray-600">
+                    <td className="py-2.5 px-3 text-right tabular-nums text-gray-600">
                       {r.da_co !== undefined && r.da_co !== null ? formatNumber(r.da_co) : '0'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-amber-700">
+                    <td className="py-2.5 px-3 text-right tabular-nums text-amber-700">
                       {r.chua_on_dinh !== undefined && r.chua_on_dinh !== null ? formatNumber(r.chua_on_dinh) : '0'}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-red-600">
+                    <td className="py-2.5 px-3 text-right tabular-nums font-bold text-red-600">
                       {r.loi !== undefined && r.loi !== null ? formatNumber(r.loi) : '0'}
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
@@ -294,7 +294,7 @@ export default function SourceIngestRuns({
             ) : (
               <div className="border border-gray-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto nav-scrollbar text-xs">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 text-[11px] sticky top-0">
+                  <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line text-[12px] sticky top-0">
                     <tr>
                       <th className="py-2.5 px-3">Tên file</th>
                       <th className="py-2.5 px-3">Kết quả</th>
@@ -303,7 +303,7 @@ export default function SourceIngestRuns({
                       <th className="py-2.5 px-3">Ghi chú / Lỗi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-cream-line tabular-nums">
                     {(!Array.isArray(runDetail?.files) || runDetail.files.length === 0) ? (
                       <tr>
                         <td colSpan={5} className="py-6 text-center text-gray-400">
@@ -330,17 +330,17 @@ export default function SourceIngestRuns({
                         }
 
                         return (
-                          <tr key={f.id || f.ten || fIdx} className="hover:bg-gray-50/60">
-                            <td className="py-2 px-3 font-mono text-[11px] text-gray-900 break-all max-w-[200px]">
+                          <tr key={f.id || f.ten || fIdx} className="hover:bg-cream-light/50">
+                            <td className="py-2 px-3 tabular-nums text-[11px] text-gray-900 break-all max-w-[200px]">
                               {typeof f.ten === 'string' ? f.ten : '—'}
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">
                               {renderFileResultBadge(f.ket_qua)}
                             </td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold text-gray-800">
+                            <td className="py-2 px-3 text-right tabular-nums font-semibold text-gray-800">
                               {soDongDisplay}
                             </td>
-                            <td className="py-2 px-3 text-right font-mono text-gray-500 whitespace-nowrap">
+                            <td className="py-2 px-3 text-right tabular-nums text-gray-500 whitespace-nowrap">
                               {f.thoi_gian_ms !== undefined && f.thoi_gian_ms !== null ? `${Number(f.thoi_gian_ms)} ms` : '—'}
                             </td>
                             <td className="py-2 px-3 text-[11px] text-gray-600">

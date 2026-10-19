@@ -278,16 +278,16 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* TIÊU ĐỀ VIEW */}
-      <div className="card-soft p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="card-soft p-5 sm:p-6 rounded-[14px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200 uppercase tracking-wide">
               ADMIN ONLY
             </span>
-            <h2 className="text-xl font-bold text-[--color-title] flex items-center gap-2">
+            <h1 className="hue-h1 text-2xl flex items-center gap-2">
               <Server className="w-5 h-5 text-orange-500" />
               <span>Nạp dữ liệu nguồn</span>
-            </h2>
+            </h1>
           </div>
           <p className="text-xs text-[--color-body] mt-1.5 leading-relaxed max-w-3xl">
             Theo dõi việc tự động lấy file từ máy chủ nguồn, phát hiện đợt thiếu/lỗi/nghi ngờ, bấm «Lấy ngay» và «Lấy lại».
@@ -321,7 +321,7 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
               Đang lấy dữ liệu (lượt #{trackingRun.id})… Hệ thống đang tự động cập nhật kết quả.
             </span>
           </div>
-          <span className="text-[11px] text-amber-800 font-mono">
+          <span className="text-[11px] text-amber-800 tabular-nums">
             Bắt đầu: {typeof trackingRun.bat_dau === 'string' ? formatUtcToVnDateTime(trackingRun.bat_dau) : '—'}
           </span>
         </div>

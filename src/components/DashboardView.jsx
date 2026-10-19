@@ -260,7 +260,7 @@ export default function DashboardView({ isAdmin }) {
   const canAddMore = meta ? widgets.length < meta.maxWidgets : false;
 
   return (
-    <div className="p-6 font-sans" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="p-6 font-sans">
       {loading && (
         <div className="fixed top-24 right-6 bg-white shadow-lg rounded-full p-2 z-50 animate-pulse">
           <RefreshCw className="w-5 h-5 text-[#F97316] animate-spin" />

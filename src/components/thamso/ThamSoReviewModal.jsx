@@ -183,7 +183,7 @@ export default function ThamSoReviewModal({
                       <div className="font-bold text-gray-800 truncate">
                         {param ? param.nhan : item.khoa}
                       </div>
-                      <div className="font-mono text-[11px] text-gray-400">
+                      <div className="tabular-nums text-[11px] text-gray-400">
                         {item.khoa}
                       </div>
                     </div>

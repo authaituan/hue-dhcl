@@ -164,10 +164,10 @@ export default function ThamSoList({
       )}
 
       {/* ── MÀN 1: BẢNG THAM SỐ THÔNG THƯỜNG ───────────────────────────────── */}
-      <div className="card-soft rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-2xs">
+      <div className="card-soft rounded-[14px] overflow-hidden border border-gray-200 bg-white shadow-none">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-gray-700">
-            <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-semibold uppercase text-[11px] tracking-wider">
+            <thead className="bg-cream-head border-b border-cream-line text-gray-600 font-bold uppercase text-[12px] tracking-wider">
               <tr>
                 <th scope="col" className="px-5 py-3.5">Tham số</th>
                 <th scope="col" className="px-4 py-3.5 w-36">Đang dùng</th>
@@ -177,7 +177,7 @@ export default function ThamSoList({
                 <th scope="col" className="px-5 py-3.5 w-24 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-cream-line tabular-nums">
               {regularParams.length === 0 && pairsToRender.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center text-gray-400">
@@ -215,7 +215,7 @@ export default function ThamSoList({
                           <p className="text-gray-500 text-xs leading-relaxed max-w-xl">
                             {tachCauDau(param.mo_ta)}
                           </p>
-                          <div className="font-mono text-[11px] text-gray-400">
+                          <div className="tabular-nums text-[11px] text-gray-400">
                             {param.khoa}
                           </div>
                         </div>
@@ -479,7 +479,7 @@ function ParamSubCard({ param, draft, hasPairError, onEdit }) {
               </span>
             )}
           </div>
-          <div className="font-mono text-[10px] text-gray-400">{param.khoa}</div>
+          <div className="tabular-nums text-[10px] text-gray-400">{param.khoa}</div>
           <p className="text-[11px] text-gray-500 leading-snug">
             {tachCauDau(param.mo_ta)}
           </p>

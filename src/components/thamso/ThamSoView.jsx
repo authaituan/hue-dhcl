@@ -285,13 +285,13 @@ export default function ThamSoView({ authUser }) {
       )}
 
       {/* ── THANH CHUYỂN TAB TRANG CHÍNH ───────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b border-gray-200">
+      <div className="flex items-center gap-2 border-b border-[#E4D5AE]">
         <button
           type="button"
           onClick={() => setActiveMainTab('tham_so')}
-          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-[3px] transition-all cursor-pointer inline-flex items-center gap-2 ${
             activeMainTab === 'tham_so'
-              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              ? 'border-amber-400 text-orange-600 bg-orange-50/40 rounded-t-xl'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
@@ -302,9 +302,9 @@ export default function ThamSoView({ authUser }) {
         <button
           type="button"
           onClick={() => setActiveMainTab('nhat_ky')}
-          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer inline-flex items-center gap-2 ${
+          className={`min-h-[44px] px-4 py-2.5 text-xs font-bold border-b-[3px] transition-all cursor-pointer inline-flex items-center gap-2 ${
             activeMainTab === 'nhat_ky'
-              ? 'border-orange-500 text-orange-600 bg-orange-50/40 rounded-t-xl'
+              ? 'border-amber-400 text-orange-600 bg-orange-50/40 rounded-t-xl'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
@@ -314,16 +314,16 @@ export default function ThamSoView({ authUser }) {
       </div>
 
       {/* ── CARD TIÊU ĐỀ & MÔ TẢ (ADMIN ONLY) ──────────────────────────────── */}
-      <div className="card-soft p-5 sm:p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-gray-200 bg-white shadow-2xs">
+      <div className="card-soft p-5 sm:p-6 rounded-[14px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-gray-200 bg-white shadow-none">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200 uppercase tracking-wide">
               ADMIN ONLY
             </span>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="hue-h1 text-2xl flex items-center gap-2">
               <SlidersHorizontal className="w-5 h-5 text-orange-500" />
               <span>Tham Số Hệ Thống</span>
-            </h2>
+            </h1>
           </div>
           <p className="text-xs text-gray-600 mt-1.5 leading-relaxed max-w-3xl">
             Cấu hình các ngưỡng cảnh báo, chỉ tiêu vận hành và công thức tính toán. Mọi thay đổi được áp dụng ngay lập tức trên toàn hệ thống và ghi nhận vào nhật ký.
@@ -333,7 +333,7 @@ export default function ThamSoView({ authUser }) {
         {phienBan > 0 && (
           <div className="shrink-0 text-right">
             <span className="text-[11px] font-medium text-gray-400 block">Phiên bản tham số:</span>
-            <span className="font-mono font-bold text-xs text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 inline-block">
+            <span className="tabular-nums font-bold text-xs text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 inline-block">
               v{phienBan}
             </span>
           </div>

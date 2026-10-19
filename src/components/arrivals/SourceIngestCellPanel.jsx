@@ -178,7 +178,7 @@ export default function SourceIngestCellPanel({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 font-mono">
+          <p className="text-xs text-gray-500 tabular-nums">
             Mã đơn vị: {bcvh} · Đợt: {dotLabel}
           </p>
         </div>
@@ -248,7 +248,7 @@ export default function SourceIngestCellPanel({
             {fileDbList.length === 0 && fileNguonList.length === 0 && fileMongDoi?.mau_ten && typeof fileMongDoi.mau_ten === 'string' && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 text-amber-900">
                 <span className="text-gray-500 font-medium shrink-0">Tên file mong đợi:</span>
-                <strong className="font-mono text-gray-900 break-all text-right">{fileMongDoi.mau_ten}</strong>
+                <strong className="tabular-nums text-gray-900 break-all text-right">{fileMongDoi.mau_ten}</strong>
               </div>
             )}
 
@@ -285,7 +285,7 @@ export default function SourceIngestCellPanel({
                         {typeof f.ten === 'string' && f.ten && (
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                             <span className="text-gray-500 font-medium shrink-0">Tên file:</span>
-                            <strong className="font-mono text-gray-900 break-all text-right">{f.ten}</strong>
+                            <strong className="tabular-nums text-gray-900 break-all text-right">{f.ten}</strong>
                           </div>
                         )}
 
@@ -326,7 +326,7 @@ export default function SourceIngestCellPanel({
               {thongTinNap && thongTinNap.thoi_gian_nap_ms !== undefined && thongTinNap.thoi_gian_nap_ms !== null && (
                 <div className="flex items-center justify-between pt-1 border-t border-gray-200/50">
                   <span className="text-gray-500 font-medium">Thời gian nạp:</span>
-                  <strong className="font-mono text-gray-800">{Number(thongTinNap.thoi_gian_nap_ms)} ms</strong>
+                  <strong className="tabular-nums text-gray-800">{Number(thongTinNap.thoi_gian_nap_ms)} ms</strong>
                 </div>
               )}
 
@@ -359,7 +359,7 @@ export default function SourceIngestCellPanel({
                   </div>
                   <div className="border border-gray-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto nav-scrollbar bg-white">
                     <table className="w-full text-left text-[11px] border-collapse">
-                      <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 sticky top-0">
+                      <thead className="bg-cream-head text-gray-600 font-bold border-b border-cream-line sticky top-0">
                         <tr>
                           <th className="py-2 px-2.5">Thời gian</th>
                           <th className="py-2 px-2.5">Cách chạy</th>
@@ -367,7 +367,7 @@ export default function SourceIngestCellPanel({
                           <th className="py-2 px-2.5 text-right">Số dòng</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-cream-line tabular-nums">
                         {lichSu.map((ls, idx) => {
                           if (!ls || typeof ls !== 'object') return null;
                           const lsLuc = typeof ls.luc === 'string' ? formatUtcToVnDateTime(ls.luc) : '—';
@@ -439,14 +439,14 @@ export default function SourceIngestCellPanel({
                         {typeof f.ten === 'string' && f.ten && (
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                             <span className="text-gray-500 font-medium shrink-0">Tên file:</span>
-                            <strong className="font-mono text-gray-900 break-all text-right">{f.ten}</strong>
+                            <strong className="tabular-nums text-gray-900 break-all text-right">{f.ten}</strong>
                           </div>
                         )}
 
                         {kichThuocText && (
                           <div className="flex items-center justify-between">
                             <span className="text-gray-500 font-medium">Kích thước:</span>
-                            <strong className="font-mono text-gray-800">{kichThuocText}</strong>
+                            <strong className="tabular-nums text-gray-800">{kichThuocText}</strong>
                           </div>
                         )}
 
