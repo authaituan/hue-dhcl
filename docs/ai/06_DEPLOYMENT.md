@@ -94,10 +94,10 @@ Hệ quả: không có mục `ports`; chỉ chạy trên Linux/NAS.
 `docker compose build` lỗi DNS → kiểm tra `build.network: host`.
 
 ## 7. Chuyển đổi vai trò MANAGER → TTVH (ticket SANLUONG-3c-2, PO tự chạy trên DB thật)
-Từ bản 3c-2 server chỉ nhận 4 vai trò `ADMIN`, `TTVH`, `GDVH`, `STAFF`. Tài khoản còn `MANAGER` trong DB bị từ chối (403) cho đến khi chuyển đổi.
+Server chỉ nhận 4 vai trò `ADMIN`, `TTVH`, `GDVH`, `TIVI` (STAFF đã gỡ ở STAFF-1, #99). Tài khoản còn `MANAGER` (hoặc vai trò lạ) trong DB bị từ chối đăng nhập (403, không cấp token) cho đến khi chuyển đổi.
 Thứ tự (app đang **tắt**; bản deploy mới chạy sau bước 4):
 1. **Chạy thử** (không ghi gì): `node scripts/migrate-roles.js` — in số tài khoản theo từng giá trị `role` và số sẽ đổi (không in tên/mã HRM/hash).
-   Có giá trị `role` lạ (ngoài 5 giá trị trên) thì script dừng, mã thoát 2 — báo lại để quyết, chưa đổi gì.
+   Còn tài khoản `STAFF` (vai trò đã gỡ) hoặc có giá trị `role` lạ khác thì script dừng, mã thoát 2, in danh sách id của tài khoản STAFF — chưa đổi gì, không tự đổi vai trò; báo lại để PO quyết (đổi bằng «Quản lý người dùng»).
 2. **Sao lưu** thư mục `data/` (ngoài bản sao lưu tự động của bước 3).
 3. **Áp dụng**: `node scripts/migrate-roles.js --apply` — sao lưu file DB cạnh nó (`hue-dhcl.db.<ngày-giờ>.bak`) rồi đổi `MANAGER`→`TTVH` trong một transaction. Chạy lại không làm gì.
    DB ở chỗ khác: thêm `--db <đường-dẫn>` (hoặc biến môi trường `ARRIVALS_DB`).

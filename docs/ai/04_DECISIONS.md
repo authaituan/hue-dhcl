@@ -351,6 +351,7 @@ từng ngày). So sánh bằng phép nhân số nguyên `(a·d − c·b)·100 �
 Dòng BCVH trong `/overview` thêm `hang_nang.ty_le_binh_thuong` (null khi `so_tuan = 0`); dòng tổng gộp trên các BCVH có tuần.
 
 ### 49. Bốn vai trò có tên + ma trận quyền (PO, 09/10/2026 — SANLUONG-3c-2; thay mô hình "STAFF / khác STAFF")
+**[Thay thế bởi #99 về vai trò `STAFF`: vai trò hợp lệ nay chỉ `ADMIN`, `TTVH`, `GDVH`, `TIVI`; STAFF đã bị gỡ. Nội dung bên dưới giữ nguyên làm lịch sử.]**
 Quyết định của PO (ghi nguyên):
 1. Vai trò hợp lệ (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `STAFF`. Không còn `MANAGER`.
    - `ADMIN`: toàn quyền; duy nhất tạo/sửa/khoá/mở khoá tài khoản, đổi vai trò, đặt lại mật khẩu người khác, gán BCVH; xem cảnh báo, ngoại lệ, kết quả nạp; sửa mạng lưới và widget Dashboard.
@@ -755,6 +756,41 @@ Căn cứ: màn «Xử lý và tỷ lệ phát» cần nút «Tải bảng kê (
 3. Quyền KHÁC `/ty-le` (#72 mở mọi BCVH cho GDVH): GDVH chỉ tải BCVH được giao trong `user_bcvh` (`exp.allowedBcvhCodes`), `bcvh=all` → 403; TIVI và vai trò khác 403. Lý do: tệp chứa dữ liệu từng bưu gửi, không chỉ số tổng.
 4. KHÔNG làm «Đã vu hồi» ở đây (VUHOI-1/2 làm sau, sẽ thêm cột cờ vu hồi vào tệp); không thêm bảng/cột/migration; không đổi hành vi hàm dùng chung.
 5. PO xác nhận 19/10/2026: dòng có trạng thái chọn được là `CHUA_CO_TT` do nhập tường minh (đợt nhập đặt về «Chưa có TT») cũng để trống 4 cột phía nhập, theo đúng câu chữ «Dòng Chưa có TT: để trống …».
+
+### 99. Bỏ vai trò STAFF: vai trò hợp lệ chỉ còn ADMIN, TTVH, GDVH, TIVI (PO chốt 19/10/2026 — STAFF-2 PR #102 giao diện, STAFF-1 PR #103 backend và test; THAY #49 về STAFF)
+Căn cứ: tài khoản STAFF duy nhất đã được chuyển sang GDVH; không còn người dùng STAFF.
+1. Vai trò hợp lệ: `ADMIN`, `TTVH`, `GDVH`, `TIVI`. Giao diện gỡ ở #102 (merge `e9c2204`); backend và test gỡ ở #103 (merge `1675d72`).
+2. Backend (#103): `server/roles.js` bỏ STAFF; `signToken` ném lỗi nếu vai trò không hợp lệ; cột `users.role` không còn `DEFAULT 'STAFF'`; `POST /api/users` bắt buộc `role` (thiếu → 400 «Vui lòng chọn Vai trò (ADMIN, TTVH, GDVH, TIVI)»); `PUT /api/users/:id` sang STAFF → 400; đăng nhập với tài khoản có vai trò không hợp lệ → 403 «Vai trò của tài khoản không hợp lệ, vui lòng liên hệ quản trị viên» và KHÔNG cấp token; `scripts/migrate-roles.js` thoát mã 2 và liệt kê id nếu còn user STAFF (không tự đổi vai trò).
+3. Tài khoản nào có vai trò lạ phải sửa bằng quản trị (ADMIN đổi vai trò trong «Quản lý người dùng»), không bằng mã.
+4. Ma trận quyền ở `03_ARCHITECTURE_MAP.md` mục 3 đã bỏ cột STAFF. Các quyết định cũ nhắc STAFF (#49 và sau) giữ nguyên làm lịch sử.
+
+### 100. Quy tắc quyền GDVH: XEM mọi BCVH, VÀO/RA dữ liệu chỉ với BCVH được giao (PO xác nhận 19/10/2026 — TAIVE-1; giữ #72)
+1. GDVH XEM số liệu mọi BCVH (#72 giữ nguyên: `ty-le`, `ket-qua-phat`, `ket-qua-phat-thang`, ba endpoint dashboard «đến»).
+2. Mọi thao tác VÀO/RA dữ liệu chỉ với BCVH được giao trong bảng `user_bcvh`: nhập trạng thái phát (`/api/phat/*` nhập); tải bảng kê kết quả phát `GET /api/phat/tai-ve` (#98); xuất «Sản lượng đến» (theo `GET /api/arrivals/export-scope`). `bcvh=all` với GDVH → 403 ở các thao tác này.
+3. ADMIN, TTVH: mọi BCVH và `all`. TIVI: không có các thao tác này.
+4. Việc gán BCVH cho GDVH chỉ ADMIN làm (`GET/PUT /api/users/:id/bcvh`, #49/#51). Giao diện gán là việc đang chờ (GANBCVH-1), chưa làm.
+
+### 101. Giao diện «Huế»: phông Playfair Display cho tiêu đề và số lớn, Be Vietnam Pro cho nội dung (PO chốt 19/10/2026 — THEME-5a PR #100; bổ sung #96)
+1. Playfair Display cho tiêu đề và số lớn; Be Vietnam Pro cho nội dung.
+2. Bỏ `font-mono` (trừ SHBG), bỏ `font-black` (dùng `font-bold`), bỏ Inter nội tuyến.
+3. Giữ các import `@fontsource` inter / montserrat trong `src/index.css` cho đến khi kiểm Tivi xong (chưa gỡ).
+
+### 102. Cỡ chữ `text-xs` trên màn rộng: đổi biến `--text-xs`, không đặt `font-size` trực tiếp (PO chốt 19/10/2026 — THEME-5a PR #100)
+1. Đổi biến `--text-xs` bằng khối `@media (min-width: 1600px)` trong `src/index.css` (sau khối «Huế typography»): 14px, line-height 1.45.
+2. KHÔNG đặt `font-size` trực tiếp cho `td` / `th` vì lớp tiện ích Tailwind ghi đè.
+3. Không đổi: `.table-soft th` 12px, `.badge-soft` 12px, `.input-soft` 14px, `text-sm`, các cỡ cố định `text-[11px]`, `text-[12px]`, `text-[13px]`.
+4. Tivi không bị ảnh hưởng: không dùng `text-xs`, tự định kiểu bằng token `TV`.
+
+### 103. Màu biểu đồ / SVG: dãy chính tím đậm, thường tím nhạt; màu ngữ nghĩa giữ nguyên (PO chốt 19/10/2026 — THEME-5b PR #101)
+1. Dãy chính tím đậm #4A1D6E, dãy thường tím nhạt #6B2F94; lưới #F0E8D4; chữ trục #7A6A80.
+2. Màu ngữ nghĩa giữ nguyên: xử lý ngay đỏ son, trong ngày vàng, PTC xanh ngọc, chuyển hoàn amber, không thành công đỏ, lạc hướng tím, chưa có TT slate.
+3. Màu trong JS / SVG dùng hex, không dùng `var(--color-…)` (Tailwind v4 có thể lược biến `@theme` không có lớp tiện ích dùng tới).
+
+### 104. Màu «Cơ cấu dịch vụ» (PO chốt 19/10/2026 — THEME-5b PR #101)
+R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen kẽ để phân biệt được; không dùng đỏ cho dãy danh mục.
+
+### 105. Tivi không đổi theo đợt theme này; phụ thuộc hàm định dạng của DailyOpsDashboard (PO chốt 19/10/2026 — THEME-5a/5b)
+`TiviView.jsx` không đổi. Nó chỉ import hàm định dạng từ `DailyOpsDashboard.jsx` (`formatPercent`, `formatPctChange`, `formatSoSanh`, `formatTimeOnly`, `formatDateTimeSec`, `wardChangeChip`, `formatNhanNgay`, `formatDdMm`, `isVnToday`, `getNhanSoSanhMoc`). Không đổi thân hay giá trị trả về của các hàm này khi sửa `DailyOpsDashboard.jsx`.
 
 ## Drift phát hiện
 _(chưa có)_

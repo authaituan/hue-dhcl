@@ -72,7 +72,7 @@ Script: 0 xong · 1 lỗi khác · 2 cấu hình / DB · 8 tham số sai (kiểm
 (Số trong ví dụ là giả.) `tap_file_nguon` = các file `READY` đã dùng; 5g-3 sẽ tải lại và **từ chối nếu mã băm đổi**.
 
 ## 6. Route
-`POST /api/arrivals/thay-the/xem-truoc` — chỉ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Thân JSON `{ "bcvh": "533140", "ngay": "2026-10-10", "tap_file": ["HangDen_…csv"] }` (`tap_file` tùy chọn, mặc định tất cả; khóa lạ → 400). Cấu hình nguồn từ biến môi trường (`SFTP_*`, bắt buộc ghim vân tay) — chưa cấu hình → 503. Ghi `SECURITY_LOG` một dòng `event: "arrivals_thay_the_xem_truoc"` (ai, IP, BCVH, ngày, kết quả, mức) — **không có SHBG, không có mật khẩu**; SHBG mẫu chỉ nằm trong phản hồi cho ADMIN.
+`POST /api/arrivals/thay-the/xem-truoc` — chỉ ADMIN (401 không token; 403 TTVH, GDVH, TIVI). Thân JSON `{ "bcvh": "533140", "ngay": "2026-10-10", "tap_file": ["HangDen_…csv"] }` (`tap_file` tùy chọn, mặc định tất cả; khóa lạ → 400). Cấu hình nguồn từ biến môi trường (`SFTP_*`, bắt buộc ghim vân tay) — chưa cấu hình → 503. Ghi `SECURITY_LOG` một dòng `event: "arrivals_thay_the_xem_truoc"` (ai, IP, BCVH, ngày, kết quả, mức) — **không có SHBG, không có mật khẩu**; SHBG mẫu chỉ nằm trong phản hồi cho ADMIN.
 
 ## 7. PO chạy script từng bước (PowerShell)
 Biến môi trường như `sftp-sync` (xem `13_SFTP_SYNC.md`; cổng NAS 5454):
