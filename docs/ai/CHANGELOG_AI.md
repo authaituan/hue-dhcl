@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-19] - PHAT-6: `/api/phat/ty-le` theo NGÀY ĐẾN (#92), khớp «Điều hành hôm nay»
+
+- **Sửa** `server/lib/phat.js` (`tyLeApi`: `demNgay(..., { theoLichSu: true })`; sửa chú thích `demNgay`). Khóa phản hồi không đổi; `ton_cho`, `so_lieu_den_luc`, `nhapDot`, `hoanTacDot`, `tyLeNgay` (commit «trước / sau») không đổi. Quyết định #97.
+- **Test** MỚI `tests/phat-ty-le-ngay-den.test.js` (8 ca: Việc 0, a–e, khóa phản hồi, Việc 4 đo commit vs ty-le), thêm vào `npm test`; `tests/phat-dashboard.test.js` chỉ sửa một chú thích cũ và thêm một dòng đo `PHAT_PERF` (`/ty-le` 1 BCVH).
+- **Phát hiện**: «Sau» của màn commit lệch `/ty-le` ở ngày đến cũ của SHBG đến lại (chờ PO quyết chuyển commit sang #92).
+
+---
+
 ## [2026-10-18] - THEME-2: bảng màu và phông «Huế» (PR #93)
 
 - **Sửa** `src/index.css`: `@theme`, khối «THEME-2: palette override» ghi đè các thang `orange`, `gray`, `red`, `emerald`, `amber` (xoá khối này là quay lại màu cũ), lớp tiện ích phẳng (bỏ bóng, viền mảnh); thêm hai gói `@fontsource` (Playfair Display, Be Vietnam Pro) đóng gói offline. Quyết định #96.
