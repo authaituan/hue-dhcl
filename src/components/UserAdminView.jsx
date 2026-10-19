@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { UserCog, Plus, KeyRound, Pencil, Check, X, AlertCircle, ShieldAlert, UserX, UserCheck2, Lock, Tv } from 'lucide-react';
+import { UserCog, Plus, KeyRound, Pencil, Check, X, AlertCircle, ShieldAlert, UserX, UserCheck2, Lock, Tv, Building2 } from 'lucide-react';
 import { apiFetchJson } from '../utils/api';
 import { BCVH_LIST } from '../constants/bcvh';
 import AddUserModal from './AddUserModal';
 import ResetUserPasswordModal from './ResetUserPasswordModal';
+import AssignBcvhModal from './AssignBcvhModal';
 
 const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI'];
 
@@ -21,12 +22,46 @@ const TIVI_SCOPE_OPTIONS = [
   ...BCVH_LIST.map((b) => ({ value: b.ma, label: `${b.ten} (${b.ma})` })),
 ];
 
+// Định dạng hiển thị cột «BCVH ĐƯỢC GIAO» theo vai trò
+function formatBcvhAssigned(u) {
+  if (u.role === 'ADMIN' || u.role === 'TTVH') {
+    return <span className="text-subtext text-xs">Tất cả (theo vai trò)</span>;
+  }
+  if (u.role === 'TIVI') {
+    const scopeLabel = u.tivi_scope === 'all'
+      ? 'toàn Trung tâm'
+      : (BCVH_LIST.find((b) => b.ma === u.tivi_scope)?.ten?.replace(/^BCVH\s+/, '') || u.tivi_scope || 'toàn Trung tâm');
+    return <span className="text-subtext text-xs">Phạm vi Tivi: {scopeLabel}</span>;
+  }
+  if (u.role === 'GDVH') {
+    const codes = u.bcvh_codes || [];
+    if (codes.length === 0) {
+      return <span className="text-red-600 font-medium text-xs">Chưa gán BCVH nào</span>;
+    }
+    if (codes.length === 6) {
+      return <span className="text-title font-semibold text-xs">6 BCVH (tất cả)</span>;
+    }
+    const names = codes.map((c) => {
+      const found = BCVH_LIST.find((b) => b.ma === c);
+      return found ? found.ten.replace(/^BCVH\s+/, '') : c;
+    });
+    return (
+      <span className="text-title font-semibold text-xs">
+        {codes.length} BCVH: {names.join(', ')}
+      </span>
+    );
+  }
+  return <span className="text-subtext text-xs">—</span>;
+}
+
 export default function UserAdminView({ authUser }) {
+  const isAdmin = authUser?.role === 'ADMIN';
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [resetPasswordTarget, setResetPasswordTarget] = useState(null);
+  const [assignBcvhTarget, setAssignBcvhTarget] = useState(null);
 
   // Sửa thông tin inline (họ tên + role + tivi_scope cùng lúc)
   const [editingId, setEditingId] = useState(null);
@@ -56,6 +91,13 @@ export default function UserAdminView({ authUser }) {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleAssignBcvhSuccess = (userId, newCodes) => {
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === userId ? { ...u, bcvh_codes: newCodes } : u))
+    );
+    setAssignBcvhTarget(null);
+  };
 
   const startEdit = (user) => {
     setEditingId(user.id);
@@ -199,6 +241,7 @@ export default function UserAdminView({ authUser }) {
                   <th className="py-3.5 px-4">Mã HRM</th>
                   <th className="py-3.5 px-4">Họ Và Tên</th>
                   <th className="py-3.5 px-4">Vai Trò (Role)</th>
+                  <th className="py-3.5 px-4">BCVH ĐƯỢC GIAO</th>
                   <th className="py-3.5 px-4">Trạng Thái</th>
                   <th className="py-3.5 px-4">Ngày Tạo</th>
                   <th className="py-3.5 px-4 text-right">Thao Tác</th>
@@ -313,6 +356,11 @@ export default function UserAdminView({ authUser }) {
                         )}
                       </td>
 
+                      {/* BCVH ĐƯỢC GIAO */}
+                      <td className="py-3.5 px-4">
+                        {formatBcvhAssigned(u)}
+                      </td>
+
                       {/* Trạng Thái */}
                       <td className="py-3.5 px-4">
                         {isDeactivated ? (
@@ -353,13 +401,23 @@ export default function UserAdminView({ authUser }) {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center justify-end gap-2">
+                            {isAdmin && u.role === 'GDVH' && (
+                              <button
+                                type="button"
+                                onClick={() => setAssignBcvhTarget(u)}
+                                className="px-3 py-1.5 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-600 text-title transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Building2 className="w-3.5 h-3.5" />
+                                <span>Gán BCVH</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => startEdit(u)}
                               className="px-3 py-1.5 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-600 text-[--color-title] transition-all text-xs font-semibold flex items-center gap-1"
                             >
                               <Pencil className="w-3.5 h-3.5" />
-                              <span>Sửa</span>
+                              <span>Sửa vai trò</span>
                             </button>
                             <button
                               type="button"
@@ -419,6 +477,14 @@ export default function UserAdminView({ authUser }) {
           user={resetPasswordTarget}
           onClose={() => setResetPasswordTarget(null)}
           onSuccess={() => setResetPasswordTarget(null)}
+        />
+      )}
+
+      {assignBcvhTarget && (
+        <AssignBcvhModal
+          user={assignBcvhTarget}
+          onClose={() => setAssignBcvhTarget(null)}
+          onSuccess={handleAssignBcvhSuccess}
         />
       )}
     </div>
