@@ -166,14 +166,14 @@ export default function UserAdminView({ authUser }) {
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] text-xs flex items-start gap-2">
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
       {actionError && (
-        <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] text-xs flex items-start gap-2">
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{actionError}</span>
         </div>
@@ -318,12 +318,12 @@ export default function UserAdminView({ authUser }) {
                       {/* Trạng Thái */}
                       <td className="py-3.5 px-4">
                         {isDeactivated ? (
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA] flex items-center gap-1 w-fit">
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-red-50 text-red-700 border-red-200 flex items-center gap-1 w-fit">
                             <Lock className="w-3 h-3" />
                             <span>Đã khoá</span>
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0] w-fit inline-block">
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 w-fit inline-block">
                             Đang hoạt động
                           </span>
                         )}
@@ -340,7 +340,7 @@ export default function UserAdminView({ authUser }) {
                               onClick={() => saveEdit(u.id)}
                               disabled={editSaving}
                               title="Lưu"
-                              className="w-7 h-7 rounded-lg bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0] hover:bg-[#DCFCE7] flex items-center justify-center disabled:opacity-50"
+                              className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center justify-center disabled:opacity-50"
                             >
                               <Check className="w-3.5 h-3.5" />
                             </button>
@@ -376,7 +376,7 @@ export default function UserAdminView({ authUser }) {
                                 type="button"
                                 onClick={() => handleReactivate(u)}
                                 disabled={isActionLoading}
-                                className="px-3 py-1.5 rounded-lg bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0] transition-all text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
+                                className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-all text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
                               >
                                 <UserCheck2 className="w-3.5 h-3.5" />
                                 <span>{isActionLoading ? 'Đang Xử Lý...' : 'Kích Hoạt Lại'}</span>
@@ -387,7 +387,7 @@ export default function UserAdminView({ authUser }) {
                                 onClick={() => handleDeactivate(u)}
                                 disabled={isSelf || isActionLoading}
                                 title={isSelf ? 'Không thể tự vô hiệu hoá chính tài khoản đang đăng nhập' : ''}
-                                className="px-3 py-1.5 rounded-lg bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#B91C1C] border border-[#FECACA] transition-all text-xs font-semibold flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all text-xs font-semibold flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <UserX className="w-3.5 h-3.5" />
                                 <span>{isActionLoading ? 'Đang Xử Lý...' : 'Vô Hiệu Hoá'}</span>

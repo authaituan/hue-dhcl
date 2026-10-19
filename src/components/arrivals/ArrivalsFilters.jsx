@@ -80,14 +80,14 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
       <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
         {/* Dates */}
         <div className="flex-[2_1_340px] flex flex-col gap-1">
-          <label className="text-[12px] font-semibold text-[#5b6777]">Từ ngày, đến ngày</label>
+          <label className="text-[12px] font-semibold text-gray-600">Từ ngày, đến ngày</label>
           <div className="flex items-center gap-2">
             <CustomDatePicker 
               value={fromDate} 
               onChange={setFromDate} 
               placeholder="dd/MM/yyyy"
             />
-            <span className="text-[#5b6777]">đến</span>
+            <span className="text-gray-600">đến</span>
             <CustomDatePicker 
               value={toDate} 
               onChange={setToDate} 
@@ -101,9 +101,9 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
 
         {/* Ward */}
         <div className="flex-[1_1_200px] flex flex-col gap-1">
-          <label className="text-[12px] font-semibold text-[#5b6777]">Địa bàn phát (phường/xã)</label>
+          <label className="text-[12px] font-semibold text-gray-600">Địa bàn phát (phường/xã)</label>
           <select
-            className="h-[44px] px-2.5 border border-[#c5cfdc] rounded-lg bg-white text-[14px]"
+            className="h-[44px] px-2.5 border border-input-border rounded-lg bg-white text-[14px]"
             value={local.ward_key}
             onChange={e => setLocal({ ...local, ward_key: e.target.value })}
           >
@@ -127,7 +127,7 @@ export default function ArrivalsFilters({ filters, onApply, meta, bcvhList, load
 
       {/* BCVH selection */}
       <div className="flex flex-col gap-1.5 mt-1">
-        <div className="text-[12px] font-semibold text-[#5b6777]">
+        <div className="text-[12px] font-semibold text-gray-600">
           Bưu cục nhận <span className="font-normal">· {bcvhList.length === 1 ? 'xem được cả 6, chỉ tải BCVH được phân' : 'chọn một hoặc nhiều BCVH'}</span>
         </div>
         <div className="flex flex-wrap gap-2">

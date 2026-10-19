@@ -314,14 +314,14 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
 
       {/* BANNER ĐANG THEO DÕI LƯỢT CHẠY */}
       {trackingRun && (
-        <div className="p-4 rounded-2xl bg-orange-50 border border-orange-300 text-xs text-orange-900 flex items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-150">
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-150">
           <div className="flex items-center gap-2.5">
-            <RefreshCw className="w-4 h-4 text-orange-600 animate-spin shrink-0" />
+            <RefreshCw className="w-4 h-4 text-amber-700 animate-spin shrink-0" />
             <span className="font-semibold">
               Đang lấy dữ liệu (lượt #{trackingRun.id})… Hệ thống đang tự động cập nhật kết quả.
             </span>
           </div>
-          <span className="text-[11px] text-orange-700 font-mono">
+          <span className="text-[11px] text-amber-800 font-mono">
             Bắt đầu: {typeof trackingRun.bat_dau === 'string' ? formatUtcToVnDateTime(trackingRun.bat_dau) : '—'}
           </span>
         </div>

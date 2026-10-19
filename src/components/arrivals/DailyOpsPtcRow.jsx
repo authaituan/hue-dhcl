@@ -39,30 +39,30 @@ export function formatBangkokTime(str) {
 }
 
 /** Một cột số lớn của thẻ PTC lớn: nhãn, số, tử / mẫu (+ ghi chú một dòng). */
-function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-[#0f2747]', ghiChu = null, trong = false }) {
+function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong = false }) {
   return (
     <div className="min-w-0 shrink-0 w-[88px]">
-      <div className="text-[10px] font-bold text-[#78716c] uppercase tracking-wider whitespace-nowrap">{nhan}</div>
+      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{nhan}</div>
       {trong ? (
-        <div className="text-[26px] font-black leading-none my-0.5 text-[#a8a29e]">…</div>
+        <div className="text-[26px] font-black leading-none my-0.5 text-gray-400">…</div>
       ) : (
         <>
           <div className={`text-[26px] font-black leading-none my-0.5 ${mauChu}`}>{tyLe}</div>
-          <div className="text-[11px] font-semibold text-[#57534e] whitespace-nowrap">{so} / {mau}</div>
+          <div className="text-[11px] font-semibold text-gray-600 whitespace-nowrap">{so} / {mau}</div>
         </>
       )}
-      {ghiChu && <div className="text-[10px] text-[#a8a29e] mt-0.5 leading-tight">{ghiChu}</div>}
+      {ghiChu && <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{ghiChu}</div>}
     </div>
   );
 }
 
 /** Thẻ nhỏ: nhãn (cả dòng), số hôm nay + tỷ lệ, đường diễn biến nhỏ bên phải, chân thẻ 44px «01/MM→ số · %» + chênh. */
 function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu = null }) {
-  const mauNhan = canhBao ? 'text-[#991b1b]' : 'text-[#78716c]';
-  const mauSo = canhBao ? 'text-[#991b1b]' : 'text-[#0f2747]';
-  const mauTyLe = canhBao ? 'text-[#b91c1c]' : 'text-[#57534e]';
+  const mauNhan = canhBao ? 'text-red-800' : 'text-gray-500';
+  const mauSo = canhBao ? 'text-red-800' : 'text-dark';
+  const mauTyLe = canhBao ? 'text-red-700' : 'text-gray-600';
   return (
-    <div className={`rounded-2xl border shadow-2xs flex flex-col overflow-hidden transition-all ${canhBao ? 'bg-[#fef2f2] border-[#fecaca]' : 'bg-white border-[#e7e5e4]'}`}>
+    <div className={`rounded-2xl border shadow-2xs flex flex-col overflow-hidden transition-all ${canhBao ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
       <div className="p-4 pb-2 flex-1">
         <div className="flex items-center justify-between gap-1 mb-1">
           <span className={`text-[11px] font-bold uppercase tracking-wider line-clamp-1 ${mauNhan}`}>{nhan}</span>
@@ -89,7 +89,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   // Trạng thái D: Lỗi quyền (403) hoặc lỗi mạng khi tải kết quả phát
   if (phatError) {
     return (
-      <div className="bg-[#fff1f2] border border-[#fecdd3] text-[#9f1239] p-4 rounded-2xl flex items-center gap-3 shadow-2xs">
+      <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-center gap-3 shadow-2xs">
         <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
         <div className="text-xs">
           <span className="font-bold">Kết quả phát: </span>
@@ -143,8 +143,8 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
   const isChuaCoTtCanhBao = hienSo && chuaCoTt?.ty_le !== null && chuaCoTt?.ty_le !== undefined && chuaCoTt.ty_le >= nguongChuaCoTt;
 
   // Kiểu hiển thị thẻ PTC lớn
-  let ptcCardBg = 'bg-white border-[#e7e5e4]';
-  let ptcTextColor = 'text-[#292524]';
+  let ptcCardBg = 'bg-white border-gray-200';
+  let ptcTextColor = 'text-gray-800';
   let ptcBadge = null;
 
   if (!hienSo) {
@@ -155,15 +155,15 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
     );
   } else if (!duSo) {
     // Hôm nay chưa đủ số liệu: không đánh giá mục tiêu (số 0,0% do chưa xử lý, không phải kết quả kém)
-    ptcTextColor = 'text-[#57534e]';
+    ptcTextColor = 'text-gray-600';
     ptcBadge = (
       <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-300">
         Chưa đủ số liệu hôm nay
       </span>
     );
   } else if (isPtcDat) {
-    ptcCardBg = 'bg-[#ecfdf5] border-[#a7f3d0]';
-    ptcTextColor = 'text-[#047857]';
+    ptcCardBg = 'bg-emerald-50 border-emerald-200';
+    ptcTextColor = 'text-emerald-700';
     ptcBadge = (
       <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -171,8 +171,8 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
       </span>
     );
   } else {
-    ptcCardBg = 'bg-[#fffbeb] border-[#fde68a]';
-    ptcTextColor = 'text-[#b45309]';
+    ptcCardBg = 'bg-amber-50 border-amber-200';
+    ptcTextColor = 'text-amber-700';
     ptcBadge = (
       <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
         <AlertTriangle className="w-3 h-3 text-amber-600" />
@@ -198,7 +198,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
       {/* 1. THẺ PTC LỚN (chiếm 2 cột trên màn lớn): hai cột HÔM NAY | TỪ 01/MM + chip chênh và đường diễn biến có vạch mục tiêu */}
       <div className={`md:col-span-2 lg:col-span-2 rounded-2xl border p-4 shadow-2xs flex flex-col gap-1.5 transition-all ${ptcCardBg}`}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider">
+          <span className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">
             Tỷ lệ phát thành công (PTC)
           </span>
           {ptcBadge}
@@ -225,9 +225,9 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
           <div className="flex-1 min-w-[120px] flex flex-col justify-between gap-1">
             <div>
               {dangTai ? (
-                <span className="text-[11px] text-[#a8a29e]">Từ đầu tháng: …</span>
+                <span className="text-[11px] text-gray-400">Từ đầu tháng: …</span>
               ) : !L ? (
-                <span className="text-[11px] text-[#a8a29e]">Từ đầu tháng: chưa có số liệu</span>
+                <span className="text-[11px] text-gray-400">Từ đầu tháng: chưa có số liệu</span>
               ) : (
                 <ChenhChip chenh={thang.chenh?.PTC || null} xauKhiTang={PTC_THANG_CAU_HINH.PTC.xauKhiTang} xuongDong ngan />
               )}
@@ -241,7 +241,7 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
             />
           </div>
         </div>
-        <div className="text-[10px] text-[#a8a29e] leading-tight">
+        <div className="text-[10px] text-gray-400 leading-tight">
           Đường = diễn biến theo ngày · nét đứt = mục tiêu {Math.round(nguongPtc * 100)}%
         </div>
 

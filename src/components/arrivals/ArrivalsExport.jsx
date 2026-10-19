@@ -94,10 +94,10 @@ export default function ArrivalsExport({ filters, exportScope, bcvhList }) {
   }
 
   return (
-    <div className="border-t border-[#e6ebf2] pt-[14px] flex flex-wrap items-center justify-between gap-3 mt-4">
+    <div className="border-t border-border pt-[14px] flex flex-wrap items-center justify-between gap-3 mt-4">
       <div className="flex-[1_1_360px] min-w-0">
-        <div className="text-[13px] text-[#1f2a37]">{exportSummary}</div>
-        <div className="text-[12px] text-[#5b6777] mt-0.5">{exportNote}</div>
+        <div className="text-[13px] text-gray-800">{exportSummary}</div>
+        <div className="text-[12px] text-gray-600 mt-0.5">{exportNote}</div>
       </div>
       <div className="flex flex-col items-end gap-1">
         <button

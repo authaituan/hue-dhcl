@@ -157,22 +157,22 @@ export default function ProcessingDeliveryView({ authUser }) {
   const nguongChuaCoTt = tyLeData?.nguong?.chua_co_tt_canh_bao ?? CHUA_CO_TT_CANH_BAO;
 
   const getCellColor = (field, rate) => {
-    if (!hasPhatData) return '#6b7280';
-    if (rate === null || rate === undefined) return '#9ca3af';
+    if (!hasPhatData) return 'var(--color-gray-400)';
+    if (rate === null || rate === undefined) return 'var(--color-gray-400)';
 
     switch (field) {
       case 'PTC':
-        return rate >= nguongPtcDat ? '#059669' : '#b45309';
+        return 'var(--color-emerald-600)';
       case 'PKTC':
-        return '#dc2626';
+        return 'var(--color-red-600)';
       case 'CHUYEN_HOAN':
-        return '#ea580c';
+        return 'var(--color-amber-700)';
       case 'LAC_HUONG':
-        return '#7c3aed';
+        return '#7C3AED';
       case 'CHUA_CO_TT':
-        return rate >= nguongChuaCoTt ? '#991b1b' : '#334155';
+        return rate >= nguongChuaCoTt ? 'var(--color-red-800)' : '#334155';
       default:
-        return '#374151';
+        return 'var(--color-gray-700)';
     }
   };
 
@@ -194,7 +194,7 @@ export default function ProcessingDeliveryView({ authUser }) {
   // ══════════════════════════════════════════════════════════════════════════
   if (viewMode === 'import') {
     return (
-      <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+      <div className="p-6 space-y-6">
         {/* Thanh Stepper & Breadcrumb chung cho cả 3 bước (Khớp 3 canvas) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
           {/* Breadcrumb */}
@@ -222,7 +222,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               onClick={() => setCurrentStep(1)}
               className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${
                 currentStep === 1
-                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  ? 'bg-orange-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
@@ -235,7 +235,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               onClick={() => setCurrentStep(2)}
               className={`px-3.5 py-1.5 rounded-full transition-colors cursor-pointer ${
                 currentStep === 2
-                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  ? 'bg-orange-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
@@ -249,7 +249,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               disabled={!commitData}
               className={`px-3.5 py-1.5 rounded-full transition-colors ${
                 currentStep === 3
-                  ? 'bg-[#ea580c] text-white shadow-sm'
+                  ? 'bg-orange-600 text-white shadow-sm'
                   : commitData
                     ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
                     : 'bg-gray-100 text-gray-300 cursor-not-allowed'
@@ -300,7 +300,7 @@ export default function ProcessingDeliveryView({ authUser }) {
   // VIEW 1: MÀN 13 TỔNG QUAN (XỬ LÝ VÀ TỶ LỆ PHÁT)
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-5">
+    <div className="p-6 space-y-5">
       {/* ── THANH ĐIỀU HƯỚNG TRÊN CÙNG: TIÊU ĐỀ & BỘ ĐIỀU KHIỂN ──────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -374,7 +374,7 @@ export default function ProcessingDeliveryView({ authUser }) {
               setViewMode('import');
               setCurrentStep(2);
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span>Nhập trạng thái phát</span>
@@ -414,8 +414,8 @@ export default function ProcessingDeliveryView({ authUser }) {
               className="text-4xl font-[900] my-1 tracking-tight leading-none"
               style={{
                 color: !hasPhatData
-                  ? '#6b7280'
-                  : (theoTT.PTC?.ty_le >= nguongPtcDat ? '#059669' : '#b45309')
+                  ? 'var(--color-gray-400)'
+                  : 'var(--color-emerald-600)'
               }}
             >
               {formatRatePercent(theoTT.PTC?.ty_le)}
@@ -444,7 +444,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             </div>
             <div
               className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#dc2626' : '#6b7280' }}
+              style={{ color: hasPhatData ? 'var(--color-red-600)' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.PKTC?.ty_le)}
             </div>
@@ -462,7 +462,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             </div>
             <div
               className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#ea580c' : '#6b7280' }}
+              style={{ color: hasPhatData ? 'var(--color-amber-700)' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.CHUYEN_HOAN?.ty_le)}
             </div>
@@ -480,7 +480,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             </div>
             <div
               className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#7c3aed' : '#6b7280' }}
+              style={{ color: hasPhatData ? '#7c3aed' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.LAC_HUONG?.ty_le)}
             </div>
@@ -498,7 +498,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             </div>
             <div
               className="text-3xl font-[900] my-2 tracking-tight leading-none"
-              style={{ color: hasPhatData ? '#334155' : '#6b7280' }}
+              style={{ color: hasPhatData ? '#334155' : 'var(--color-gray-400)' }}
             >
               {formatRatePercent(theoTT.CHUA_CO_TT?.ty_le)}
             </div>

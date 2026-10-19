@@ -7,48 +7,48 @@ export function ArrivalsNotReceivedBanner({ data, onShowDetail }) {
   if (!cn || cn.tong === 0) return null;
 
   return (
-    <div className="bg-[#fff7ed] border-[2px] border-[#fb923c] rounded-[16px] py-[20px] px-[24px] flex flex-wrap items-center justify-between gap-6">
+    <div className="bg-amber-50 border-[2px] border-amber-400 rounded-[16px] py-[20px] px-[24px] flex flex-wrap items-center justify-between gap-6">
       <div className="flex items-center gap-6">
         {/* Biểu tượng cảnh báo */}
-        <div className="w-16 h-16 rounded-full bg-[#ea580c] flex items-center justify-center shrink-0 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-amber-600 flex items-center justify-center shrink-0 shadow-sm">
           <AlertTriangle className="w-8 h-8 text-white" />
         </div>
         
         {/* Số lượng */}
         <div className="flex flex-col items-center shrink-0">
-          <span className="text-[52px] font-bold text-[#9a3412] leading-none">{cn.tong.toLocaleString('vi-VN')}</span>
-          <span className="text-[#ea580c] font-semibold">bưu gửi</span>
+          <span className="text-[52px] font-bold text-amber-900 leading-none">{cn.tong.toLocaleString('vi-VN')}</span>
+          <span className="text-amber-700 font-semibold">bưu gửi</span>
         </div>
 
         {/* Khối chữ */}
         <div className="flex flex-col gap-1 max-w-[400px]">
-          <span className="font-bold text-[#9a3412] text-[16px]">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</span>
-          <span className="text-[#9a3412] text-[14px]">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</span>
-          <span className="font-bold text-[#9a3412] text-[14px]">Cũ nhất: {cn.cu_nhat_ngay} ngày.</span>
+          <span className="font-bold text-amber-900 text-[16px]">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</span>
+          <span className="text-amber-900 text-[14px]">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</span>
+          <span className="font-bold text-amber-900 text-[14px]">Cũ nhất: {cn.cu_nhat_ngay} ngày.</span>
         </div>
       </div>
 
       <div className="flex items-center gap-4 flex-wrap flex-1 justify-end">
         {/* Thẻ */}
         <div className="flex items-center gap-3">
-          <div className="bg-[#fefce8] border-l-[4px] border-[#eab308] rounded-r-lg px-4 py-2 flex flex-col shadow-[0_3px_10px_rgba(120,113,108,0.14)] min-w-[100px]">
-            <span className="text-[10px] font-bold text-[#854d0e] uppercase">0–1 ngày</span>
-            <span className="text-[22px] font-bold text-[#854d0e]">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-amber-50 border border-gray-200 border-l-[4px] border-l-amber-400 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
+            <span className="text-[10px] font-bold text-amber-800 uppercase">0–1 ngày</span>
+            <span className="text-[22px] font-bold text-amber-800">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-[#fff7ed] border-l-[4px] border-[#f97316] rounded-r-lg px-4 py-2 flex flex-col shadow-[0_3px_10px_rgba(120,113,108,0.14)] min-w-[100px]">
-            <span className="text-[10px] font-bold text-[#c2410c] uppercase">2 ngày</span>
-            <span className="text-[22px] font-bold text-[#c2410c]">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-amber-100 border border-gray-200 border-l-[4px] border-l-amber-600 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
+            <span className="text-[10px] font-bold text-amber-900 uppercase">2 ngày</span>
+            <span className="text-[22px] font-bold text-amber-900">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</span>
           </div>
-          <div className="bg-[#fff1f2] border-l-[4px] border-[#e11d48] rounded-r-lg px-4 py-2 flex flex-col shadow-[0_3px_10px_rgba(120,113,108,0.14)] min-w-[100px]">
-            <span className="text-[10px] font-bold text-[#be123c] uppercase">3+ ngày</span>
-            <span className="text-[22px] font-bold text-[#be123c]">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
+          <div className="bg-red-50 border border-gray-200 border-l-[4px] border-l-red-600 rounded-r-lg px-4 py-2 flex flex-col min-w-[100px]">
+            <span className="text-[10px] font-bold text-red-700 uppercase">3+ ngày</span>
+            <span className="text-[22px] font-bold text-red-700">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</span>
           </div>
         </div>
 
         {/* Nút */}
         <button 
           onClick={onShowDetail}
-          className="bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold h-[44px] px-6 rounded-lg transition-colors flex items-center shrink-0"
+          className="bg-amber-600 hover:bg-amber-800 text-white font-bold h-[44px] px-6 rounded-lg transition-colors flex items-center shrink-0"
         >
           Xem danh sách →
         </button>
@@ -125,9 +125,9 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
   };
 
   const getPillColor = (tuoi) => {
-    if (tuoi <= 1) return "bg-[#fde68a] text-[#78350f]";
-    if (tuoi === 2) return "bg-[#fb923c] text-[#431407]";
-    return "bg-[#b91c1c] text-white";
+    if (tuoi <= 1) return "bg-amber-200 text-amber-900";
+    if (tuoi === 2) return "bg-amber-500 text-amber-950";
+    return "bg-red-700 text-white";
   };
 
   const formatTime = (iso) => iso ? iso.replace('T', ' ').slice(0, 16).replace(/^(\d{4})-(\d{2})-(\d{2})/, '$3/$2/$1') : '';
@@ -138,24 +138,24 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
   const p3 = pct(cn.theo_tuoi['3+'] || 0);
 
   return (
-    <div className="bg-white border-[2px] border-[#fed7aa] rounded-[16px] p-6 space-y-6">
-      <div className="flex items-center justify-between border-b border-[#fed7aa] pb-4">
+    <div className="bg-white border-[2px] border-amber-200 rounded-[16px] p-6 space-y-6">
+      <div className="flex items-center justify-between border-b border-amber-200 pb-4">
         <div>
-          <button onClick={onBack} className="text-[#ea580c] hover:underline font-semibold text-sm mb-2">
+          <button onClick={onBack} className="text-amber-700 hover:underline font-semibold text-sm mb-2">
             ← Quay lại Dữ liệu sản lượng đến
           </button>
-          <h2 className="text-[20px] font-bold text-[#c2410c]">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</h2>
-          <p className="text-[#9a3412] mt-1">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</p>
+          <h2 className="text-[20px] font-bold text-amber-800">Đã lập BD10 về BCVH, chưa có XN nhận tại BCVH</h2>
+          <p className="text-amber-900 mt-1">Chưa tính vào sản lượng đến (số liệu sẽ cập nhật khi có trạng thái giao nhận tại BCVH)</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-col items-end gap-1">
             <button 
               onClick={handleExport} 
               disabled={exportLoading}
-              className={`h-10 px-4 border text-[#9a3412] rounded-lg font-semibold flex items-center transition-colors ${
+              className={`h-10 px-4 border text-amber-900 rounded-lg font-semibold flex items-center transition-colors ${
                 exportLoading 
                   ? 'bg-gray-200 border-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-[#fff7ed] border-[#fdba74] hover:bg-[#ffedd5]'
+                  : 'bg-amber-50 border-amber-300 hover:bg-amber-100'
               }`}
             >
               {exportLoading ? (
@@ -177,17 +177,17 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
         <div className="text-sm font-semibold text-gray-700 mb-2">Phân bố theo thời gian (số ngày từ lúc lập BD10 đến dữ liệu mới nhất)</div>
         <div className="flex h-[34px] rounded overflow-hidden">
           {p0 > 0 && (
-            <div style={{ width: `${Math.max(p0, 5)}%` }} className="bg-[#fde68a] text-[#78350f] font-bold flex items-center justify-center text-sm border-r border-white min-w-[30px]">
+            <div style={{ width: `${Math.max(p0, 5)}%` }} className="bg-amber-200 text-amber-900 font-bold flex items-center justify-center text-sm border-r border-white min-w-[30px]">
               0–1
             </div>
           )}
           {p2 > 0 && (
-            <div style={{ width: `${Math.max(p2, 5)}%` }} className="bg-[#fb923c] text-[#431407] font-bold flex items-center justify-center text-sm border-r border-white min-w-[30px]">
+            <div style={{ width: `${Math.max(p2, 5)}%` }} className="bg-amber-500 text-amber-950 font-bold flex items-center justify-center text-sm border-r border-white min-w-[30px]">
               2
             </div>
           )}
           {p3 > 0 && (
-            <div style={{ width: `${Math.max(p3, 5)}%` }} className="bg-[#b91c1c] text-white font-bold flex items-center justify-center text-sm min-w-[30px]">
+            <div style={{ width: `${Math.max(p3, 5)}%` }} className="bg-red-700 text-white font-bold flex items-center justify-center text-sm min-w-[30px]">
               3+
             </div>
           )}
@@ -196,20 +196,20 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
 
       {/* 3 Thẻ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#fefce8] border-l-[4px] border-[#eab308] rounded-r-lg p-4 shadow-[0_3px_10px_rgba(120,113,108,0.14)]">
-          <div className="text-xs font-bold text-[#854d0e] uppercase mb-1">CHỜ 0–1 NGÀY</div>
-          <div className="text-[30px] font-bold text-[#854d0e] leading-none mb-1">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</div>
-          <div className="text-sm text-[#854d0e]">bưu gửi</div>
+        <div className="bg-amber-50 border border-gray-200 border-l-[4px] border-l-amber-400 rounded-r-lg p-4">
+          <div className="text-xs font-bold text-amber-800 uppercase mb-1">CHỜ 0–1 NGÀY</div>
+          <div className="text-[30px] font-bold text-amber-800 leading-none mb-1">{cn.theo_tuoi['0-1']?.toLocaleString('vi-VN') || 0}</div>
+          <div className="text-sm text-amber-800">bưu gửi</div>
         </div>
-        <div className="bg-[#fff7ed] border-l-[4px] border-[#f97316] rounded-r-lg p-4 shadow-[0_3px_10px_rgba(120,113,108,0.14)]">
-          <div className="text-xs font-bold text-[#c2410c] uppercase mb-1">CHỜ 2 NGÀY: THEO DÕI GẤP</div>
-          <div className="text-[30px] font-bold text-[#c2410c] leading-none mb-1">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</div>
-          <div className="text-sm text-[#c2410c]">bưu gửi</div>
+        <div className="bg-amber-100 border border-gray-200 border-l-[4px] border-l-amber-600 rounded-r-lg p-4">
+          <div className="text-xs font-bold text-amber-900 uppercase mb-1">CHỜ 2 NGÀY: THEO DÕI GẤP</div>
+          <div className="text-[30px] font-bold text-amber-900 leading-none mb-1">{cn.theo_tuoi['2']?.toLocaleString('vi-VN') || 0}</div>
+          <div className="text-sm text-amber-900">bưu gửi</div>
         </div>
-        <div className="bg-[#fff1f2] border-l-[4px] border-[#e11d48] rounded-r-lg p-4 shadow-[0_3px_10px_rgba(120,113,108,0.14)]">
-          <div className="text-xs font-bold text-[#be123c] uppercase mb-1">CHỜ 3+ NGÀY: CẦN TRA SOÁT TẠI BCVH</div>
-          <div className="text-[30px] font-bold text-[#be123c] leading-none mb-1">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</div>
-          <div className="text-sm text-[#be123c]">bưu gửi</div>
+        <div className="bg-red-50 border border-gray-200 border-l-[4px] border-l-red-600 rounded-r-lg p-4">
+          <div className="text-xs font-bold text-red-700 uppercase mb-1">CHỜ 3+ NGÀY: CẦN TRA SOÁT TẠI BCVH</div>
+          <div className="text-[30px] font-bold text-red-700 leading-none mb-1">{cn.theo_tuoi['3+']?.toLocaleString('vi-VN') || 0}</div>
+          <div className="text-sm text-red-700">bưu gửi</div>
         </div>
       </div>
 
@@ -218,19 +218,19 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
         <div className="text-sm font-semibold text-gray-700 mb-3">Theo ngày lập BD10</div>
         <div className="flex flex-wrap gap-4 overflow-x-auto pb-2">
           {cn.theo_ngay_lap.map(g => (
-            <div key={`${g.ngay}-${g.tuoi}`} className={`min-w-[140px] flex-1 max-w-[200px] border-l-[4px] rounded-r-lg p-3 shadow-sm ${
-              g.tuoi >= 3 ? 'bg-[#fff1f2] border-[#e11d48]' : g.tuoi === 2 ? 'bg-[#fff7ed] border-[#f97316]' : 'bg-[#fefce8] border-[#eab308]'
+            <div key={`${g.ngay}-${g.tuoi}`} className={`min-w-[140px] flex-1 max-w-[200px] border border-gray-200 border-l-[4px] rounded-r-lg p-3 ${
+              g.tuoi >= 3 ? 'bg-red-50 border-l-red-600' : g.tuoi === 2 ? 'bg-amber-100 border-l-amber-600' : 'bg-amber-50 border-l-amber-400'
             }`}>
               <div className="flex items-center gap-1 mb-1">
-                <Calendar className={`w-3 h-3 ${g.tuoi >= 3 ? 'text-[#be123c]' : g.tuoi === 2 ? 'text-[#c2410c]' : 'text-[#854d0e]'}`} />
-                <span className={`text-[11px] font-bold uppercase ${g.tuoi >= 3 ? 'text-[#be123c]' : g.tuoi === 2 ? 'text-[#c2410c]' : 'text-[#854d0e]'}`}>
+                <Calendar className={`w-3 h-3 ${g.tuoi >= 3 ? 'text-red-700' : g.tuoi === 2 ? 'text-amber-900' : 'text-amber-800'}`} />
+                <span className={`text-[11px] font-bold uppercase ${g.tuoi >= 3 ? 'text-red-700' : g.tuoi === 2 ? 'text-amber-900' : 'text-amber-800'}`}>
                   LẬP BD10 {g.ngay.slice(8,10)}/{g.ngay.slice(5,7)}
                 </span>
               </div>
-              <div className={`text-[26px] font-bold leading-none mb-1 ${g.tuoi >= 3 ? 'text-[#be123c]' : g.tuoi === 2 ? 'text-[#c2410c]' : 'text-[#854d0e]'}`}>
+              <div className={`text-[26px] font-bold leading-none mb-1 ${g.tuoi >= 3 ? 'text-red-700' : g.tuoi === 2 ? 'text-amber-900' : 'text-amber-800'}`}>
                 {g.so_buu_gui.toLocaleString('vi-VN')}
               </div>
-              <div className={`text-xs ${g.tuoi >= 3 ? 'text-[#be123c]' : g.tuoi === 2 ? 'text-[#c2410c]' : 'text-[#854d0e]'}`}>
+              <div className={`text-xs ${g.tuoi >= 3 ? 'text-red-700' : g.tuoi === 2 ? 'text-amber-900' : 'text-amber-800'}`}>
                 {g.tuoi} ngày
               </div>
             </div>
@@ -244,7 +244,7 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
         {error && <div className="text-red-500 text-sm mb-3">{error}</div>}
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-[#ffedd5] text-[#7c2d12] font-semibold border-b border-gray-200">
+            <thead className="bg-amber-100 text-amber-900 font-semibold border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3">SHBG</th>
                 <th className="px-4 py-3">BD8</th>
@@ -259,7 +259,7 @@ export function ArrivalsNotReceivedDetail({ data, filters, onBack }) {
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Không có bưu gửi nào trong nhóm này.</td></tr>
               )}
               {items.map((r, i) => (
-                <tr key={r.tracking_no} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-[#fffbf5]'}`}>
+                <tr key={r.tracking_no} className={`border-b border-gray-100 ${i % 2 === 0 ? 'bg-white' : 'bg-white'}`}>
                   <td className="px-4 py-2 font-mono text-xs">{r.tracking_no}</td>
                   <td className="px-4 py-2 font-mono text-xs">{r.bd8_no}</td>
                   <td className="px-4 py-2 font-mono text-xs">{r.bd10_no}</td>

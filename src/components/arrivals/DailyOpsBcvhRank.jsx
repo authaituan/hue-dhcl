@@ -45,17 +45,17 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
   const maxHang = xepHang.length > 0 ? Math.max(...xepHang.map((r) => r.hang)) : 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-2xs space-y-4">
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-2xs space-y-4">
       {/* TIÊU ĐỀ KHỐI */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-[#881337]" />
-            <h3 className="text-lg font-black text-[#292524]">
+            <Award className="w-5 h-5 text-red-900" />
+            <h3 className="text-lg font-black text-gray-800">
               Xếp hạng BCVH theo kết quả phát
             </h3>
           </div>
-          <p className="text-xs text-[#78716c] mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Xếp hạng theo tỷ lệ phát thành công (PTC) trên tổng bưu gửi đến trong ngày.
           </p>
         </div>
@@ -77,11 +77,11 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
       {/* TRẠNG THÁI E: KHÔNG ĐỦ BCVH ĐỂ XẾP HẠNG */}
       {isStateE ? (
         <div className="space-y-4">
-          <div className="p-4 bg-[#fffbeb] rounded-xl border border-[#fde68a] text-sm text-[#92400e] flex items-start gap-3">
+          <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-sm text-amber-800 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="font-bold">Chưa đủ số lượng BCVH để xếp hạng</div>
-              <div className="text-xs text-[#78716c]">
+              <div className="text-xs text-gray-500">
                 Cần tối thiểu 2 BCVH có dữ liệu phát và đạt ngưỡng từ {sanXepHang} bưu gửi để xếp hạng. Hiện tại phần lớn các đơn vị chưa nhập hoặc dưới sàn bưu gửi.
               </div>
             </div>
@@ -89,24 +89,24 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
 
           {/* Nếu có đơn vị chưa đủ dữ liệu, liệt kê rõ ràng */}
           {chuaDu.length > 0 && (
-            <div className="border border-[#e7e5e4] rounded-xl overflow-hidden">
-              <div className="bg-[#fafaf9] px-4 py-2.5 text-xs font-bold text-[#57534e] uppercase border-b border-[#e7e5e4]">
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-600 uppercase border-b border-gray-200">
                 Danh sách BCVH chưa đủ dữ liệu xếp hạng
               </div>
-              <div className="divide-y divide-[#e7e5e4]">
+              <div className="divide-y divide-gray-200">
                 {chuaDu.map((row) => (
                   <div
                     key={row.bcvh}
                     className="p-3.5 flex items-center justify-between gap-3 bg-white"
                   >
                     <div>
-                      <span className="font-bold text-sm text-[#881337]">
+                      <span className="font-bold text-sm text-red-900">
                         {row.ten}
                       </span>
-                      <span className="text-xs text-[#a8a29e] ml-1.5">· {row.bcvh}</span>
+                      <span className="text-xs text-gray-400 ml-1.5">· {row.bcvh}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-[#57534e]">
+                      <span className="text-xs font-mono text-gray-600">
                         {row.mau_so > 0 ? `${row.mau_so.toLocaleString('vi-VN')} bưu gửi` : '0 bưu gửi'}
                       </span>
                       <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gray-100 text-gray-600 border border-gray-300">
@@ -121,9 +121,9 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
         </div>
       ) : (
         /* BẢNG XẾP HẠNG TIÊU CHUẨN (TRẠNG THÁI A / A2) */
-        <div className="overflow-x-auto border border-[#e7e5e4] rounded-xl shadow-2xs">
+        <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-2xs">
           <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-[#fafaf9] text-[#57534e] text-xs font-bold uppercase border-b border-[#e7e5e4]">
+            <thead className="bg-gray-50 text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-center w-16">Hạng</th>
                 <th className="px-4 py-3">BCVH</th>
@@ -135,7 +135,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
                 <th className="px-4 py-3 text-right">Chưa có TT</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e7e5e4]">
+            <tbody className="divide-y divide-gray-200">
               {/* 1. CÁC HÀNG ĐƯỢC XẾP HẠNG */}
               {xepHang.map((row) => {
                 const isTop = row.hang === 1;
@@ -165,7 +165,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
                           {row.hang}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-[#57534e]">
+                        <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-gray-600">
                           {row.hang}
                         </span>
                       )}
@@ -173,9 +173,9 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
 
                     {/* Cột BCVH */}
                     <td className="px-4 py-3">
-                      <div className="font-bold text-[#881337] flex items-center gap-1">
+                      <div className="font-bold text-red-900 flex items-center gap-1">
                         <span>{row.ten}</span>
-                        <span className="text-xs font-normal text-[#a8a29e]">· {row.bcvh}</span>
+                        <span className="text-xs font-normal text-gray-400">· {row.bcvh}</span>
                       </div>
                     </td>
 
@@ -186,34 +186,34 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
 
                     {/* Cột PTC */}
                     <td className="px-4 py-3 text-right font-mono font-black">
-                      <span className={row.ptc >= nguongPtc ? 'text-[#047857]' : 'text-[#b45309]'}>
+                      <span className={row.ptc >= nguongPtc ? 'text-emerald-700' : 'text-amber-700'}>
                         {formatPercent(row.ptc)}
                       </span>
                     </td>
 
                     {/* Cột Không TC */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[#57534e]">
+                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
                       {row.theo_trang_thai?.PKTC?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.PKTC.ty_le)
                         : (row.pktc !== undefined ? formatPercent(row.pktc) : '—')}
                     </td>
 
                     {/* Cột Chuyển hoàn */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[#57534e]">
+                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
                       {row.theo_trang_thai?.CHUYEN_HOAN?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.CHUYEN_HOAN.ty_le)
                         : (row.chuyen_hoan !== undefined ? formatPercent(row.chuyen_hoan) : '—')}
                     </td>
 
                     {/* Cột Lạc hướng */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[#57534e]">
+                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
                       {row.theo_trang_thai?.LAC_HUONG?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.LAC_HUONG.ty_le)
                         : (row.lac_huong !== undefined ? formatPercent(row.lac_huong) : '—')}
                     </td>
 
                     {/* Cột Chưa có TT */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[#57534e]">
+                    <td className="px-4 py-3 text-right font-mono text-xs text-gray-600">
                       {row.theo_trang_thai?.CHUA_CO_TT?.ty_le !== undefined
                         ? formatPercent(row.theo_trang_thai.CHUA_CO_TT.ty_le)
                         : (row.chua_co_tt !== undefined ? formatPercent(row.chua_co_tt) : '—')}
@@ -226,13 +226,13 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
               {chuaDu.map((row) => (
                 <tr
                   key={row.bcvh}
-                  className="bg-[#fafaf9]/70 text-gray-500"
+                  className="bg-gray-50/70 text-gray-500"
                 >
-                  <td className="px-4 py-3 text-center text-xs text-[#a8a29e]">—</td>
+                  <td className="px-4 py-3 text-center text-xs text-gray-400">—</td>
                   <td className="px-4 py-3">
                     <div className="font-semibold text-gray-700 flex items-center gap-1">
                       <span>{row.ten}</span>
-                      <span className="text-xs font-normal text-[#a8a29e]">· {row.bcvh}</span>
+                      <span className="text-xs font-normal text-gray-400">· {row.bcvh}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-xs">
@@ -252,7 +252,7 @@ export default function DailyOpsBcvhRank({ ketQuaPhat, phatError }) {
         </div>
       )}
 
-      <p className="text-[11px] text-[#78716c] italic">
+      <p className="text-[11px] text-gray-500 italic">
         Xếp hạng dựa trên tỷ lệ phát thành công (PTC) trên tổng bưu gửi đến trong ngày. Các đơn vị chưa nhập hoặc dưới sàn {sanXepHang} bưu gửi không xếp hạng cuối.
       </p>
     </div>

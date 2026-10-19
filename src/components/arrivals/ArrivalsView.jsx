@@ -235,8 +235,8 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-[#0f2747]">Dữ liệu sản lượng đến</h1>
-          <p className="text-sm text-[#5b6777] mt-1">
+          <h1 className="text-[26px] font-bold text-dark">Dữ liệu sản lượng đến</h1>
+          <p className="text-sm text-gray-600 mt-1">
             Bưu gửi đến Bưu cục Vận hành · {filters.receiver_code.length === DASHBOARD_BCVH.length 
               ? 'Tất cả 6 BCVH' 
               : DASHBOARD_BCVH.filter(b => filters.receiver_code.includes(b.ma)).map(b => b.ten.replace('BCVH ', '')).join(', ')}
@@ -297,7 +297,7 @@ export default function ArrivalsView({ authUser, navParams, onClearNavParams, on
               onShowDetail={() => setShowBd10Detail(true)} 
             />
 
-            <div className="border-b border-[#d5dce6] pb-3 mt-6">
+            <div className="border-b border-border pb-3 mt-6">
               <nav className="-mb-px flex space-x-8">
                 {tabs.map(tab => (
                   <button

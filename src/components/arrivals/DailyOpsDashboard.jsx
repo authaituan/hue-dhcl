@@ -730,12 +730,12 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
   }
 
   return (
-    <div className="p-6 space-y-6 text-[#292524] bg-[#f8f9fa] min-h-screen">
+    <div className="p-6 space-y-6 text-gray-800 bg-gray-50 min-h-screen">
       {/* THANH CẢNH BÁO MẤT KẾT NỐI (GIỮ SỐ CŨ) */}
       {connectionLostAt && (
-        <div className="bg-[#fffbeb] border border-[#f59e0b] text-[#92400e] px-4 py-3 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="bg-amber-50 border border-amber-500 text-amber-800 px-4 py-3 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-[#f59e0b] shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
             <span className="text-sm font-medium">
               Mất kết nối từ {formatDateTimeSec(connectionLostAt)}. Đang tiếp tục thử kết nối lại... Số liệu đang hiển thị là dữ liệu gần nhất lúc {formatDateTimeSec(lastRefreshedAt)}.
             </span>
@@ -743,7 +743,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
           <button
             onClick={() => fetchData(selectedBcvh)}
             disabled={isRefreshing}
-            className="px-3 py-1 bg-white border border-[#f59e0b] text-[#92400e] text-xs font-bold rounded-lg hover:bg-amber-50 transition-colors flex items-center gap-1.5 shrink-0"
+            className="px-3 py-1 bg-white border border-amber-500 text-amber-800 text-xs font-bold rounded-lg hover:bg-amber-50 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             Thử lại
@@ -752,19 +752,19 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       )}
 
       {/* 1. THANH TRÊN CÙNG: TIÊU ĐỀ & TRẠNG THÁI & BỘ CHỌN BCVH */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-[#e7e5e4] shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm">
         <div className="flex flex-col gap-1">
           {!isAllView && (
             <button
               onClick={() => handleSelectBcvh('all')}
-              className="text-xs font-semibold text-[#881337] hover:underline flex items-center gap-1 w-fit mb-0.5"
+              className="text-xs font-semibold text-red-900 hover:underline flex items-center gap-1 w-fit mb-0.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Về màn Trung tâm (lãnh đạo Trung tâm thấy)
             </button>
           )}
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-black text-[#881337] tracking-tight">
+            <h1 className="text-2xl font-black text-red-900 tracking-tight">
               {isAllView
                 ? (isVnToday(tongQuan?.ngay_du_lieu)
                     ? 'Cần điều hành ngay hôm nay'
@@ -785,7 +785,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                     : `Trực tiếp · Dữ liệu ${formatDdMm(tongQuan?.ngay_du_lieu)} · đến ${formatTimeOnly(tongQuan?.den_luc) || 'chưa có'}`}
               </span>
               {lastRefreshedAt && (
-                <span className="text-[11px] text-[#78716c] hidden sm:inline" title="Lần làm mới thành công gần nhất">
+                <span className="text-[11px] text-gray-500 hidden sm:inline" title="Lần làm mới thành công gần nhất">
                   (Cập nhật {formatDateTimeSec(lastRefreshedAt)})
                 </span>
               )}
@@ -795,15 +795,15 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
           {/* BỘ CHỌN BCVH & VAI TRÒ + NÚT TIVI */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-2 bg-[#f5f5f4] p-1.5 rounded-xl border border-[#e7e5e4]">
-              <span className="text-xs font-bold text-[#57534e] px-2 whitespace-nowrap">
+            <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
+              <span className="text-xs font-bold text-gray-600 px-2 whitespace-nowrap">
                 {isAllView ? 'Lãnh đạo Trung tâm · 6 BCVH' : 'GĐ BCVH'}
               </span>
               <select
                 id="select-bcvh-dashboard"
                 value={selectedBcvh}
                 onChange={(e) => handleSelectBcvh(e.target.value)}
-                className="text-sm font-semibold text-[#292524] bg-white border border-[#d6d3d1] rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#881337] cursor-pointer"
+                className="text-sm font-semibold text-gray-800 bg-white border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-900 cursor-pointer"
               >
                 <option value="all">Toàn Trung tâm (6 BCVH)</option>
                 {DASHBOARD_BCVH.map((b) => (
@@ -817,7 +817,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               <button
                 onClick={() => onEnterTvMode(selectedBcvh)}
                 title="Mở chế độ tivi (toàn màn hình)"
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#57534e] bg-white border border-[#d6d3d1] rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors"
               >
                 📺 Chế độ tivi
               </button>
@@ -828,22 +828,22 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       {/* 2. HÀNG A: CÁC THẺ CHỈ SỐ */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAllView ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
         {/* THẺ 1: SẢN LƯỢNG ĐẾN HÔM NAY */}
-        <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
+            <div className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-1">
               {formatNhanNgayGio(
                 isAllView ? tongQuan?.ngay_du_lieu : (currentBcvhRow?.ngay_du_lieu || tongQuan?.ngay_du_lieu),
                 isAllView ? tongQuan?.den_luc : (currentBcvhRow?.den_luc || tongQuan?.den_luc),
                 isAllView ? 'SẢN LƯỢNG ĐẾN' : 'BƯU GỬI ĐẾN BCVH'
               )}
             </div>
-            <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+            <div className="text-[34px] font-black text-dark leading-none my-2">
               {isAllView
                 ? (tongQuan?.san_luong?.buu_gui || 0).toLocaleString('vi-VN')
                 : (currentBcvhRow?.san_luong?.buu_gui || 0).toLocaleString('vi-VN')}
             </div>
           </div>
-          <div className="text-xs text-[#57534e] space-y-0.5 pt-2 border-t border-[#f5f5f4]">
+          <div className="text-xs text-gray-600 space-y-0.5 pt-2 border-t border-gray-100">
             {isAllView ? (
               <div>
                 <span>{formatSoSanh(
@@ -876,45 +876,45 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               </div>
             )}
             {dongBcvhNgoaiTong && (
-              <div className="text-xs text-[#57534e]">
+              <div className="text-xs text-gray-600">
                 {dongBcvhNgoaiTong}
               </div>
             )}
-            <div className="text-[11px] text-[#a8a29e] italic">BG = bưu gửi (lần đến sớm nhất)</div>
+            <div className="text-[11px] text-gray-400 italic">BG = bưu gửi (lần đến sớm nhất)</div>
           </div>
         </div>
 
         {/* THẺ 2: BCVH CẦN CHÚ Ý (CHỈ HIỆN KHI XEM TOÀN TRUNG TÂM ALL) */}
         {isAllView && (
-          <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
             <div>
-              <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
+              <div className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                 BCVH CẦN CHÚ Ý
               </div>
-              <div className="text-[34px] font-black text-[#881337] leading-none my-2">
+              <div className="text-[34px] font-black text-red-900 leading-none my-2">
                 {tongQuan?.bcvh_can_chu_y?.so || 0}
-                <span className="text-xl text-[#78716c] font-bold"> / {tongQuan?.bcvh_can_chu_y?.tong || 6}</span>
+                <span className="text-xl text-gray-500 font-bold"> / {tongQuan?.bcvh_can_chu_y?.tong || 6}</span>
               </div>
             </div>
-            <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
+            <div className="text-xs text-gray-600 pt-2 border-t border-gray-100">
               {tongQuan?.bcvh_can_chu_y?.so > 0 ? 'Có ít nhất một chỉ số vượt ngưỡng cảnh báo' : 'Tất cả BCVH ở mức bình thường'}
             </div>
           </div>
         )}
 
         {/* THẺ 3: HÀNG ĐI NGOÀI */}
-        <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
+            <div className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-1">
               HÀNG ĐI NGOÀI
             </div>
-            <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+            <div className="text-[34px] font-black text-dark leading-none my-2">
               {formatPercent(tongQuan?.hang_di_ngoai?.ty_le)}
             </div>
           </div>
-          <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
+          <div className="text-xs text-gray-600 pt-2 border-t border-gray-100">
             <span>{(tongQuan?.hang_di_ngoai?.buu_gui || 0).toLocaleString('vi-VN')} bưu gửi {formatNhanNgay(tongQuan?.ngay_du_lieu)}</span>
-            <span className="text-[#a8a29e] block text-[11px]">
+            <span className="text-gray-400 block text-[11px]">
               {tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== null && tongQuan?.hang_di_ngoai?.so_tuan_truoc_cung_gio?.chenh_diem !== undefined
                 ? `${formatPointDiff(tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.chenh_diem)} ${nhanMocTong.labelTuanTruoc}${
                     tongQuan.hang_di_ngoai.so_tuan_truoc_cung_gio.so_bcvh !== null &&
@@ -929,39 +929,39 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
         </div>
 
         {/* THẺ 4: HÀNG ĐẾN CHUYẾN CHIỀU */}
-        <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="text-[12px] font-bold text-[#78716c] uppercase tracking-wider mb-1">
+            <div className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-1">
               HÀNG ĐẾN CHUYẾN CHIỀU
             </div>
             {!chuyenChieu ? (
-              <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+              <div className="text-[34px] font-black text-dark leading-none my-2">
                 —
               </div>
             ) : chuyenChieu.da_toi_gio ? (
-              <div className="text-[34px] font-black text-[#0f2747] leading-none my-2">
+              <div className="text-[34px] font-black text-dark leading-none my-2">
                 {(chuyenChieu.buu_gui ?? 0).toLocaleString('vi-VN')}
               </div>
             ) : (
-              <div className="text-[22px] font-bold text-[#0f2747] leading-tight my-2">
+              <div className="text-[22px] font-bold text-dark leading-tight my-2">
                 Chưa có lượt chiều
               </div>
             )}
           </div>
-          <div className="text-xs text-[#57534e] pt-2 border-t border-[#f5f5f4]">
+          <div className="text-xs text-gray-600 pt-2 border-t border-gray-100">
             {!chuyenChieu ? null : chuyenChieu.da_toi_gio ? (
               <>
                 {chuyenChieu.ty_le !== null && chuyenChieu.ty_le !== undefined && !isNaN(chuyenChieu.ty_le) && (
                   <span>{formatPercent(chuyenChieu.ty_le)} sản lượng đến hôm nay</span>
                 )}
                 {gioDuLieuHienTai && (
-                  <span className="text-[#a8a29e] block text-[11px]">
+                  <span className="text-gray-400 block text-[11px]">
                     Dữ liệu hiện tại đã tới {gioDuLieuHienTai}
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-[#a8a29e]">
+              <span className="text-gray-400">
                 Chờ dữ liệu lượt chiều
               </span>
             )}
@@ -973,15 +973,15 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat && thangPhat.bcvh !== (selectedBcvh || 'all') ? null : thangPhat} />
 
       {/* 4. KHỐI «CẦN ĐIỀU HÀNH NGAY HÔM NAY» / «VIỆC CỦA BCVH TÔI» */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-[#881337]">
+              <h2 className="text-lg font-black text-red-900">
                 {isAllView ? 'Danh sách cần điều hành' : `Việc của BCVH tôi · ${currentBcvhObj?.ten || selectedBcvh}`}
               </h2>
             </div>
-            <p className="text-xs text-[#78716c] mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Sản lượng được so với cùng thứ tuần trước (cùng giờ). «Xử lý ngay» đứng trước.
             </p>
           </div>
@@ -997,14 +997,14 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
         {/* DANH SÁCH VIỆC */}
         {actionItems.length === 0 ? (
-          <div className="py-10 text-center bg-[#f0fdf4] rounded-xl border border-[#bbf7d0] text-[#15803d]">
+          <div className="py-10 text-center bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-700">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-80" />
             <p className="font-bold text-[15px]">
               {isVnToday(tongQuan?.ngay_du_lieu)
                 ? 'Hôm nay chưa có việc cần điều hành'
                 : `Ngày ${formatDdMm(tongQuan?.ngay_du_lieu)} chưa có việc cần điều hành`}
             </p>
-            <p className="text-xs mt-1 text-[#166534]">Tất cả chỉ số của {isAllView ? 'các BCVH' : currentBcvhObj?.ten} đều trong ngưỡng bình thường.</p>
+            <p className="text-xs mt-1 text-emerald-800">Tất cả chỉ số của {isAllView ? 'các BCVH' : currentBcvhObj?.ten} đều trong ngưỡng bình thường.</p>
           </div>
         ) : (
           <div>
@@ -1028,10 +1028,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 <div ref={webScroll.contentRef} className="flex flex-col gap-3">
                   {actionItems.map((item, idx) => {
                     const isXuLy = item.muc === 'xu_ly_ngay';
-                    const cardBg = isXuLy ? 'bg-[#fff1f2] border-[#fecdd3]' : 'bg-[#fff7ed] border-[#fed7aa]';
-                    const badgeBg = isXuLy ? 'bg-[#ffe4e6] text-[#be123c]' : 'bg-[#ffedd5] text-[#c2410c]';
+                    const cardBg = isXuLy ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200';
+                    const badgeBg = isXuLy ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800';
                     const badgeText = isXuLy ? 'Xử lý ngay' : 'Trong ngày';
-                    const numColor = isXuLy ? 'text-[#be123c]' : 'text-[#c2410c]';
+                    const numColor = isXuLy ? 'text-red-700' : 'text-amber-800';
 
                     return (
                       <div 
@@ -1043,10 +1043,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                             {badgeText}
                           </span>
                           <div className="space-y-1">
-                            <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
+                            <h4 className="font-bold text-[15px] text-gray-800 leading-snug">
                               {formatActionTitle(item, isAllView, tongQuan?.nguong)}
                             </h4>
-                            <p className="text-xs text-[#57534e]">
+                            <p className="text-xs text-gray-600">
                               {formatActionDetail(item, tongQuan?.nguong)}
                             </p>
                           </div>
@@ -1059,21 +1059,21 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                                 <span className={`text-2xl font-black ${numColor}`}>
                                   {item.so_lieu?.buu_gui?.toLocaleString('vi-VN')}
                                 </span>
-                                <span className="text-xs font-bold text-[#57534e]">bưu gửi</span>
+                                <span className="text-xs font-bold text-gray-600">bưu gửi</span>
                               </div>
                             ) : (
                               <div className="flex items-baseline md:justify-end gap-1">
                                 <span className={`text-2xl font-black ${numColor}`}>
                                   {formatPercent(item.so_lieu?.ty_le)}
                                 </span>
-                                <span className="text-xs font-bold text-[#57534e]">chưa XNĐ</span>
+                                <span className="text-xs font-bold text-gray-600">chưa XNĐ</span>
                               </div>
                             )}
                           </div>
                           <button
                             onClick={() => handleExecuteAction(item)}
                             className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 ${
-                              isXuLy ? 'bg-[#e11d48] hover:bg-[#be123c]' : 'bg-[#ea580c] hover:bg-[#c2410c]'
+                              isXuLy ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-800'
                             }`}
                           >
                             <span>Xử lý</span>
@@ -1088,10 +1088,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   <div className="flex flex-col gap-3" aria-hidden="true">
                     {actionItems.map((item, idx) => {
                       const isXuLy = item.muc === 'xu_ly_ngay';
-                      const cardBg = isXuLy ? 'bg-[#fff1f2] border-[#fecdd3]' : 'bg-[#fff7ed] border-[#fed7aa]';
-                      const badgeBg = isXuLy ? 'bg-[#ffe4e6] text-[#be123c]' : 'bg-[#ffedd5] text-[#c2410c]';
+                      const cardBg = isXuLy ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200';
+                      const badgeBg = isXuLy ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800';
                       const badgeText = isXuLy ? 'Xử lý ngay' : 'Trong ngày';
-                      const numColor = isXuLy ? 'text-[#be123c]' : 'text-[#c2410c]';
+                      const numColor = isXuLy ? 'text-red-700' : 'text-amber-800';
 
                       return (
                         <div 
@@ -1103,10 +1103,10 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                               {badgeText}
                             </span>
                             <div className="space-y-1">
-                              <h4 className="font-bold text-[15px] text-[#292524] leading-snug">
+                              <h4 className="font-bold text-[15px] text-gray-800 leading-snug">
                                 {formatActionTitle(item, isAllView, tongQuan?.nguong)}
                               </h4>
-                              <p className="text-xs text-[#57534e]">
+                              <p className="text-xs text-gray-600">
                                 {formatActionDetail(item, tongQuan?.nguong)}
                               </p>
                             </div>
@@ -1119,14 +1119,14 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                                   <span className={`text-2xl font-black ${numColor}`}>
                                     {item.so_lieu?.buu_gui?.toLocaleString('vi-VN')}
                                   </span>
-                                  <span className="text-xs font-bold text-[#57534e]">bưu gửi</span>
+                                  <span className="text-xs font-bold text-gray-600">bưu gửi</span>
                                 </div>
                               ) : (
                                 <div className="flex items-baseline md:justify-end gap-1">
                                   <span className={`text-2xl font-black ${numColor}`}>
                                     {formatPercent(item.so_lieu?.ty_le)}
                                   </span>
-                                  <span className="text-xs font-bold text-[#57534e]">chưa XNĐ</span>
+                                  <span className="text-xs font-bold text-gray-600">chưa XNĐ</span>
                                 </div>
                               )}
                             </div>
@@ -1134,7 +1134,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                               tabIndex={-1}
                               onClick={() => handleExecuteAction(item)}
                               className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors flex items-center gap-1 shrink-0 ${
-                                isXuLy ? 'bg-[#e11d48] hover:bg-[#be123c]' : 'bg-[#ea580c] hover:bg-[#c2410c]'
+                                isXuLy ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-800'
                               }`}
                             >
                               <span>Xử lý</span>
@@ -1148,7 +1148,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-[#a8a29e] pt-2 px-1">
+            <div className="flex items-center justify-between text-[11px] text-gray-400 pt-2 px-1">
               <span>{actionItems.length} việc cần lưu ý</span>
               <span>Rê chuột để dừng · Bấm «Xử lý →» để mở màn chi tiết</span>
             </div>
@@ -1165,15 +1165,15 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
       {/* 6. BẢNG «HÔM NAY THEO TỪNG BCVH» (CHỈ HIỆN KHI XEM TOÀN TRUNG TÂM ALL) */}
       {isAllView && (
-        <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black text-[#292524]">
+              <h3 className="text-lg font-black text-gray-800">
                 {isVnToday(tongQuan?.ngay_du_lieu)
                   ? 'Hôm nay theo từng BCVH'
                   : `Theo từng BCVH · ${formatDdMm(tongQuan?.ngay_du_lieu)}`}
               </h3>
-              <p className="text-xs text-[#78716c] mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Sản lượng đến tích luỹ từ 00:00 tới {formatTimeOnly(tongQuan?.den_luc) || 'hiện tại'}.
                 {bcvhChuaCoDuLieuNgayNay > 0 && (
                   <span className="text-amber-700 font-medium"> ({bcvhChuaCoDuLieuNgayNay} BCVH chưa có dữ liệu ngày này)</span>
@@ -1184,7 +1184,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             {onNavigate && (
               <button
                 onClick={() => onNavigate({ tab: 'arrivals' })}
-                className="text-xs font-bold text-[#881337] hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-red-900 hover:underline flex items-center gap-1"
               >
                 <span>Mở Sản lượng đến</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -1192,9 +1192,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             )}
           </div>
 
-          <div className="overflow-x-auto border border-[#e7e5e4] rounded-xl">
+          <div className="overflow-x-auto border border-gray-200 rounded-xl">
             <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="bg-[#fafaf9] text-[#57534e] text-xs font-bold uppercase border-b border-[#e7e5e4]">
+              <thead className="bg-gray-50 text-gray-600 text-xs font-bold uppercase border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3">BCVH</th>
                   <th className="px-4 py-3 text-right">SẢN LƯỢNG ĐẾN</th>
@@ -1209,7 +1209,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   <th className="px-4 py-3 text-center">ĐÁNH GIÁ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#e7e5e4]">
+              <tbody className="divide-y divide-gray-200">
                 {tongQuan?.theo_bcvh?.map((row) => {
                   const isNoData = !row.co_du_lieu;
 
@@ -1220,9 +1220,9 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       className="hover:bg-amber-50/40 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-bold text-[#881337] hover:underline flex items-center gap-1">
+                        <div className="font-bold text-red-900 hover:underline flex items-center gap-1">
                           <span>{row.ten}</span>
-                          <span className="text-xs font-normal text-[#a8a29e]">· {row.ma}</span>
+                          <span className="text-xs font-normal text-gray-400">· {row.ma}</span>
                           {row.co_du_lieu && row.ngay_du_lieu && row.ngay_du_lieu !== tongQuan?.ngay_du_lieu && (
                             <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded ml-1" title={`Dữ liệu ngày ${row.ngay_du_lieu}`}>
                               {formatDdMm(row.ngay_du_lieu)}
@@ -1231,11 +1231,11 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-medium">
-                        {isNoData ? <span className="text-xs text-[#a8a29e] italic">chưa có dữ liệu</span> : row.san_luong?.buu_gui?.toLocaleString('vi-VN')}
+                        {isNoData ? <span className="text-xs text-gray-400 italic">chưa có dữ liệu</span> : row.san_luong?.buu_gui?.toLocaleString('vi-VN')}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
                         {isNoData || row.so_hom_qua?.chenh_pct === null || row.so_hom_qua?.chenh_pct === undefined ? (
-                          <span className="text-[#a8a29e]">—</span>
+                          <span className="text-gray-400">—</span>
                         ) : (
                           <span className={row.so_hom_qua.chenh_pct >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
                             {formatPctChange(row.so_hom_qua.chenh_pct)}
@@ -1244,7 +1244,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
                         {isNoData || row.so_tuan_truoc?.chenh_pct === null || row.so_tuan_truoc?.chenh_pct === undefined ? (
-                          <span className="text-[#a8a29e]" title={lyDoChuaDanhGia(row.danh_gia_san_luong, tongQuan?.nguong)}>—</span>
+                          <span className="text-gray-400" title={lyDoChuaDanhGia(row.danh_gia_san_luong, tongQuan?.nguong)}>—</span>
                         ) : (
                           <span className={row.so_tuan_truoc.chenh_pct >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>
                             {formatPctChange(row.so_tuan_truoc.chenh_pct)}
@@ -1253,18 +1253,18 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       </td>
                       <td className="px-4 py-3 text-right font-mono">
                         {isNoData ? (
-                          <span className="text-[#a8a29e]">—</span>
+                          <span className="text-gray-400">—</span>
                         ) : row.chua_nhan?.buu_gui > 0 ? (
                           <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
                             {row.chua_nhan.buu_gui.toLocaleString('vi-VN')}
                           </span>
                         ) : (
-                          <span className="text-[#78716c]">0</span>
+                          <span className="text-gray-500">0</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
                         {isNoData ? (
-                          <span className="text-[#a8a29e]">—</span>
+                          <span className="text-gray-400">—</span>
                         ) : (
                           <span>
                             {row.bd10_chua_xnd?.so} / {row.bd10_chua_xnd?.tong}
@@ -1274,7 +1274,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                       </td>
                       <td className="px-4 py-3 text-center">
                         {isNoData || !row.muc ? (
-                          <span className="text-[#a8a29e] text-xs">—</span>
+                          <span className="text-gray-400 text-xs">—</span>
                         ) : row.muc === 'xu_ly_ngay' ? (
                           <span className="px-2 py-0.5 text-xs font-bold rounded bg-red-100 text-red-700 border border-red-200">
                             Xử lý ngay
@@ -1302,20 +1302,20 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
             </div>
           )}
 
-          <p className="text-[11px] text-[#78716c] italic">
+          <p className="text-[11px] text-gray-500 italic">
             Mức đánh giá do hệ thống tính từ sản lượng so với cùng thứ tuần trước, bưu gửi chưa nhận và BD10 chưa XNĐ. Ngưỡng đang là tạm thời.
           </p>
         </div>
       )}
 
       {/* 7. KHỐI «CHƯA NHẬN TẠI BCVH, ĐÃ CHỜ BAO LÂU?» */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-black text-[#292524]">
+            <h3 className="text-lg font-black text-gray-800">
               {isAllView ? 'Bưu gửi chưa nhận tại BCVH, đã chờ bao lâu?' : `Chưa nhận tại ${currentBcvhObj?.ten || selectedBcvh}`}
             </h3>
-            <p className="text-xs text-[#78716c] mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               Phân loại theo thời gian chờ. <span className="font-bold text-amber-700">Chia theo giờ: sắp có</span>
             </p>
           </div>
@@ -1326,7 +1326,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 bcvh: !isAllView ? selectedBcvh : undefined,
                 showNotReceivedDetail: true
               })}
-              className="text-xs font-bold text-[#881337] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-red-900 hover:underline flex items-center gap-1"
             >
               <span>Xem danh sách bưu gửi</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -1346,8 +1346,8 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               const pTu1Ngay = tongCn > 0 ? (tu1Ngay / tongCn) * 100 : 0;
 
               return (
-                <div key={row.ma} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-[#fafaf9] border border-[#e7e5e4]">
-                  <div className="w-44 shrink-0 font-bold text-sm text-[#292524]">
+                <div key={row.ma} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <div className="w-44 shrink-0 font-bold text-sm text-gray-800">
                     {row.ten}
                   </div>
                   
@@ -1384,7 +1384,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                   {/* THÔNG TIN TỔNG & NÚT */}
                   <div className="w-48 shrink-0 flex items-center justify-end gap-3 text-right">
                     <div>
-                      <span className="font-bold text-sm text-[#292524]">{tongCn} BG</span>
+                      <span className="font-bold text-sm text-gray-800">{tongCn} BG</span>
                       {tu1Ngay > 0 && cn?.cho_lau_nhat_ngay !== null && (
                         <span className="text-[11px] text-red-600 block">cũ nhất {cn.cho_lau_nhat_ngay} ngày</span>
                       )}
@@ -1395,7 +1395,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         bcvh: row.ma,
                         showNotReceivedDetail: true
                       })}
-                      className="text-xs font-semibold text-[#881337] hover:underline whitespace-nowrap"
+                      className="text-xs font-semibold text-red-900 hover:underline whitespace-nowrap"
                     >
                       Xem →
                     </button>
@@ -1403,7 +1403,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                 </div>
               );
             })}
-            <div className="flex items-center gap-4 text-xs text-[#78716c] pt-1">
+            <div className="flex items-center gap-4 text-xs text-gray-500 pt-1">
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 bg-amber-500 rounded-sm" />
                 <span>Trong ngày</span>
@@ -1457,14 +1457,14 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       </div>
 
       {/* 8. KHỐI «PHƯỜNG/XÃ SẢN LƯỢNG ĐẾN TĂNG MẠNH NHẤT HÔM NAY» */}
-      <div className="bg-white rounded-2xl border border-[#e7e5e4] p-5 sm:p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm space-y-4">
         <div>
-          <h3 className="text-lg font-black text-[#292524]">
+          <h3 className="text-lg font-black text-gray-800">
             {isVnToday(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)
               ? 'Phường/xã sản lượng đến tăng mạnh nhất hôm nay'
               : `Phường/xã sản lượng đến tăng mạnh nhất ${formatDdMm(phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu)}`}
           </h3>
-          <p className="text-xs text-[#78716c] mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             {(() => {
               const pxNgay = phuongXa?.ngay_du_lieu || tongQuan?.ngay_du_lieu;
               const cotStr = isVnToday(pxNgay)
@@ -1493,12 +1493,12 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
               return (
                 <div 
                   key={`${item.ward_key}-${idx}`}
-                  className="p-4 rounded-xl bg-[#fafaf9] border border-[#e7e5e4] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
                   <div className="w-52 shrink-0">
-                    <div className="font-bold text-sm text-[#292524]">{item.ten || item.ward_key}</div>
+                    <div className="font-bold text-sm text-gray-800">{item.ten || item.ward_key}</div>
                     {isAllView && (
-                      <div className="text-xs text-[#78716c]">{item.ten_bcvh}</div>
+                      <div className="text-xs text-gray-500">{item.ten_bcvh}</div>
                     )}
                   </div>
 
@@ -1530,12 +1530,12 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
 
                     {/* Hôm nay */}
                     <div className="flex flex-col items-center justify-end h-full w-12">
-                      <span className="text-[10px] font-bold text-[#ea580c] mb-1">{item.hom_nay} BG</span>
+                      <span className="text-[10px] font-bold text-orange-600 mb-1">{item.hom_nay} BG</span>
                       <div 
                         style={{ height: `${Math.max(15, (item.hom_nay / maxVal) * 36)}px` }} 
-                        className="w-full bg-[#ea580c] rounded-t-sm"
+                        className="w-full bg-orange-600 rounded-t-sm"
                       />
-                      <span className="text-[9px] font-bold text-[#ea580c] mt-0.5">
+                      <span className="text-[9px] font-bold text-orange-600 mt-0.5">
                         {isVnToday(itemNgay) ? 'hôm nay' : formatDdMm(itemNgay)}
                       </span>
                     </div>
@@ -1561,7 +1561,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-[#78716c] mt-1">
+                    <div className="text-[11px] text-gray-500 mt-1">
                       {item.tuan_truoc_cung_gio !== null && item.tuan_truoc_cung_gio !== undefined ? (
                         <span>
                           {isVnToday(itemNgay) ? 'so tuần trước' : `so ${formatDdMm(addDaysYmd(itemNgay, -7))}`} ({item.tuan_truoc_cung_gio} BG): {formatPctChange(item.lech_so_tuan_truoc_pct)}

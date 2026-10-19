@@ -92,7 +92,7 @@ export function PtcSparkline({ values, muc = null, minSpan = 0.04, nhan, classNa
 export function ChenhChip({ chenh, xauKhiTang, ngan = false, xuongDong = false }) {
   const nowrap = xuongDong ? 'leading-tight' : 'whitespace-nowrap';
   if (!chenh) {
-    return <span className="text-[11px] text-[#a8a29e]">{ngan ? 'Chưa đủ dữ liệu để so' : 'Chưa đủ dữ liệu để so với tháng'}</span>;
+    return <span className="text-[11px] text-gray-400">{ngan ? 'Chưa đủ dữ liệu để so' : 'Chưa đủ dữ liệu để so với tháng'}</span>;
   }
   if (chenh.huong === 'ngang') {
     return <span className={`inline-block px-1.5 py-0.5 text-[11px] font-bold rounded bg-stone-100 text-stone-600 border border-stone-200 ${nowrap}`}>≈ Ngang tháng ({formatChenhDiem(chenh.chenh_diem)} điểm)</span>;
@@ -121,19 +121,19 @@ export function nhanLuyKe(thang) {
  */
 export function PtcThangFooter({ thang, ma }) {
   const cfg = PTC_THANG_CAU_HINH[ma];
-  const khung = 'h-11 shrink-0 bg-[#f5f5f4] border-t border-[#ebe9e6] px-4 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
-  if (thang === null || thang === undefined) return <div className={`${khung} text-[#a8a29e]`}>Từ đầu tháng: …</div>;
+  const khung = 'h-11 shrink-0 bg-gray-100 border-t border-border px-4 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
+  if (thang === null || thang === undefined) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: …</div>;
   const L = thang && thang.luy_ke;
-  if (!L || !cfg) return <div className={`${khung} text-[#a8a29e]`}>Từ đầu tháng: chưa có số liệu</div>;
+  if (!L || !cfg) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: chưa có số liệu</div>;
   const tt = L.theo_trang_thai?.[ma];
   const co = L.so_ngay_co_so_lieu > 0 && L.mau_so > 0;
   return (
     <div className={khung}>
-      <span className="min-w-0 truncate text-[#57534e] font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
+      <span className="min-w-0 truncate text-gray-600 font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
         {co ? (
-          <>{nhanLuyKe(thang)} <span className="font-black text-[#0f2747]">{(tt?.so ?? 0).toLocaleString('vi-VN')}</span> · {formatPct1(tt?.ty_le)}</>
+          <>{nhanLuyKe(thang)} <span className="font-black text-dark">{(tt?.so ?? 0).toLocaleString('vi-VN')}</span> · {formatPct1(tt?.ty_le)}</>
         ) : (
-          <span className="text-[#a8a29e] font-medium">Chưa có ngày đủ số liệu</span>
+          <span className="text-gray-400 font-medium">Chưa có ngày đủ số liệu</span>
         )}
       </span>
       <span className="min-w-0 leading-none"><ChenhChip chenh={thang.chenh?.[ma] || null} xauKhiTang={cfg.xauKhiTang} ngan /></span>

@@ -99,6 +99,57 @@
   --color-amber-800: #6E4700;
   --color-amber-900: #523600;
   --color-amber-950: #301F00;
+  /* rose -> đỏ son (như red) */
+  --color-rose-50: #FDEEF0;
+  --color-rose-100: #FBE3E5;
+  --color-rose-200: #F2B8BE;
+  --color-rose-300: #E88A94;
+  --color-rose-400: #D9525F;
+  --color-rose-500: #C42B38;
+  --color-rose-600: #B3202A;
+  --color-rose-700: #8E1B28;
+  --color-rose-800: #6E1520;
+  --color-rose-900: #520F18;
+  --color-rose-950: #330A10;
+
+  /* stone -> trung tính ấm (như gray) */
+  --color-stone-50: #FAF6EC;
+  --color-stone-100: #F3EDE0;
+  --color-stone-200: #E4D5AE;
+  --color-stone-300: #D9CBA8;
+  --color-stone-400: #9A8AA0;
+  --color-stone-500: #7A6A80;
+  --color-stone-600: #5A4A62;
+  --color-stone-700: #3F3248;
+  --color-stone-800: #2A1B33;
+  --color-stone-900: #1D1225;
+  --color-stone-950: #120A18;
+
+  /* yellow -> vàng cung đình (như amber) */
+  --color-yellow-50: #FFF8E6;
+  --color-yellow-100: #FFF1CC;
+  --color-yellow-200: #F9E09C;
+  --color-yellow-300: #F0CB63;
+  --color-yellow-400: #E0A82E;
+  --color-yellow-500: #C9951E;
+  --color-yellow-600: #A87A12;
+  --color-yellow-700: #8A5A00;
+  --color-yellow-800: #6E4700;
+  --color-yellow-900: #523600;
+  --color-yellow-950: #301F00;
+
+  /* green -> xanh ngọc (như emerald) */
+  --color-green-50: #EAF6F1;
+  --color-green-100: #DDF1E8;
+  --color-green-200: #B7E0CE;
+  --color-green-300: #86C9AE;
+  --color-green-400: #4DAA88;
+  --color-green-500: #2E8F6D;
+  --color-green-600: #1F7A5C;
+  --color-green-700: #176049;
+  --color-green-800: #124B3A;
+  --color-green-900: #0D3A2D;
+  --color-green-950: #07221A;
 }
 
 @layer base {
@@ -194,7 +245,7 @@
   .btn-dark {
     background-color: var(--color-dark);
     color: #fff;
-    box-shadow: 0 4px 7px -1px rgba(0,0,0,.11), 0 2px 4px -1px rgba(0,0,0,.07);
+    box-shadow: none;
     border: none;
   }
   
@@ -205,7 +256,7 @@
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 14px;
-    color: #3F3F46;
+    color: var(--color-gray-700);
     transition: all 0.15s ease;
   }
   .input-soft:focus {

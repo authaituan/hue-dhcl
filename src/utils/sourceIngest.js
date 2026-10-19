@@ -128,9 +128,9 @@ export const CELL_STATUS_MAP = {
   },
   NGUON_CO_FILE_CHUA_NAP: {
     label: 'Chưa nạp',
-    badgeClass: 'bg-white text-orange-600 border border-dashed border-orange-400 font-bold',
-    cellClass: 'bg-white text-orange-600 border-2 border-dashed border-orange-400 hover:bg-orange-50 font-bold',
-    textClass: 'text-orange-600'
+    badgeClass: 'bg-white text-amber-700 border border-dashed border-amber-400 font-bold',
+    cellClass: 'bg-white text-amber-700 border-2 border-dashed border-amber-400 hover:bg-amber-50 font-bold',
+    textClass: 'text-amber-700'
   },
   NGUON_CHUA_CO_FILE: {
     label: 'Không file',

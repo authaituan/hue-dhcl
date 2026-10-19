@@ -84,7 +84,7 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
           </table>
         </div>
         <div className="p-3 bg-gray-50 text-xs text-gray-500 italic border-t border-gray-200">
-          Ghi chú: Có <span className="font-bold text-orange-600">{q.khong_co_moc.toLocaleString('vi-VN')}</span> bưu gửi chưa có mốc nào (chưa xác định ngày đến). Số này KHÔNG được tính vào tổng sản lượng đến trong khoảng.
+          Ghi chú: Có <span className="font-bold text-amber-700">{q.khong_co_moc.toLocaleString('vi-VN')}</span> bưu gửi chưa có mốc nào (chưa xác định ngày đến). Số này KHÔNG được tính vào tổng sản lượng đến trong khoảng.
         </div>
       </div>
 
@@ -93,10 +93,10 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
           {summary.canh_bao?.so_moc_theo_dong && (
             <div className="card-soft border border-gray-200">
               <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-                <Server className="w-4 h-4 text-[#7a5200]" />
-                <h3 className="font-bold text-[#0f2747]">
+                <Server className="w-4 h-4 text-amber-700" />
+                <h3 className="font-bold text-dark">
                   Chất lượng dữ liệu
-                  <span className="text-[12px] font-semibold text-[#7a5200] bg-[#fff4d6] rounded-full px-2 py-0.5 ml-2">Chỉ ADMIN</span>
+                  <span className="text-[12px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 ml-2">Chỉ ADMIN</span>
                 </h3>
               </div>
               <div className="p-4">
@@ -126,7 +126,7 @@ export default function ArrivalsQuality({ data, isAdmin, summary, importStatus }
           <div className="card-soft border border-gray-200">
             <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
               <FileWarning className="w-4 h-4 text-gray-500" />
-              <h3 className="font-bold text-[#0f2747]">Cảnh báo</h3>
+              <h3 className="font-bold text-dark">Cảnh báo</h3>
             </div>
             <div className="p-4 flex flex-col gap-3">
               <div className="flex justify-between text-sm">

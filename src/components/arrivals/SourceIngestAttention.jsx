@@ -147,7 +147,7 @@ export default function SourceIngestAttention({
     }
     if (item.loai === 'NGAY') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-800 border border-orange-200">
+        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
           {item.nghi_ngo === 'NHIEU' ? 'Nghi ngờ: nhiều' : 'Nghi ngờ: ít'}
         </span>
       );
@@ -167,7 +167,7 @@ export default function SourceIngestAttention({
         );
       case 'NGUON_CO_FILE_CHUA_NAP':
         return (
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-orange-600 border border-dashed border-orange-400">
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-amber-700 border border-dashed border-amber-400">
             Nguồn có file, chưa nạp
           </span>
         );
@@ -248,12 +248,12 @@ export default function SourceIngestAttention({
 
   return (
     <div className="space-y-4">
-      <div className="card-soft rounded-2xl border border-orange-200 overflow-hidden shadow-2xs space-y-0">
+      <div className="card-soft rounded-2xl border border-amber-200 overflow-hidden shadow-2xs space-y-0">
         {/* HEADER B0 */}
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-50/90 to-amber-50/50 border-b border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50/90 to-amber-50/50 border-b border-amber-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+              <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
               <h3 className="text-sm font-bold text-gray-900 tracking-tight">
                 Cần xử lý ({formatNumber(totalCount)})
               </h3>

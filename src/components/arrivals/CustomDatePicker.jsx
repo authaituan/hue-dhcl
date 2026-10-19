@@ -390,8 +390,8 @@ export default function CustomDatePicker({
                     disabledDay
                       ? 'text-gray-300 opacity-40 cursor-not-allowed'
                       : isSelected
-                      ? 'bg-[#ea580c] text-white font-bold shadow-sm'
-                      : 'hover:bg-orange-50 text-gray-700 hover:text-[#ea580c]'
+                      ? 'bg-orange-600 text-white font-bold shadow-sm'
+                      : 'hover:bg-orange-50 text-gray-700 hover:text-orange-600'
                   }`}
                 >
                   {d}

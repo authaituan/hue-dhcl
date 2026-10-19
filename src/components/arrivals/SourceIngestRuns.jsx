@@ -96,7 +96,7 @@ export default function SourceIngestRuns({
         );
       case 'DANG_CHAY':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 animate-pulse">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 animate-pulse">
             Đang chạy
           </span>
         );
