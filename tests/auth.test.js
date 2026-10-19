@@ -11,8 +11,8 @@ const { seedMinimalOrg, seedUser } = require('./helpers/fixtures');
 const PORT = 5901;
 const MGR_HRM = 'AUTH_MGR';
 const MGR_PASS = 'Manager@123';
-const STAFF_HRM = 'AUTH_STAFF';
-const STAFF_PASS = 'Staff@123';
+const TTVH_HRM = 'AUTH_TTVH';
+const TTVH_PASS = 'Ttvh@123';
 
 let ctx;
 let fixtures;
@@ -22,7 +22,7 @@ before(async () => {
   await waitForServer(ctx.baseUrl);
   fixtures = seedMinimalOrg(ctx.db);
   seedUser(ctx.db, { hrmCode: MGR_HRM, fullName: 'Auth Manager', role: 'ADMIN', password: MGR_PASS });
-  seedUser(ctx.db, { hrmCode: STAFF_HRM, fullName: 'Auth Staff', role: 'STAFF', password: STAFF_PASS });
+  seedUser(ctx.db, { hrmCode: TTVH_HRM, fullName: 'Auth Ttvh', role: 'TTVH', password: TTVH_PASS });
 });
 
 after(async () => {
@@ -69,7 +69,7 @@ test('login thiếu password -> 400', async () => {
   assert.equal(res.status, 400);
 });
 
-const NEW_USER = { hrm_code: 'AUTH_NEW', full_name: 'Người Mới', password: 'Abc@1234' };
+const NEW_USER = { hrm_code: 'AUTH_NEW', full_name: 'Người Mới', role: 'TTVH', password: 'Abc@1234' };
 
 test('gọi route ghi (POST users) không có token -> 401', async () => {
   const res = await fetch(`${ctx.baseUrl}/api/users`, {
@@ -103,8 +103,8 @@ test('gọi route ghi với token rác (không hợp lệ) -> 401', async () => 
   assert.equal(res.status, 401);
 });
 
-test('có token role STAFF -> POST users 403', async () => {
-  const { body: loginBody } = await login(STAFF_HRM, STAFF_PASS);
+test('có token role TTVH -> POST users 403', async () => {
+  const { body: loginBody } = await login(TTVH_HRM, TTVH_PASS);
   const res = await fetch(`${ctx.baseUrl}/api/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${loginBody.token}` },
@@ -113,8 +113,8 @@ test('có token role STAFF -> POST users 403', async () => {
   assert.equal(res.status, 403);
 });
 
-test('có token role STAFF -> PUT network/post-offices 403', async () => {
-  const { body: loginBody } = await login(STAFF_HRM, STAFF_PASS);
+test('có token role TTVH -> PUT network/post-offices 403', async () => {
+  const { body: loginBody } = await login(TTVH_HRM, TTVH_PASS);
   const res = await fetch(`${ctx.baseUrl}/api/network/post-offices/${fixtures.postOfficeId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${loginBody.token}` },
@@ -123,8 +123,8 @@ test('có token role STAFF -> PUT network/post-offices 403', async () => {
   assert.equal(res.status, 403);
 });
 
-test('có token role STAFF -> DELETE network/post-offices 403', async () => {
-  const { body: loginBody } = await login(STAFF_HRM, STAFF_PASS);
+test('có token role TTVH -> DELETE network/post-offices 403', async () => {
+  const { body: loginBody } = await login(TTVH_HRM, TTVH_PASS);
   const res = await fetch(`${ctx.baseUrl}/api/network/post-offices/${fixtures.postOfficeId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${loginBody.token}` }
@@ -174,4 +174,25 @@ test('rate-limit đăng nhập: không ảnh hưởng tài khoản KHÁC (chỉ 
   // (hrm_code khác) vừa bị khoá ở test phía trên.
   const { status } = await login(MGR_HRM, MGR_PASS);
   assert.equal(status, 200);
+});
+
+// STAFF-1: tài khoản còn role='STAFF' trong DB (vai trò đã bị gỡ) -> đăng nhập 403, không ký token; token cũ cũng bị 403
+test("user role='STAFF' chèn thẳng vào DB: đăng nhập 403 (không token); token ADMIN cũ trỏ tới user đó bị 403", async () => {
+  const id = seedUser(ctx.db, { hrmCode: 'AUTH_OLD_ROLE', fullName: 'Auth Old Role', role: 'ADMIN', password: 'Old@12345' });
+  const before = await login('AUTH_OLD_ROLE', 'Old@12345');
+  assert.equal(before.status, 200);
+  ctx.db.prepare("UPDATE users SET role = 'STAFF' WHERE id = ?").run(id);
+
+  const again = await login('AUTH_OLD_ROLE', 'Old@12345');
+  assert.equal(again.status, 403);
+  assert.equal(again.body.token, undefined, 'không được ký token');
+  assert.match(again.body.error, /Vai trò của tài khoản không hợp lệ/);
+
+  const wrong = await login('AUTH_OLD_ROLE', 'sai-mat-khau');
+  assert.equal(wrong.status, 401, 'mật khẩu sai vẫn 401 như cũ, không lộ vai trò');
+
+  const res = await fetch(`${ctx.baseUrl}/api/auth/me`, { headers: { Authorization: `Bearer ${before.body.token}` } });
+  assert.equal(res.status, 403);
+  const w = await fetch(`${ctx.baseUrl}/api/users`, { headers: { Authorization: `Bearer ${before.body.token}` } });
+  assert.equal(w.status, 403);
 });

@@ -1,5 +1,5 @@
 // ==========================================
-// Test: 4 vai trò ADMIN / TTVH / GDVH / STAFF (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49–#54):
+// Test: vai trò ADMIN / TTVH / GDVH (+ TIVI, test riêng ở tivi.test.js) (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49–#54):
 // ma trận quyền theo nhóm route, quyền có hiệu lực ngay (tra DB mỗi request), chống leo thang,
 // ADMIN cuối cùng, gán GDVH ↔ BCVH (user_bcvh). Server thật trên DB tạm; tài khoản GIẢ.
 // ==========================================
@@ -8,17 +8,17 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startTestServer, waitForServer, cleanupDbFiles, closeServer } = require('./helpers/serverHarness');
 const { seedUser, loginAs, ROLES } = require('./helpers/fixtures');
+const { isValidRole } = require('../server/roles');
 const { wouldRemoveLastAdmin, countOtherActiveAdmins } = require('../server/lib/adminGuard');
 const { DASHBOARD_BCVH } = require('../server/lib/dashboardQuery');
 
 const PORT = 5914;
 const PASS = 'Fake@1234';
-const WHO = ['admin', 'ttvh', 'gdvh', 'staff'];
+const WHO = ['admin', 'ttvh', 'gdvh'];
 const ACCOUNTS = {
   admin: { hrm: 'RL_ADMIN', role: ROLES.ADMIN },
   ttvh: { hrm: 'RL_TTVH', role: ROLES.TTVH },
-  gdvh: { hrm: 'RL_GDVH', role: ROLES.GDVH },
-  staff: { hrm: 'RL_STAFF', role: ROLES.STAFF }
+  gdvh: { hrm: 'RL_GDVH', role: ROLES.GDVH }
 };
 
 let ctx;
@@ -53,8 +53,11 @@ let seq = 0;
 // Tạo tài khoản phụ trực tiếp trong DB, trả { id, tok }.
 async function makeUser(role, tag = 'X') {
   const hrm = `RL_${tag}_${++seq}`;
-  const uid = seedUser(ctx.db, { hrmCode: hrm, fullName: `Giả ${hrm}`, role, password: PASS });
+  // Đăng nhập từ chối vai trò không hợp lệ (STAFF-1): với vai trò cũ/lạ, đăng nhập bằng vai trò hợp lệ rồi đổi thẳng trong DB.
+  const valid = isValidRole(role);
+  const uid = seedUser(ctx.db, { hrmCode: hrm, fullName: `Giả ${hrm}`, role: valid ? role : ROLES.TTVH, password: PASS });
   const tok = (await loginAs(ctx.baseUrl, hrm, PASS)).body.token;
+  if (!valid) ctx.db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, uid);
   return { id: uid, tok, hrm };
 }
 const roleOf = (uid) => ctx.db.prepare('SELECT role FROM users WHERE id = ?').get(uid).role;
@@ -64,7 +67,7 @@ const roleOf = (uid) => ctx.db.prepare('SELECT role FROM users WHERE id = ?').ge
 //    allowed = vai trò được qua cổng quyền (kết quả có thể là 200/400/404 tuỳ dữ liệu, KHÔNG phải 401/403);
 //    vai trò không có trong allowed phải nhận đúng 403; không token đúng 401.
 // ------------------------------------------
-const ALL = ['admin', 'ttvh', 'gdvh', 'staff'];
+const ALL = ['admin', 'ttvh', 'gdvh'];
 const VIEW = ['admin', 'ttvh', 'gdvh'];
 const ADMIN_ONLY = ['admin'];
 const MATRIX = [
@@ -117,7 +120,7 @@ const MATRIX = [
   ['GET', '/api/dashboard/stats', undefined, ALL]
 ];
 
-test('ma trận quyền: route × 4 vai trò (đúng 403 khi không đủ quyền; qua cổng khi đủ quyền; không token 401)', async () => {
+test('ma trận quyền: route × 3 vai trò (đúng 403 khi không đủ quyền; qua cổng khi đủ quyền; không token 401)', async () => {
   for (const [method, path, body, allowed] of MATRIX) {
     const anon = await call(method, path, { body });
     assert.equal(anon.status, 401, `không token: ${method} ${path}`);
@@ -148,16 +151,16 @@ test('ma trận quyền: các route đọc trả 200 cho vai trò được phép
   }
 });
 
-test('THEME-1: GET /api/network và /api/network/export-data — ADMIN 200; TTVH, GDVH, STAFF 403; không token 401', async () => {
+test('THEME-1: GET /api/network và /api/network/export-data — ADMIN 200; TTVH, GDVH 403; không token 401', async () => {
   for (const path of ['/api/network', '/api/network/export-data']) {
     assert.equal((await as('admin', 'GET', path)).status, 200, `admin ${path}`);
-    for (const who of ['ttvh', 'gdvh', 'staff']) assert.equal((await as(who, 'GET', path)).status, 403, `${who} ${path}`);
+    for (const who of ['ttvh', 'gdvh']) assert.equal((await as(who, 'GET', path)).status, 403, `${who} ${path}`);
     assert.equal((await call('GET', path)).status, 401, `không token ${path}`);
   }
 });
 
 test('POST /api/dashboard/widgets-reset: chỉ ADMIN (giữ nguyên hiện trạng)', async () => {
-  for (const who of ['ttvh', 'gdvh', 'staff']) assert.equal((await as(who, 'POST', '/api/dashboard/widgets-reset')).status, 403, who);
+  for (const who of ['ttvh', 'gdvh']) assert.equal((await as(who, 'POST', '/api/dashboard/widgets-reset')).status, 403, who);
   assert.equal((await call('POST', '/api/dashboard/widgets-reset')).status, 401);
 });
 
@@ -188,35 +191,35 @@ test('MANAGER còn trong DB không còn hợp lệ: mọi route /api (kể cả 
 });
 
 test('role ngoài danh sách hợp lệ khi tạo / sửa -> 400 tiếng Việt; MANAGER, chữ thường, rỗng, không phải chuỗi đều bị từ chối', async () => {
-  const target = await makeUser(ROLES.STAFF, 'T');
-  for (const bad of ['MANAGER', 'admin', 'Ttvh', '', '  ', 'SUPERUSER', 123, ['ADMIN'], {}]) {
+  const target = await makeUser(ROLES.TTVH, 'T');
+  for (const bad of ['MANAGER', 'STAFF', 'admin', 'Ttvh', '', '  ', 'SUPERUSER', 123, ['ADMIN'], {}]) {
     const c = await as('admin', 'POST', '/api/users', { hrm_code: `RL_BAD_${++seq}`, full_name: 'Giả', role: bad, password: '123456' });
     assert.equal(c.status, 400, `POST role=${JSON.stringify(bad)}`);
     assert.match(c.body.error, /Vai trò không hợp lệ/);
     const u = await as('admin', 'PUT', `/api/users/${target.id}`, { role: bad });
     assert.equal(u.status, 400, `PUT role=${JSON.stringify(bad)}`);
   }
-  assert.equal(roleOf(target.id), ROLES.STAFF, 'role không đổi sau các yêu cầu bị từ chối');
+  assert.equal(roleOf(target.id), ROLES.TTVH, 'role không đổi sau các yêu cầu bị từ chối');
   assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE hrm_code LIKE 'RL_BAD_%'").get().n, 0);
 });
 
-test('POST /api/users tạo được cả 4 vai trò hợp lệ; không gửi role -> STAFF', async () => {
+test('POST /api/users tạo được cả 4 vai trò hợp lệ; không gửi role -> 400 (không có vai trò mặc định)', async () => {
   for (const role of Object.values(ROLES)) {
     const r = await as('admin', 'POST', '/api/users', { hrm_code: `RL_NEW_${role}`, full_name: 'Giả', role, password: '123456' });
     assert.equal(r.status, 201, role);
     assert.equal(roleOf(r.body.id), role);
   }
   const d = await as('admin', 'POST', '/api/users', { hrm_code: 'RL_NEW_DEFAULT', full_name: 'Giả', password: '123456' });
-  assert.equal(d.status, 201);
-  assert.equal(d.body.role, ROLES.STAFF);
+  assert.equal(d.status, 400);
+  assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE hrm_code = 'RL_NEW_DEFAULT'").get().n, 0);
 });
 
 // ------------------------------------------
 // 3. Chống leo thang quyền
 // ------------------------------------------
-test('không leo thang: TTVH/GDVH/STAFF tạo ADMIN, tự nâng quyền, đặt lại mật khẩu ADMIN, gán BCVH -> 403 và DB không đổi', async () => {
+test('không leo thang: TTVH/GDVH tạo ADMIN, tự nâng quyền, đặt lại mật khẩu ADMIN, gán BCVH -> 403 và DB không đổi', async () => {
   const usersBefore = ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
-  for (const who of ['ttvh', 'gdvh', 'staff']) {
+  for (const who of ['ttvh', 'gdvh']) {
     const create = await as(who, 'POST', '/api/users', { hrm_code: `RL_ESC_${who}`, full_name: 'Giả', role: ROLES.ADMIN, password: '123456' });
     assert.equal(create.status, 403, `${who} tạo ADMIN`);
     const self = await as(who, 'PUT', `/api/users/${id[who]}`, { role: ROLES.ADMIN });
@@ -259,8 +262,8 @@ test('đổi vai trò có hiệu lực ngay, không cần đăng nhập lại (t
   assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 200);
   assert.equal((await call('GET', '/api/users', { tok: u.tok })).status, 403);
 
-  assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.STAFF })).status, 200);
-  assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 403, 'hạ xuống STAFF: mất quyền ngay');
+  assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.TIVI })).status, 200);
+  assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 403, 'hạ xuống TIVI (không có quyền route này): mất quyền ngay');
 
   assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.ADMIN })).status, 200);
   assert.equal((await call('GET', '/api/users', { tok: u.tok })).status, 200, 'nâng lên ADMIN: có quyền ngay');
@@ -271,9 +274,9 @@ test('đổi vai trò có hiệu lực ngay, không cần đăng nhập lại (t
   assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 200);
 });
 
-test('token ký role ADMIN nhưng DB là STAFF: server theo DB, không tin vai trò trong token', async () => {
+test('token ký role ADMIN nhưng DB là STAFF (vai trò đã gỡ): server theo DB, không tin vai trò trong token', async () => {
   const u = await makeUser(ROLES.ADMIN, 'FAKE');
-  ctx.db.prepare('UPDATE users SET role = ? WHERE id = ?').run(ROLES.STAFF, u.id);
+  ctx.db.prepare('UPDATE users SET role = ? WHERE id = ?').run('STAFF', u.id);
   assert.equal((await call('GET', '/api/users', { tok: u.tok })).status, 403);
   assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 403);
 });
@@ -350,8 +353,8 @@ test('user_bcvh: mã ngoài 6 BCVH, sai kiểu, thiếu codes -> 400 và tập c
   assert.deepEqual((await as('admin', 'GET', `/api/users/${g.id}/bcvh`)).body.codes, ['533140']);
 });
 
-test('user_bcvh: chỉ gán cho GDVH (TTVH/ADMIN/STAFF -> 400); tài khoản không tồn tại -> 404', async () => {
-  for (const role of [ROLES.TTVH, ROLES.ADMIN, ROLES.STAFF]) {
+test('user_bcvh: chỉ gán cho GDVH (TTVH/ADMIN/TIVI -> 400); tài khoản không tồn tại -> 404', async () => {
+  for (const role of [ROLES.TTVH, ROLES.ADMIN, ROLES.TIVI]) {
     const u = await makeUser(role, 'NG');
     const r = await as('admin', 'PUT', `/api/users/${u.id}/bcvh`, { codes: ['533140'] });
     assert.equal(r.status, 400, role);

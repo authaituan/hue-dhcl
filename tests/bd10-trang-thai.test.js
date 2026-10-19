@@ -33,7 +33,7 @@ const USERS = {
   gdvhM: { hrm: 'TT_GDVH1', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 533140
   gdvhM2: { hrm: 'TT_GDVH2', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 535470
   gdvhNone: { hrm: 'TT_GDVH0', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'TT_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  tivi: { hrm: 'TT_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
 let ctx;
@@ -267,7 +267,7 @@ test('theo-buu-cuc-lap: đủ từng bưu cục (không gộp 530100 / khác), s
 });
 
 // ---------------- Quyền / phạm vi ----------------
-test('phạm vi: CÔNG KHAI cho ADMIN/TTVH/GDVH, mọi vai trò chọn được BCVH (#72; GDVH kể cả BCVH không được giao / chưa được giao); STAFF 403, không token 401', async () => {
+test('phạm vi: CÔNG KHAI cho ADMIN/TTVH/GDVH, mọi vai trò chọn được BCVH (#72; GDVH kể cả BCVH không được giao / chưa được giao); TIVI 403, không token 401', async () => {
   const tong = async (p, qs, who) => (await api(`${p}?${RANGE}${qs}`, who)).body.tong.tong;
   for (const p of [NGAY, LAP]) {
     assert.equal(await tong(p, `&receiver_code=${M}`, 'admin'), 4);
@@ -278,7 +278,7 @@ test('phạm vi: CÔNG KHAI cho ADMIN/TTVH/GDVH, mọi vai trò chọn được 
       assert.equal(await tong(p, `&receiver_code=${M}`, who), 4, `${who}: chọn M`);
       assert.equal(await tong(p, `&receiver_code=${M2}`, who), 2, `${who}: chọn M2`);
     }
-    assert.equal((await api(`${p}?${RANGE}`, 'staff')).status, 403);
+    assert.equal((await api(`${p}?${RANGE}`, 'tivi')).status, 403);
     assert.equal((await api(`${p}?${RANGE}`)).status, 401);
   }
   const none = (await api(`${NGAY}?${RANGE}&receiver_code=${M}`, 'gdvhNone')).body;

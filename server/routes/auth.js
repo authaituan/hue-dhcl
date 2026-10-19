@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { signToken, verifyPassword } = require('../auth');
-const { ROLES } = require('../roles');
+const { ROLES, isValidRole } = require('../roles');
 const { getTiviScope } = require('../lib/tivi');
 
 const router = express.Router();
@@ -107,6 +107,12 @@ router.post('/auth/login', (req, res) => {
     if (user.deactivated_at) {
       req.app.locals.security.log({ event: 'login_deactivated', ip: req.clientIp, hrm_code: user.hrm_code });
       return res.status(401).json({ error: 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ quản trị viên' });
+    }
+
+    // Vai trò không còn hợp lệ (vd. STAFF đã gỡ): từ chối rõ ràng, không ký token (cùng nội dung với authRequired).
+    if (!isValidRole(user.role)) {
+      req.app.locals.security.log({ event: 'login_invalid_role', ip: req.clientIp, hrm_code: user.hrm_code });
+      return res.status(403).json({ error: 'Vai trò của tài khoản không hợp lệ, vui lòng liên hệ quản trị viên' });
     }
 
     clearLoginAttempts(rateLimitKey);

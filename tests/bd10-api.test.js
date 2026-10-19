@@ -24,7 +24,7 @@ const USERS = {
   gdvhM: { hrm: 'BD_GDVH1', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 533140
   gdvhM2: { hrm: 'BD_GDVH2', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 535470
   gdvhNone: { hrm: 'BD_GDVH0', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'BD_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  tivi: { hrm: 'BD_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
 let ctx;
@@ -171,7 +171,7 @@ test('mẫu số 0 -> ty_le = null (tổng và từng nhóm); khoảng không c�
   assert.equal(e.ngoai_khung.khong_co_moc, 1, 'S4 không phụ thuộc khung');
 });
 
-test('chỉ số CÔNG KHAI: ADMIN, TTVH và GDVH đều nhận khoá bd10_den_khong_xnd trong /summary (không sau cờ ADMIN); STAFF bị chặn như /arrivals', async () => {
+test('chỉ số CÔNG KHAI: ADMIN, TTVH và GDVH đều nhận khoá bd10_den_khong_xnd trong /summary (không sau cờ ADMIN); TIVI bị chặn như /arrivals', async () => {
   for (const who of ['admin', 'ttvh', 'gdvhM', 'gdvhM2', 'gdvhNone']) {
     const r1 = await api(`/api/arrivals/summary?${RANGE}`, who);
     assert.equal(r1.status, 200, who);
@@ -179,7 +179,7 @@ test('chỉ số CÔNG KHAI: ADMIN, TTVH và GDVH đều nhận khoá bd10_den_k
     assert.ok(!('bd10_den_khong_xnd' in (r1.body.canh_bao || {})), 'không nằm trong canh_bao (ADMIN-only)');
     assert.equal('canh_bao' in r1.body, who === 'admin', 'canh_bao chỉ ADMIN — chỉ số BD10 thì không');
   }
-  assert.equal((await api(`/api/arrivals/summary?${RANGE}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/summary?${RANGE}`, 'tivi')).status, 403);
   assert.equal((await api(`/api/arrivals/summary?${RANGE}`)).status, 401);
   const tong = async (qs, who) => (await api(`/api/arrivals/summary?${qs}`, who)).body.bd10_den_khong_xnd;
   // ADMIN / TTVH theo bộ lọc: không lọc = cả hai BCVH (533140: D 8, N 5; 535470: K = S2, D 1, N 1)
@@ -245,14 +245,14 @@ test('GET /bd10-khong-xnd: danh sách N (S2 + S3), cũ nhất trước, trườn
   }
 });
 
-test('GET /bd10-khong-xnd: công khai mọi BCVH (#72), lọc theo unit / receiver_code; STAFF 403, không token 401; khoảng rỗng', async () => {
+test('GET /bd10-khong-xnd: công khai mọi BCVH (#72), lọc theo unit / receiver_code; TIVI 403, không token 401; khoảng rỗng', async () => {
   const ids = async (qs, who) => (await api(`/api/arrivals/bd10-khong-xnd?${qs}`, who)).body.items.map((i) => i.so_hieu_bd10);
   assert.deepEqual(await ids(`${RANGE}&unit=${M2}`, 'gdvhM'), [K], 'GDVH xem BCVH không được giao');
   assert.equal((await ids(`${RANGE}&unit=${M}`, 'gdvhM2')).length, 5);
   assert.equal((await ids(`${RANGE}&unit=${M}`, 'gdvhM')).length, 5);
   assert.deepEqual(await ids(RANGE, 'gdvhNone'), await ids(RANGE, 'admin'), 'GDVH chưa được giao = ADMIN');
   assert.equal((await ids(RANGE, 'admin')).length, 6, 'không lọc = cả hai BCVH');
-  assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}`, 'tivi')).status, 403);
   assert.equal((await api(`/api/arrivals/bd10-khong-xnd?${RANGE}`)).status, 401);
   const e = (await api(`/api/arrivals/bd10-khong-xnd?from=2026-01-01&to=2026-01-02&unit=${M}`, 'ttvh')).body;
   assert.deepEqual([e.items.length, e.pagination.total, e.pagination.total_pages], [0, 0, 0]);
@@ -283,7 +283,7 @@ test('GET /bd10-khong-xnd/export: xlsx cùng bộ lọc, mọi ô là chuỗi, q
   assert.equal((await get(Qx, 'gdvhM')).status, 200);
   assert.equal((await get(Qx, 'gdvhM2')).status, 403);
   assert.equal((await get(Qx, 'gdvhNone')).status, 403);
-  assert.equal((await get(Qx, 'staff')).status, 403);
+  assert.equal((await get(Qx, 'tivi')).status, 403);
   assert.equal((await get(Qx)).status, 401);
   assert.equal((await get(RANGE, 'admin')).status, 400, 'thiếu receiver_code / unit');
   assert.equal((await get(`${Qx}&nhom=xyz`, 'admin')).status, 400);

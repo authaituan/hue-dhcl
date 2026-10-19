@@ -18,7 +18,7 @@ const USERS = {
   admin: { hrm: 'AR_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'AR_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'AR_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'AR_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  tivi: { hrm: 'AR_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
 let ctx;
@@ -167,12 +167,12 @@ after(async () => {
   fs.rmSync(workDir, { recursive: true, force: true });
 });
 
-test('quyền: không token 401, STAFF 403, ADMIN/TTVH/GDVH 200; /exceptions và /import-status chỉ ADMIN', async () => {
+test('quyền: không token 401, TIVI 403, ADMIN/TTVH/GDVH 200; /exceptions và /import-status chỉ ADMIN', async () => {
   const common = ['meta', `summary?${DAY4}`, `by-time?${DAY4}`, `by-ward?${DAY4}`, `quality-mocs?${DAY4}`, `items?${DAY4}`, `lookup?tracking_no=${T(1)}`];
   const adminOnly = [`exceptions?${DAY4}`, 'import-status'];
   for (const e of [...common, ...adminOnly]) {
     assert.equal((await api(`/api/arrivals/${e}`)).status, 401, e);
-    assert.equal((await api(`/api/arrivals/${e}`, 'staff')).status, 403, e);
+    assert.equal((await api(`/api/arrivals/${e}`, 'tivi')).status, 403, e);
     assert.equal((await adm(`/api/arrivals/${e}`)).status, 200, e);
   }
   for (const who of ['ttvh', 'gdvh']) {
@@ -385,7 +385,7 @@ const named = (body, ten) => body.items.find((i) => i.ten === ten);
 test('/by-route, /by-service: quyền 401 / 403 / 200', async () => {
   for (const e of [`by-route?${DAY10}`, `by-service?${DAY10}`, `summary?${DAY10}`]) {
     assert.equal((await api(`/api/arrivals/${e}`)).status, 401, e);
-    assert.equal((await api(`/api/arrivals/${e}`, 'staff')).status, 403, e);
+    assert.equal((await api(`/api/arrivals/${e}`, 'tivi')).status, 403, e);
     assert.equal((await mgr(`/api/arrivals/${e}`)).status, 200, e);
     assert.equal((await adm(`/api/arrivals/${e}`)).status, 200, e);
   }

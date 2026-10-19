@@ -1,5 +1,5 @@
 // ==========================================
-// SANLUONG-5f-1: API ĐỌC cho màn «Nạp dữ liệu nguồn» — CHỈ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI). Chỉ GET, không ghi DB, không mạng.
+// SANLUONG-5f-1: API ĐỌC cho màn «Nạp dữ liệu nguồn» — CHỈ ADMIN (401 không token; 403 TTVH, GDVH, TIVI). Chỉ GET, không ghi DB, không mạng.
 // Lõi: server/lib/napNguonDoc.js. Tài liệu: docs/ai/17_NAP_DU_LIEU_NGUON_API_DOC.md.
 // Không trả host / cổng / tài khoản / mật khẩu / vân tay của nguồn SFTP; chuỗi lỗi được che bí mật từ biến môi trường SFTP_* (nếu có) trước khi trả.
 // ==========================================

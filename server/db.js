@@ -68,7 +68,7 @@ db.exec(`
     post_office_code TEXT,
     commune_code TEXT,
     post_office_id TEXT,
-    role TEXT DEFAULT 'STAFF',
+    role TEXT,
     password_hash TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deactivated_at DATETIME DEFAULT NULL, -- vô hiệu hoá: NULL = còn hoạt động, có giá trị = đã bị khoá

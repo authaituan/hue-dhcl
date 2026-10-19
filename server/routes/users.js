@@ -85,7 +85,7 @@ router.get('/users/search', authRequired, requireAdmin, (req, res) => {
 
 // Tạo user mới. hrm_code bắt buộc + unique, password bắt buộc >= 6 ký tự,
 // hash bằng hashPassword() trước khi lưu (không bao giờ lưu plaintext).
-// role: không gửi -> STAFF (quyền thấp nhất); có gửi thì phải thuộc danh sách hợp lệ, sai -> 400.
+// role: BẮT BUỘC (không có vai trò mặc định); thiếu hoặc không thuộc danh sách hợp lệ -> 400.
 router.post('/users', authRequired, requireAdmin, (req, res) => {
   try {
     const { hrm_code, full_name, role, password } = req.body || {};
@@ -100,7 +100,10 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
       return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
-    const finalRole = (role === undefined || role === null) ? ROLES.STAFF : (typeof role === 'string' ? role.trim() : role);
+    if (role === undefined || role === null) {
+      return res.status(400).json({ error: `Vui lòng chọn Vai trò (${VALID_ROLES.join(', ')})` });
+    }
+    const finalRole = typeof role === 'string' ? role.trim() : role;
     if (!isValidRole(finalRole)) {
       return res.status(400).json({ error: ROLE_ERROR });
     }

@@ -26,7 +26,7 @@ const OTHER = '531120'; // tiền tố bưu cục khác (giả)
 const USERS = {
   admin: { hrm: 'SR_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'SR_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
-  staff: { hrm: 'SR_STAFF', pass: 'Staff@123', role: 'STAFF' },
+  tivi: { hrm: 'SR_TIVI', pass: 'Tivi@123', role: 'TIVI' },
   gdvhBc: { hrm: 'SR_GDVH1', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 533140
   gdvhBc2: { hrm: 'SR_GDVH2', pass: 'Gdvh@123', role: 'GDVH' }, // được giao 535470
   gdvhNone: { hrm: 'SR_GDVH0', pass: 'Gdvh@123', role: 'GDVH' } // chưa được giao
@@ -261,11 +261,11 @@ test('quality-mocs.tong_hop.theo_nguon: 3 nhóm, đủ theo nguồn, tổng ba n
   assert.equal(m2.tong_hop.theo_nguon.reduce((a, g) => a + g.so_buu_gui, 0), m2.san_luong);
 });
 
-test('quality-mocs: khoảng rỗng không chia cho 0; BD10 trống thuộc nhóm khong_bd10; mọi vai trò xem được, STAFF 403', async () => {
+test('quality-mocs: khoảng rỗng không chia cho 0; BD10 trống thuộc nhóm khong_bd10; mọi vai trò xem được, TIVI 403', async () => {
   const e = (await api('/api/arrivals/quality-mocs?from=2025-01-01&to=2025-01-02', 'ttvh')).body.tong_hop;
   assert.deepEqual(e.theo_nguon.map((g) => [g.so_buu_gui, g.du_theo_nguon, g.thieu, g.ty_le_du]), [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
   assert.deepEqual(e.du_trang_thai_theo_nguon, { so_buu_gui: 0, ty_le: 0 });
-  assert.equal((await api(`/api/arrivals/quality-mocs?${R_0405}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/quality-mocs?${R_0405}`, 'tivi')).status, 403);
   assert.equal((await api(`/api/arrivals/quality-mocs?${R_0405}`)).status, 401);
 });
 
@@ -299,7 +299,7 @@ test('chua_nhan_tai_bcvh (mọi vai trò xem được): tong, cu_nhat_ngay, theo
     assert.deepEqual(r.body.chua_nhan_tai_bcvh, exp1, who);
     assert.ok(!('chua_nhan_tai_bcvh' in (r.body.canh_bao || {})), 'không đặt trong canh_bao');
   }
-  assert.equal((await api(`/api/arrivals/summary?${R_0405}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/summary?${R_0405}`, 'tivi')).status, 403);
   assert.equal((await api(`/api/arrivals/summary?${R_0405}`)).status, 401);
   const a = (await api(`/api/arrivals/summary?${R_0405}`, 'admin')).body.canh_bao;
   assert.equal(a.khong_moc_khong_ttkt, 1, 'N3: không mốc BCVH và không có cả mốc lập BD10 — báo riêng, không lẫn vào chưa nhận');
@@ -336,10 +336,10 @@ test('chua_nhan_tai_bcvh CÔNG KHAI (#72): mọi vai trò xem số của BCVH đ
   const sl = async (who) => (await api(`/api/arrivals/summary?${q2}`, who)).body.san_luong;
   assert.equal(await sl('gdvhBc2'), await sl('ttvh'));
   assert.deepEqual(Object.keys((await api(`/api/arrivals/summary?${q2}`, 'ttvh')).body.chua_nhan_tai_bcvh), ['tong', 'cu_nhat_ngay', 'theo_tuoi', 'theo_ngay_lap']);
-  assert.equal((await api(`/api/arrivals/summary?${q2}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/summary?${q2}`, 'tivi')).status, 403);
 });
 
-test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang, công khai mọi BCVH (#72), STAFF 403 / không token 401', async () => {
+test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang, công khai mọi BCVH (#72), TIVI 403 / không token 401', async () => {
   const l = (await api(`/api/arrivals/not-received?${R_0405}`, 'ttvh')).body;
   assert.deepEqual(l.items.map((i) => i.tracking_no), [id(22), id(21), id(24)], 'N2 (03/10), N1 (04/10), N5 (05/10): cũ nhất trước');
   assert.deepEqual(l.items.map((i) => i.tuoi_ngay), [3, 2, 1]);
@@ -361,7 +361,7 @@ test('GET /not-received: danh sách chi tiết, cũ nhất trước, phân trang
   assert.equal((await api(`/api/arrivals/not-received?${all}&receiver_code=${BC}`, 'gdvhBc2')).body.pagination.total, 3);
   assert.deepEqual((await api(`/api/arrivals/not-received?${all}`, 'gdvhNone')).body,
     (await api(`/api/arrivals/not-received?${all}`, 'admin')).body, 'GDVH chưa được giao = ADMIN');
-  assert.equal((await api(`/api/arrivals/not-received?${all}`, 'staff')).status, 403);
+  assert.equal((await api(`/api/arrivals/not-received?${all}`, 'tivi')).status, 403);
   assert.equal((await api(`/api/arrivals/not-received?${all}`)).status, 401);
   // nguồn dùng chung: khớp số của chỉ số và của /exceptions
   const ex = (await api(`/api/arrivals/exceptions?${R_0405}`, 'admin')).body;
@@ -387,7 +387,7 @@ test('GET /not-received/export: xlsx (mọi ô chuỗi), quyền như /export (G
   assert.equal((await get(Q, 'gdvhBc')).status, 200);
   assert.equal((await get(Q, 'gdvhBc2')).status, 403);
   assert.equal((await get(Q, 'gdvhNone')).status, 403);
-  assert.equal((await get(Q, 'staff')).status, 403);
+  assert.equal((await get(Q, 'tivi')).status, 403);
   assert.equal((await get('from=2026-10-04&to=2026-10-05', 'admin')).status, 400, 'thiếu receiver_code');
   assert.equal((await fetch(`${ctx.baseUrl}/api/arrivals/not-received/export?${Q}`)).status, 401);
   // khoảng rỗng -> file chỉ có tiêu đề
@@ -428,7 +428,7 @@ test('/exceptions: lý do CHUA_NHAN_TAI_BCVH kèm SHBG, BD8, BD10, đường th�
   assert.deepEqual(mid.items.map((e) => e.ly_do), ['CHUA_NHAN_TAI_BCVH', 'KHONG_CO_MOC']);
   assert.equal((await api(`/api/arrivals/exceptions?${R_0405}&ly_do=XYZ`, 'admin')).status, 400);
   assert.equal((await api(`/api/arrivals/exceptions?${R_0405}&page=0`, 'admin')).status, 400);
-  for (const who of ['ttvh', 'staff']) assert.equal((await api(`/api/arrivals/exceptions?${R_0405}`, who)).status, 403, who);
+  for (const who of ['ttvh', 'tivi']) assert.equal((await api(`/api/arrivals/exceptions?${R_0405}`, who)).status, 403, who);
   assert.equal((await api(`/api/arrivals/exceptions?${R_0405}`)).status, 401);
 });
 

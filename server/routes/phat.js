@@ -1,13 +1,13 @@
 // ==========================================
 // Module «Xử lý và tỷ lệ phát» (PHAT-1, docs/ai/08_PHAT.md, 04_DECISIONS.md #75): file mẫu, bản kiểm tra, biên tập, nhập đợt,
 // hoàn tác đợt, danh sách đợt, tỷ lệ.
-// Quyền NHẬP (file mẫu, bản kiểm tra, commit): ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán trong user_bcvh (chưa gán -> 403); STAFF, TIVI -> 403
+// Quyền NHẬP (file mẫu, bản kiểm tra, commit): ADMIN, TTVH mọi BCVH; GDVH chỉ BCVH được gán trong user_bcvh (chưa gán -> 403); TIVI -> 403
 // (TIVI bị chặn bởi allowlist trong authRequired). Dùng đúng exp.allowedBcvhCodes của 3c-3.
 // Bản kiểm tra thuộc NGƯỜI TẠO (PHAT-1b, #77): người tạo đọc / sửa / tải file lỗi / commit khi VẪN được nhập BCVH đó; ADMIN, TTVH chỉ XEM bản của
 // người khác (GET draft, rows; 403 khi sửa / commit / tải file lỗi); người khác -> 404 (không lộ sự tồn tại). DELETE /drafts/:id (xoá cả bản): người tạo
 // hoặc ADMIN, TTVH (mọi bản); không đụng đợt nhập, trạng thái, lịch sử, hoàn tác.
 // Hoàn tác đợt: ADMIN, TTVH, hoặc chính người nhập (và vẫn được phép với BCVH đó). Danh sách đợt: chỉ đợt của BCVH mình được phép.
-// Xem TỶ LỆ: ADMIN, TTVH, GDVH xem mọi BCVH (#72); STAFF, TIVI 403 (TIVI sẽ được cho phép ở PHAT-3).
+// Xem TỶ LỆ: ADMIN, TTVH, GDVH xem mọi BCVH (#72); TIVI 403 (TIVI sẽ được cho phép ở PHAT-3).
 // Mọi thao tác ghi vào nhật ký bảo mật; KHÔNG ghi nội dung dòng dữ liệu (SHBG, ghi chú).
 // ==========================================
 'use strict';

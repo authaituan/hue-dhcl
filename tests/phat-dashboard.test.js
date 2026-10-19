@@ -28,7 +28,6 @@ const USERS = {
   gdvhM: { hrm: 'PD_GDVH1', pass: 'Gdvh@123', role: 'GDVH' }, // được giao M (không ảnh hưởng endpoint kết quả phát; chỉ /api/phat/* nhập / lịch sử)
   gdvhMM2: { hrm: 'PD_GDVH2', pass: 'Gdvh@123', role: 'GDVH' }, // được giao M và M2
   gdvhNone: { hrm: 'PD_GDVH0', pass: 'Gdvh@123', role: 'GDVH' }, // chưa được giao
-  staff: { hrm: 'PD_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'PD_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -165,9 +164,8 @@ test('hằng số máy chủ: hai ngưỡng màu PTC, sàn xếp hạng BCVH 50,
 });
 
 // ---------------- quyền ----------------
-test('quyền: không token 401; STAFF 403; TIVI phạm vi all: 200 khi bcvh vắng, 403 khi xin một BCVH (DASH-10b); ADMIN, TTVH 200', async () => {
+test('quyền: không token 401; TIVI phạm vi all: 200 khi bcvh vắng, 403 khi xin một BCVH (DASH-10b); ADMIN, TTVH 200', async () => {
   assert.equal((await kq('', null)).status, 401);
-  assert.equal((await kq('', 'staff')).status, 403);
   assert.equal((await kq('', 'tivi')).status, 200); // DASH-10b (#90): trước đây 403
   assert.equal((await kq(`?bcvh=${M}`, 'tivi')).status, 403);
   assert.equal((await kq('')).status, 200);
@@ -397,12 +395,11 @@ test('không có khung giờ / tồn chờ; không lộ số hiệu bưu gửi',
   ]);
 });
 
-test('/api/phat/ty-le không đổi: đủ khoá cũ, ton_cho + khung giờ, quyền cũ (TTVH 200, STAFF/TIVI 403)', async () => {
+test('/api/phat/ty-le không đổi: đủ khoá cũ, ton_cho + khung giờ, quyền cũ (TTVH 200, TIVI 403)', async () => {
   const t = (await call(`/api/phat/ty-le?bcvh=${M}&ngay=${D}`, 'ttvh')).body;
   assert.deepEqual(Object.keys(t), ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'muc_cap_nhat', 'so_shbg_chuyen_tiep_loai_bo', 'so_lieu_den_luc', 'so_lieu_den_luc_bangkok', 'theo_khung_gio_den', 'ton_cho', 'nguong']); // THAMSO-2a: chỉ THÊM nguong ở cuối
   assert.equal(t.theo_khung_gio_den.length, 6);
   assert.equal(t.ton_cho.theo_nhom.length, 4);
-  assert.equal((await call('/api/phat/ty-le', 'staff')).status, 403);
   assert.equal((await call('/api/phat/ty-le', 'tivi')).status, 403);
   assert.equal((await call('/api/phat/ty-le?bcvh=all', 'gdvhNone')).status, 200, '/ty-le vẫn cho GDVH xem mọi BCVH (#72)');
   // phân quyền NHẬP / lịch sử của /api/phat/* không đổi: GDVH chưa được giao BCVH nào vẫn 403

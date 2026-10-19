@@ -33,7 +33,6 @@ const USERS = {
   admin: { hrm: 'TS_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'TS_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'TS_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'TS_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'TS_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -283,9 +282,9 @@ for (const [ten, goiHam] of [
   ['POST /api/tham-so/ve-mac-dinh', (who) => veMd({ ly_do: 'x', khoa: ['ptc_dat'] }, who)],
   ['GET /api/tham-so/nhat-ky', (who) => nk('', who)]
 ]) {
-  test(`quyền ${ten}: ADMIN 200; TTVH, GDVH, STAFF, TIVI 403; không token 401 — và 403 không ghi gì`, async () => {
+  test(`quyền ${ten}: ADMIN 200; TTVH, GDVH, TIVI 403; không token 401 — và 403 không ghi gì`, async () => {
     assert.equal((await goiHam('admin')).status, 200);
-    for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) assert.equal((await goiHam(who)).status, 403, who);
+    for (const who of ['ttvh', 'gdvh', 'tivi']) assert.equal((await goiHam(who)).status, 403, who);
     const pt = ten.split(' ')[0];
     assert.equal((await goi(pt, ten.split(' ')[1], null, pt === 'GET' ? undefined : {})).status, 401);
   });
@@ -293,7 +292,7 @@ for (const [ten, goiHam] of [
 
 test('quyền: các lần bị 403 / 401 không ghi dòng nào vào tham_so hay nhật ký; ADMIN đổi vai trò khác vẫn bị chặn (GDVH không PUT được)', async () => {
   const n0 = [soDong(), soNhatKy()];
-  for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) await put({ ly_do: 'x', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.7 }] }, who);
+  for (const who of ['ttvh', 'gdvh', 'tivi']) await put({ ly_do: 'x', thay_doi: [{ khoa: 'ptc_dat', gia_tri: 0.7 }] }, who);
   await goi('PUT', '/api/tham-so', null, { ly_do: 'x', thay_doi: [] });
   assert.deepEqual([soDong(), soNhatKy()], n0);
   assert.equal(CF.NGUONG_PTC_DAT, 0.82);
@@ -743,9 +742,9 @@ test('ty-le (c): mọi khóa cũ còn nguyên — phản hồi trừ `nguong` ==
   for (const k of ['bcvh', 'ngay', 'cung_ngay', 'mau_so', 'theo_trang_thai', 'so_shbg_chuyen_tiep_loai_bo', 'theo_khung_gio_den', 'ton_cho']) assert.ok(k in t, k);
 });
 
-test('ty-le (d): quyền không đổi — ADMIN, TTVH, GDVH 200; STAFF, TIVI 403; không token 401; tham số lạ vẫn 400', async () => {
+test('ty-le (d): quyền không đổi — ADMIN, TTVH, GDVH 200; TIVI 403; không token 401; tham số lạ vẫn 400', async () => {
   for (const who of ['admin', 'ttvh', 'gdvh']) { const r = await tyLe(who); assert.equal(r.status, 200, who); assert.ok(r.body.nguong, who); }
-  for (const who of ['staff', 'tivi']) { const r = await tyLe(who); assert.equal(r.status, 403, who); assert.ok(!r.body || !('nguong' in r.body), who); }
+  for (const who of ['tivi']) { const r = await tyLe(who); assert.equal(r.status, 403, who); assert.ok(!r.body || !('nguong' in r.body), who); }
   assert.equal((await goi('GET', `/api/phat/ty-le?bcvh=${M}`, null)).status, 401);
   assert.equal((await goi('GET', '/api/phat/ty-le?bcvh=all&lung=1', 'admin')).status, 400);
   assert.equal((await goi('GET', '/api/phat/ty-le?bcvh=xyz', 'admin')).status, 400);

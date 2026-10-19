@@ -13,24 +13,24 @@ const { seedUser } = require('./helpers/fixtures');
 const PORT = 5904;
 const MGR_HRM = 'USERS_MGR';
 const MGR_PASS = 'Manager@123';
-const STAFF_HRM = 'USERS_STAFF';
-const STAFF_PASS = 'Staff@123';
+const TTVH_HRM = 'USERS_TTVH';
+const TTVH_PASS = 'Ttvh@123';
 
 let ctx;
 let mgrToken;
-let staffToken;
+let ttvhToken;
 let mgrId;
 
 before(async () => {
   ctx = startTestServer({ port: PORT, dbFileName: `dhcl-test-users-${Date.now()}.db` });
   await waitForServer(ctx.baseUrl);
   mgrId = seedUser(ctx.db, { hrmCode: MGR_HRM, fullName: 'Users Manager', role: 'ADMIN', password: MGR_PASS });
-  seedUser(ctx.db, { hrmCode: STAFF_HRM, fullName: 'Users Staff', role: 'STAFF', password: STAFF_PASS });
+  seedUser(ctx.db, { hrmCode: TTVH_HRM, fullName: 'Users Ttvh', role: 'TTVH', password: TTVH_PASS });
 
   const mgrLogin = await login(MGR_HRM, MGR_PASS);
   mgrToken = mgrLogin.body.token;
-  const staffLogin = await login(STAFF_HRM, STAFF_PASS);
-  staffToken = staffLogin.body.token;
+  const ttvhLogin = await login(TTVH_HRM, TTVH_PASS);
+  ttvhToken = ttvhLogin.body.token;
 });
 
 after(async () => {
@@ -65,8 +65,8 @@ test('GET /api/users không có token -> 401', async () => {
   assert.equal(res.status, 401);
 });
 
-test('GET /api/users role STAFF -> 403', async () => {
-  const { status } = await call('GET', '/api/users', { token: staffToken });
+test('GET /api/users role TTVH -> 403', async () => {
+  const { status } = await call('GET', '/api/users', { token: ttvhToken });
   assert.equal(status, 403);
 });
 
@@ -80,10 +80,10 @@ test('GET /api/users role quản lý -> 200, KHÔNG lộ password_hash', async (
   }
 });
 
-test('POST /api/users role STAFF -> 403 (không tạo được user)', async () => {
+test('POST /api/users role TTVH -> 403 (không tạo được user)', async () => {
   const { status } = await call('POST', '/api/users', {
-    token: staffToken,
-    body: { hrm_code: 'SHOULD_FAIL', full_name: 'X', password: '123456' }
+    token: ttvhToken,
+    body: { hrm_code: 'SHOULD_FAIL', full_name: 'X', role: 'TTVH', password: '123456' }
   });
   assert.equal(status, 403);
 });
@@ -99,7 +99,7 @@ test('POST /api/users thiếu hrm_code -> 400', async () => {
 test('POST /api/users password < 6 ký tự -> 400', async () => {
   const { status } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'SHORT_PW', full_name: 'Test', password: '123' }
+    body: { hrm_code: 'SHORT_PW', full_name: 'Test', role: 'TTVH', password: '123' }
   });
   assert.equal(status, 400);
 });
@@ -107,11 +107,11 @@ test('POST /api/users password < 6 ký tự -> 400', async () => {
 test('POST /api/users hợp lệ -> 201, mật khẩu được hash (không lưu plaintext)', async () => {
   const { status, body } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'NEW_STAFF_01', full_name: 'Nhan Vien Moi', password: 'Plaintext123' }
+    body: { hrm_code: 'NEW_USER_01', full_name: 'Nhan Vien Moi', role: 'TTVH', password: 'Plaintext123' }
   });
   assert.equal(status, 201);
   assert.ok(body.id);
-  assert.equal(body.role, 'STAFF', 'role mặc định phải là STAFF khi không truyền');
+  assert.equal(body.role, 'TTVH');
 
   const row = ctx.db.prepare('SELECT password_hash FROM users WHERE id = ?').get(body.id);
   assert.notEqual(row.password_hash, 'Plaintext123', 'password_hash không được lưu dạng plaintext');
@@ -121,7 +121,7 @@ test('POST /api/users hợp lệ -> 201, mật khẩu được hash (không lưu
 test('POST /api/users trùng hrm_code -> 400', async () => {
   const { status } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'NEW_STAFF_01', full_name: 'Trung ma HRM', password: '123456' }
+    body: { hrm_code: 'NEW_USER_01', full_name: 'Trung ma HRM', role: 'TTVH', password: '123456' }
   });
   assert.equal(status, 400);
 });
@@ -129,7 +129,7 @@ test('POST /api/users trùng hrm_code -> 400', async () => {
 test('PUT /api/users/:id đổi role user KHÁC -> 200', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'ROLE_CHANGE_01', full_name: 'Doi Role', password: '123456' }
+    body: { hrm_code: 'ROLE_CHANGE_01', full_name: 'Doi Role', role: 'TTVH', password: '123456' }
   });
   const { status } = await call('PUT', `/api/users/${created.id}`, {
     token: mgrToken,
@@ -143,7 +143,7 @@ test('PUT /api/users/:id đổi role user KHÁC -> 200', async () => {
 test('PUT /api/users/:id tự đổi role CHÍNH MÌNH -> 400 (chặn tự khoá quyền)', async () => {
   const { status, body } = await call('PUT', `/api/users/${mgrId}`, {
     token: mgrToken,
-    body: { role: 'STAFF' }
+    body: { role: 'TTVH' }
   });
   assert.equal(status, 400);
   assert.ok(body.error);
@@ -151,9 +151,9 @@ test('PUT /api/users/:id tự đổi role CHÍNH MÌNH -> 400 (chặn tự khoá
   assert.equal(row.role, 'ADMIN', 'role của chính mình phải giữ nguyên, không bị đổi');
 });
 
-test('PUT /api/users/:id/reset-password role STAFF -> 403', async () => {
+test('PUT /api/users/:id/reset-password role TTVH -> 403', async () => {
   const { status } = await call('PUT', `/api/users/${mgrId}/reset-password`, {
-    token: staffToken,
+    token: ttvhToken,
     body: { password: '123456' }
   });
   assert.equal(status, 403);
@@ -162,7 +162,7 @@ test('PUT /api/users/:id/reset-password role STAFF -> 403', async () => {
 test('PUT /api/users/:id/reset-password hợp lệ -> 200, mật khẩu mới hoạt động thật', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'RESET_PW_01', full_name: 'Reset PW', password: 'OldPassword1' }
+    body: { hrm_code: 'RESET_PW_01', full_name: 'Reset PW', role: 'TTVH', password: 'OldPassword1' }
   });
 
   const { status } = await call('PUT', `/api/users/${created.id}/reset-password`, {
@@ -181,7 +181,7 @@ test('PUT /api/users/:id/reset-password hợp lệ -> 200, mật khẩu mới ho
 test('PUT /api/users/me/password sai mật khẩu hiện tại -> 400', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'SELF_PW_01', full_name: 'Self PW', password: 'Original123' }
+    body: { hrm_code: 'SELF_PW_01', full_name: 'Self PW', role: 'TTVH', password: 'Original123' }
   });
   const { body: loginBody } = await login('SELF_PW_01', 'Original123');
 
@@ -193,13 +193,13 @@ test('PUT /api/users/me/password sai mật khẩu hiện tại -> 400', async ()
   assert.ok(body.error);
 });
 
-test('PUT /api/users/me/password đúng mật khẩu hiện tại -> 200, đổi thật (kể cả role STAFF)', async () => {
+test('PUT /api/users/me/password đúng mật khẩu hiện tại -> 200, đổi thật (kể cả role TTVH)', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'SELF_PW_02', full_name: 'Self PW 2', password: 'Original123' }
+    body: { hrm_code: 'SELF_PW_02', full_name: 'Self PW 2', role: 'TTVH', password: 'Original123' }
   });
   const { body: loginBody } = await login('SELF_PW_02', 'Original123');
-  assert.equal(loginBody.user.role, 'STAFF', 'user tự đổi mật khẩu ở test này phải là STAFF (không cần role quản lý)');
+  assert.equal(loginBody.user.role, 'TTVH', 'user tự đổi mật khẩu ở test này là TTVH (không cần quyền quản trị)');
 
   const { status } = await call('PUT', '/api/users/me/password', {
     token: loginBody.token,
@@ -227,8 +227,8 @@ test('PUT /api/users/me/password không có token -> 401', async () => {
 // PUT /api/users/:id/reactivate) + POST /api/auth/login chặn user đã khoá.
 // ==========================================
 
-test('PUT /api/users/:id/deactivate role STAFF -> 403', async () => {
-  const { status } = await call('PUT', `/api/users/${mgrId}/deactivate`, { token: staffToken });
+test('PUT /api/users/:id/deactivate role TTVH -> 403', async () => {
+  const { status } = await call('PUT', `/api/users/${mgrId}/deactivate`, { token: ttvhToken });
   assert.equal(status, 403);
 });
 
@@ -248,7 +248,7 @@ test('PUT /api/users/:id/deactivate user không tồn tại -> 404', async () =>
 test('Deactivate user khác -> 200, deactivated_at được set, GET /api/users trả về field này, và user đó KHÔNG đăng nhập được nữa dù đúng mật khẩu (message riêng, khác sai mật khẩu)', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'DEACTIVATE_01', full_name: 'Se Bi Khoa', password: 'Password123' }
+    body: { hrm_code: 'DEACTIVATE_01', full_name: 'Se Bi Khoa', role: 'TTVH', password: 'Password123' }
   });
 
   // Trước khi khoá: đăng nhập bình thường được.
@@ -282,21 +282,21 @@ test('Deactivate user khác -> 200, deactivated_at được set, GET /api/users 
   );
 });
 
-test('PUT /api/users/:id/reactivate role STAFF -> 403', async () => {
+test('PUT /api/users/:id/reactivate role TTVH -> 403', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'REACTIVATE_STAFF_CHECK', full_name: 'Check Staff 403', password: 'Password123' }
+    body: { hrm_code: 'REACTIVATE_403_CHECK', full_name: 'Check TTVH 403', role: 'TTVH', password: 'Password123' }
   });
   await call('PUT', `/api/users/${created.id}/deactivate`, { token: mgrToken });
 
-  const { status } = await call('PUT', `/api/users/${created.id}/reactivate`, { token: staffToken });
+  const { status } = await call('PUT', `/api/users/${created.id}/reactivate`, { token: ttvhToken });
   assert.equal(status, 403);
 });
 
 test('Reactivate -> 200, deactivated_at về NULL, đăng nhập lại được bình thường', async () => {
   const { body: created } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'REACTIVATE_01', full_name: 'Se Duoc Kich Hoat Lai', password: 'Password123' }
+    body: { hrm_code: 'REACTIVATE_01', full_name: 'Se Duoc Kich Hoat Lai', role: 'TTVH', password: 'Password123' }
   });
 
   await call('PUT', `/api/users/${created.id}/deactivate`, { token: mgrToken });
@@ -317,8 +317,8 @@ test('Reactivate -> 200, deactivated_at về NULL, đăng nhập lại được 
 // GET /api/users/search — autocomplete "Người Phụ Trách" bưu cục
 // ==========================================
 
-test('GET /api/users/search role STAFF -> 403; không token -> 401', async () => {
-  assert.equal((await call('GET', '/api/users/search?q=a', { token: staffToken })).status, 403);
+test('GET /api/users/search role TTVH -> 403; không token -> 401', async () => {
+  assert.equal((await call('GET', '/api/users/search?q=a', { token: ttvhToken })).status, 403);
   assert.equal((await call('GET', '/api/users/search?q=a')).status, 401);
 });
 
@@ -331,11 +331,11 @@ test('GET /api/users/search q rỗng -> []', async () => {
 test('GET /api/users/search khớp mã HRM / họ tên không dấu, bỏ qua user đã vô hiệu hoá, không lộ password_hash', async () => {
   const { body: a } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'SEARCH_01', full_name: 'Đặng Thị Tìm', password: 'Password123' }
+    body: { hrm_code: 'SEARCH_01', full_name: 'Đặng Thị Tìm', role: 'TTVH', password: 'Password123' }
   });
   const { body: b } = await call('POST', '/api/users', {
     token: mgrToken,
-    body: { hrm_code: 'SEARCH_02', full_name: 'Đặng Văn Khoá', password: 'Password123' }
+    body: { hrm_code: 'SEARCH_02', full_name: 'Đặng Văn Khoá', role: 'TTVH', password: 'Password123' }
   });
   await call('PUT', `/api/users/${b.id}/deactivate`, { token: mgrToken });
 
@@ -348,4 +348,36 @@ test('GET /api/users/search khớp mã HRM / họ tên không dấu, bỏ qua us
 
   const byHrm = await call('GET', '/api/users/search?q=search_01', { token: mgrToken });
   assert.deepEqual(byHrm.body.map((u) => u.hrm_code), ['SEARCH_01']);
+});
+
+// STAFF-1: vai trò bắt buộc, STAFF không còn hợp lệ
+test('POST /api/users thiếu role -> 400 (không có vai trò mặc định), không tạo user', async () => {
+  const { status, body } = await call('POST', '/api/users', {
+    token: mgrToken,
+    body: { hrm_code: 'NO_ROLE_01', full_name: 'Thieu Role', password: '123456' }
+  });
+  assert.equal(status, 400);
+  assert.match(body.error, /Vai trò/);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users WHERE hrm_code = ?').get('NO_ROLE_01').n, 0);
+});
+
+test("POST /api/users role 'STAFF' -> 400 (vai trò đã bị gỡ), không tạo user", async () => {
+  const { status, body } = await call('POST', '/api/users', {
+    token: mgrToken,
+    body: { hrm_code: 'OLD_ROLE_01', full_name: 'Vai Tro Cu', role: 'STAFF', password: '123456' }
+  });
+  assert.equal(status, 400);
+  assert.match(body.error, /Vai trò không hợp lệ/);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users WHERE hrm_code = ?').get('OLD_ROLE_01').n, 0);
+});
+
+test("PUT /api/users/:id role 'STAFF' -> 400, role không đổi", async () => {
+  const { body: created } = await call('POST', '/api/users', {
+    token: mgrToken,
+    body: { hrm_code: 'PUT_STAFF_01', full_name: 'Put Staff', role: 'TTVH', password: '123456' }
+  });
+  const { status, body } = await call('PUT', `/api/users/${created.id}`, { token: mgrToken, body: { role: 'STAFF' } });
+  assert.equal(status, 400);
+  assert.match(body.error, /Vai trò không hợp lệ/);
+  assert.equal(ctx.db.prepare('SELECT role FROM users WHERE id = ?').get(created.id).role, 'TTVH');
 });

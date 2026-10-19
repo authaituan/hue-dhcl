@@ -27,7 +27,7 @@ const USERS = {
   ttvh: { hrm: 'EX_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'EX_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
   gdvhNone: { hrm: 'EX_GDVH0', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'EX_STAFF', pass: 'Staff@123', role: 'STAFF' }
+  tivi: { hrm: 'EX_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
 let ctx;
@@ -276,10 +276,10 @@ test('khoảng rỗng -> 200, file hợp lệ chỉ có dòng tiêu đề', asyn
   assert.equal(ws.actualRowCount, 1);
 });
 
-test('quyền: không token 401; STAFF 403; ADMIN/TTVH mọi BCVH; GDVH chỉ BCVH được giao', async () => {
+test('quyền: không token 401; TIVI 403; ADMIN/TTVH mọi BCVH; GDVH chỉ BCVH được giao', async () => {
   for (const p of ['/api/arrivals/export-scope', exportUrl(BC, RANGE_0405)]) {
     assert.equal((await getJson(p)).status, 401, p);
-    assert.equal((await getJson(p, 'staff')).status, 403, p);
+    assert.equal((await getJson(p, 'tivi')).status, 403, p);
   }
   for (const who of ['admin', 'ttvh']) {
     for (const code of [BC, BC2, BC3]) assert.equal((await get(exportUrl(code, RANGE_0405), who)).status, 200, `${who} ${code}`);

@@ -27,7 +27,6 @@ const USERS = {
   admin: { hrm: 'XT_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'XT_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'XT_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'XT_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'XT_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -513,7 +512,7 @@ const logFile = () => process.env.SECURITY_LOG;
 const docLog = () => { try { return fs.readFileSync(logFile(), 'utf8'); } catch (e) { return ''; } };
 const choLog = () => new Promise((r) => setTimeout(r, 120));
 
-test('route POST /api/arrivals/thay-the/xem-truoc: ADMIN 200; TTVH, GDVH, STAFF, TIVI 403; không token 401', async () => {
+test('route POST /api/arrivals/thay-the/xem-truoc: ADMIN 200; TTVH, GDVH, TIVI 403; không token 401', async () => {
   await napCu(rangeShbg(0, 10));
   const src = nguonChuan(rangeShbg(0, 10));
   T.datNguon({ ketNoi: async () => src, dirs: [D1] });
@@ -523,7 +522,7 @@ test('route POST /api/arrivals/thay-the/xem-truoc: ADMIN 200; TTVH, GDVH, STAFF,
   assert.equal(r.body.canh_bao.muc, 'AN_TOAN');
   assert.equal(r.body.so_sanh.shbg_cu, 10);
   assert.equal(chup(), truoc, 'route không ghi DB');
-  for (const who of ['ttvh', 'gdvh', 'staff', 'tivi']) assert.equal((await goi(who, { bcvh: B, ngay: NGAY })).status, 403, who);
+  for (const who of ['ttvh', 'gdvh', 'tivi']) assert.equal((await goi(who, { bcvh: B, ngay: NGAY })).status, 403, who);
   assert.equal((await goi(null, { bcvh: B, ngay: NGAY })).status, 401);
   assert.equal(src.calls.get.length, 2, 'chỉ lần của ADMIN mới tải');
 });

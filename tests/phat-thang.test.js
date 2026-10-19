@@ -27,7 +27,6 @@ const USERS = {
   admin: { hrm: 'PT_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'PT_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'PT_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  staff: { hrm: 'PT_STAFF', pass: 'Staff@123', role: 'STAFF' },
   tivi: { hrm: 'PT_TIVI', pass: 'Tivi@123', role: 'TIVI' }
 };
 const tokens = {};
@@ -402,12 +401,11 @@ test('một BCVH: M2 độc lập, phạm vi trả về', async () => {
   assert.equal(a.luy_ke.so_ngay_trong_khoang, 6, 'ngày 01–06');
 });
 
-test('tham số và quyền: 400 tham số lạ; STAFF 403, không token 401; ADMIN / TTVH / GDVH 200; TIVI 403 (kể cả phạm vi all)', async () => {
+test('tham số và quyền: 400 tham số lạ; không token 401; ADMIN / TTVH / GDVH 200; TIVI 403 (kể cả phạm vi all)', async () => {
   assert.equal((await kq('?tu=2026-10-01')).status, 400);
   assert.equal((await kq('?bcvh=xyz')).status, 400);
   assert.equal((await kq('?ngay=2026-02-30')).status, 400);
   assert.equal((await kq('', null)).status, 401);
-  assert.equal((await kq('', 'staff')).status, 403);
   for (const who of ['admin', 'ttvh', 'gdvh']) {
     assert.equal((await kq('', who)).status, 200, who);
     assert.equal((await kq(`?bcvh=${M2}`, who)).status, 200, `${who} BCVH không được giao vẫn xem được (#79)`);

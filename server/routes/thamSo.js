@@ -1,5 +1,5 @@
 // ==========================================
-// THAMSO-1 (docs/ai/34_THAMSO1_BACKEND_BANG_THAM_SO.md, 04_DECISIONS.md #94): API «Tham số hệ thống» — CHỈ ADMIN (401 không token; 403 TTVH, GDVH, STAFF, TIVI).
+// THAMSO-1 (docs/ai/34_THAMSO1_BACKEND_BANG_THAM_SO.md, 04_DECISIONS.md #94): API «Tham số hệ thống» — CHỈ ADMIN (401 không token; 403 TTVH, GDVH, TIVI).
 // GET  /tham-so                         danh bạ + giá trị hiệu lực + mặc định + ai sửa gần nhất
 // PUT  /tham-so                         { ly_do, thay_doi: [{ khoa, gia_tri }] }  (1–30 phần tử; ghi hết hoặc không ghi gì)
 // POST /tham-so/ve-mac-dinh             { ly_do, khoa: [..] } hoặc { ly_do, tat_ca: true }
