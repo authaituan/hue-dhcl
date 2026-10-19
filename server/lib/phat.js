@@ -596,12 +596,14 @@ const NHAP_CTE = `ls AS MATERIALIZED (
     SELECT a.tracking_no AS tn, MIN(a.arrival_date) AS dnext FROM arrival_items a
     WHERE a.receiver_code = @bcvh AND a.arrival_date > @x_day AND a.tracking_no IN (SELECT tracking_no FROM s) GROUP BY a.tracking_no)`;
 // Một dòng / SHBG của ngày: bản nhập cuối (id lớn nhất) trong cửa sổ [D, D'); MAX(l.id) làm SQLite lấy các cột trần (trang_thai, nhap_luc) của đúng dòng đó.
-const NHAP_SELECT = `SELECT hh AS h, COALESCE(tt0, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(sel) AS co, MAX(nl) AS nl FROM (
-    SELECT CAST(substr(s.t, 12, 2) AS INTEGER) AS hh, l.trang_thai AS tt0, l.id AS sel, l.nhap_luc AS nl, MAX(l.id) AS mx
+// TAIVE-1: tách NHAP_ROW khỏi NHAP_SELECT (SQL đếm không đổi về kết quả) để bảng kê tải về dùng ĐÚNG quy tắc #92 theo từng SHBG (thêm shbg, t; sel = id dòng lịch sử đã chọn).
+const NHAP_ROW = `SELECT s.tracking_no AS shbg, s.t AS t, CAST(substr(s.t, 12, 2) AS INTEGER) AS hh, l.trang_thai AS tt0, l.id AS sel, l.nhap_luc AS nl, MAX(l.id) AS mx
     FROM s JOIN g ON g.tracking_no = s.tracking_no AND g.d = s.arrival_date AND g.rc = @bcvh AND g.rk = 1
     LEFT JOIN nx ON nx.tn = s.tracking_no
     LEFT JOIN ls l ON l.shbg = s.tracking_no AND l.dn >= @x_day AND l.dn < COALESCE(nx.dnext, '9999-12-31')
-    GROUP BY s.tracking_no) GROUP BY h, tt`;
+    GROUP BY s.tracking_no`;
+const NHAP_SELECT = `SELECT hh AS h, COALESCE(tt0, 'CHUA_CO_TT') AS tt, COUNT(*) AS n, COUNT(sel) AS co, MAX(nl) AS nl FROM (
+    ${NHAP_ROW}) GROUP BY h, tt`;
 
 /** Như den.runCounted nhưng thêm CTE `g`; [tu, den] = khoảng ngày xét tranh chấp giữa các BCVH. */
 function runGan(db, f, tu, denNgay, select, extra = {}, { them = '', materialize = false } = {}) {
@@ -1040,5 +1042,6 @@ module.exports = {
   PhatError, ensurePhatSchema, nowIso, gioBangkok, purgeExpiredDrafts, normalizeKey, trangThaiTuChu, normShbg, normGhiChu, khungGio, laTrong, danhGia,
   kiemTraLai, taoBanKiemTra, layBanKiemTra, dsBanKiemTra, xoaBanKiemTra, tongHop, dongRa, dsDong, suaDong, xoaDong, dienTrangThai, ganDanhSach, layDongLoi,
   demDongMau, layDongMau, tyLeNgay, tyLeApi, soLieuDenLuc, ngayLienQuan, nhapDot, layDot, docLocDot, dsDot, xemTruocHoanTac, hoanTacDot,
-  tapNgayChung, demNgay, dungTyLe, tonCho, zeroMap, congMap // dùng chung với phatDashboard.js (PHAT-3b)
+  tapNgayChung, demNgay, dungTyLe, tonCho, zeroMap, congMap,
+  NHAP_CTE, GAN_CTE, NHAP_ROW, runGan // tapNgayChung..congMap dùng chung với phatDashboard.js (PHAT-3b); 4 mục cuối: TAIVE-1 (phatTaiVe.js)
 };

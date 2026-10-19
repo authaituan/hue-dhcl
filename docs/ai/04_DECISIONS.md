@@ -748,5 +748,13 @@ Căn cứ: PO thấy 19/10 màn Xử lý, ngày đến 18/10, BCVH Thuận Hóa:
 3. Hệ quả đã đo: «Sau» của màn commit lệch `/ty-le` ở NGÀY ĐẾN CŨ của SHBG đến lại (bản nhập hôm nay tính cho ngày cũ theo quy tắc cũ, không theo #92). Có chuyển cả màn commit sang #92 hay không: PO quyết (ticket sau).
 4. Chi phí: `demNgay` theoLichSu ~56 ms so ~32 ms (1 BCVH 1 ngày, 744.000 dòng giả); `/ty-le` 1 BCVH ~1,2 s (trước ~1,3 s) vì `ton_cho` ~1,05 s; không thêm cache.
 
+### 98. «Bảng kê kết quả phát theo ngày đến» tải Excel (`GET /api/phat/tai-ve`); quyền GDVH theo `user_bcvh`; tách khỏi «vu hồi» (PO chốt 19/10/2026 — TAIVE-1, backend)
+Căn cứ: màn «Xử lý và tỷ lệ phát» cần nút «Tải bảng kê (Excel)» liệt kê từng bưu gửi đến BCVH trong ngày đã chọn kèm kết quả phát hiện tại (giao diện làm ở ticket riêng sau khi API merge).
+1. Trạng thái của mỗi SHBG theo quy tắc ngày đến #92, dựng bằng CÙNG CTE với `demNgay(theoLichSu)`: `P.GAN_CTE` (DASH-7f), `P.NHAP_CTE` và `P.NHAP_ROW` (truy vấn con theo từng SHBG tách ra từ `NHAP_SELECT`; SQL đếm không đổi kết quả). Không có bản logic thứ hai ⇒ số dòng của tệp = mẫu số `ty-le` / `ketQuaPhat` cùng (BCVH, ngày); test (a) đối chiếu cả hai. Cần export thêm 4 mục ở `phat.js` (`NHAP_CTE, GAN_CTE, NHAP_ROW, runGan`; `runGan` hiện chưa dùng).
+2. Mỗi SHBG một dòng, kể cả «Chưa có TT»; `bcvh=all` = cộng từng BCVH với `ngay_den` đã chọn (mỗi SHBG một lần trong ngày nhờ DASH-7f); 8 cột văn bản; giờ VN; tệp ≤ 50.000 dòng (vượt → 400, không cắt); BCVH không có SHBG đến ngày đó → 400 thông báo tiếng Việt.
+3. Quyền KHÁC `/ty-le` (#72 mở mọi BCVH cho GDVH): GDVH chỉ tải BCVH được giao trong `user_bcvh` (`exp.allowedBcvhCodes`), `bcvh=all` → 403; TIVI và vai trò khác 403. Lý do: tệp chứa dữ liệu từng bưu gửi, không chỉ số tổng.
+4. KHÔNG làm «Đã vu hồi» ở đây (VUHOI-1/2 làm sau, sẽ thêm cột cờ vu hồi vào tệp); không thêm bảng/cột/migration; không đổi hành vi hàm dùng chung.
+5. PO xác nhận 19/10/2026: dòng có trạng thái chọn được là `CHUA_CO_TT` do nhập tường minh (đợt nhập đặt về «Chưa có TT») cũng để trống 4 cột phía nhập, theo đúng câu chữ «Dòng Chưa có TT: để trống …».
+
 ## Drift phát hiện
 _(chưa có)_

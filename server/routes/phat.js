@@ -8,6 +8,7 @@
 // hoặc ADMIN, TTVH (mọi bản); không đụng đợt nhập, trạng thái, lịch sử, hoàn tác.
 // Hoàn tác đợt: ADMIN, TTVH, hoặc chính người nhập (và vẫn được phép với BCVH đó). Danh sách đợt: chỉ đợt của BCVH mình được phép.
 // Xem TỶ LỆ: ADMIN, TTVH, GDVH xem mọi BCVH (#72); TIVI 403 (TIVI sẽ được cho phép ở PHAT-3).
+// TẢI BẢNG KÊ theo ngày đến (TAIVE-1, #98): ADMIN, TTVH mọi BCVH và bcvh=all; GDVH chỉ BCVH được giao (all / chưa giao -> 403); vai trò khác (kể cả TIVI) -> 403.
 // Mọi thao tác ghi vào nhật ký bảo mật; KHÔNG ghi nội dung dòng dữ liệu (SHBG, ghi chú).
 // ==========================================
 'use strict';
@@ -22,6 +23,7 @@ const exp = require('../lib/arrivalsExport');
 const P = require('../lib/phat');
 const PD = require('../lib/phatDashboard');
 const F = require('../lib/phatFile');
+const TV = require('../lib/phatTaiVe');
 const { VALID_BCVH_CODES } = require('../lib/userBcvh');
 
 const router = express.Router();
@@ -48,7 +50,8 @@ const xemGuard = requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH); // xem tỷ 
 const CHU_403 = {
   nhap: { chua_gan: 'nhập được kết quả phát', ngoai: 'Bạn chỉ được nhập kết quả phát cho BCVH được giao' },
   xem: { chua_gan: 'xem được danh sách đợt nhập', ngoai: 'Bạn chỉ được xem các đợt nhập của BCVH được giao' },
-  'hoan-tac': { chua_gan: 'hoàn tác được đợt nhập', ngoai: 'Bạn chỉ được hoàn tác đợt nhập của BCVH được giao' }
+  'hoan-tac': { chua_gan: 'hoàn tác được đợt nhập', ngoai: 'Bạn chỉ được hoàn tác đợt nhập của BCVH được giao' },
+  'tai-ve': { chua_gan: 'tải được bảng kê kết quả phát', ngoai: 'Bạn chỉ được tải bảng kê kết quả phát của BCVH được giao' }
 };
 const thieuQuyen = (req, hanhDong) => {
   const duoc = exp.allowedBcvhCodes(db, req.user);
@@ -299,5 +302,46 @@ router.get('/phat/ty-le', authRequired, xemGuard, wrap(async (req, res) => {
   // THAMSO-2a: THÊM `nguong` (cùng hình dạng với ket-qua-phat) ở cuối; tyLeApi không đổi, không có cache ở đây nên tham số mới có hiệu lực ngay.
   res.json({ ...P.tyLeApi(db, { bcvh: rawB, ngay }), nguong: PD.nguongKetQuaPhat() });
 }, 'ty-le'));
+
+// ------------------------------------------
+// TAIVE-1 — bảng kê kết quả phát theo ngày đến (Excel). Thứ tự kiểm: vai trò (403) -> tham số (400) -> quyền BCVH (403) -> dữ liệu (400) -> ghi tệp theo luồng.
+// ------------------------------------------
+router.get('/phat/tai-ve', authRequired, xemGuard, wrap(async (req, res) => {
+  for (const k of Object.keys(req.query)) if (!['ngay_den', 'bcvh', 'trang_thai'].includes(k)) throw new PhatError(400, `Tham số không hỗ trợ: "${k}"`);
+  const one = (k) => {
+    if (Array.isArray(req.query[k])) throw new PhatError(400, `Tham số "${k}" chỉ nhận 1 giá trị`);
+    return String(req.query[k] ?? '').trim();
+  };
+  const ngay = one('ngay_den');
+  const m = aq.DATE_RE.exec(ngay);
+  if (!m || !aq.validYmd(+m[1], +m[2], +m[3])) throw new PhatError(400, 'Tham số "ngay_den" bắt buộc, phải là ngày hợp lệ dạng YYYY-MM-DD');
+  const bcvh = one('bcvh');
+  if (!bcvh) throw new PhatError(400, 'Thiếu tham số "bcvh" (mã BCVH hoặc "all")');
+  if (bcvh !== 'all' && !VALID_BCVH_CODES.includes(bcvh)) throw new PhatError(400, `Tham số "bcvh" phải là "all" hoặc một trong: ${VALID_BCVH_CODES.join(', ')}`);
+  const tt = one('trang_thai') || null;
+  if (tt && !C.TT_MA.includes(tt)) throw new PhatError(400, `Tham số "trang_thai" phải là một trong: ${C.TT_MA.join(', ')}`);
+  if (bcvh === 'all') {
+    if (req.user.role === ROLES.GDVH) throw new PhatError(403, 'Tài khoản GDVH chỉ tải được bảng kê của từng BCVH được giao, không tải được "all"');
+  } else {
+    kiemTraBcvh(req, bcvh, 'tai-ve');
+  }
+  const kh = TV.chuanBi(db, { bcvh, ngay, tt });
+  const nhatKy = (rows, status) => audit(req, 'phat_tai_ve', { bcvh, ngay_den: ngay, trang_thai: tt, rows, status });
+  let clientGone = false;
+  res.on('close', () => { if (!res.writableFinished) clientGone = true; });
+  res.status(200);
+  res.setHeader('Content-Type', F.XLSX_MIME);
+  res.setHeader('Content-Disposition', `attachment; filename="${TV.tenFile(bcvh, ngay)}"`);
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    const kq = await TV.ghi(db, kh, res, () => clientGone);
+    nhatKy(kq.rows, kq.aborted ? 'aborted' : 'ok');
+  } catch (err) {
+    // Đã gửi header: không đổi sang JSON lỗi được -> cắt kết nối để tệp dở không bị coi là hợp lệ.
+    console.error('Phat tai-ve error:', err);
+    nhatKy(null, 'error');
+    res.destroy();
+  }
+}, 'tai-ve'));
 
 module.exports = router;
