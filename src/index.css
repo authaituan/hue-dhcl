@@ -13,6 +13,7 @@
 @import "@fontsource/be-vietnam-pro/600.css";
 @import "@fontsource/be-vietnam-pro/700.css";
 
+
 @theme {
   --color-page: #F6F1E7;
   --color-card: #FFFFFF;
@@ -341,41 +342,7 @@
     border-bottom: none;
   }
 
-  /* Login specific styles */
-  .login-bg {
-    background-color: #F97316;
-  }
-  .login-montserrat {
-    font-family: "Montserrat", sans-serif;
-  }
-  .login-card-img {
-    box-shadow: 0 30px 60px -10px rgba(60,20,0,.55);
-  }
-  .login-card-form {
-    box-shadow: 0 30px 60px -10px rgba(60,20,0,.45);
-  }
-  .login-input-wrap {
-    border-bottom: 2px solid #D2D6DA;
-    transition: border-color 0.15s ease;
-  }
-  .login-input-wrap:focus-within {
-    border-bottom-color: #CC4A0A;
-  }
-  .login-input-wrap.login-error {
-    border-bottom-color: #D63B3F;
-  }
-  .login-btn {
-    background-color: #CC4A0A;
-    box-shadow: 0 10px 18px -6px rgba(204,74,10,.6);
-    transition: all 150ms ease;
-  }
-  .login-btn:hover {
-    background-color: #B83F08;
-  }
-  .login-btn:focus-visible {
-    outline: 2px solid #CC4A0A;
-    outline-offset: 2px;
-  }
+
 
   /* Custom Scrollbar for Sidebar Nav */
   .nav-scrollbar {
