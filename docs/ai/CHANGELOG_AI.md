@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-19] - TAIVE-1: API «Bảng kê kết quả phát theo ngày đến» (`GET /api/phat/tai-ve`, tải Excel)
+
+- **Thêm** `server/lib/phatTaiVe.js` (đếm + ghi `.xlsx` theo luồng bằng ExcelJS) và route `GET /api/phat/tai-ve` trong `server/routes/phat.js` (thêm khóa `'tai-ve'` vào `CHU_403`). Quyền: ADMIN, TTVH mọi BCVH và `all`; GDVH chỉ BCVH trong `user_bcvh`; khác 403. Giới hạn 50.000 dòng, nhật ký `phat_tai_ve`. Chi tiết ở `08_PHAT.md` §4 và `04_DECISIONS.md` #98.
+- **Sửa nhỏ `server/lib/phat.js`** (theo PO cho phép): tách `NHAP_SELECT` thành `NHAP_ROW` + bọc đếm (SQL đếm cho cùng kết quả; `NHAP_ROW` thêm hai cột `shbg`, `t`) và export `NHAP_CTE, GAN_CTE, NHAP_ROW, runGan`. Không đổi hành vi `demNgay` / `tyLeApi` / `ketQuaPhat`.
+- **Test** MỚI `tests/phat-tai-ve.test.js` (10 ca: a–k, gồm đối chiếu mẫu số với `ty-le` và `ketQuaPhat`; ca k: SHBG đến hai BCVH cùng ngày chỉ một dòng, theo DASH-7f), thêm vào `npm test`.
+- **Chưa có** cột cờ «vu hồi» (VUHOI-1/2); giao diện nút «Tải bảng kê (Excel)» làm ở ticket riêng.
+
+---
+
 ## [2026-10-19] - PHAT-6: `/api/phat/ty-le` theo NGÀY ĐẾN (#92), khớp «Điều hành hôm nay»
 
 - **Sửa** `server/lib/phat.js` (`tyLeApi`: `demNgay(..., { theoLichSu: true })`; sửa chú thích `demNgay`). Khóa phản hồi không đổi; `ton_cho`, `so_lieu_den_luc`, `nhapDot`, `hoanTacDot`, `tyLeNgay` (commit «trước / sau») không đổi. Quyết định #97.
