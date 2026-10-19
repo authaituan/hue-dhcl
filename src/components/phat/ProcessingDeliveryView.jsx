@@ -8,6 +8,7 @@ import PhatCommitResultView from './PhatCommitResultView';
 import PhatHistoryView from './PhatHistoryView';
 import CustomDatePicker from '../common/CustomDatePicker';
 import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
+import BangKeKetQuaPhat from './BangKeKetQuaPhat';
 
 // Định dạng tỷ lệ dạng 0..1 sang chuỗi % một chữ số thập phân dùng dấu phẩy (vd: 0.86 -> 86,0%)
 export function formatRatePercent(r) {
@@ -508,6 +509,14 @@ export default function ProcessingDeliveryView({ authUser }) {
           </div>
         </div>
       </div>
+
+      {/* ── MỤC BẢNG KÊ KẾT QUẢ PHÁT THEO NGÀY ĐẾN (TAIVE-2) ────────────────── */}
+      <BangKeKetQuaPhat
+        authUser={authUser}
+        selectedBcvh={selectedBcvh}
+        selectedDate={selectedDate}
+        tyLeData={tyLeData}
+      />
 
       {/* ── BẢNG KHUNG GIỜ ĐẾN (TRÁI) & CÁC LẦN NHẬP GẦN ĐÂY (PHẢI) ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
