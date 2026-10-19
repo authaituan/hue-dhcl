@@ -741,5 +741,12 @@ Căn cứ: `33_THAMSO0_KHAO_SAT_THAM_SO.md`; chi tiết: `34_THAMSO1_BACKEND_BAN
 2. Phông: Playfair Display (tiêu đề) + Be Vietnam Pro (chữ thường), đóng gói OFFLINE bằng `@fontsource` (không tải từ mạng).
 3. Menu bên trái sẽ chuyển sang thanh ngang ở ticket THEME-3 (chưa làm). Màn Tivi không đổi theo ý định; THEME-2 làm đổi nhẹ trạng thái chờ / lỗi / mất mạng của Tivi do dùng chung thang màu — sửa ở THEME-2b.
 
+### 97. Màn «Xử lý và tỷ lệ phát» (`GET /api/phat/ty-le`) tính theo NGÀY ĐẾN (#92), khớp «Điều hành hôm nay» (PO quyết 19/10/2026 — PHAT-6)
+Căn cứ: PO thấy 19/10 màn Xử lý, ngày đến 18/10, BCVH Thuận Hóa: PTC 1/1.846 (Chưa có TT 99,9%) trong khi «Điều hành hôm nay» báo PTC 0/3.312. Test dữ liệu giả (`tests/phat-ty-le-ngay-den.test.js`) chứng minh nguyên nhân: `/ty-le` dùng `demNgay` mặc định (trạng thái hiện tại) nên SHBG đến 17 và 18, nhập 17/10, bị tính PTC cho cả lần đến 18/10; `ketQuaPhat` (theoLichSu) thì 0.
+1. `tyLeApi` gọi `demNgay(..., { theoLichSu: true })`: mẫu số, 5 nhóm, `muc_cap_nhat`, `theo_khung_gio_den` cùng quy tắc #92 với `ketQuaPhat` (cùng BCVH, cùng ngày ⇒ cùng số, có test ca a–e). Khóa phản hồi KHÔNG đổi.
+2. KHÔNG đổi (ngoài phạm vi): `demNgay` mặc định cho `nhapDot` / `hoanTacDot` / «trước / sau» của màn commit; `ton_cho` (vẫn theo trạng thái hiện tại, xét lùi 30 ngày); `so_lieu_den_luc`.
+3. Hệ quả đã đo: «Sau» của màn commit lệch `/ty-le` ở NGÀY ĐẾN CŨ của SHBG đến lại (bản nhập hôm nay tính cho ngày cũ theo quy tắc cũ, không theo #92). Có chuyển cả màn commit sang #92 hay không: PO quyết (ticket sau).
+4. Chi phí: `demNgay` theoLichSu ~56 ms so ~32 ms (1 BCVH 1 ngày, 744.000 dòng giả); `/ty-le` 1 BCVH ~1,2 s (trước ~1,3 s) vì `ton_cho` ~1,05 s; không thêm cache.
+
 ## Drift phát hiện
 _(chưa có)_

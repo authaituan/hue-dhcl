@@ -274,7 +274,7 @@ test('co_so_lieu_phat / so_lieu_den_luc THEO NGÀY: ngày chưa ai nhập = fals
   assert.equal(chua.ptc, 0);
   assert.equal(chua.muc_cap_nhat, 0);
 
-  // /ty-le GIỮ NGUYÊN hành vi cũ: cùng ngày chưa ai nhập vẫn ra giờ của đợt gần nhất (đây chính là lỗi khảo sát mà endpoint mới sửa)
+  // /ty-le: `so_lieu_den_luc` vẫn là giờ của đợt gần nhất (MAX phat_batches, không đổi ở PHAT-6; chỉ các SỐ theo trạng thái đã chuyển sang quy tắc ngày đến)
   const cuTyLe = (await call(`/api/phat/ty-le?bcvh=${M}&ngay=2026-10-19`, 'admin')).body;
   assert.equal(cuTyLe.so_lieu_den_luc, T_20B);
   // BCVH chưa từng có đợt nào
@@ -459,6 +459,7 @@ test('PHAT_PERF — đo ton_cho và endpoint mới trên dữ liệu giả 6 BCV
     `  demNgay theoLichSu 1 BCVH 1 ngày (DASH-12b-3, quy tắc nhập):  ${chay(() => P.demNgay(ctx.db, M, ngay, { theoLichSu: true }))} ms`,
     `  demNgay theoLichSu 6 BCVH × 30 ngày (một lượt, không cache): ${chay(() => { for (const bc of VALID_BCVH_CODES) for (let k = 0; k < 30; k++) P.demNgay(ctx.db, bc, ngayStr(k), { theoLichSu: true }); }, 1)} ms`,
     `  tonCho 1 BCVH (lùi 30 ngày):                              ${chay(() => P.tonCho(ctx.db, M, ngay, byUnit))} ms`,
+    `  /ty-le 1 BCVH 1 ngày (tyLeApi, PHAT-6: theo ngày đến):       ${chay(() => P.tyLeApi(ctx.db, { bcvh: M, ngay }), 3)} ms`,
     `  /ty-le gộp 6 BCVH (tyLeApi, gồm ton_cho):                   ${chay(() => P.tyLeApi(ctx.db, { bcvh: 'all', ngay }), 3)} ms`,
     `  endpoint mới ketQuaPhat 6 BCVH (không ton_cho):             ${chay(() => PD.ketQuaPhat(ctx.db, VALID_BCVH_CODES, { bcvh: 'all', ngay }))} ms`
   ];

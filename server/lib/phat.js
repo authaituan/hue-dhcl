@@ -616,7 +616,7 @@ function runGan(db, f, tu, denNgay, select, extra = {}, { them = '', materialize
  */
 function demNgay(db, bcvh, day, { demLoaiBo = false, theoLichSu = false } = {}) {
   const f = den.windowFilter(bcvh, day, '23:59:59');
-  // theoLichSu = true: quy tắc DASH-12b-3 (NHAP_CTE / NHAP_SELECT); mặc định false giữ NGUYÊN hành vi cũ (trạng thái hiện tại phat_status_current) cho /ty-le, commit / hoàn tác.
+  // theoLichSu = true: quy tắc DASH-12b-3 (NHAP_CTE / NHAP_SELECT); mặc định false giữ NGUYÊN hành vi cũ (trạng thái hiện tại phat_status_current) cho commit / hoàn tác (tyLeNgay); /ty-le đã chuyển sang true ở PHAT-6 (#97).
   const rows = theoLichSu
     ? runGan(db, f, day, day, NHAP_SELECT, { bcvh, x_day: day }, { them: NHAP_CTE, materialize: true })
     : runGan(db, f, day, day,
@@ -712,7 +712,7 @@ function tyLeApi(db, { bcvh = 'all', ngay = null } = {}) {
     const day = ngay || aq.latestFileDate(db, [c], byUnit);
     if (!day) continue;
     ngays.push(day);
-    const d = demNgay(db, c, day, { demLoaiBo: true });
+    const d = demNgay(db, c, day, { demLoaiBo: true, theoLichSu: true }); // PHAT-6 (#97): tỷ lệ theo NGÀY ĐẾN (#92), cùng cách dựng với ketQuaPhat
     loaiBo += d.loai_bo;
     congMap(so, d.tong);
     for (const k of C.KHUNG_GIO_DEN) congMap(khung[k.ma], d.khung[k.ma]);
