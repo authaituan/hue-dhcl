@@ -30,6 +30,26 @@ Một dòng chỉ ghi **một** mã lỗi, theo thứ tự: `SAI_DINH_DANG` > `T
 **Cảnh báo vàng** (`canh_bao`, nối bằng « · »): chuyển bất thường (bảng ở `server/config/phat.js`: từ `PTC`/`CHUYEN_HOAN` sang trạng thái khác; từ `PKTC`/`LAC_HUONG` về `CHUA_CO_TT`) và «Ghi chú bị cắt (tối đa 500 ký tự)» (ghi chú dài hơn 500 ký tự bị cắt, vẫn nhập).
 **Lỗi cần sửa** tách khỏi **không đổi**: `tong_hop.loi_can_sua`, `tong_hop.khong_doi` (`loi` = tổng hai loại).
 
+## 2b. «Đã vu hồi» — cờ phụ của PKTC (VUHOI-1, #106)
+- **Không phải trạng thái thứ 6.** Cột `da_vu_hoi INTEGER NOT NULL DEFAULT 0` ở `phat_status_current`, `phat_status_history` (CHECK `da_vu_hoi IN (0,1) AND (da_vu_hoi = 0 OR trang_thai = 'PKTC')`) và `phat_draft_rows` (CHECK `da_vu_hoi IN (0,1)`; thêm `hien_co_vu_hoi` = cờ của trạng thái hiện có). Dòng vu hồi vẫn có `trang_thai = 'PKTC'`: 5 trạng thái, `TT_MA`, `zeroMap`, `dungTyLe`, mẫu số, PTC, mức cập nhật, xếp hạng, Tivi, `tai-ve` **không đổi số**.
+- **Nhập:** nhãn «Đã vu hồi» (không phân biệt hoa/thường/dấu) hoặc mã `DA_VU_HOI` → `{ trang_thai: 'PKTC', da_vu_hoi: 1 }` (`trangThaiVuHoiTuChu`). Áp cho cột Trạng thái của file và `PATCH rows`, `fill`, `assign-list`. Danh sách chọn Excel có 6 nhãn; thông báo lỗi liệt kê đủ 6.
+- **Đánh giá theo cặp `(trang_thai, da_vu_hoi)`** so với hiện có (`kiemTraLai` đọc `da_vu_hoi` của `phat_status_current`):
+
+| Hiện có → nhập | Kết quả |
+|---|---|
+| PKTC (không cờ) → Đã vu hồi | `HOP_LE`, không cảnh báo |
+| Đã vu hồi → Đã vu hồi | `KHONG_DOI` |
+| Chưa có TT → Đã vu hồi | `HOP_LE`, không cảnh báo |
+| Đã vu hồi → Phát không thành công | `HOP_LE` + cảnh báo vàng «Bỏ đánh dấu vu hồi» |
+| PTC / Chuyển hoàn / Lạc hướng → Đã vu hồi | như đích PKTC (cảnh báo «Chuyển bất thường» nếu có), vẫn nhập |
+| Đã vu hồi → PTC / Chuyển hoàn / Lạc hướng / Chưa có TT | như từ PKTC; cờ mất |
+
+- **Cờ không bền:** bản nhập cuối quyết định — nhập trạng thái khác sau đó thì cờ mất (PO chấp nhận, R2). Không có cột «từng vu hồi».
+- **Ghi / hoàn tác:** `nhapDot` ghi cờ vào current và history; `hoanTacDot` khôi phục cờ từ bản `prev` (0 nếu không có). `dongRa` trả thêm `da_vu_hoi`, `hien_co_vu_hoi` (trường cũ giữ nguyên).
+- **File mẫu / file lỗi:** dòng PKTC có cờ ghi «Đã vu hồi» ở «Trạng thái hiện có»; `scope=tat-ca` nạp sẵn «Đã vu hồi» ở cột Trạng thái (nhập lại không mất cờ). File lỗi giữ nhãn.
+- **Nâng cấp DB:** cột được thêm bằng `ALTER TABLE … ADD COLUMN` khi khởi động (`server/db.js` gọi `ensurePhatSchema`, không bọc giao dịch; mỗi lệnh ALTER là nguyên tử, chạy lại idempotent). **Sao lưu file DB `data/hue-dhcl.db` (cùng `-wal`, `-shm`) TRƯỚC khi chạy bản mới.**
+- **Chưa làm:** tỷ lệ vu hồi trong API (VUHOI-2), cột cờ trong bảng kê `tai-ve`, giao diện.
+
 ## 3. Bảng (`server/lib/phat.js` tự tạo khi khởi động; idempotent, thêm cột cho DB cũ)
 | Bảng | Nội dung |
 |---|---|

@@ -208,10 +208,10 @@ test('file mẫu «tất cả»: mỗi SHBG đúng một dòng (SHBG đến lạ
   assert.ok(!ws.sheetProtection.hashValue && !ws.sheetProtection.saltValue, 'không đặt mật khẩu');
   for (const c of ['A2', 'B2', 'C2', 'D2', 'E2']) assert.notEqual(ws.getCell(c).protection && ws.getCell(c).protection.locked, false, `${c} bị khóa`);
   for (const c of ['F2', 'G2', 'F10', 'G10']) assert.equal(ws.getCell(c).protection.locked, false, `${c} mở khóa`);
-  // Danh sách chọn 5 nhãn ở cột Trạng thái
+  // Danh sách chọn 6 nhãn (5 trạng thái + «Đã vu hồi», VUHOI-1) ở cột Trạng thái
   const dv = ws.dataValidations.model.F2;
   assert.equal(dv.type, 'list');
-  assert.equal(dv.formulae[0], `"${C.TRANG_THAI.map((t) => t.nhan).join(',')}"`);
+  assert.equal(dv.formulae[0], `"${[...C.TRANG_THAI.map((t) => t.nhan), 'Đã vu hồi'].join(',')}"`);
   assert.ok(ws.dataValidations.model.F10, 'áp cho mọi dòng');
   // Sheet ẩn _meta
   const meta = wb.getWorksheet('_meta');
