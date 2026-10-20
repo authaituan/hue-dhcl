@@ -2,6 +2,11 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - DOCS-2: đồng bộ `docs/ai/` với main sau PR #106–#111
+
+- **Đồng bộ** docs với TAIVE-2 (#106), GANBCVH-1 (#107), VUHOI-1 (#108), VUHOI-2 (#109), TAIVE-3 (#110), VUHOI-3 (#111): mốc main `4e579de`, mốc test 772 ca (771 pass, 1 skip), bảng kê 9 cột, hai API vu hồi, giao diện dòng «Vu hồi».
+- **Ghi** các việc còn nợ vào `00_SNAPSHOT.md` mục 6; sửa chữ lỗi thời ở `05_BACKLOG.md` mục 7b. Chỉ docs, không đổi mã.
+
 ## [2026-10-20] - TAIVE-3: bảng kê `tai-ve` thêm cột «Đã vu hồi» và bộ lọc `DA_VU_HOI`
 
 - **Sửa** `server/lib/phatTaiVe.js` (cột thứ 5 «Đã vu hồi», nối `phat_status_history` bằng `r.sel`, điều kiện lọc `KHOP_SQL`) và `server/routes/phat.js` (chỉ kiểm giá trị `trang_thai` + thông báo 400 nêu `DA_VU_HOI`). File 9 cột; `PKTC` gồm cả dòng có cờ; số dòng không đổi.
