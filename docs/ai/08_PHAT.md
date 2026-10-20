@@ -45,7 +45,7 @@ Một dòng chỉ ghi **một** mã lỗi, theo thứ tự: `SAI_DINH_DANG` > `T
 | Đã vu hồi → PTC / Chuyển hoàn / Lạc hướng / Chưa có TT | như từ PKTC; cờ mất |
 
 - **Cờ không bền:** bản nhập cuối quyết định — nhập trạng thái khác sau đó thì cờ mất (PO chấp nhận, R2). Không có cột «từng vu hồi».
-- **Ghi / hoàn tác:** `nhapDot` ghi cờ vào current và history; `hoanTacDot` khôi phục cờ từ bản `prev` (0 nếu không có). `dongRa` trả thêm `da_vu_hoi`, `hien_co_vu_hoi` (trường cũ giữ nguyên).
+- **Ghi / hoàn tác:** `nhapDot` ghi cờ vào current và history; `hoanTacDot` khôi phục cờ từ bản `prev` (0 nếu không có). `dongRa` trả thêm `da_vu_hoi`, `hien_co_vu_hoi` (trường cũ giữ nguyên). VUHOI-4b0: `dongRa` trả nhãn «Đã vu hồi» cho `trang_thai_nhan` / `trang_thai_hien_co_nhan` khi dòng có cờ (qua `nhanTrangThai`); mã `trang_thai` / `trang_thai_hien_co` vẫn `PKTC`.
 - **File mẫu / file lỗi:** dòng PKTC có cờ ghi «Đã vu hồi» ở «Trạng thái hiện có»; `scope=tat-ca` nạp sẵn «Đã vu hồi» ở cột Trạng thái (nhập lại không mất cờ). File lỗi giữ nhãn.
 - **Nâng cấp DB:** cột được thêm bằng `ALTER TABLE … ADD COLUMN` khi khởi động (`server/db.js` gọi `ensurePhatSchema`, không bọc giao dịch; mỗi lệnh ALTER là nguyên tử, chạy lại idempotent). **Sao lưu file DB `data/hue-dhcl.db` (cùng `-wal`, `-shm`) TRƯỚC khi chạy bản mới.**
 

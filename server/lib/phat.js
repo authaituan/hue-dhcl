@@ -370,8 +370,8 @@ function dsBanKiemTra(db, { bcvh, user, tatCa }) {
 
 const dongRa = (r) => ({
   id: r.id, so_dong_goc: r.so_dong_goc, shbg: r.shbg,
-  trang_thai: r.trang_thai, trang_thai_nhan: r.trang_thai ? C.TT_NHAN[r.trang_thai] : null, trang_thai_file: r.trang_thai_file,
-  ghi_chu: r.ghi_chu || '', trang_thai_hien_co: r.trang_thai_hien_co, trang_thai_hien_co_nhan: r.trang_thai_hien_co ? C.TT_NHAN[r.trang_thai_hien_co] : null,
+  trang_thai: r.trang_thai, trang_thai_nhan: r.trang_thai ? C.nhanTrangThai(r.trang_thai, r.da_vu_hoi) : null, trang_thai_file: r.trang_thai_file,
+  ghi_chu: r.ghi_chu || '', trang_thai_hien_co: r.trang_thai_hien_co, trang_thai_hien_co_nhan: r.trang_thai_hien_co ? C.nhanTrangThai(r.trang_thai_hien_co, r.hien_co_vu_hoi) : null,
   ket_qua: r.ket_qua, ma_loi: r.ma_loi, ly_do: r.chi_tiet_loi, canh_bao: r.canh_bao,
   da_vu_hoi: r.da_vu_hoi ? 1 : 0, hien_co_vu_hoi: r.hien_co_vu_hoi ? 1 : 0
 });

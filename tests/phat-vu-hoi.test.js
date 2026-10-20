@@ -233,7 +233,7 @@ test('4. nhập «Đã vu hồi»: current + history mang cờ; PKTC -> vu hồi
   const up = await taiLen([[sh(1), 'Đã vu hồi', 'ghi chú'], [sh(2), 'Phát không thành công', null]]);
   const it = theoShbg(await dongBan(up.body.id));
   assert.deepEqual([it[sh(1)].trang_thai, it[sh(1)].da_vu_hoi, it[sh(1)].ket_qua, it[sh(1)].canh_bao], ['PKTC', 1, 'HOP_LE', null]);
-  assert.equal(it[sh(1)].trang_thai_nhan, 'Phát không thành công', 'trường cũ giữ nguyên nghĩa (mã PKTC)');
+  assert.equal(it[sh(1)].trang_thai_nhan, 'Đã vu hồi', 'VUHOI-4b0: nhãn dòng có cờ là «Đã vu hồi»; mã trang_thai vẫn PKTC');
   assert.equal((await commit(up.body.id)).status, 200);
   assert.deepEqual(hienTai(sh(1)), ['PKTC', 1]);
   assert.deepEqual(hienTai(sh(2)), ['PKTC', 0]);
@@ -417,4 +417,36 @@ test('8. PATCH rows / fill / assign-list nhận «Đã vu hồi» và DA_VU_HOI;
 
   assert.equal((await commit(id)).status, 200);
   assert.deepEqual([hienTai(sh(10)), hienTai(sh(11)), hienTai(sh(16))], [['CHUYEN_HOAN', 0], ['PKTC', 1], ['PKTC', 1]]);
+});
+
+// ---------------- 9. Nhãn dòng nháp (VUHOI-4b0) ----------------
+test('9. dongRa: trang_thai_nhan / trang_thai_hien_co_nhan trả «Đã vu hồi» khi có cờ; mã giữ nguyên; dòng không cờ giữ nhãn cũ; bỏ cờ vẫn cảnh báo', async () => {
+  // (i)(ii)(iv) nhãn của dòng nháp
+  const up = await taiLen([[sh(5), 'Đã vu hồi', null], [sh(8), 'Phát không thành công', null], [sh(13), 'Phát thành công', null],
+    [sh(14), 'Chuyển hoàn', null], [sh(17), 'Lạc hướng', null], [sh(18), 'Chưa có thông tin phát', null]]);
+  assert.equal(up.status, 201, JSON.stringify(up.body));
+  let it = theoShbg(await dongBan(up.body.id));
+  assert.deepEqual([it[sh(5)].trang_thai, it[sh(5)].trang_thai_nhan, it[sh(5)].da_vu_hoi], ['PKTC', 'Đã vu hồi', 1]);
+  assert.deepEqual([it[sh(8)].trang_thai, it[sh(8)].trang_thai_nhan, it[sh(8)].da_vu_hoi], ['PKTC', 'Phát không thành công', 0]);
+  assert.equal(it[sh(13)].trang_thai_nhan, 'Phát thành công');
+  assert.equal(it[sh(14)].trang_thai_nhan, 'Chuyển hoàn');
+  assert.equal(it[sh(17)].trang_thai_nhan, 'Lạc hướng');
+  assert.equal(it[sh(18)].trang_thai_nhan, 'Chưa có thông tin phát');
+  await api('DELETE', `/api/phat/drafts/${up.body.id}`);
+
+  // (iii) trạng thái hiện có là PKTC có cờ; (iv) hiện có PTC giữ nhãn cũ
+  await nhap([[sh(5), 'Đã vu hồi', null], [sh(8), 'Phát thành công', null]]);
+  const up2 = await taiLen([[sh(5), 'Đã vu hồi', null], [sh(8), 'Chuyển hoàn', null]]);
+  it = theoShbg(await dongBan(up2.body.id));
+  assert.deepEqual([it[sh(5)].trang_thai_hien_co, it[sh(5)].trang_thai_hien_co_nhan, it[sh(5)].hien_co_vu_hoi], ['PKTC', 'Đã vu hồi', 1]);
+  assert.deepEqual([it[sh(8)].trang_thai_hien_co, it[sh(8)].trang_thai_hien_co_nhan, it[sh(8)].hien_co_vu_hoi], ['PTC', 'Phát thành công', 0]);
+  await api('DELETE', `/api/phat/drafts/${up2.body.id}`);
+
+  // (v) bỏ cờ: hiện có «Đã vu hồi», đích «Phát không thành công», cảnh báo giữ nguyên
+  const up3 = await taiLen([[sh(5), 'Phát không thành công', null]]);
+  const d = (await dongBan(up3.body.id))[0];
+  assert.deepEqual([d.trang_thai, d.trang_thai_nhan, d.da_vu_hoi], ['PKTC', 'Phát không thành công', 0]);
+  assert.deepEqual([d.trang_thai_hien_co, d.trang_thai_hien_co_nhan, d.hien_co_vu_hoi], ['PKTC', 'Đã vu hồi', 1]);
+  assert.equal(d.canh_bao, 'Bỏ đánh dấu vu hồi');
+  await api('DELETE', `/api/phat/drafts/${up3.body.id}`);
 });
