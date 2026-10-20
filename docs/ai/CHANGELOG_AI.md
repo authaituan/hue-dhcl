@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - NAS-6: sửa cấu hình Docker/NAS và hướng dẫn theo khảo sát NAS-5 (không đụng mã ứng dụng)
+
+- **Sửa** `docker-compose.yml`: thêm `init: true` (node nhận SIGTERM khi `down`/`stop`, WAL đóng gọn); truyền thêm biến tùy chọn `PHAT_WARM`, `TAIVE_MAX_DONG` (trống = mặc định; đã kiểm `server/index.js:88`, `server/lib/phatTaiVe.js:34`).
+- **Sửa** `.env.nas.example`: `JWT_SECRET=` để trống (compose bắt buộc), chú thích rõ `CMS_ALLOWED_IPS` (thay giá trị mẫu, giữ `127.0.0.1`, CIDR IPv4, không dùng `*`), thêm `PHAT_WARM`, `TAIVE_MAX_DONG`.
+- **Sửa** `docs/ai/20_NAS_HUONG_DAN_CHAY.md`: cách lấy vân tay (chạy `scripts/sftp-probe.js` từ máy dev; lần đầu để trống `SFTP_*`), số phận tài khoản `staff_test`/`tv`/`tv533140`, không có kiểm phiên bản DB, `docker compose config -q`, thời gian `down` và chép DB sau `down`, `data/backups` có thể phình, biến tùy chọn.
+- **Chưa kiểm chứng**: chạy Docker (máy dev không có), `init: true` trên Container Manager.
+
 ## [2026-10-20] - DOCS-3: đồng bộ `docs/ai/` với main sau PR #113–#116
 
 - **Đồng bộ** docs với LABEL-1 (#113), VUHOI-4b0 (#114), VUHOI-4d (#115), VUHOI-4b (#116): mốc main `799c40b`, mốc test 773 ca (772 pass, 0 fail, 1 skip — theo ticket, không tự chạy lại).
