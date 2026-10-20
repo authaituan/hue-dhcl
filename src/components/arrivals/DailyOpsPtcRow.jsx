@@ -3,7 +3,7 @@ import { AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { apiFetchJson } from '../../utils/api';
 import { formatPercent } from './DailyOpsDashboard';
 import {
-  PTC_THANG_CAU_HINH, PtcSparkline, ChenhChip, PtcThangFooter, chuoiTheoNgay, formatPct1, ddMm, nhanLuyKe
+  PTC_THANG_CAU_HINH, PtcSparkline, ChenhChip, PtcThangFooter, chuoiTheoNgay, formatPct1, ddMm, nhanLuyKe, chuGiaiLuyKe
 } from './DailyOpsPtcThang';
 import { VuHoiChipLine } from '../../utils/vuHoi';
 import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
@@ -41,9 +41,9 @@ export function formatBangkokTime(str) {
 }
 
 /** Một cột số lớn của thẻ PTC lớn: nhãn, số, tử / mẫu (+ ghi chú một dòng). */
-function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong = false }) {
+function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong = false, title = undefined }) {
   return (
-    <div className="min-w-0 shrink-0 w-[96px]">
+    <div className="min-w-0 shrink-0 w-[96px]" title={title}>
       <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">{nhan}</div>
       {trong ? (
         <div className="hue-num-md leading-none my-0.5 text-gray-400">…</div>
@@ -53,7 +53,7 @@ function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong
           <div className="text-[11px] font-semibold text-gray-600 whitespace-nowrap font-sans">{so} / {mau}</div>
         </>
       )}
-      {ghiChu && <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{ghiChu}</div>}
+      {ghiChu && <div className="text-[10px] text-gray-400 mt-0.5 leading-tight" title={title}>{ghiChu}</div>}
     </div>
   );
 }
@@ -234,11 +234,10 @@ export default function DailyOpsPtcRow({ authUser, ketQuaPhat, phatError, thang 
   const luyPtc = L?.theo_trang_thai?.PTC;
   const coLuyKe = !!L && L.so_ngay_co_so_lieu > 0 && L.mau_so > 0;
   const nhanTu = L ? `TỪ ${ddMm(L.tu_ngay)}` : 'TỪ ĐẦU THÁNG';
-  const denNgay = coLuyKe ? nhanLuyKe(thang) : '';
-  const denDuCuoi = denNgay && !denNgay.endsWith('→') ? denNgay.split('→')[1] : null; // hôm nay chưa tính: ghi ngày đủ cuối cùng
   const luyGhiChu = coLuyKe
-    ? `${denDuCuoi ? `đến ${denDuCuoi} · ` : ''}${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ`
+    ? `đến ${ddMm(L.den_ngay)} · ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ`
     : (L ? 'Chưa có ngày đủ số liệu' : null);
+  const luyTitle = chuGiaiLuyKe(thang);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -268,6 +267,7 @@ export default function DailyOpsPtcRow({ authUser, ketQuaPhat, phatError, thang 
             tyLe={coLuyKe ? formatPct1(luyPtc?.ty_le) : '—'}
             trong={dangTai}
             ghiChu={dangTai ? null : luyGhiChu}
+            title={dangTai ? undefined : (luyTitle || undefined)}
           />
           <div className="flex-1 min-w-[120px] flex flex-col justify-between gap-1">
             <div>
