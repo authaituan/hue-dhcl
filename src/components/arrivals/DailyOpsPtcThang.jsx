@@ -119,14 +119,42 @@ export function nhanLuyKe(thang) {
 /**
  * Chân thẻ nhỏ cao 44px, nền xám nhạt: «01/MM→ số · %» và chênh «▲/▼ x điểm». thang: null = đang tải; false / không có luy_ke = lỗi / chưa có số liệu.
  */
-export function PtcThangFooter({ thang, ma }) {
+export function PtcThangFooter({ thang, ma, vuHoiThang = null }) {
   const cfg = PTC_THANG_CAU_HINH[ma];
-  const khung = 'h-11 shrink-0 bg-cream-foot border-t border-cream-line px-4 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
+  const khung = 'min-h-[44px] shrink-0 bg-cream-foot border-t border-cream-line px-4 py-1.5 flex flex-col justify-center gap-0.5 text-[11px] leading-[14px] overflow-hidden';
   if (thang === null || thang === undefined) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: …</div>;
   const L = thang && thang.luy_ke;
   if (!L || !cfg) return <div className={`${khung} text-gray-400`}>Từ đầu tháng: chưa có số liệu</div>;
   const tt = L.theo_trang_thai?.[ma];
   const co = L.so_ngay_co_so_lieu > 0 && L.mau_so > 0;
+
+  let vuHoiThangNode = null;
+  const luyPktcSo = L.theo_trang_thai?.PKTC?.so;
+  const khopPktc = vuHoiThang && vuHoiThang.pktc === luyPktcSo;
+  if (ma === 'PKTC' && khopPktc && vuHoiThang.hien_thi) {
+    const { hien_thi, da_vu_hoi = 0, pktc = 0, ty_le } = vuHoiThang;
+    const prefix = nhanLuyKe(thang);
+    if (hien_thi === 'TY_LE') {
+      vuHoiThangNode = (
+        <span className="min-w-0 truncate text-gray-500 font-semibold">
+          Vu hồi {prefix} <span className="font-bold text-gray-800 font-sans">{Number(da_vu_hoi).toLocaleString('vi-VN')} / {Number(pktc).toLocaleString('vi-VN')}</span> · {formatPct1(ty_le)}
+        </span>
+      );
+    } else if (hien_thi === 'SO_TUYET_DOI') {
+      vuHoiThangNode = (
+        <span className="min-w-0 truncate text-gray-500 font-semibold">
+          Vu hồi {prefix} <span className="font-bold text-gray-800 font-sans">{Number(da_vu_hoi).toLocaleString('vi-VN')} / {Number(pktc).toLocaleString('vi-VN')}</span>
+        </span>
+      );
+    } else if (hien_thi === 'CHUA_CO_SO_LIEU') {
+      vuHoiThangNode = (
+        <span className="min-w-0 truncate text-gray-500 font-semibold">
+          Vu hồi {prefix ? `${prefix} ` : ''}<span className="text-gray-400 font-medium">chưa có số liệu</span>
+        </span>
+      );
+    }
+  }
+
   return (
     <div className={khung}>
       <span className="min-w-0 truncate text-gray-500 font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
@@ -136,6 +164,7 @@ export function PtcThangFooter({ thang, ma }) {
           <span className="text-gray-400 font-medium">Chưa có ngày đủ số liệu</span>
         )}
       </span>
+      {vuHoiThangNode}
       <span className="min-w-0 leading-none"><ChenhChip chenh={thang.chenh?.[ma] || null} xauKhiTang={cfg.xauKhiTang} ngan /></span>
     </div>
   );

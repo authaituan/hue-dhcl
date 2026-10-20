@@ -9,6 +9,7 @@ import PhatHistoryView from './PhatHistoryView';
 import CustomDatePicker from '../common/CustomDatePicker';
 import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
 import BangKeKetQuaPhat from './BangKeKetQuaPhat';
+import { VuHoiChipLine, ddMm } from '../../utils/vuHoi';
 
 // Định dạng tỷ lệ dạng 0..1 sang chuỗi % một chữ số thập phân dùng dấu phẩy (vd: 0.86 -> 86,0%)
 export function formatRatePercent(r) {
@@ -57,6 +58,67 @@ export default function ProcessingDeliveryView({ authUser }) {
   const [loading, setLoading] = useState(false);
   const [tyLeData, setTyLeData] = useState(null);
   const [tyLeError, setTyLeError] = useState(null);
+
+  const [vuHoiNgay, setVuHoiNgay] = useState(null);
+  const [vuHoiThang, setVuHoiThang] = useState(null);
+  const [thangData, setThangData] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const isTivi = authUser?.role === 'TIVI';
+  const effectiveNgay = selectedDate || tyLeData?.ngay;
+  const effectiveBcvh = selectedBcvh || 'all';
+  const effectiveThang = effectiveNgay ? effectiveNgay.slice(0, 7) : null;
+
+  useEffect(() => {
+    if (isTivi || !effectiveNgay || !effectiveBcvh) {
+      setVuHoiNgay(null);
+      return;
+    }
+    let active = true;
+    apiFetchJson(`/api/arrivals/dashboard/vu-hoi?ngay_den=${effectiveNgay}&bcvh=${effectiveBcvh}`)
+      .then((res) => {
+        if (!active) return;
+        setVuHoiNgay(res.ok && res.data?.tong ? res.data.tong : null);
+      })
+      .catch(() => {
+        if (active) setVuHoiNgay(null);
+      });
+    return () => { active = false; };
+  }, [isTivi, effectiveNgay, effectiveBcvh, refreshTrigger]);
+
+  useEffect(() => {
+    if (isTivi || !effectiveNgay || !effectiveBcvh) {
+      setThangData(null);
+      return;
+    }
+    let active = true;
+    apiFetchJson(`/api/arrivals/dashboard/ket-qua-phat-thang?bcvh=${effectiveBcvh}&ngay=${effectiveNgay}`)
+      .then((res) => {
+        if (!active) return;
+        setThangData(res.ok && res.data ? res.data : null);
+      })
+      .catch(() => {
+        if (active) setThangData(null);
+      });
+    return () => { active = false; };
+  }, [isTivi, effectiveNgay, effectiveBcvh, refreshTrigger]);
+
+  useEffect(() => {
+    if (isTivi || !effectiveThang || !effectiveBcvh) {
+      setVuHoiThang(null);
+      return;
+    }
+    let active = true;
+    apiFetchJson(`/api/arrivals/dashboard/vu-hoi-thang?thang=${effectiveThang}&bcvh=${effectiveBcvh}`)
+      .then((res) => {
+        if (!active) return;
+        setVuHoiThang(res.ok && res.data?.tong ? res.data.tong : null);
+      })
+      .catch(() => {
+        if (active) setVuHoiThang(null);
+      });
+    return () => { active = false; };
+  }, [isTivi, effectiveThang, effectiveBcvh, refreshTrigger]);
 
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
@@ -347,6 +409,7 @@ export default function ProcessingDeliveryView({ authUser }) {
             onClick={() => {
               loadTyLe(selectedBcvh, selectedDate);
               loadBatches(selectedBcvh);
+              setRefreshTrigger((c) => c + 1);
             }}
             disabled={loading}
             title="Tải lại số liệu"
@@ -453,6 +516,9 @@ export default function ProcessingDeliveryView({ authUser }) {
               {formatInt(theoTT.PKTC?.so)} bưu gửi
             </div>
           </div>
+          {vuHoiNgay && (
+            <VuHoiChipLine data={vuHoiNgay} />
+          )}
         </div>
 
         {/* THẺ 3: CHUYỂN HOÀN */}
@@ -509,6 +575,105 @@ export default function ProcessingDeliveryView({ authUser }) {
           </div>
         </div>
       </div>
+
+      {/* ── HÀNG LŨY KẾ (VUHOI-3) ────────────────────────────────────────────── */}
+      {!isTivi && thangData?.luy_ke && (
+        <div className="space-y-2.5">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            {`LŨY KẾ ${ddMm(thangData.luy_ke.tu_ngay)}–${ddMm(thangData.luy_ke.den_ngay)} · ${thangData.luy_ke.so_ngay_co_so_lieu}/${thangData.luy_ke.so_ngay_trong_khoang} NGÀY ĐỦ SỐ LIỆU`}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            {/* THẺ 1: PHÁT THÀNH CÔNG (PTC) */}
+            <div className="bg-cream-light rounded-[14px] p-4 border-2 border-orange-600 ring-2 ring-amber-400/50 shadow-none flex flex-col justify-between min-h-[148px]">
+              <div>
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                  PHÁT THÀNH CÔNG (PTC)
+                </div>
+                <div
+                  className="hue-num-sm my-2 text-emerald-600"
+                >
+                  {formatRatePercent(thangData.luy_ke.theo_trang_thai?.PTC?.ty_le)}
+                </div>
+                <div className="text-xs font-semibold text-gray-600 tabular-nums">
+                  {formatInt(thangData.luy_ke.theo_trang_thai?.PTC?.so)} / {formatInt(thangData.luy_ke.mau_so)} bưu gửi
+                </div>
+              </div>
+            </div>
+
+            {/* THẺ 2: PHÁT KHÔNG THÀNH CÔNG */}
+            <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
+              <div>
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                  PHÁT KHÔNG THÀNH CÔNG
+                </div>
+                <div
+                  className="hue-num-sm my-2 text-red-600"
+                >
+                  {formatRatePercent(thangData.luy_ke.theo_trang_thai?.PKTC?.ty_le)}
+                </div>
+                <div className="text-xs font-medium text-gray-600 tabular-nums">
+                  {formatInt(thangData.luy_ke.theo_trang_thai?.PKTC?.so)} bưu gửi
+                </div>
+              </div>
+              {vuHoiThang && vuHoiThang.pktc === thangData.luy_ke.theo_trang_thai?.PKTC?.so && (
+                <VuHoiChipLine data={vuHoiThang} />
+              )}
+            </div>
+
+            {/* THẺ 3: CHUYỂN HOÀN */}
+            <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
+              <div>
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                  CHUYỂN HOÀN
+                </div>
+                <div
+                  className="hue-num-sm my-2 text-amber-700"
+                >
+                  {formatRatePercent(thangData.luy_ke.theo_trang_thai?.CHUYEN_HOAN?.ty_le)}
+                </div>
+                <div className="text-xs font-medium text-gray-600 tabular-nums">
+                  {formatInt(thangData.luy_ke.theo_trang_thai?.CHUYEN_HOAN?.so)} bưu gửi
+                </div>
+              </div>
+            </div>
+
+            {/* THẺ 4: LẠC HƯỚNG */}
+            <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
+              <div>
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                  LẠC HƯỚNG
+                </div>
+                <div
+                  className="hue-num-sm my-2 text-amber-700"
+                >
+                  {formatRatePercent(thangData.luy_ke.theo_trang_thai?.LAC_HUONG?.ty_le)}
+                </div>
+                <div className="text-xs font-medium text-gray-600 tabular-nums">
+                  {formatInt(thangData.luy_ke.theo_trang_thai?.LAC_HUONG?.so)} bưu gửi
+                </div>
+              </div>
+            </div>
+
+            {/* THẺ 5: CHƯA CÓ THÔNG TIN PHÁT */}
+            <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[148px]">
+              <div>
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                  CHƯA CÓ THÔNG TIN PHÁT
+                </div>
+                <div
+                  className="hue-num-sm my-2 text-gray-800"
+                >
+                  {formatRatePercent(thangData.luy_ke.theo_trang_thai?.CHUA_CO_TT?.ty_le)}
+                </div>
+                <div className="text-xs font-medium text-gray-600 tabular-nums">
+                  {formatInt(thangData.luy_ke.theo_trang_thai?.CHUA_CO_TT?.so)} bưu gửi chưa được cập nhật
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MỤC BẢNG KÊ KẾT QUẢ PHÁT THEO NGÀY ĐẾN (TAIVE-2) ────────────────── */}
       <BangKeKetQuaPhat
