@@ -319,7 +319,8 @@ router.get('/phat/tai-ve', authRequired, xemGuard, wrap(async (req, res) => {
   if (!bcvh) throw new PhatError(400, 'Thiếu tham số "bcvh" (mã BCVH hoặc "all")');
   if (bcvh !== 'all' && !VALID_BCVH_CODES.includes(bcvh)) throw new PhatError(400, `Tham số "bcvh" phải là "all" hoặc một trong: ${VALID_BCVH_CODES.join(', ')}`);
   const tt = one('trang_thai') || null;
-  if (tt && !C.TT_MA.includes(tt)) throw new PhatError(400, `Tham số "trang_thai" phải là một trong: ${C.TT_MA.join(', ')}`);
+  const ttHopLe = [...C.TT_MA, C.DA_VU_HOI.ma]; // TAIVE-3: DA_VU_HOI = PKTC có cờ (không phải trạng thái thứ 6)
+  if (tt && !ttHopLe.includes(tt)) throw new PhatError(400, `Tham số "trang_thai" phải là một trong: ${ttHopLe.join(', ')}`);
   if (bcvh === 'all') {
     if (req.user.role === ROLES.GDVH) throw new PhatError(403, 'Tài khoản GDVH chỉ tải được bảng kê của từng BCVH được giao, không tải được "all"');
   } else {

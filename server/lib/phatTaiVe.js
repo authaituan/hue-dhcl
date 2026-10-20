@@ -2,7 +2,7 @@
 // TAIVE-1: «Bảng kê kết quả phát theo ngày đến» — GET /api/phat/tai-ve (docs/ai/08_PHAT.md, 04_DECISIONS.md #98).
 // Mỗi SHBG đến BCVH trong ngày ngay_den một dòng, kèm kết quả phát theo quy tắc ngày đến #92. KHÔNG có logic dựng trạng thái riêng: dùng ĐÚNG
 // P.GAN_CTE (DASH-7f), P.NHAP_CTE + P.NHAP_ROW (#92) và aq.buildCountedCte của demNgay — số dòng = mẫu số của /ty-le và ketQuaPhat cùng (BCVH, ngày).
-// Chưa có cột cờ «vu hồi» (sẽ thêm ở VUHOI-1/2). Ghi file Excel theo luồng (ExcelJS WorkbookWriter), mọi ô là văn bản; chỉ đọc DB.
+// TAIVE-3: thêm cột «Đã vu hồi» (cờ da_vu_hoi của ĐÚNG dòng lịch sử r.sel, như phatVuHoi.demNgay — nối thêm, không đổi NHAP_* / tập hàng) và bộ lọc DA_VU_HOI. Ghi file Excel theo luồng (ExcelJS WorkbookWriter), mọi ô là văn bản; chỉ đọc DB.
 // ==========================================
 'use strict';
 const ExcelJS = require('exceljs');
@@ -22,6 +22,7 @@ const COT = Object.freeze([
   { header: 'BCVH', width: 28 },
   { header: 'Ngày giờ đến', width: 21 },
   { header: 'Trạng thái phát', width: 24 },
+  { header: 'Đã vu hồi', width: 12 },
   { header: 'Ghi chú', width: 36 },
   { header: 'Giờ nhập', width: 21 },
   { header: 'Đợt nhập', width: 11 },
@@ -42,22 +43,24 @@ function dung(db, bcvh, ngay, tt) {
   const { sql, params } = aq.buildCountedCte(db, den.windowFilter(bcvh, ngay, '23:59:59'), { materialize: true });
   return {
     head: `WITH ${sql}, ${P.GAN_CTE}, ${P.NHAP_CTE}`,
-    prm: { ...params, g_tu: ngay, g_den: ngay, g_all: JSON.stringify(VALID_BCVH_CODES), bcvh, x_day: ngay, x_tt: tt || null }
+    prm: { ...params, g_tu: ngay, g_den: ngay, g_all: JSON.stringify(VALID_BCVH_CODES), bcvh, x_day: ngay, x_tt: tt === C.DA_VU_HOI.ma ? C.DA_VU_HOI.trang_thai : (tt || null), x_vh: tt === C.DA_VU_HOI.ma ? 1 : 0 }
   };
 }
 
 const TT_SQL = "COALESCE(r.tt0, 'CHUA_CO_TT')";
+// Khớp bộ lọc: đúng trạng thái; riêng DA_VU_HOI (x_vh = 1) = PKTC có cờ trên dòng lịch sử đã chọn (h). PKTC (x_vh = 0) vẫn gồm cả dòng có cờ.
+const KHOP_SQL = `(${TT_SQL} = @x_tt AND (@x_vh = 0 OR h.da_vu_hoi = 1))`;
 function dem(db, bcvh, ngay, tt) {
   const { head, prm } = dung(db, bcvh, ngay, tt);
-  const r = db.prepare(`${head} SELECT COUNT(*) AS n, COALESCE(SUM(${TT_SQL} = @x_tt), 0) AS k FROM (${P.NHAP_ROW}) r`).get(prm);
+  const r = db.prepare(`${head} SELECT COUNT(*) AS n, COALESCE(SUM(${KHOP_SQL}), 0) AS k FROM (${P.NHAP_ROW}) r LEFT JOIN phat_status_history h ON h.id = r.sel`).get(prm);
   return { tong: r.n, loc: tt ? r.k : r.n };
 }
 function layDong(db, bcvh, ngay, tt) {
   const { head, prm } = dung(db, bcvh, ngay, tt);
   return db.prepare(`${head}
-    SELECT r.shbg AS shbg, r.t AS t, ${TT_SQL} AS tt, r.nl AS nl, h.ghi_chu AS ghi_chu, h.batch_id AS batch_id, b.user_id AS user_id, u.hrm_code AS hrm, u.full_name AS ten
+    SELECT r.shbg AS shbg, r.t AS t, ${TT_SQL} AS tt, r.nl AS nl, h.ghi_chu AS ghi_chu, h.da_vu_hoi AS vh, h.batch_id AS batch_id, b.user_id AS user_id, u.hrm_code AS hrm, u.full_name AS ten
     FROM (${P.NHAP_ROW}) r LEFT JOIN phat_status_history h ON h.id = r.sel LEFT JOIN phat_batches b ON b.id = h.batch_id LEFT JOIN users u ON u.id = b.user_id
-    WHERE (@x_tt IS NULL OR ${TT_SQL} = @x_tt) ORDER BY r.t, r.shbg`).all(prm);
+    WHERE (@x_tt IS NULL OR ${KHOP_SQL}) ORDER BY r.t, r.shbg`).all(prm);
 }
 
 /** Người nhập: còn tài khoản -> «Họ tên (mã)»; tài khoản đã xóa -> «(đã xóa) <mã người dùng>». */
@@ -106,6 +109,7 @@ async function ghi(db, kh, out, shouldStop = () => false) {
       const co = r.tt !== C.TT_CHUA_CO && r.nl; // «Chưa có TT»: các cột phía nhập để trống
       ws.addRow([
         text(r.shbg), text(nhan), text(exp.formatTime(r.t)), text(C.TT_NHAN[r.tt]),
+        r.tt === 'PKTC' && r.vh === 1 ? text('Có') : null, // cờ phụ của PKTC; mọi dòng khác (kể cả «Chưa có TT») để trống
         co ? text(r.ghi_chu) : null,
         co ? text(exp.formatTime(P.gioBangkok(r.nl))) : null,
         co && r.batch_id ? `#${r.batch_id}` : null,

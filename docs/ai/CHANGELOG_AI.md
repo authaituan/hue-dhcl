@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - TAIVE-3: bảng kê `tai-ve` thêm cột «Đã vu hồi» và bộ lọc `DA_VU_HOI`
+
+- **Sửa** `server/lib/phatTaiVe.js` (cột thứ 5 «Đã vu hồi», nối `phat_status_history` bằng `r.sel`, điều kiện lọc `KHOP_SQL`) và `server/routes/phat.js` (chỉ kiểm giá trị `trang_thai` + thông báo 400 nêu `DA_VU_HOI`). File 9 cột; `PKTC` gồm cả dòng có cờ; số dòng không đổi.
+- **Không đổi** `NHAP_*`, `GAN_CTE`, `phat.js`, `phatVuHoi.js`, `phatDashboard.js`, `tivi.js`, `src/`, quyền, giới hạn dòng, không migration.
+- **Test** MỚI `tests/phat-tai-ve-vu-hoi.test.js` (8 ca), thêm vào `npm test`; sửa khẳng định 8 → 9 cột ở `phat-tai-ve.test.js` (HEADER, chỉ số cột) và `phat-vu-hoi.test.js` (ca 7: so sánh bỏ cột «Đã vu hồi», kiểm cột đó riêng).
+- **Docs:** 04 #108, 08, 03, 00_SNAPSHOT. Giao diện (chip «Đã vu hồi») để ticket sau.
+
 ## [2026-10-20] - VUHOI-2: API tỷ lệ «Đã vu hồi» theo ngày đến và theo tháng
 
 - **Thêm** `server/lib/phatVuHoi.js` (lõi tính: `demNgay` dùng `P.runGan` + `P.NHAP_CTE` + `P.NHAP_ROW` nối `phat_status_history` bằng `sel`; `dung` = quy tắc `hien_thi`; `vuHoiNgay`, `vuHoiThang`; cache `vh1|`), `server/config/phat.js` (`NGUONG_MAU_SO_VU_HOI = 10`), `server/routes/arrivals.js` (2 route `/arrivals/dashboard/vu-hoi`, `/vu-hoi-thang` cạnh `ket-qua-phat*`, cùng `tiviPhatGuard`).

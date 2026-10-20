@@ -808,5 +808,10 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 6. Tivi không xem số vu hồi: hai route mới không nằm trong allowlist → TIVI 403 (giống `ket-qua-phat-thang`).
 7. Tháng dùng đúng tập ngày của `ket-qua-phat-thang` (ngày có file OK và «đủ số liệu»), lấy bằng chính `PD.ketQuaPhatThang` cho từng BCVH; Riêng `all` (VUHOI-2c) dùng tập ngày «đủ số liệu» của `ket-qua-phat-thang` bcvh=all (xét trên tập gộp); mỗi BCVH chỉ đóng góp ở ngày thuộc tập đó mà chính nó có file; `theo_bcvh` trong `all` theo cùng tập ngày (Σ theo_bcvh = tong) nên số của một BCVH trong `all` có thể khác khi gọi riêng BCVH đó, giống `ket-qua-phat-thang`.
 
+### 108. Bảng kê `tai-ve`: thêm cột «Đã vu hồi» và bộ lọc `DA_VU_HOI` (PO chốt 19/10/2026, CTO chốt vị trí cột 20/10/2026 — TAIVE-3)
+1. Thêm cột «Đã vu hồi» NGAY SAU «Trạng thái phát» (file thành 9 cột): «Có» cho dòng PKTC có cờ, ô trống cho mọi dòng còn lại (kể cả «Chưa có TT»). Nhãn «Trạng thái phát» KHÔNG đổi (dòng vu hồi vẫn «Phát không thành công»); số dòng KHÔNG đổi (cùng mẫu số với `ty-le`).
+2. `trang_thai` nhận thêm `DA_VU_HOI` = các dòng PKTC có cờ. `PKTC` giữ nghĩa «mọi dòng PKTC» (gồm cả dòng có cờ) vì vu hồi là cờ phụ của PKTC (#106). Giá trị lạ vẫn 400, thông báo nêu đủ 6 giá trị. `DA_VU_HOI` KHÔNG vào `TT_MA` / `TRANG_THAI` / CHECK 5 mã.
+3. Cờ lấy bằng `LEFT JOIN phat_status_history h ON h.id = r.sel` ngoài `NHAP_ROW` (cùng cách `phatVuHoi.demNgay`, #107): đúng bản nhập #92 đã chọn; không đổi `NHAP_*`, không đổi tập hàng, không migration. Quyền, giới hạn 50.000 dòng, nhật ký `phat_tai_ve` không đổi.
+
 ## Drift phát hiện
 _(chưa có)_
