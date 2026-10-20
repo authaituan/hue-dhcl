@@ -341,7 +341,7 @@ async function chupSoLieu() {
   const tv = await api('GET', `/api/phat/tai-ve?ngay_den=${NGAY_A}&bcvh=${B}`, undefined, { binary: true });
   assert.equal(tv.status, 200);
   const bang = [];
-  (await docXlsx(tv.buf)).worksheets[0].eachRow({ includeEmpty: false }, (row) => bang.push(Array.from({ length: 8 }, (_, i) => row.getCell(i + 1).value)));
+  (await docXlsx(tv.buf)).worksheets[0].eachRow({ includeEmpty: false }, (row) => bang.push(Array.from({ length: 9 }, (_, i) => row.getCell(i + 1).value)));
   return {
     demNgay: [NGAY_A, NGAY_B].flatMap((d) => [P.demNgay(ctx.db, B, d), P.demNgay(ctx.db, B, d, { demLoaiBo: true, theoLichSu: true })]),
     tyLe: [await lay(`/api/phat/ty-le?bcvh=${B}&ngay=${NGAY_A}`), await lay(`/api/phat/ty-le?bcvh=${B}&ngay=${NGAY_B}`)],
@@ -367,8 +367,12 @@ test('7. bất biến: cùng dữ liệu giả, bật cờ trên các dòng PKTC
   assert.deepEqual(sau.tyLe, truoc.tyLe, '/api/phat/ty-le');
   assert.deepEqual(sau.ketQuaPhat, truoc.ketQuaPhat, 'ket-qua-phat');
   assert.deepEqual(sau.ketQuaPhatThang, truoc.ketQuaPhatThang, 'ket-qua-phat-thang: khoá và giá trị');
-  assert.deepEqual(sau.taiVe, truoc.taiVe, 'tai-ve: số dòng, 8 cột, giá trị');
-  assert.equal(sau.taiVe[0].length, 8);
+  // TAIVE-3: cột «Đã vu hồi» (chỉ số 4) là cột duy nhất được đổi theo cờ; 8 cột còn lại, số dòng, giá trị giữ nguyên.
+  const boCot = (b) => b.map((d) => d.filter((_, i) => i !== 4));
+  assert.deepEqual(boCot(sau.taiVe), boCot(truoc.taiVe), 'tai-ve: số dòng, 8 cột ngoài «Đã vu hồi», giá trị');
+  assert.ok(truoc.taiVe.slice(1).every((d) => d[4] == null), 'chưa có cờ: cột «Đã vu hồi» trống');
+  assert.ok(sau.taiVe.slice(1).some((d) => d[4] === 'Có'), 'bật cờ: cột «Đã vu hồi» có «Có»');
+  assert.equal(sau.taiVe[0].length, 9);
   assert.equal(sau.taiVe.length - 1, sau.tyLe[0].mau_so, 'số dòng tai-ve = mẫu số ty-le');
   assert.ok(sau.taiVe.some((d) => d[0] === sh(15) && d[3] === 'Phát không thành công'), 'dòng vu hồi hiện như PKTC');
   assert.deepEqual(Object.keys(sau.tyLe[0].theo_trang_thai), C.TT_MA, 'vẫn 5 trạng thái');

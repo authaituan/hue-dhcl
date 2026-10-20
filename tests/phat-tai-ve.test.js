@@ -22,7 +22,7 @@ const TAI_VE = '/api/phat/tai-ve';
 const TY_LE = '/api/phat/ty-le';
 const KQP = '/api/arrivals/dashboard/ket-qua-phat';
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const HEADER = ['Số hiệu bưu gửi', 'BCVH', 'Ngày giờ đến', 'Trạng thái phát', 'Ghi chú', 'Giờ nhập', 'Đợt nhập', 'Người nhập'];
+const HEADER = ['Số hiệu bưu gửi', 'BCVH', 'Ngày giờ đến', 'Trạng thái phát', 'Đã vu hồi', 'Ghi chú', 'Giờ nhập', 'Đợt nhập', 'Người nhập'];
 const TEN_TT = { PTC: 'Phát thành công', PKTC: 'Phát không thành công', CHUYEN_HOAN: 'Chuyển hoàn', LAC_HUONG: 'Lạc hướng', CHUA_CO_TT: 'Chưa có thông tin phát' };
 const tokens = {};
 const ids = {};
@@ -103,7 +103,7 @@ async function tai(query, who = 'admin') {
   await wb.xlsx.load(out.buf);
   const ws = wb.worksheets[0];
   const all = [];
-  ws.eachRow({ includeEmpty: false }, (row) => all.push(Array.from({ length: 8 }, (_, i) => row.getCell(i + 1))));
+  ws.eachRow({ includeEmpty: false }, (row) => all.push(Array.from({ length: 9 }, (_, i) => row.getCell(i + 1))));
   return { ...out, header: all[0].map((c) => c.value), cells: all.slice(1), dong: all.slice(1).map((cs) => cs.map((c) => c.value)) };
 }
 const theoShbg = (o, s) => o.dong.find((d) => d[0] === s);
@@ -186,18 +186,19 @@ test('(b)(j) đủ 5 trạng thái; «Chưa có TT» để trống cột phía n
   const d1 = theoShbg(t, l1);
   assert.match(d1[1], new RegExp(`^${M} · .+`));
   assert.equal(d1[3], 'Phát thành công');
-  assert.equal(d1[4], 'Đã giao');
-  assert.equal(d1[5], '18/10/2026 12:00:00'); // 05:00Z = 12:00 giờ VN
-  assert.equal(d1[6], `#${st.dotAdmin}`);
-  assert.equal(d1[7], 'Tên TV_ADMIN (TV_ADMIN)');
+  assert.equal(d1[4], null); // TAIVE-3: không có cờ vu hồi
+  assert.equal(d1[5], 'Đã giao');
+  assert.equal(d1[6], '18/10/2026 12:00:00'); // 05:00Z = 12:00 giờ VN
+  assert.equal(d1[7], `#${st.dotAdmin}`);
+  assert.equal(d1[8], 'Tên TV_ADMIN (TV_ADMIN)');
   assert.match(d1[2], /^18\/10\/2026 \d\d:\d\d:\d\d$/);
   assert.equal(theoShbg(t, l2)[3], 'Phát không thành công');
   assert.equal(theoShbg(t, l3)[3], 'Chuyển hoàn');
-  assert.equal(theoShbg(t, l3)[4], null); // không có ghi chú
+  assert.equal(theoShbg(t, l3)[5], null); // không có ghi chú
   assert.equal(theoShbg(t, l4)[3], 'Lạc hướng');
   const c = theoShbg(t, l5);
   assert.equal(c[3], 'Chưa có thông tin phát');
-  assert.deepEqual([c[4], c[5], c[6], c[7]], [null, null, null, null]);
+  assert.deepEqual([c[4], c[5], c[6], c[7], c[8]], [null, null, null, null, null]);
   assert.ok(t.cells.every((cs) => typeof cs[0].value === 'string' && /^ZT\d+VN$/.test(cs[0].value)), 'SHBG giữ nguyên là văn bản');
 });
 
@@ -225,11 +226,11 @@ test('(d) SHBG hai ngày đến: dòng chỉ ở ngày đang tải; trạng thá
   const x17 = theoShbg(t17, st.x);
   const x18 = theoShbg(t18, st.x);
   assert.equal(x17[3], 'Phát thành công');
-  assert.equal(x17[4], 'Nhập ngày 17');
+  assert.equal(x17[5], 'Nhập ngày 17');
   assert.equal(x17[2], '17/10/2026 07:00:00');
   assert.equal(x18[3], 'Chưa có thông tin phát');
   assert.equal(x18[2], '18/10/2026 07:00:00');
-  assert.equal(x18[5], null);
+  assert.equal(x18[6], null);
   assert.ok(!t17.dong.some((d) => st.m18.slice(1).includes(d[0])), 'ngày 17 không có SHBG chỉ đến ngày 18');
 });
 
@@ -237,18 +238,18 @@ test('(e) đợt đã hoàn tác bị bỏ qua', async () => {
   const t = await tai(`ngay_den=${D('18')}&bcvh=${M3}`);
   const [s0, , s2, s3] = st.m3;
   assert.equal(theoShbg(t, s2)[3], 'Phát không thành công');
-  assert.equal(theoShbg(t, s2)[4], 'Đợt giữ lại');
+  assert.equal(theoShbg(t, s2)[5], 'Đợt giữ lại');
   assert.equal(theoShbg(t, s3)[3], 'Chưa có thông tin phát');
   assert.equal(theoShbg(t, s0)[3], 'Phát thành công');
-  assert.ok(!t.dong.some((d) => d[6] === `#${st.dotHoanTac}`));
+  assert.ok(!t.dong.some((d) => d[7] === `#${st.dotHoanTac}`));
 });
 
 test('(f) người nhập đã xóa -> «(đã xóa)» kèm mã người dùng', async () => {
   const t = await tai(`ngay_den=${D('18')}&bcvh=${M}`);
   const d = theoShbg(t, st.m18[4]);
-  assert.equal(d[7], `(đã xóa) ${ids.nguoiXoa}`);
-  assert.equal(d[6], `#${st.dotXoa}`);
-  assert.equal(d[5], '18/10/2026 15:00:00');
+  assert.equal(d[8], `(đã xóa) ${ids.nguoiXoa}`);
+  assert.equal(d[7], `#${st.dotXoa}`);
+  assert.equal(d[6], '18/10/2026 15:00:00');
 });
 
 test('(g) quyền: ADMIN, TTVH một BCVH và all; GDVH BCVH được giao 200, BCVH khác và all 403; GDVH chưa giao, TIVI, vai trò lạ 403; không token 401', async () => {
