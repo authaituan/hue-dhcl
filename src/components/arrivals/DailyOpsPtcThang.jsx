@@ -106,14 +106,21 @@ export function ChenhChip({ chenh, xauKhiTang, ngan = false, xuongDong = false }
   );
 }
 
-/** Nhãn khoảng lũy kế: «01/10→» (đủ đến hôm nay) hoặc «01/10→16/10» (hôm nay chưa đủ: ghi ngày đủ cuối cùng). */
+/** Nhãn khoảng lũy kế: «01/10–20/10» (từ đầu tháng đến ngày hiện tại của màn). */
 export function nhanLuyKe(thang) {
   const L = thang?.luy_ke;
   if (!L) return '';
-  const cuoi = ngayDuCuoi(thang);
   const tu = ddMm(L.tu_ngay);
-  if (!cuoi) return tu;
-  return thang.hom_nay?.du_so_lieu || cuoi === L.den_ngay ? `${tu}→` : `${tu}→${ddMm(cuoi)}`;
+  const den = ddMm(L.den_ngay);
+  if (!tu) return '';
+  return den ? `${tu}–${den}` : tu;
+}
+
+/** Chú giải khoảng lũy kế (thuộc tính title ở chân thẻ và thẻ PTC lớn). */
+export function chuGiaiLuyKe(thang) {
+  const L = thang && thang.luy_ke;
+  if (!L) return '';
+  return `Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(L.den_ngay)}: ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu (các ngày chưa đủ số liệu không được tính)`;
 }
 
 /**
@@ -157,7 +164,7 @@ export function PtcThangFooter({ thang, ma, vuHoiThang = null }) {
 
   return (
     <div className={khung}>
-      <span className="min-w-0 truncate text-gray-500 font-semibold" title={`Lũy kế ${ddMm(L.tu_ngay)} → ${ddMm(ngayDuCuoi(thang) || L.den_ngay)}, ${L.so_ngay_co_so_lieu}/${L.so_ngay_trong_khoang} ngày đủ số liệu`}>
+      <span className="min-w-0 truncate text-gray-500 font-semibold" title={chuGiaiLuyKe(thang)}>
         {co ? (
           <>{nhanLuyKe(thang)} <span className="font-bold text-gray-800 font-sans">{(tt?.so ?? 0).toLocaleString('vi-VN')}</span> · {formatPct1(tt?.ty_le)}</>
         ) : (
