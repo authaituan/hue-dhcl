@@ -8,6 +8,8 @@ services:
       network: host            # build dùng DNS của NAS (mạng bridge lúc build hay không phân giải được tên miền)
     container_name: hue-dhcl
     restart: unless-stopped
+    # init: true — chạy tiến trình khởi tạo nhỏ làm PID 1 để node nhận SIGTERM khi `docker stop`/`down` (node làm PID 1 không tự bắt tín hiệu -> chờ 10 giây rồi bị SIGKILL, WAL không được đóng gọn).
+    init: true
     # Chế độ mạng HOST: mạng bridge làm app thấy IP máy khách là 172.18.0.1 nên danh sách CMS_ALLOWED_IPS chặn hết (404).
     # Dùng host thì app thấy IP thật, và SFTP_HOST có thể là 127.0.0.1 hoặc IP LAN của NAS.
     # Cổng app = PORT bên dưới (mặc định 18060), KHÔNG dùng 5000 vì DSM đã chiếm.
@@ -44,6 +46,9 @@ services:
       SFTP_SYNC_MAX_FILES: ${SFTP_SYNC_MAX_FILES:-}
       SFTP_SYNC_DAYS: ${SFTP_SYNC_DAYS:-}
       SFTP_STABLE_SECONDS: ${SFTP_STABLE_SECONDS:-}
+      # --- Tùy chọn khác (để trống = mặc định của app) ---
+      PHAT_WARM: ${PHAT_WARM:-}              # đặt 0 để TẮT khởi động nóng cache «kết quả phát từ đầu tháng» (server/index.js:88); trống/giá trị khác = bật
+      TAIVE_MAX_DONG: ${TAIVE_MAX_DONG:-}    # chỉ HẠ giới hạn dòng mỗi tệp «tải về» (server/lib/phatTaiVe.js:34); trống = giới hạn mặc định
     healthcheck:
       # GET / trả trang giao diện tĩnh (dist/index.html; server/index.js:59-73): không cần đăng nhập, không có dữ liệu.
       # Dùng node (image không có curl). Thiếu 127.0.0.1 trong CMS_ALLOWED_IPS -> 404 -> "unhealthy"; thiếu dist/ cũng 404.
