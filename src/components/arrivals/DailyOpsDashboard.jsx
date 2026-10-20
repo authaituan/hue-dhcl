@@ -970,7 +970,7 @@ export default function DailyOpsDashboard({ authUser, onNavigate, onEnterTvMode 
       </div>
 
       {/* 3. HÀNG PTC (PHAT-3c: THẺ PTC LỚN + 4 THẺ NHỎ) */}
-      <DailyOpsPtcRow ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat && thangPhat.bcvh !== (selectedBcvh || 'all') ? null : thangPhat} />
+      <DailyOpsPtcRow authUser={authUser} ketQuaPhat={ketQuaPhat} phatError={phatError} thang={thangPhat && thangPhat.bcvh !== (selectedBcvh || 'all') ? null : thangPhat} />
 
       {/* 4. KHỐI «CẦN ĐIỀU HÀNH NGAY HÔM NAY» / «VIỆC CỦA BCVH TÔI» */}
       <div className="bg-white rounded-[14px] border border-gray-200 p-5 sm:p-6 shadow-none space-y-4">

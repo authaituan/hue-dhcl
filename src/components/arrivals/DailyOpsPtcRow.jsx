@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { apiFetchJson } from '../../utils/api';
 import { formatPercent } from './DailyOpsDashboard';
 import {
   PTC_THANG_CAU_HINH, PtcSparkline, ChenhChip, PtcThangFooter, chuoiTheoNgay, formatPct1, ddMm, nhanLuyKe
 } from './DailyOpsPtcThang';
+import { VuHoiChipLine } from '../../utils/vuHoi';
 import { PTC_DAT, CHUA_CO_TT_CANH_BAO } from '../../lib/thamSoDuPhong';
 
 /**
@@ -57,7 +59,7 @@ function CotSo({ nhan, so, mau, tyLe, mauChu = 'text-dark', ghiChu = null, trong
 }
 
 /** Thẻ nhỏ: nhãn (cả dòng), số hôm nay + tỷ lệ, đường diễn biến nhỏ bên phải, chân thẻ 44px «01/MM→ số · %» + chênh. */
-function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu = null }) {
+function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu = null, vuHoiNgay = null, vuHoiThang = null }) {
   const mauNhan = canhBao ? 'text-red-800' : 'text-gray-500';
   const mauSo = canhBao ? 'text-red-800' : 'text-orange-600';
   const mauTyLe = canhBao ? 'text-red-700' : 'text-gray-600';
@@ -79,13 +81,58 @@ function TheNho({ nhan, ma, so, tyLe, hienSo, thang, canhBao = false, nguongChu 
             <PtcSparkline values={chuoiTheoNgay(thang || null, ma)} nhan={`Diễn biến theo ngày: ${nhan}`} className="w-full h-8" />
           </div>
         </div>
+
+        {ma === 'PKTC' && vuHoiNgay && (
+          <VuHoiChipLine data={vuHoiNgay} />
+        )}
       </div>
-      <PtcThangFooter thang={thang} ma={ma} />
+      <PtcThangFooter thang={thang} ma={ma} vuHoiThang={vuHoiThang} />
     </div>
   );
 }
 
-export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) {
+export default function DailyOpsPtcRow({ authUser, ketQuaPhat, phatError, thang = null }) {
+  const isTivi = authUser?.role === 'TIVI';
+  const [vuHoiNgay, setVuHoiNgay] = useState(null);
+  const [vuHoiThang, setVuHoiThang] = useState(null);
+
+  const effectiveNgay = ketQuaPhat?.ngay;
+  const effectiveBcvh = ketQuaPhat?.bcvh || 'all';
+  const effectiveThang = thang?.thang || (effectiveNgay ? effectiveNgay.slice(0, 7) : null);
+
+  useEffect(() => {
+    if (isTivi || !effectiveNgay || !effectiveBcvh) {
+      setVuHoiNgay(null);
+      return;
+    }
+    let active = true;
+    apiFetchJson(`/api/arrivals/dashboard/vu-hoi?ngay_den=${effectiveNgay}&bcvh=${effectiveBcvh}`)
+      .then((res) => {
+        if (!active) return;
+        setVuHoiNgay(res.ok && res.data?.tong ? res.data.tong : null);
+      })
+      .catch(() => {
+        if (active) setVuHoiNgay(null);
+      });
+    return () => { active = false; };
+  }, [isTivi, effectiveNgay, effectiveBcvh, ketQuaPhat]);
+
+  useEffect(() => {
+    if (isTivi || !effectiveThang || !effectiveBcvh) {
+      setVuHoiThang(null);
+      return;
+    }
+    let active = true;
+    apiFetchJson(`/api/arrivals/dashboard/vu-hoi-thang?thang=${effectiveThang}&bcvh=${effectiveBcvh}`)
+      .then((res) => {
+        if (!active) return;
+        setVuHoiThang(res.ok && res.data?.tong ? res.data.tong : null);
+      })
+      .catch(() => {
+        if (active) setVuHoiThang(null);
+      });
+    return () => { active = false; };
+  }, [isTivi, effectiveThang, effectiveBcvh, ketQuaPhat]);
   // Trạng thái D: Lỗi quyền (403) hoặc lỗi mạng khi tải kết quả phát
   if (phatError) {
     return (
@@ -248,7 +295,16 @@ export default function DailyOpsPtcRow({ ketQuaPhat, phatError, thang = null }) 
       </div>
 
       {/* 2–5. BỐN THẺ NHỎ */}
-      <TheNho nhan="Phát không thành công" ma="PKTC" so={pktc?.so ?? 0} tyLe={pktc?.ty_le} hienSo={hienSo} thang={thang} />
+      <TheNho
+        nhan="Phát không thành công"
+        ma="PKTC"
+        so={pktc?.so ?? 0}
+        tyLe={pktc?.ty_le}
+        hienSo={hienSo}
+        thang={thang}
+        vuHoiNgay={vuHoiNgay}
+        vuHoiThang={vuHoiThang}
+      />
       <TheNho nhan="Chuyển hoàn" ma="CHUYEN_HOAN" so={chuyenHoan?.so ?? 0} tyLe={chuyenHoan?.ty_le} hienSo={hienSo} thang={thang} />
       <TheNho nhan="Lạc hướng" ma="LAC_HUONG" so={lacHuong?.so ?? 0} tyLe={lacHuong?.ty_le} hienSo={hienSo} thang={thang} />
       <TheNho
