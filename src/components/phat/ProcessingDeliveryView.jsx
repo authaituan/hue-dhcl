@@ -681,6 +681,7 @@ export default function ProcessingDeliveryView({ authUser }) {
         selectedBcvh={selectedBcvh}
         selectedDate={selectedDate}
         tyLeData={tyLeData}
+        vuHoiNgay={vuHoiNgay}
       />
 
       {/* ── BẢNG KHUNG GIỜ ĐẾN (TRÁI) & CÁC LẦN NHẬP GẦN ĐÂY (PHẢI) ───────── */}
