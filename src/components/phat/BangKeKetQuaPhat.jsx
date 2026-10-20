@@ -4,23 +4,25 @@ import { apiFetchJson, apiDownloadExcel } from '../../utils/api';
 import { BCVH_LIST } from '../../constants/bcvh';
 import { formatInt } from './ProcessingDeliveryView';
 
-// Danh sách 8 cột trong file xuất ra theo canvas
+// Danh sách 9 cột trong file xuất ra theo canvas
 const COLUMNS = [
   'Số hiệu bưu gửi',
   'BCVH',
   'Ngày giờ đến',
   'Trạng thái phát',
+  'Đã vu hồi',
   'Ghi chú',
   'Giờ nhập',
   'Đợt nhập',
   'Người nhập'
 ];
 
-// 6 chip trạng thái chọn một (màu chữ khi chưa chọn lấy từ thẻ KPI sẵn có)
+// 7 chip trạng thái chọn một (màu chữ khi chưa chọn lấy từ thẻ KPI sẵn có)
 const STATUS_OPTIONS = [
   { key: null, label: 'Tất cả', color: 'var(--color-gray-800)' },
   { key: 'PTC', label: 'Thành công', color: 'var(--color-emerald-600)' },
   { key: 'PKTC', label: 'Không thành công', color: 'var(--color-red-600)' },
+  { key: 'DA_VU_HOI', label: 'Đã vu hồi' },
   { key: 'CHUYEN_HOAN', label: 'Chuyển hoàn', color: 'var(--color-amber-700)' },
   { key: 'LAC_HUONG', label: 'Lạc hướng', color: '#6B2F94' },
   { key: 'CHUA_CO_TT', label: 'Chưa có TT', color: '#2A1B33' }
@@ -60,7 +62,7 @@ function formatYmdToDmy(val) {
   return '—';
 }
 
-export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate, tyLeData }) {
+export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate, tyLeData, vuHoiNgay }) {
   const isGdvH = authUser?.role === 'GDVH';
   const isAdminOrTtvh = authUser?.role === 'ADMIN' || authUser?.role === 'TTVH';
 
@@ -120,12 +122,18 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
   const theoTT = tyLeData?.theo_trang_thai || {};
   const soChuaCoTt = theoTT.CHUA_CO_TT?.so ?? 0;
 
+  const hasVuHoi = vuHoiNgay && typeof vuHoiNgay.da_vu_hoi === 'number';
+
   const getStatusCount = (key) => {
     if (!key) return mauSo;
+    if (key === 'DA_VU_HOI') {
+      return hasVuHoi ? vuHoiNgay.da_vu_hoi : null;
+    }
     return theoTT[key]?.so ?? 0;
   };
 
   const currentCount = getStatusCount(selectedStatus);
+  const currentCountText = currentCount === null ? '—' : formatInt(currentCount);
 
   // Quy tắc khóa nút và thông báo cảnh báo cho GDVH (Quy tắc 1a–1e)
   let gdvhLock = false;
@@ -227,11 +235,13 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
             CHỈ TẢI BƯU GỬI Ở TRẠNG THÁI
           </div>
 
-          {/* 6 chip chọn một (viên thuốc: rounded-full) */}
+          {/* 7 chip chọn một (viên thuốc: rounded-full) */}
           <div className="flex flex-wrap gap-2 mb-4">
             {STATUS_OPTIONS.map((opt) => {
               const isSelected = selectedStatus === opt.key;
+              const isDaVuHoi = opt.key === 'DA_VU_HOI';
               const count = getStatusCount(opt.key);
+              const countText = count === null ? '—' : formatInt(count);
               return (
                 <button
                   key={opt.key || 'ALL'}
@@ -239,15 +249,17 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
                   onClick={() => setSelectedStatus(opt.key)}
                   disabled={loading}
                   style={{
-                    color: isSelected ? '#ffffff' : opt.color
+                    color: isSelected ? '#ffffff' : (opt.color || undefined)
                   }}
                   className={`px-3.5 py-1.5 rounded-full text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSelected
                       ? 'bg-orange-600 font-bold border border-transparent shadow-none'
-                      : 'bg-white border border-[#D9CBA8] font-medium hover:bg-cream-light'
+                      : isDaVuHoi
+                        ? 'bg-[#EFE4F7] text-title border border-[#D8BDEB] font-medium hover:bg-cream-light'
+                        : 'bg-white border border-[#D9CBA8] font-medium hover:bg-cream-light'
                   }`}
                 >
-                  {opt.label} · {formatInt(count)}
+                  {opt.label} · {countText}
                 </button>
               );
             })}
@@ -257,7 +269,7 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
           {loading && (
             <div className="mb-3 space-y-2">
               <div className="text-xs text-gray-700">
-                Đang tạo tệp cho <strong>{formatInt(currentCount)}</strong> bưu gửi đến ngày <strong>{displayDateStr}</strong> tại <strong>{tenBcvhHienThi}</strong>…
+                Đang tạo tệp cho <strong>{currentCountText}</strong> bưu gửi đến ngày <strong>{displayDateStr}</strong> tại <strong>{tenBcvhHienThi}</strong>…
               </div>
               <div className="progress-soft w-full overflow-hidden">
                 <div className="progress-bar-soft w-full animate-pulse" />
@@ -294,7 +306,7 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
           {/* Trạng thái 3: ADMIN/TTVH khi ô BCVH là Toàn Trung tâm */}
           {!loading && !downloadError && isAdminOrTtvh && selectedBcvh === 'all' && (
             <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-[8px] text-xs leading-relaxed mb-3">
-              Sẽ tải <strong>{formatInt(currentCount)}</strong> bưu gửi đến ngày <strong>{displayDateStr}</strong>. Mỗi bưu gửi một dòng, có cột BCVH. BCVH chưa có file ngày này không có dòng nào.
+              Sẽ tải <strong>{currentCountText}</strong> bưu gửi đến ngày <strong>{displayDateStr}</strong>. Mỗi bưu gửi một dòng, có cột BCVH. BCVH chưa có file ngày này không có dòng nào.
             </div>
           )}
 
@@ -319,7 +331,7 @@ export default function BangKeKetQuaPhat({ authUser, selectedBcvh, selectedDate,
               <span>
                 {loading
                   ? 'Đang tạo…'
-                  : `Tải bảng kê (Excel) · ${formatInt(currentCount)} bưu gửi`}
+                  : `Tải bảng kê (Excel) · ${currentCountText} bưu gửi`}
               </span>
             </button>
             <div className="text-[11px] text-gray-500 mt-2">
