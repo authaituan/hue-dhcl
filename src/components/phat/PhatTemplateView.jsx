@@ -270,15 +270,16 @@ export default function PhatTemplateView({ selectedBcvh, onNavigateStep }) {
               </table>
             </div>
 
-            {/* Danh sách 5 trạng thái & chú thích ô vàng */}
+            {/* Danh sách chọn ở ô Trạng thái & chú thích ô vàng */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/30 space-y-1.5 text-xs">
                 <div className="font-bold text-gray-700">Danh sách chọn ở ô Trạng thái</div>
                 <div className="font-semibold text-emerald-600">Phát thành công</div>
                 <div className="font-semibold text-red-600">Phát không thành công</div>
                 <div className="font-semibold text-amber-700">Chuyển hoàn</div>
-                <div className="font-semibold text-[#7c3aed]">Lạc hướng</div>
                 <div className="font-semibold text-[#334155]">Chưa có thông tin phát</div>
+                <div className="font-semibold text-[#7c3aed]">Lạc hướng</div>
+                <div className="font-semibold text-gray-700">Đã vu hồi</div>
               </div>
 
               <div className="text-xs text-gray-500 leading-relaxed flex items-center p-3 bg-yellow-50/30 border border-yellow-200 rounded-xl">

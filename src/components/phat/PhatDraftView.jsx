@@ -18,6 +18,7 @@ const TEN_LOAI_LOI = {
 const TRANG_THAI_SELECT = [
   { ma: 'PTC', nhan: 'Phát thành công' },
   { ma: 'PKTC', nhan: 'Phát không thành công' },
+  { ma: 'DA_VU_HOI', nhan: 'Đã vu hồi' },
   { ma: 'CHUYEN_HOAN', nhan: 'Chuyển hoàn' },
   { ma: 'LAC_HUONG', nhan: 'Lạc hướng' },
   { ma: 'CHUA_CO_TT', nhan: 'Chưa có thông tin phát' },
@@ -894,7 +895,7 @@ export default function PhatDraftView({
                             <span className="text-gray-500">{r.trang_thai_nhan || '—'}</span>
                           ) : (
                             <select
-                              value={r.trang_thai || ''}
+                              value={r.da_vu_hoi ? 'DA_VU_HOI' : (r.trang_thai || '')}
                               onChange={(e) => handleInlineChangeStatus(r.id, e.target.value)}
                               className="text-xs font-semibold p-1 bg-white border border-gray-200 rounded-lg cursor-pointer focus:outline-none"
                             >
@@ -1008,12 +1009,12 @@ export default function PhatDraftView({
           {assignResult && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs space-y-1">
               <div className="font-bold text-gray-800">
-                Khớp {assignResult.so_dong_khop} / {assignResult.so_shbg_nhan} SHBG trong file.
+                Khớp {assignResult.so_dong_khop} / {(assignResult.so_shbg_khop ?? 0) + (assignResult.so_shbg_khong_co_trong_file ?? 0)} SHBG trong file.
               </div>
-              {assignResult.shbg_khong_khop?.length > 0 && (
+              {assignResult.shbg_khong_co_trong_file?.length > 0 && (
                 <div className="text-red-600 text-[11px] leading-relaxed">
-                  {assignResult.shbg_khong_khop.length} SHBG không có trong file:{' '}
-                  <span className="font-mono">{assignResult.shbg_khong_khop.slice(0, 3).join(', ')}{assignResult.shbg_khong_khop.length > 3 ? '...' : ''}</span>
+                  {assignResult.so_shbg_khong_co_trong_file} SHBG không có trong file:{' '}
+                  <span className="font-mono">{assignResult.shbg_khong_co_trong_file.slice(0, 3).join(', ')}{assignResult.shbg_khong_co_trong_file.length > 3 ? '...' : ''}</span>
                 </div>
               )}
             </div>
