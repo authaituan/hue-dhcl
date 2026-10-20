@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - BRAND-1: đổi tên hệ thống ở tiêu đề tab và thanh đầu (chỉ hai chỗ này)
+
+- **Sửa** `index.html:7`: tiêu đề tab → «Hệ thống giám sát hàng đến và chất lượng phát».
+- **Sửa** `src/components/TopNav.jsx:109-111`: chữ thương hiệu «ĐHCL · KHÂU PHÁT» → hai dòng «GIÁM SÁT HÀNG ĐẾN» / «VÀ CHẤT LƯỢNG PHÁT», cỡ 11px, giữ phông/màu/biểu tượng.
+- **Giữ nguyên** theo quyết định PO 20/10: màn đăng nhập, màn tivi, tên trong file xuất và các chỗ khác vẫn dùng tên cũ.
+- **Chưa kiểm bằng mắt**: PO xem thanh đầu ở ~1920px và ~960px.
+
 ## [2026-10-20] - NAS-6: sửa cấu hình Docker/NAS và hướng dẫn theo khảo sát NAS-5 (không đụng mã ứng dụng)
 
 - **Sửa** `docker-compose.yml`: thêm `init: true` (node nhận SIGTERM khi `down`/`stop`, WAL đóng gọn); truyền thêm biến tùy chọn `PHAT_WARM`, `TAIVE_MAX_DONG` (trống = mặc định; đã kiểm `server/index.js:88`, `server/lib/phatTaiVe.js:34`).
