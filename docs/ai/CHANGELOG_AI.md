@@ -2,6 +2,31 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-20] - DOCS-3: đồng bộ `docs/ai/` với main sau PR #113–#116
+
+- **Đồng bộ** docs với LABEL-1 (#113), VUHOI-4b0 (#114), VUHOI-4d (#115), VUHOI-4b (#116): mốc main `799c40b`, mốc test 773 ca (772 pass, 0 fail, 1 skip — theo ticket, không tự chạy lại).
+- **Sửa** câu «nhãn khoảng lũy kế kết thúc ở ngày đủ cuối» (`08_PHAT.md`); bỏ khỏi mục nợ nhãn «n/N ngày đủ», chip «Đã vu hồi» ở bảng kê, lựa chọn «Đã vu hồi» ở màn nhập, lỗi tên trường gán nhanh; thêm nợ VUHOI-4c (PO đã bỏ); sửa dòng vai trò TIVI ở `00_SNAPSHOT.md` (có giao diện `TiviView.jsx`). Chỉ docs, không đổi mã.
+
+## [2026-10-20] - VUHOI-4b (#116): lựa chọn «Đã vu hồi» ở màn nhập; sửa kết quả gán nhanh
+
+- **PR** #116 — commit `199c91f`, merge `799c40b`. File chính: `src/components/phat/PhatDraftView.jsx`, `src/components/phat/PhatTemplateView.jsx`.
+- **Hành vi:** «Đã vu hồi» có ở 3 danh sách chọn trạng thái của màn nhập; `value` ô từng dòng ghép cờ (`r.da_vu_hoi ? 'DA_VU_HOI' : r.trang_thai`); sửa kết quả gán nhanh đọc đúng tên trường; `PhatTemplateView` thêm «Đã vu hồi» đúng thứ tự file mẫu. Không hiện cảnh báo (VUHOI-4c PO đã bỏ).
+
+## [2026-10-20] - VUHOI-4d (#115): chip «Đã vu hồi» ở bảng kê kết quả phát
+
+- **PR** #115 — commit `40dd05c`, merge `6d81333`. File chính: `src/components/phat/BangKeKetQuaPhat.jsx`, `src/components/phat/ProcessingDeliveryView.jsx`.
+- **Hành vi:** chip «Đã vu hồi» (thứ 7, sau «Không thành công») ở bảng kê; số lấy từ `vuHoiNgay.da_vu_hoi`.
+
+## [2026-10-20] - VUHOI-4b0 (#114): `dongRa` trả nhãn «Đã vu hồi»
+
+- **PR** #114 — commit `a4a4fbd`, merge `a7014f1`. File chính: `server/lib/phat.js` (`dongRa`), `tests/phat-vu-hoi.test.js`.
+- **Hành vi:** khi dòng có cờ, `dongRa` trả nhãn «Đã vu hồi» ở `trang_thai_nhan` và `trang_thai_hien_co_nhan` (qua `C.nhanTrangThai`); mã `trang_thai` / `trang_thai_hien_co` vẫn `PKTC`. Test: ca 9 mới.
+
+## [2026-10-20] - LABEL-1 (#113): nhãn lũy kế «01/10–{ngày hiện tại}» và «n/N ngày đủ»
+
+- **PR** #113 — commit `c3218bd`, merge `6110f8b`. File chính: `src/components/arrivals/DailyOpsPtcThang.jsx`, `src/components/arrivals/DailyOpsPtcRow.jsx`.
+- **Hành vi:** thẻ nhỏ ghi nhãn lũy kế «01/10–{luy_ke.den_ngay}» (`nhanLuyKe`); thẻ PTC lớn ghi «đến {ngày} · n/N ngày đủ»; tooltip `chuGiaiLuyKe`.
+
 ## [2026-10-20] - DOCS-2: đồng bộ `docs/ai/` với main sau PR #106–#111
 
 - **Đồng bộ** docs với TAIVE-2 (#106), GANBCVH-1 (#107), VUHOI-1 (#108), VUHOI-2 (#109), TAIVE-3 (#110), VUHOI-3 (#111): mốc main `4e579de`, mốc test 772 ca (771 pass, 1 skip), bảng kê 9 cột, hai API vu hồi, giao diện dòng «Vu hồi».
