@@ -283,7 +283,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
               <span>Thay Thế Ngày Của Một BCVH</span>
             </h1>
           </div>
-          <p className="text-xs text-[--color-body] mt-1.5 leading-relaxed max-w-3xl">
+          <p className="text-xs text-body mt-1.5 leading-relaxed max-w-3xl">
             Thay thế toàn bộ dữ liệu sản lượng đến của một ngày tại một đơn vị bằng dữ liệu từ máy chủ nguồn.
             Dữ liệu cũ được sao lưu và lưu tại thùng rác trước khi thay thế.
           </p>
@@ -292,7 +292,7 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
 
       {/* ── MỤC 1 CANVAS: THANH CÔNG CỤ CHỌN BCVH VÀ NGÀY ───────────────── */}
       <div className="card-soft p-5 rounded-2xl space-y-4">
-        <div className="text-xs font-bold uppercase tracking-wider text-[--color-title] flex items-center gap-2 border-b border-gray-100 pb-2.5">
+        <div className="text-xs font-bold uppercase tracking-wider text-title flex items-center gap-2 border-b border-gray-100 pb-2.5">
           <Calendar className="w-4 h-4 text-orange-500" />
           <span>1. Chọn đơn vị và ngày thay thế</span>
         </div>
@@ -997,8 +997,8 @@ export default function ReplaceDayView({ authUser, initialBcvh, initialNgay }) {
             <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
               <ShieldAlert className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-[--color-title]">Chỉ quản trị viên xem được</h3>
-            <p className="text-xs text-[--color-body] max-w-md mx-auto">
+            <h3 className="text-base font-bold text-title">Chỉ quản trị viên xem được</h3>
+            <p className="text-xs text-body max-w-md mx-auto">
               Chức năng xem nhật ký và khôi phục dữ liệu yêu cầu quyền Quản trị viên (ADMIN).
             </p>
           </div>

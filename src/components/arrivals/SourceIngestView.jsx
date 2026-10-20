@@ -289,7 +289,7 @@ export default function SourceIngestView({ authUser, onNavigateReplaceDay }) {
               <span>Nạp dữ liệu nguồn</span>
             </h1>
           </div>
-          <p className="text-xs text-[--color-body] mt-1.5 leading-relaxed max-w-3xl">
+          <p className="text-xs text-body mt-1.5 leading-relaxed max-w-3xl">
             Theo dõi việc tự động lấy file từ máy chủ nguồn, phát hiện đợt thiếu/lỗi/nghi ngờ, bấm «Lấy ngay» và «Lấy lại».
           </p>
         </div>

@@ -193,7 +193,7 @@ export default function UserAdminView({ authUser }) {
             <UserCog className="w-5 h-5 text-orange-400" />
             <span>Quản Lý Người Dùng</span>
           </h1>
-          <p className="text-xs text-[--color-body] mt-1">
+          <p className="text-xs text-body mt-1">
             Tạo tài khoản, sửa thông tin/phân quyền, reset mật khẩu, vô hiệu hoá/kích hoạt lại tài khoản.
           </p>
         </div>
@@ -225,13 +225,13 @@ export default function UserAdminView({ authUser }) {
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3">
             <div className="w-8 h-8 border-3 border-orange-200 border-t-orange-500 rounded-full animate-spin"></div>
-            <p className="text-xs text-[--color-body]">Đang nạp danh sách người dùng...</p>
+            <p className="text-xs text-body">Đang nạp danh sách người dùng...</p>
           </div>
         ) : users.length === 0 ? (
-          <div className="p-12 text-center text-[--color-body]">
-            <UserCog className="w-12 h-12 mx-auto text-[--color-body] mb-3" />
-            <p className="font-semibold text-sm text-[--color-title]">Chưa có tài khoản người dùng nào</p>
-            <p className="text-xs text-[--color-subtext] mt-1">Bấm "Thêm User" để tạo tài khoản đầu tiên</p>
+          <div className="p-12 text-center text-body">
+            <UserCog className="w-12 h-12 mx-auto text-body mb-3" />
+            <p className="font-semibold text-sm text-title">Chưa có tài khoản người dùng nào</p>
+            <p className="text-xs text-subtext mt-1">Bấm "Thêm User" để tạo tài khoản đầu tiên</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -272,7 +272,7 @@ export default function UserAdminView({ authUser }) {
                           />
                         ) : (
                           <>
-                            <div className="font-semibold text-[--color-title]">{u.full_name}</div>
+                            <div className="font-semibold text-title">{u.full_name}</div>
                             {isSelf && (
                               <div className="text-[10px] text-orange-600 font-medium mt-0.5">(Tài khoản của bạn)</div>
                             )}
@@ -296,7 +296,7 @@ export default function UserAdminView({ authUser }) {
                               ))}
                             </select>
                             {isSelf && (
-                              <div className="text-[10px] text-[--color-subtext] mt-1">Không thể tự đổi quyền của chính mình</div>
+                              <div className="text-[10px] text-subtext mt-1">Không thể tự đổi quyền của chính mình</div>
                             )}
                             {/* Ô phạm vi TIVI — chỉ hiện khi đang chọn TIVI */}
                             {isEditingTivi && (
@@ -375,7 +375,7 @@ export default function UserAdminView({ authUser }) {
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-[11px] text-[--color-body]">{u.created_at}</td>
+                      <td className="py-3.5 px-4 text-[11px] text-body">{u.created_at}</td>
 
                       {/* Thao Tác */}
                       <td className="py-3.5 px-4">
@@ -394,7 +394,7 @@ export default function UserAdminView({ authUser }) {
                               type="button"
                               onClick={cancelEdit}
                               title="Hủy"
-                              className="w-7 h-7 rounded-lg bg-white text-[--color-title] border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
+                              className="w-7 h-7 rounded-lg bg-white text-title border border-gray-200 hover:bg-gray-100 flex items-center justify-center"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -414,7 +414,7 @@ export default function UserAdminView({ authUser }) {
                             <button
                               type="button"
                               onClick={() => startEdit(u)}
-                              className="px-3 py-1.5 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-600 text-[--color-title] transition-all text-xs font-semibold flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-600 text-title transition-all text-xs font-semibold flex items-center gap-1"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                               <span>Sửa vai trò</span>
@@ -422,7 +422,7 @@ export default function UserAdminView({ authUser }) {
                             <button
                               type="button"
                               onClick={() => setResetPasswordTarget(u)}
-                              className="px-3 py-1.5 rounded-lg bg-white hover:bg-yellow-50 hover:text-yellow-600 text-[--color-title] transition-all text-xs font-semibold flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-lg bg-white hover:bg-yellow-50 hover:text-yellow-600 text-title transition-all text-xs font-semibold flex items-center gap-1"
                             >
                               <KeyRound className="w-3.5 h-3.5" />
                               <span>Reset Mật Khẩu</span>

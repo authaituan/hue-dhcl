@@ -51,14 +51,14 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
             <KeyRound className="w-5 h-5 text-amber-500" />
             <span>Reset Mật Khẩu</span>
           </h3>
-          <button onClick={onClose} className="text-[--color-body] hover:text-[--color-title]">
+          <button onClick={onClose} className="text-body hover:text-title">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-          <div className="p-3 rounded-[10px] bg-cream-light border border-gray-200 text-[--color-title]">
-            Đặt lại mật khẩu cho: <span className="font-bold text-[--color-title]">{user.full_name}</span>{' '}
+          <div className="p-3 rounded-[10px] bg-cream-light border border-gray-200 text-title">
+            Đặt lại mật khẩu cho: <span className="font-bold text-title">{user.full_name}</span>{' '}
             <span className="tabular-nums text-orange-600 font-semibold">({user.hrm_code})</span>. Không cần biết mật khẩu cũ.
           </div>
 
@@ -77,7 +77,7 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Mật Khẩu Mới
             </label>
             <input
@@ -94,7 +94,7 @@ export default function ResetUserPasswordModal({ user, onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Xác Nhận Mật Khẩu Mới
             </label>
             <input
