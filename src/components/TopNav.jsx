@@ -106,8 +106,8 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
         <div className="w-[36px] h-[36px] rounded-[8px] bg-[#2A1B33] flex items-center justify-center shrink-0">
           <img src="/logo-vnpost.png" alt="Vietnam Post" className="w-[24px] object-contain" />
         </div>
-        <span className="font-serif font-bold text-[16px] text-white tracking-[0.02em] whitespace-nowrap">
-          ĐHCL · KHÂU PHÁT
+        <span className="font-serif font-bold text-[11px] leading-[14px] text-white tracking-[0.02em] whitespace-nowrap">
+          GIÁM SÁT HÀNG ĐẾN<br />VÀ CHẤT LƯỢNG PHÁT
         </span>
       </div>
 
