@@ -88,7 +88,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
             <UserPlus className="w-5 h-5 text-orange-400" />
             <span>Thêm User Mới</span>
           </h3>
-          <button onClick={onClose} className="text-[--color-body] hover:text-[--color-title]">
+          <button onClick={onClose} className="text-body hover:text-title">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -102,7 +102,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Mã HRM
             </label>
             <input
@@ -118,7 +118,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Họ Và Tên
             </label>
             <input
@@ -132,7 +132,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Vai Trò (Role)
             </label>
             <select
@@ -174,7 +174,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Mật Khẩu Ban Đầu
             </label>
             <input

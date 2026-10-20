@@ -62,7 +62,7 @@ export default function ChangePasswordModal({ onClose }) {
             <Lock className="w-5 h-5 text-orange-400" />
             <span>Đổi Mật Khẩu Của Tôi</span>
           </h3>
-          <button onClick={onClose} className="text-[--color-body] hover:text-[--color-title]">
+          <button onClick={onClose} className="text-body hover:text-title">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -83,7 +83,7 @@ export default function ChangePasswordModal({ onClose }) {
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Mật Khẩu Hiện Tại
             </label>
             <input
@@ -100,7 +100,7 @@ export default function ChangePasswordModal({ onClose }) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Mật Khẩu Mới
             </label>
             <input
@@ -116,7 +116,7 @@ export default function ChangePasswordModal({ onClose }) {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[--color-title] uppercase mb-1">
+            <label className="block text-[11px] font-semibold text-title uppercase mb-1">
               Xác Nhận Mật Khẩu Mới
             </label>
             <input

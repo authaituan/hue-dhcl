@@ -239,7 +239,7 @@ export default function ReplaceLogTab({ authUser }) {
     <div className="space-y-6">
       {/* ── CARD BỘ LỌC TÌM KIẾM ────────────────────────────────────────── */}
       <div className="card-soft p-5 rounded-2xl space-y-4">
-        <div className="text-xs font-bold uppercase tracking-wider text-[--color-title] flex items-center justify-between border-b border-gray-100 pb-2.5">
+        <div className="text-xs font-bold uppercase tracking-wider text-title flex items-center justify-between border-b border-gray-100 pb-2.5">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-orange-500" />
             <span>Bộ lọc nhật ký thay thế</span>
