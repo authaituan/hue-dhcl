@@ -6,6 +6,8 @@
 // (bỏ dòng XNĐ trống; hòa -> id nhỏ nhất; KHÔNG giới hạn theo khung ngày). Mốc KTT và bd10_no lấy từ CÙNG dòng đó. Không dòng nào có XNĐ -> dùng chính dòng đại diện (xnd = null).
 // Đánh giá từng lượt bằng danhGiaMotLuot (quyThoiGianNhom.js); tổng hợp luôn từ danh sách lượt (cùng một nguồn), không có SQL đếm thứ hai.
 // Chỉ tiêu "chinh" = đo được (DO_DUOC) và KHÔNG nghi ngờ; con_quy / het_quy và trung vị tính trên lượt chinh.
+// QUYTG-7: mỗi lượt thêm duong_thu, ngay_den, nguon_moc_bat_dau, dai (QUA_HAN | SAP_HET | CON_2_6 | CON_TREN_6 theo quyConLaiGiay.F1_3; null nếu không phải lượt chinh);
+// tổng hợp thêm dải / đường thư / BCVH / khung giờ và theoNgayQuyThoiGian — vẫn từ CÙNG danh sách lượt, không SQL đếm thứ hai.
 // ==========================================
 'use strict';
 const aq = require('./arrivalsQuery');
@@ -20,8 +22,26 @@ const LY_DO_KHONG_DO = Object.freeze([
   N.LY_DO.LAP_DI_TAI_BCVH, N.LY_DO.KHONG_CO_BD10, N.LY_DO.BD10_KHONG_HOP_LE, N.LY_DO.NHAN_TRUC_TIEP_KHONG_QUA_KTT,
   N.LY_DO.KHONG_QUA_KTT, N.LY_DO.THIEU_XAC_NHAN_KTT, N.LY_DO.THIEU_XND_BCVH
 ]);
-const KHOA_LOC_RIENG = ['nhom', 'trang_thai', 'ly_do', 'nghi_ngo'];
+const KHOA_LOC_RIENG = ['nhom', 'trang_thai', 'ly_do', 'nghi_ngo', 'duong_thu', 'dai'];
 const KHOA_LOC_CHUNG = ['from', 'to', 'receiver_code', 'ward_key'];
+
+// QUYTG-7: dải thời gian còn lại F1_3 của lượt chính (nửa mở, giây): QUA_HAN < 0; SAP_HET [0, 7.200); CON_2_6 [7.200, 21.600); CON_TREN_6 >= 21.600. Ngưỡng là hằng số (chưa nối sổ «Tham số hệ thống»).
+const NGUONG_SAP_HET_GIAY = 2 * 3600;
+const NGUONG_CON_2_6_GIAY = 6 * 3600;
+const DAI = Object.freeze(['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6']);
+const DUONG_THU_TRONG = 'Chưa rõ đường thư';
+const MAX_NGAY_THEO_NGAY = 31;
+// Khung giờ XNĐ BCVH (nửa mở): chỉ số theo giờ 0-9 / 10-11 / 12-13 / 14-15 / 16-17 / 18-23.
+const KHUNG_GIO = Object.freeze(['Trước 10h', '10–12h', '12–14h', '14–16h', '16–18h', 'Sau 18h']);
+
+function daiCua(quyGiay) {
+  if (quyGiay < 0) return 'QUA_HAN';
+  if (quyGiay < NGUONG_SAP_HET_GIAY) return 'SAP_HET';
+  if (quyGiay < NGUONG_CON_2_6_GIAY) return 'CON_2_6';
+  return 'CON_TREN_6';
+}
+/** Chỉ số khung giờ từ giờ trong chuỗi 'YYYY-MM-DD HH:MM:SS' (cắt chuỗi, không dựng Date). */
+const chiSoKhungGio = (xnd) => { const h = Number(xnd.slice(11, 13)); return h < 10 ? 0 : h >= 18 ? 5 : (h >> 1) - 4; };
 
 // ------------------------------------------
 // Tham số
@@ -42,6 +62,7 @@ function docThamSo(query, { coPhanTrang }) {
     if (rieng.nhom !== undefined && !Object.prototype.hasOwnProperty.call(N.NHOM_BD10, rieng.nhom)) throw new QueryParamError(`Tham số "nhom" phải là một trong: ${Object.keys(N.NHOM_BD10).join(', ')}`);
     if (rieng.trang_thai !== undefined && !TRANG_THAI.includes(rieng.trang_thai)) throw new QueryParamError(`Tham số "trang_thai" phải là một trong: ${TRANG_THAI.join(', ')}`);
     if (rieng.ly_do !== undefined && !Object.prototype.hasOwnProperty.call(N.LY_DO, rieng.ly_do)) throw new QueryParamError(`Tham số "ly_do" phải là một trong: ${Object.keys(N.LY_DO).join(', ')}`);
+    if (rieng.dai !== undefined && !DAI.includes(rieng.dai)) throw new QueryParamError(`Tham số "dai" phải là một trong: ${DAI.join(', ')}`);
     if (rieng.nghi_ngo !== undefined) {
       const v = rieng.nghi_ngo.toLowerCase();
       if (v === '1' || v === 'true') rieng.nghi_ngo = true;
@@ -68,7 +89,7 @@ function layDongDo(db, f) {
       WHERE a.bd10_confirmed_at IS NOT NULL AND a.bd10_confirmed_at <> ''
       GROUP BY a.tracking_no)
     SELECT r.receiver_code AS receiver_code, r.ward_name AS ward_name, r.tracking_no AS shbg, r.bd10_no AS bd10_no,
-      r.bd10_ttkt_confirmed_at AS ktt, r.bd10_confirmed_at AS xnd
+      r.bd10_ttkt_confirmed_at AS ktt, r.bd10_confirmed_at AS xnd, r.route_name AS route_name, s.t AS t_den
     FROM s LEFT JOIN m ON m.tn = s.tracking_no
     JOIN arrival_items r ON r.id = COALESCE(CAST(substr(m.k, 20, 12) AS INTEGER), s.id)`).all(params);
 }
@@ -78,10 +99,13 @@ function tatCaLuot(db, f) {
   return layDongDo(db, f).map((d) => {
     const gio = CT.chiTieuGio(d.receiver_code, d.ward_name); // phường/xã của CHÍNH dòng đo (chữ gốc, không phải ward_key đã bỏ dấu)
     const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio });
+    const chinh = r.trangThai === 'DO_DUOC' && !r.nghiNgo;
     return {
       receiver_code: d.receiver_code, shbg: d.shbg, bd10_no: d.bd10_no, nhom: r.nhom, ktt: d.ktt || null, xnd: d.xnd || null,
       trangThai: r.trangThai, lyDo: r.lyDo, thoiGianThucGiay: r.thoiGianThucGiay, quyConLaiGiay: r.quyConLaiGiay, nghiNgo: r.nghiNgo,
-      chi_tieu_gio: r.chiTieuGio, phuong_trong: CT.maCoNgoaiLe(d.receiver_code) && CT.chuanHoaTenXaPhuong(d.ward_name) === ''
+      chi_tieu_gio: r.chiTieuGio, phuong_trong: CT.maCoNgoaiLe(d.receiver_code) && CT.chuanHoaTenXaPhuong(d.ward_name) === '',
+      duong_thu: String(d.route_name ?? '').trim() || DUONG_THU_TRONG, ngay_den: d.t_den.slice(0, 10), nguon_moc_bat_dau: r.nguonMocBatDau,
+      dai: chinh ? daiCua(r.quyConLaiGiay.F1_3) : null // chỉ lượt chính được xếp dải
     };
   });
 }
@@ -115,6 +139,8 @@ function trangTuLuot(luotDay, f, rieng) {
   if (rieng.trang_thai) luot = luot.filter((l) => l.trangThai === rieng.trang_thai);
   if (rieng.ly_do) luot = luot.filter((l) => l.lyDo === rieng.ly_do);
   if (rieng.nghi_ngo !== undefined) luot = luot.filter((l) => l.nghiNgo === rieng.nghi_ngo);
+  if (rieng.duong_thu) luot = luot.filter((l) => l.duong_thu === rieng.duong_thu);
+  if (rieng.dai) luot = luot.filter((l) => l.dai === rieng.dai);
   const total = luot.length;
   const items = luot.slice((f.page - 1) * f.pageSize, f.page * f.pageSize);
   return {
@@ -125,7 +151,7 @@ function trangTuLuot(luotDay, f, rieng) {
 }
 
 /**
- * query: from, to (bắt buộc), receiver_code, ward_key, page, page_size, nhom, trang_thai, ly_do, nghi_ngo (1/true | 0/false) (date_basis bị bỏ qua).
+ * query: from, to (bắt buộc), receiver_code, ward_key, page, page_size, nhom, trang_thai, ly_do, nghi_ngo (1/true | 0/false), duong_thu (khớp chính xác), dai (date_basis bị bỏ qua).
  * Trả { items, pagination: { total, page, page_size, total_pages }, meta }; items sắp theo quỹ F1_3 tăng dần (null cuối), hòa theo shbg.
  */
 function layLuotQuyThoiGian(db, query) {
@@ -139,15 +165,21 @@ function layLuotQuyThoiGian(db, query) {
 function demRong() {
   const khongDo = {};
   for (const k of LY_DO_KHONG_DO) khongDo[k] = 0;
-  return { tong_shbg: 0, do_duoc: 0, am: 0, khong_do_duoc: 0, nghi_ngo: 0, chinh: 0, khong_do_duoc_theo_ly_do: khongDo };
+  return { tong_shbg: 0, do_duoc: 0, am: 0, khong_do_duoc: 0, nghi_ngo: 0, chinh: 0, truc_tiep: 0, lech_moc: 0, dai: demDai(), khong_do_duoc_theo_ly_do: khongDo };
+}
+function demDai() {
+  const dai = {};
+  for (const k of DAI) dai[k] = 0;
+  return dai;
 }
 function congLuot(d, l) {
   d.tong_shbg++;
   if (l.trangThai === 'DO_DUOC') d.do_duoc++;
-  else if (l.trangThai === 'AM') d.am++;
+  else if (l.trangThai === 'AM') { d.am++; d.lech_moc++; }
   else { d.khong_do_duoc++; d.khong_do_duoc_theo_ly_do[l.lyDo]++; }
   if (l.nghiNgo) d.nghi_ngo++;
   if (l.trangThai === 'DO_DUOC' && !l.nghiNgo) d.chinh++;
+  if (l.dai !== null) { d.dai[l.dai]++; if (l.nguon_moc_bat_dau === 'XND_BCVH') d.truc_tiep++; } // truc_tiep: tập con của chinh
 }
 function trungVi(ds) {
   if (!ds.length) return null;
@@ -168,6 +200,29 @@ function chiTieuCua(luotChinh) {
 }
 const laChinh = (l) => l.trangThai === 'DO_DUOC' && !l.nghiNgo;
 
+// Bộ gom nhẹ cho theo_duong_thu / tong.theo_bcvh / theo-ngay (QUYTG-7). Mẫu số tỉ lệ và trung bình = lượt chính, GỒM lượt nhận trực tiếp (đã qua 0).
+const gomRong = () => ({ den: 0, chinh: 0, truc_tiep: 0, lech_moc: 0, nghi_ngo: 0, khong_do_duoc: 0, dai: demDai(), tongThucGiay: 0 });
+function congGom(g, l) {
+  g.den++;
+  if (l.trangThai === 'AM') g.lech_moc++;
+  else if (l.trangThai === 'KHONG_DO_DUOC') g.khong_do_duoc++;
+  if (l.nghiNgo) g.nghi_ngo++;
+  if (l.dai !== null) {
+    g.chinh++;
+    g.dai[l.dai]++;
+    g.tongThucGiay += l.thoiGianThucGiay;
+    if (l.nguon_moc_bat_dau === 'XND_BCVH') g.truc_tiep++;
+  }
+}
+const tyLeQuaHan = (g) => (g.chinh ? g.dai.QUA_HAN / g.chinh : null);
+const trungBinhDaQua = (g) => (g.chinh ? Math.floor(g.tongThucGiay / g.chinh) : null); // làm tròn xuống giây nguyên
+const soSanhChuoi = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+/** Bảng xếp hạng: qua_han giảm dần, hòa theo den giảm dần rồi theo khóa tên tăng dần. */
+const soSanhXepHang = (khoa) => (a, b) => b.qua_han - a.qua_han || b.den - a.den || soSanhChuoi(a[khoa], b[khoa]);
+function dongXepHang(khoaTen, ten, g) {
+  return { [khoaTen]: ten, den: g.den, chinh: g.chinh, truc_tiep: g.truc_tiep, qua_han: g.dai.QUA_HAN, sap_het: g.dai.SAP_HET, ty_le_qua_han: tyLeQuaHan(g) };
+}
+
 /** query như layLuotQuyThoiGian nhưng không có phân trang / lọc nhom, trang_thai, ly_do. Trả { tong, theo_nhom, theo_bcvh, chi_tieu, meta }. */
 function tongHopQuyThoiGian(db, query) {
   const { f } = docThamSo(query, { coPhanTrang: false });
@@ -183,23 +238,89 @@ function tongHopTuLuot(luot, f) {
   const chinhTheoNhom = {};
   for (const k of Object.keys(N.NHOM_BD10)) chinhTheoNhom[k] = [];
   const chinhTong = [];
+  const duongThu = new Map();
+  const bcvhXepHang = new Map();
+  const theoGio = KHUNG_GIO.map((khung) => ({ khung, chinh: 0, dai: demDai(), qua_han: 0, sap_het: 0 }));
+  let phuongTrong = 0;
   for (const l of luot) {
     congLuot(tong, l);
     congLuot(theoNhom[l.nhom], l);
     let b = bcvh.get(l.receiver_code);
     if (!b) { b = { receiver_code: l.receiver_code, ...demRong() }; bcvh.set(l.receiver_code, b); }
     congLuot(b, l);
-    if (laChinh(l)) { chinhTong.push(l); chinhTheoNhom[l.nhom].push(l); }
+    let dt = duongThu.get(l.duong_thu);
+    if (!dt) { dt = gomRong(); duongThu.set(l.duong_thu, dt); }
+    congGom(dt, l);
+    let bx = bcvhXepHang.get(l.receiver_code);
+    if (!bx) { bx = gomRong(); bcvhXepHang.set(l.receiver_code, bx); }
+    congGom(bx, l);
+    if (laChinh(l)) {
+      chinhTong.push(l);
+      chinhTheoNhom[l.nhom].push(l);
+      if (l.phuong_trong) phuongTrong++;
+      const g = theoGio[chiSoKhungGio(l.xnd)];
+      g.chinh++;
+      g.dai[l.dai]++;
+    }
   }
+  for (const g of theoGio) { g.qua_han = g.dai.QUA_HAN; g.sap_het = g.dai.SAP_HET; }
   const chiTieuNhom = {};
   for (const k of Object.keys(N.NHOM_BD10)) chiTieuNhom[k] = chiTieuCua(chinhTheoNhom[k]);
+  // Khóa MỚI nằm trong `tong` (theo_bcvh ở gốc là khóa cũ, giữ nguyên hình dạng và thứ tự theo mã).
+  tong.ty_le_qua_han = tong.chinh ? tong.dai.QUA_HAN / tong.chinh : null;
+  tong.phuong_trong = phuongTrong;
+  tong.theo_bcvh = [...bcvhXepHang].map(([ma, g]) => dongXepHang('ma_bcvh', ma, g)).sort(soSanhXepHang('ma_bcvh'));
+  tong.theo_duong_thu = [...duongThu].map(([ten, g]) => ({ ...dongXepHang('ten', ten, g), da_qua_trung_binh_giay: trungBinhDaQua(g) })).sort(soSanhXepHang('ten'));
   return {
     tong,
     theo_nhom: theoNhom,
-    theo_bcvh: [...bcvh.values()].sort((a, b) => (a.receiver_code < b.receiver_code ? -1 : a.receiver_code > b.receiver_code ? 1 : 0)),
+    theo_bcvh: [...bcvh.values()].sort((a, b) => soSanhChuoi(a.receiver_code, b.receiver_code)),
+    theo_gio: theoGio,
     chi_tieu: { tong: chiTieuCua(chinhTong), theo_nhom: chiTieuNhom, chi_tieu_gio: { ...Q.CHI_TIEU_GIO } },
-    meta: { from: f.from, to: f.to, date_basis: 'arrival', nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
+    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
   };
 }
 
-module.exports = { QueryParamError, TRANG_THAI, layLuotQuyThoiGian, tongHopQuyThoiGian, docThamSo, luotDaSapXep, trangTuLuot, tongHopTuLuot };
+// ------------------------------------------
+// Theo ngày đến (QUYTG-7)
+// ------------------------------------------
+/** Như docThamSo (không phân trang) nhưng khoảng ngày tối đa 31 ngày (tính theo ngày của from / to). */
+function docThamSoTheoNgay(query) {
+  const r = docThamSo(query, { coPhanTrang: false });
+  if (soNgay(r.f.fromDate, r.f.toDate) > MAX_NGAY_THEO_NGAY) throw new QueryParamError(`Khoảng thời gian tối đa ${MAX_NGAY_THEO_NGAY} ngày`);
+  return r;
+}
+/** Giây UTC (số) của 00:00 ngày 'YYYY-MM-DD' đã hợp lệ — dựng từ các trường số, không phân tích chuỗi bằng Date. */
+const utcNgay = (s) => Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));
+const soNgay = (tu, den) => Math.round((utcNgay(den) - utcNgay(tu)) / 86400000) + 1;
+/** Mọi ngày từ `tu` đến `den` (YYYY-MM-DD), giảm dần. */
+function cacNgayGiam(tu, den) {
+  const ds = [];
+  const dau = utcNgay(tu);
+  for (let i = soNgay(tu, den) - 1; i >= 0; i--) ds.push(new Date(dau + i * 86400000).toISOString().slice(0, 10));
+  return ds;
+}
+
+/** Tổng hợp theo ngày đến từ danh sách lượt đầy đủ của khung `f`; đủ mọi ngày trong khoảng (kể cả ngày 0 lượt), ngày giảm dần. */
+function theoNgayTuLuot(luot, f) {
+  const gom = new Map(cacNgayGiam(f.fromDate, f.toDate).map((n) => [n, gomRong()]));
+  for (const l of luot) congGom(gom.get(l.ngay_den), l);
+  return {
+    ngay: [...gom].map(([ngay, g]) => ({
+      ngay_den: ngay, den: g.den, chinh: g.chinh, truc_tiep: g.truc_tiep, lech_moc: g.lech_moc, nghi_ngo: g.nghi_ngo, khong_do_duoc: g.khong_do_duoc, dai: g.dai,
+      qua_han: g.dai.QUA_HAN, ty_le_qua_han: tyLeQuaHan(g), sap_het: g.dai.SAP_HET, da_qua_trung_binh_giay: trungBinhDaQua(g)
+    })),
+    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
+  };
+}
+
+/** query: from, to (bắt buộc, tối đa 31 ngày), receiver_code, ward_key. Trả { ngay: [...], meta }. */
+function theoNgayQuyThoiGian(db, query) {
+  const { f } = docThamSoTheoNgay(query);
+  return theoNgayTuLuot(tatCaLuot(db, f), f);
+}
+
+module.exports = {
+  QueryParamError, TRANG_THAI, DAI, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, daiCua,
+  layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot
+};

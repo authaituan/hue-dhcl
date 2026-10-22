@@ -83,6 +83,8 @@ router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(r
 // Tham số: from, to (bắt buộc), receiver_code, ward_key; /luot thêm page, page_size, nhom, trang_thai, ly_do, nghi_ngo.
 router.get('/arrivals/quy-thoi-gian/tong-hop', handle((req) => quyThoiGianCache.tongHop(db, req.query), 'quy-thoi-gian-tong-hop'));
 router.get('/arrivals/quy-thoi-gian/luot', handle((req) => quyThoiGianCache.luot(db, req.query), 'quy-thoi-gian-luot'));
+// QUYTG-7: /luot thêm duong_thu, dai; /theo-ngay: from, to (tối đa 31 ngày), receiver_code, ward_key — một phần tử mỗi ngày đến.
+router.get('/arrivals/quy-thoi-gian/theo-ngay', handle((req) => quyThoiGianCache.theoNgay(db, req.query), 'quy-thoi-gian-theo-ngay'));
 router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 

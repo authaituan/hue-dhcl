@@ -14,8 +14,9 @@ const TONG_MAX = 500;
 const DANH_SACH_MAX = 3;
 const tong = new Map();
 const danhSach = new Map();
+const theoNgayCache = new Map(); // QUYTG-7: tổng hợp theo ngày (nhỏ, không tính vào thongKe); tính từ cùng danh sách đầy đủ
 let cacheDauHieu = null;
-const xoaCache = () => { tong.clear(); danhSach.clear(); cacheDauHieu = null; };
+const xoaCache = () => { tong.clear(); danhSach.clear(); theoNgayCache.clear(); cacheDauHieu = null; };
 
 /** Khóa khung đã chuẩn hóa: from|to|mã BCVH (bỏ trùng, sắp xếp)|ward_key. */
 function khoaKhung(f) {
@@ -23,7 +24,7 @@ function khoaKhung(f) {
 }
 
 function dongBo(dauHieu) {
-  if (cacheDauHieu !== dauHieu) { tong.clear(); danhSach.clear(); cacheDauHieu = dauHieu; }
+  if (cacheDauHieu !== dauHieu) { tong.clear(); danhSach.clear(); theoNgayCache.clear(); cacheDauHieu = dauHieu; }
 }
 function lay(map, khoa, now) {
   const c = map.get(khoa);
@@ -66,7 +67,20 @@ function tongHop(db, query, now = Date.now()) {
   return kq;
 }
 
+/** GET …/quy-thoi-gian/theo-ngay: query như theoNgayQuyThoiGian (tối đa 31 ngày). */
+function theoNgay(db, query, now = Date.now()) {
+  const { f } = QQ.docThamSoTheoNgay(query);
+  dongBo(PD.dauHieuDb(db));
+  const khoa = khoaKhung(f);
+  let kq = lay(theoNgayCache, khoa, now);
+  if (!kq) {
+    kq = QQ.theoNgayTuLuot(luotDayDu(db, f, khoa, now), f);
+    dat(theoNgayCache, TONG_MAX, khoa, kq, now);
+  }
+  return kq;
+}
+
 /** Chỉ để test: số khóa đang giữ. */
 const thongKe = () => ({ tong: tong.size, danh_sach: danhSach.size });
 
-module.exports = { CACHE_MAX_AGE_MS, TONG_MAX, DANH_SACH_MAX, khoaKhung, luot, tongHop, xoaCache, thongKe };
+module.exports = { CACHE_MAX_AGE_MS, TONG_MAX, DANH_SACH_MAX, khoaKhung, luot, tongHop, theoNgay, xoaCache, thongKe };
