@@ -68,6 +68,7 @@ before(async () => {
   T({ trk: 'QT0011VN', bd10: KTT_B(23), bag: '2026-10-21 07:00:00', ktt: '2026-10-19 08:00:00' });
   T({ trk: 'QT0015VN', recv: BC2, bd10: `530100${BC2}610221`, bag: '2026-10-21 08:00:00', xnd: '2026-10-21 09:00:00', ktt: '2026-10-21 07:00:00' });
   T({ trk: 'QT0016VN', recv: BC2, bd10: `531120${BC2}610222`, bag: '2026-10-21 08:00:00', xnd: '2026-10-21 09:00:00' });
+  themDuLieuTheoNgay();
   CACHE.xoaCache();
 });
 after(async () => {
@@ -286,12 +287,174 @@ test('đo cache ở quy mô ~116.000 SHBG (QTG_PERF=1)', { skip: !process.env.QT
   const t3 = process.hrtime.bigint();
   const th2 = CACHE.tongHop(d, q); // trúng cache tổng hợp
   const t4 = process.hrtime.bigint();
+  CACHE.theoNgay(d, q); // QUYTG-7: theo ngày khi danh sách đầy đủ đã có trong cache (chỉ gom lại)
+  const t5 = process.hrtime.bigint();
+  const nd2 = CACHE.theoNgay(d, q); // trúng cache
+  const t6 = process.hrtime.bigint();
+  CACHE.xoaCache();
+  const t7 = process.hrtime.bigint();
+  const nd3 = CACHE.theoNgay(d, q); // lần đầu từ đầu: tính danh sách đầy đủ + gom theo ngày
+  const t8 = process.hrtime.bigint();
+  assert.equal(CACHE.theoNgay(d, q), nd3);
+  assert.equal(nd3.ngay.reduce((a, n) => a + n.den, 0), th1.tong.tong_shbg);
+  assert.ok(nd2.ngay.length === 31);
+  CACHE.luot(d, { ...q, page_size: '200' });
   if (global.gc) global.gc();
   const h1 = process.memoryUsage().heapUsed;
   console.log(`[QTG_PERF] ${nSo} SHBG: luot lần đầu ${ms(t0, t1)} ms; luot lần hai (lọc nhom + trang 7) ${ms(t1, t2)} ms; tongHop sau luot ${ms(t2, t3)} ms; tongHop lần hai ${ms(t3, t4)} ms; `
+    + `theo-ngay (31 ngày): khi đã có danh sách ${ms(t4, t5)} ms, lần hai ${ms(t5, t6)} ms, lần đầu từ đầu (gồm tính danh sách) ${ms(t7, t8)} ms; `
     + `heap tăng ~${mb(h1 - h0)} MB cho 1 khóa danh sách (${a.pagination.total} lượt)${global.gc ? '' : ' [không có --expose-gc: số chỉ tham khảo]'}`);
   assert.equal(a.pagination.total, th1.tong.tong_shbg);
   assert.equal(th1, th2);
   assert.ok(b.pagination.total > 0);
   d.close();
+});
+
+// ------------------------------------------
+// QUYTG-7: /theo-ngay, bộ lọc duong_thu / dai, khóa mới của /tong-hop. Dữ liệu GIẢ riêng ở tháng 9/2026 (không đụng các ca 21/10 ở trên).
+// ------------------------------------------
+const RANGE = 'from=2026-09-10&to=2026-09-12';
+const THEO_NGAY = '/api/arrivals/quy-thoi-gian/theo-ngay';
+function themDuLieuTheoNgay() { // gọi ở cuối before chính (cần dòng arrival_import_files đã có)
+  const st = ctx.db.prepare(insSql);
+  const upd = ctx.db.prepare('UPDATE arrival_items SET route_name = ? WHERE id = ?');
+  const T = (o) => { them(st, { ...o, bag: o.xnd }); upd.run(o.duong ?? '', idDong); };
+  T({ trk: 'TN0001VN', bd10: KTT_B(71), ktt: '2026-09-09 07:00:00', xnd: '2026-09-10 07:00:01', duong: 'Đường thư 1' }); // quỹ -1: QUA_HAN
+  T({ trk: 'TN0002VN', bd10: KTT_B(72), ktt: '2026-09-10 07:00:00', xnd: '2026-09-10 19:00:01', duong: 'Đường thư 1' }); // quỹ 7.199: SAP_HET
+  T({ trk: 'TN0003VN', bd10: KTT_B(73), ktt: '2026-09-10 07:00:00', xnd: '2026-09-10 19:00:00', duong: 'Đường thư 2' }); // quỹ 7.200: CON_2_6
+  T({ trk: 'TN0004VN', bd10: KTT_B(74), ktt: '2026-09-10 07:00:00', xnd: '2026-09-10 15:00:00', duong: '' }); // quỹ 21.600: CON_TREN_6, đường thư rỗng
+  T({ trk: 'TN0005VN', bd10: NGOAI_B(75), xnd: '2026-09-10 12:30:00', duong: 'Đường thư 2' }); // nhận trực tiếp
+  T({ trk: 'TN0006VN', bd10: KTT_B(76), ktt: '2026-09-10 11:00:00', xnd: '2026-09-10 09:30:00', duong: 'Đường thư 1' }); // số âm
+  T({ trk: 'TN0007VN', bd10: KTT_B(77), ktt: '2026-08-30 08:00:00', xnd: '2026-09-10 08:00:00', duong: 'Đường thư 1' }); // nghi ngờ
+  T({ trk: 'TN0008VN', recv: BC2, bd10: `530100${BC2}610271`, ktt: '2026-09-09 07:00:00', xnd: '2026-09-10 07:00:01', duong: 'Đường thư 2' }); // quá hạn ở BCVH 2
+  T({ trk: 'TN0009VN', bd10: KTT_B(78), ktt: '2026-09-12 07:00:00', xnd: '2026-09-12 08:00:00', duong: 'Đường thư 1' }); // ngày 12/9; 11/9 không có lượt
+  CACHE.xoaCache();
+}
+const enc = encodeURIComponent;
+
+test('QUYTG-7: /theo-ngay — quyền: 401 không token; ADMIN / TTVH / GDVH 200; TIVI 403', async () => {
+  assert.equal((await api(`${THEO_NGAY}?${RANGE}`)).status, 401);
+  for (const who of ['admin', 'ttvh', 'gdvh']) {
+    const r = await api(`${THEO_NGAY}?${RANGE}`, who);
+    assert.equal(r.status, 200, who);
+    assert.ok(Array.isArray(r.body.ngay) && r.body.meta, who);
+  }
+  assert.equal((await api(`${THEO_NGAY}?${RANGE}`, 'tivi')).status, 403);
+});
+
+test('QUYTG-7: /theo-ngay — 400 cho tham số sai (không 500), khoảng đúng 31 ngày được, 32 ngày không', async () => {
+  const sai = ['', 'from=2026-09-10', 'to=2026-09-10', 'from=2026-09-12&to=2026-09-10', 'from=2026-13-40&to=2026-09-10', `${RANGE}&khoa_la=1`, `${RANGE}&receiver_code=abc`,
+    `${RANGE}&dai=QUA_HAN`, `${RANGE}&nhom=KTT`, `${RANGE}&page=1`, 'from=2026-09-20&to=2026-10-21', 'from=2026-01-01&to=2026-12-31'];
+  for (const q of sai) {
+    const r = await api(`${THEO_NGAY}?${q}`, 'admin');
+    assert.equal(r.status, 400, q);
+    assert.ok(typeof r.body.error === 'string' && r.body.error.length > 0, q);
+  }
+  const ok = await api(`${THEO_NGAY}?from=2026-09-21&to=2026-10-21`, 'admin');
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.ngay.length, 31);
+  assert.equal((await api(`${THEO_NGAY}?${RANGE}&date_basis=bag`, 'admin')).status, 200); // date_basis được bỏ qua như hai route kia
+});
+
+test('QUYTG-7: /theo-ngay — đủ mọi ngày kể cả ngày 0 lượt, ngày giảm dần, khớp lõi và /tong-hop', async () => {
+  CACHE.xoaCache();
+  const r = await api(`${THEO_NGAY}?${RANGE}`, 'admin');
+  assert.deepEqual(r.body, json(QQ.theoNgayQuyThoiGian(ctx.db, Object.fromEntries(new URLSearchParams(RANGE)))));
+  assert.deepEqual(r.body.ngay.map((n) => n.ngay_den), ['2026-09-12', '2026-09-11', '2026-09-10']);
+  const [n12, n11, n10] = r.body.ngay;
+  assert.deepEqual([n11.den, n11.chinh, n11.ty_le_qua_han, n11.da_qua_trung_binh_giay], [0, 0, null, null]);
+  assert.deepEqual([n10.den, n10.chinh, n10.truc_tiep, n10.lech_moc, n10.nghi_ngo, n10.khong_do_duoc], [8, 6, 1, 1, 1, 0]);
+  assert.deepEqual(n10.dai, { QUA_HAN: 2, SAP_HET: 1, CON_2_6: 1, CON_TREN_6: 2 });
+  assert.deepEqual([n10.qua_han, n10.sap_het, n10.ty_le_qua_han], [2, 1, 2 / 6]);
+  assert.deepEqual([n12.den, n12.chinh, n12.dai.CON_TREN_6, n12.da_qua_trung_binh_giay], [1, 1, 1, 3600]);
+  const th = (await api(`${TH}?${RANGE}`, 'admin')).body;
+  assert.equal(r.body.ngay.reduce((a, n) => a + n.den, 0), th.tong.tong_shbg);
+  assert.equal(r.body.ngay.reduce((a, n) => a + n.dai.QUA_HAN, 0), th.tong.dai.QUA_HAN);
+  assert.equal(r.body.ngay.reduce((a, n) => a + n.chinh, 0), th.tong.chinh);
+  assert.equal(th.tong.tong_shbg, (await api(`/api/arrivals/summary?${RANGE}`, 'admin')).body.san_luong);
+  // lọc BCVH
+  const b2 = (await api(`${THEO_NGAY}?${RANGE}&receiver_code=${BC2}`, 'admin')).body;
+  assert.deepEqual(b2.ngay.map((n) => [n.ngay_den, n.den, n.qua_han]), [['2026-09-12', 0, 0], ['2026-09-11', 0, 0], ['2026-09-10', 1, 1]]);
+});
+
+test('QUYTG-7: /tong-hop — khóa mới (dải, đường thư, BCVH, khung giờ, meta); receiver_code của một BCVH cho theo_bcvh đúng một phần tử', async () => {
+  const t = (await api(`${TH}?${RANGE}`, 'admin')).body;
+  assert.deepEqual([t.tong.tong_shbg, t.tong.chinh, t.tong.truc_tiep, t.tong.lech_moc, t.tong.phuong_trong], [9, 7, 1, 1, 0]);
+  assert.deepEqual(t.tong.dai, { QUA_HAN: 2, SAP_HET: 1, CON_2_6: 1, CON_TREN_6: 3 });
+  assert.equal(t.tong.ty_le_qua_han, 2 / 7);
+  assert.equal(t.meta.chi_tieu, 'F1_3');
+  assert.equal(t.meta.nguong_sap_het_giay, 7200);
+  assert.deepEqual(t.tong.theo_duong_thu.map((x) => [x.ten, x.den, x.chinh, x.truc_tiep, x.qua_han, x.sap_het]),
+    [['Đường thư 1', 5, 3, 0, 1, 1], ['Đường thư 2', 3, 3, 1, 1, 0], ['Chưa rõ đường thư', 1, 1, 0, 0, 0]]);
+  assert.equal(t.tong.theo_duong_thu.reduce((a, x) => a + x.qua_han, 0), t.tong.dai.QUA_HAN);
+  assert.deepEqual(t.tong.theo_bcvh.map((x) => [x.ma_bcvh, x.den, x.chinh, x.qua_han]), [[BC, 8, 6, 1], [BC2, 1, 1, 1]]);
+  assert.equal(t.tong.theo_bcvh.reduce((a, x) => a + x.qua_han, 0), t.tong.dai.QUA_HAN);
+  assert.deepEqual(t.theo_bcvh.map((x) => x.receiver_code), [BC2, BC]); // khóa cũ giữ nguyên
+  assert.deepEqual(t.theo_gio.map((g) => g.khung), ['Trước 10h', '10–12h', '12–14h', '14–16h', '16–18h', 'Sau 18h']);
+  assert.deepEqual(t.theo_gio.map((g) => g.chinh), [3, 0, 1, 1, 0, 2]); // 07:00:01 ×2, 08:00:00 | 12:30:00 | 15:00:00 | 19:00:01, 19:00:00
+  assert.equal(t.theo_gio.reduce((a, g) => a + g.chinh, 0), t.tong.chinh);
+  for (const ma of [BC, BC2]) {
+    const m = (await api(`${TH}?${RANGE}&receiver_code=${ma}`, 'admin')).body;
+    assert.equal(m.tong.theo_bcvh.length, 1, ma);
+    assert.equal(m.tong.theo_bcvh[0].ma_bcvh, ma);
+    assert.equal(m.theo_bcvh.length, 1);
+    const l = (await api(`${LUOT}?${RANGE}&receiver_code=${ma}&page_size=200`, 'admin')).body;
+    assert.ok(l.items.length > 0 && l.items.every((i) => i.receiver_code === ma), ma);
+    assert.equal(l.pagination.total, m.tong.tong_shbg);
+  }
+});
+
+test('QUYTG-7: /luot — khóa mới trên lượt, lọc duong_thu / dai, 400 khi sai', async () => {
+  const tat = (await api(`${LUOT}?${RANGE}&page_size=200`, 'admin')).body;
+  assert.equal(tat.pagination.total, 9);
+  for (const l of tat.items) {
+    for (const k of ['duong_thu', 'ngay_den', 'nguon_moc_bat_dau', 'dai']) assert.ok(Object.prototype.hasOwnProperty.call(l, k), k);
+  }
+  const theo = (s) => tat.items.find((i) => i.shbg === s);
+  assert.deepEqual([theo('TN0001VN').dai, theo('TN0001VN').nguon_moc_bat_dau, theo('TN0001VN').ngay_den], ['QUA_HAN', 'KTT', '2026-09-10']);
+  assert.deepEqual([theo('TN0005VN').dai, theo('TN0005VN').nguon_moc_bat_dau], ['CON_TREN_6', 'XND_BCVH']);
+  assert.deepEqual([theo('TN0006VN').dai, theo('TN0006VN').nguon_moc_bat_dau, theo('TN0007VN').dai, theo('TN0007VN').nghiNgo], [null, 'KTT', null, true]);
+  assert.equal(theo('TN0004VN').duong_thu, 'Chưa rõ đường thư');
+  assert.equal(theo('TN0009VN').ngay_den, '2026-09-12');
+  const ids = async (q) => (await api(`${LUOT}?${RANGE}&page_size=200&${q}`, 'admin')).body.items.map((i) => i.shbg).sort();
+  assert.deepEqual(await ids('dai=QUA_HAN'), ['TN0001VN', 'TN0008VN']);
+  assert.deepEqual(await ids('dai=SAP_HET'), ['TN0002VN']);
+  assert.deepEqual(await ids(`duong_thu=${enc('Đường thư 2')}`), ['TN0003VN', 'TN0005VN', 'TN0008VN']);
+  assert.deepEqual(await ids(`duong_thu=${enc('Chưa rõ đường thư')}`), ['TN0004VN']);
+  assert.deepEqual(await ids(`duong_thu=${enc('Đường thư 2')}&dai=QUA_HAN`), ['TN0008VN']);
+  assert.deepEqual(await ids(`duong_thu=${enc('Đường thư 1')}&trang_thai=AM`), ['TN0006VN']);
+  assert.deepEqual(await ids(`duong_thu=${enc('Đường thư 1')}&nghi_ngo=1`), ['TN0007VN']);
+  assert.deepEqual(await ids('dai=QUA_HAN&nghi_ngo=1'), []);
+  assert.deepEqual(await ids('nhom=NGOAI_53&dai=CON_TREN_6'), ['TN0005VN']);
+  assert.equal((await ids('')).length, 9); // không truyền -> không đổi hành vi
+  for (const q of ['dai=XYZ', 'dai=qua_han', 'dai=QUA_HAN&dai=SAP_HET', 'duong_thu=a&duong_thu=b']) {
+    const r = await api(`${LUOT}?${RANGE}&${q}`, 'admin');
+    assert.equal(r.status, 400, q);
+    assert.ok(r.body.error, q);
+  }
+  for (const q of ['dai=QUA_HAN', `duong_thu=${enc('Đường thư 1')}`]) assert.equal((await api(`${TH}?${RANGE}&${q}`, 'admin')).status, 400, q); // chỉ /luot nhận
+});
+
+test('QUYTG-7: cache /theo-ngay — lần hai giống hệt, dùng chung danh sách đầy đủ, dữ liệu đổi thì tính lại; chỉ đọc', async () => {
+  CACHE.xoaCache();
+  const q = { from: '2026-09-10', to: '2026-09-12' };
+  const a = CACHE.theoNgay(ctx.db, q);
+  assert.deepEqual(CACHE.thongKe(), { tong: 0, danh_sach: 1 });
+  assert.equal(CACHE.theoNgay(ctx.db, q), a);
+  CACHE.tongHop(ctx.db, q);
+  CACHE.luot(ctx.db, { ...q, dai: 'QUA_HAN', duong_thu: 'Đường thư 1' });
+  assert.deepEqual(CACHE.thongKe(), { tong: 1, danh_sach: 1 }); // /theo-ngay, /tong-hop và /luot cùng một danh sách đầy đủ
+  assert.deepEqual(a, QQ.theoNgayQuyThoiGian(ctx.db, q));
+  // chỉ đọc
+  CACHE.xoaCache();
+  const truoc = PD.dauHieuDb(ctx.db);
+  for (const p of [`${THEO_NGAY}?${RANGE}`, `${THEO_NGAY}?${RANGE}&receiver_code=${BC}`, `${THEO_NGAY}?from=2026-01-01&to=2026-12-31`, `${LUOT}?${RANGE}&dai=QUA_HAN`, `${TH}?${RANGE}`]) await api(p, 'admin');
+  assert.equal(PD.dauHieuDb(ctx.db), truoc);
+  // dữ liệu đổi -> không trả bản cũ
+  const truocBody = (await api(`${THEO_NGAY}?${RANGE}`, 'admin')).body;
+  assert.equal((await api(`${THEO_NGAY}?${RANGE}`, 'admin')).body.ngay[2].den, 8);
+  them(ctx.db.prepare(insSql), { trk: 'TN0099VN', bd10: KTT_B(99), bag: '2026-09-11 10:00:00', xnd: '2026-09-11 10:30:00', ktt: '2026-09-11 08:00:00' });
+  const sau = (await api(`${THEO_NGAY}?${RANGE}`, 'admin')).body;
+  assert.equal(sau.ngay[1].den, 1);
+  assert.equal(truocBody.ngay[1].den, 0);
 });
