@@ -332,11 +332,11 @@ function dungDbDai() {
   const upd = d.prepare('UPDATE arrival_items SET route_name = ?, ward_name = ? WHERE id = ?');
   const T = (o) => { them(st, { ...o, bag: o.xnd }); upd.run(o.duong ?? '', o.phuong ?? '', idDong); }; // bag = xnd: ngày đến = ngày XNĐ
   const BC3 = '533140';
-  T({ trk: 'DI0001VN', bd10: KTT_B(41), ktt: '2026-10-20 07:00:00', xnd: '2026-10-21 07:00:01', duong: 'Đường thư 1' }); // quỹ -1
-  T({ trk: 'DI0002VN', bd10: KTT_B(42), ktt: '2026-10-20 07:00:00', xnd: '2026-10-21 07:00:00', duong: 'Đường thư 1' }); // quỹ 0
-  T({ trk: 'DI0003VN', bd10: KTT_B(43), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 19:00:01', duong: 'Đường thư 2' }); // quỹ 7.199
-  T({ trk: 'DI0004VN', bd10: KTT_B(44), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 19:00:00', duong: 'Đường thư 2' }); // quỹ 7.200
-  T({ trk: 'DI0005VN', bd10: KTT_B(45), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 15:00:01', duong: 'Đường thư 1' }); // quỹ 21.599
+  T({ trk: 'DI0001VN', bd10: KTT_B(41), ktt: '2026-10-20 07:00:00', xnd: '2026-10-21 07:00:01', duong: 'Đường thư 1', phuong: '  Phường Phú Hội  ' }); // quỹ -1
+  T({ trk: 'DI0002VN', bd10: KTT_B(42), ktt: '2026-10-20 07:00:00', xnd: '2026-10-21 07:00:00', duong: 'Đường thư 1', phuong: 'NULL' }); // quỹ 0
+  T({ trk: 'DI0003VN', bd10: KTT_B(43), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 19:00:01', duong: 'Đường thư 2', phuong: 'Thuận Hòa' }); // quỹ 7.199
+  T({ trk: 'DI0004VN', bd10: KTT_B(44), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 19:00:00', duong: 'Đường thư 2', phuong: '   ' }); // quỹ 7.200
+  T({ trk: 'DI0005VN', bd10: KTT_B(45), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 15:00:01', duong: 'Đường thư 1', phuong: 'Phường Đông Ba' }); // quỹ 21.599
   T({ trk: 'DI0006VN', bd10: KTT_B(46), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 15:00:00', duong: 'Đường thư 3' }); // quỹ 21.600
   T({ trk: 'DI0007VN', bd10: KTT_B(47), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 09:59:59', duong: 'Đường thư 3' }); // khung Trước 10h
   T({ trk: 'DI0008VN', bd10: KTT_B(48), ktt: '2026-10-21 07:00:00', xnd: '2026-10-21 10:00:00', duong: 'Đường thư 3' }); // khung 10–12h
@@ -541,4 +541,96 @@ test('QUYTG-7: khóa cũ còn nguyên (F4_1 / F4_2, trung vị, theo_nhom) và k
   assert.equal(layDai().pagination.total, 17);
   assert.equal(layDai({ dai: '' }).pagination.total, 17);
   assert.equal(layDai({ duong_thu: '' }).pagination.total, 17);
+});
+
+// ------------------------------------------
+// QUYTG-7c: phuong_xa trên mỗi lượt và bộ lọc dai=CON_THOI_GIAN (dùng lại DB dữ liệu GIẢ của QUYTG-7)
+// ------------------------------------------
+const KHOA_LUOT_CU = ['receiver_code', 'shbg', 'bd10_no', 'nhom', 'ktt', 'xnd', 'trangThai', 'lyDo', 'thoiGianThucGiay', 'quyConLaiGiay', 'nghiNgo', 'chi_tieu_gio', 'phuong_trong',
+  'duong_thu', 'ngay_den', 'nguon_moc_bat_dau', 'dai'];
+const CON_TG = ['DI0004VN', 'DI0005VN', 'DI0006VN', 'DI0007VN', 'DI0008VN', 'DI0009VN', 'DI0010VN', 'DI0011VN', 'DI0017VN', 'DI0018VN'];
+
+test('QUYTG-7c: phuong_xa — chữ gốc đã cắt khoảng trắng; rỗng / NULL -> null; không bỏ dấu, không bỏ tiền tố; mọi khóa cũ còn nguyên', () => {
+  const kq = layDai();
+  const gia = (s) => byShbg(kq, s).phuong_xa;
+  assert.equal(gia('DI0001VN'), 'Phường Phú Hội'); // cắt khoảng trắng hai đầu, giữ tiền tố «Phường»
+  assert.equal(gia('DI0002VN'), null); // chữ NULL
+  assert.equal(gia('DI0003VN'), 'Thuận Hòa'); // giữ dấu thanh (khác «Thuận Hóa»)
+  assert.equal(gia('DI0004VN'), null); // chỉ khoảng trắng
+  assert.equal(gia('DI0005VN'), 'Phường Đông Ba'); // giữ chữ Đ và tiền tố
+  assert.equal(gia('DI0006VN'), null); // ward_name rỗng
+  assert.equal(gia('DI0017VN'), null); // phường trống ở BCVH có ngoại lệ
+  assert.equal(gia('DI0018VN'), 'Thuận Hóa');
+  // mọi lượt: có khóa, kiểu chuỗi khác rỗng hoặc null, và bằng đúng ward_name của dòng (SHBG một dòng) sau khi cắt
+  const dong = dungDbDai().prepare('SELECT tracking_no AS t, ward_name AS w FROM arrival_items').all();
+  for (const l of kq.items) {
+    assert.ok(Object.prototype.hasOwnProperty.call(l, 'phuong_xa'), l.shbg);
+    assert.ok(l.phuong_xa === null || (typeof l.phuong_xa === 'string' && l.phuong_xa === l.phuong_xa.trim() && l.phuong_xa !== ''), l.shbg);
+    const w = dong.find((r) => r.t === l.shbg).w.trim();
+    assert.equal(l.phuong_xa, w === '' || w.toUpperCase() === 'NULL' ? null : w, l.shbg);
+  }
+  // chỉ tiêu 12 giờ và phuong_xa cùng một dòng đo
+  assert.deepEqual([byShbg(kq, 'DI0018VN').chi_tieu_gio, byShbg(kq, 'DI0017VN').chi_tieu_gio, byShbg(kq, 'DI0003VN').chi_tieu_gio], [12, 14, 14]);
+  // khóa cũ nguyên vẹn và đúng thứ tự, phuong_xa thêm ở cuối
+  for (const l of kq.items) assert.deepEqual(Object.keys(l), [...KHOA_LUOT_CU, 'phuong_xa'], l.shbg);
+  assert.equal(kq.pagination.total, 17);
+  assert.deepEqual(QQ.DAI, ['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6']); // bộ đếm tổng hợp vẫn 4 dải
+});
+
+test('QUYTG-7c: phuong_xa lấy từ CHÍNH dòng đo (XNĐ sớm nhất cùng BCVH), không phải dòng đại diện', () => {
+  const d = taoDb();
+  idDong += 2000;
+  const st = d.prepare(insSql);
+  const BC3 = '533140';
+  const upd = d.prepare('UPDATE arrival_items SET ward_name = ? WHERE id = ?');
+  const T = (o, w) => { them(st, o); upd.run(w, idDong); };
+  T({ trk: 'DI0301VN', recv: BC3, bd10: `530100${BC3}610301`, bag: '2026-10-21 08:00:00', xnd: '2026-10-21 09:00:00', ktt: '2026-10-21 07:00:00' }, 'Phú Xuân'); // XNĐ muộn hơn
+  T({ trk: 'DI0301VN', recv: BC3, bd10: `530100${BC3}610302`, bag: '2026-10-21 07:30:00', xnd: '2026-10-21 08:00:00', ktt: '2026-10-21 07:00:00' }, ' Thuận Hóa '); // XNĐ sớm nhất -> dòng đo
+  const kq = QQ.layLuotQuyThoiGian(d, { ...DAY, page_size: '200' });
+  assert.equal(kq.items.length, 1);
+  assert.deepEqual([kq.items[0].phuong_xa, kq.items[0].chi_tieu_gio, kq.items[0].xnd], ['Thuận Hóa', 12, '2026-10-21 08:00:00']);
+  d.close();
+});
+
+test('QUYTG-7c: dai=CON_THOI_GIAN = CON_2_6 ∪ CON_TREN_6, không lẫn QUA_HAN / SAP_HET / số âm / nghi ngờ / không đo được', () => {
+  const shbg = (kq) => kq.items.map((i) => i.shbg).sort();
+  const ct = layDai({ dai: 'CON_THOI_GIAN' });
+  assert.deepEqual(shbg(ct), CON_TG);
+  assert.equal(ct.pagination.total, layDai({ dai: 'CON_2_6' }).pagination.total + layDai({ dai: 'CON_TREN_6' }).pagination.total); // 4 + 6
+  assert.equal(ct.pagination.total, 10);
+  assert.deepEqual(shbg(ct), [...shbg(layDai({ dai: 'CON_2_6' })), ...shbg(layDai({ dai: 'CON_TREN_6' }))].sort());
+  assert.ok(ct.items.every((l) => (l.dai === 'CON_2_6' || l.dai === 'CON_TREN_6') && l.trangThai === 'DO_DUOC' && !l.nghiNgo));
+  for (const x of ['DI0001VN', 'DI0015VN', 'DI0002VN', 'DI0003VN', 'DI0012VN', 'DI0013VN', 'DI0014VN']) assert.ok(!shbg(ct).includes(x), x); // quá hạn, sắp hết, số âm, nghi ngờ, thiếu KTT
+  // phối hợp
+  assert.deepEqual(shbg(layDai({ dai: 'CON_THOI_GIAN', nhom: 'NGOAI_53' })), ['DI0011VN']);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', nhom: 'NOI_TINH_KHAC' }).pagination.total, 0);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', trang_thai: 'DO_DUOC' }).pagination.total, 10);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', trang_thai: 'AM' }).pagination.total, 0);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', ly_do: 'THIEU_XAC_NHAN_KTT' }).pagination.total, 0);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', nghi_ngo: '1' }).pagination.total, 0);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', nghi_ngo: '0' }).pagination.total, 10);
+  assert.deepEqual(shbg(layDai({ dai: 'CON_THOI_GIAN', duong_thu: 'Đường thư 3' })), ['DI0006VN', 'DI0007VN', 'DI0008VN', 'DI0009VN', 'DI0010VN']);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', duong_thu: 'Đường thư 2' }).pagination.total, 1); // DI0004 (DI0003 là SAP_HET)
+  // kèm receiver_code
+  assert.deepEqual(shbg(layDai({ dai: 'CON_THOI_GIAN', receiver_code: '533140' })), ['DI0017VN', 'DI0018VN']);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', receiver_code: BC2 }).pagination.total, 0); // DI0015 quá hạn
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', receiver_code: BC }).pagination.total, 8);
+  assert.equal(layDai({ dai: 'CON_THOI_GIAN', receiver_code: `${BC},${BC2}` }).pagination.total, 8);
+  // cắt trang vẫn đúng
+  const tr = layDai({ dai: 'CON_THOI_GIAN', page_size: '4', page: '3' });
+  assert.deepEqual([tr.items.length, tr.pagination.total, tr.pagination.total_pages], [2, 10, 3]);
+  // sắp xếp theo quỹ F1_3 tăng dần giữ nguyên
+  const q = ct.items.map((l) => l.quyConLaiGiay.F1_3);
+  assert.deepEqual(q, [...q].sort((a, b) => a - b));
+});
+
+test('QUYTG-7c: dai — bốn giá trị cũ giữ nguyên; giá trị khác (kể cả sai hoa thường, nhiều giá trị, danh sách) vẫn QueryParamError', () => {
+  assert.deepEqual(QQ.DAI_LOC, ['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6', 'CON_THOI_GIAN']);
+  assert.deepEqual(['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6'].map((v) => layDai({ dai: v }).pagination.total), [2, 2, 4, 6]);
+  for (const q of [{ dai: 'con_thoi_gian' }, { dai: 'CON_THOI_GIAN,QUA_HAN' }, { dai: ['CON_THOI_GIAN', 'QUA_HAN'] }, { dai: 'CON_THOI GIAN' }, { dai: 'XYZ' }]) {
+    assert.throws(() => layDai(q), QQ.QueryParamError, JSON.stringify(q));
+  }
+  assert.throws(() => QQ.tongHopQuyThoiGian(dungDbDai(), { ...DAY, dai: 'CON_THOI_GIAN' }), QQ.QueryParamError); // tổng hợp vẫn không nhận bộ lọc dai
+  assert.deepEqual(Object.keys(QQ.tongHopQuyThoiGian(dungDbDai(), DAY).tong.dai), ['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6']);
+  assert.equal(layDai({ dai: '' }).pagination.total, 17);
 });
