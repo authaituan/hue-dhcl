@@ -15,6 +15,7 @@ const thayThe = require('../lib/thayTheXemTruoc');
 const thayTheThucHien = require('../lib/thayTheThucHien');
 const thayTheNhatKy = require('../lib/thayTheNhatKy');
 const thayTheKhoiPhuc = require('../lib/thayTheKhoiPhuc');
+const quyThoiGianCache = require('../lib/quyThoiGianCache');
 
 const router = express.Router();
 
@@ -78,6 +79,10 @@ router.get('/arrivals/by-service', handle((req) => q.byService(db, filters(req))
 router.get('/arrivals/by-time', handle((req) => q.byTime(db, filters(req, ['granularity'])), 'by-time'));
 router.get('/arrivals/by-ward', handle((req) => q.byWard(db, filters(req)), 'by-ward'));
 router.get('/arrivals/quality-mocs', handle((req) => q.qualityMocs(db, filters(req)), 'quality-mocs'));
+// «Quỹ thời gian còn lại khi hàng đến BCVH» (QUYTG-5): CHỈ ĐỌC, cùng quyền như «Sản lượng đến» (viewerGuard; TIVI 403 theo allowlist). Lõi: server/lib/quyThoiGianQuery.js, cache: quyThoiGianCache.js.
+// Tham số: from, to (bắt buộc), receiver_code, ward_key; /luot thêm page, page_size, nhom, trang_thai, ly_do, nghi_ngo.
+router.get('/arrivals/quy-thoi-gian/tong-hop', handle((req) => quyThoiGianCache.tongHop(db, req.query), 'quy-thoi-gian-tong-hop'));
+router.get('/arrivals/quy-thoi-gian/luot', handle((req) => quyThoiGianCache.luot(db, req.query), 'quy-thoi-gian-luot'));
 router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 
