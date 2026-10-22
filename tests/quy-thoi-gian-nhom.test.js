@@ -12,7 +12,8 @@ const KTT_BD10 = '530100539999610211';
 const KHAC_BD10 = '531120539999610211';
 const nhom = (b, m = BC) => N.phanNhomBd10(b, m);
 const luot = (o) => N.danhGiaMotLuot({ bd10No: KTT_BD10, maBcvhNhan: BC, ktt: '2026-10-20 15:25:00', xnd: '2026-10-21 07:45:14', ...o });
-const KHOA = ['chiTieuGio', 'lyDo', 'nghiNgo', 'nhom', 'quyConLaiGiay', 'thoiGianThucGiay', 'trangThai'];
+const NGOAI = '700916539999610211';
+const KHOA = ['chiTieuGio', 'lyDo', 'nghiNgo', 'nguonMocBatDau', 'nhom', 'quyConLaiGiay', 'thoiGianThucGiay', 'trangThai'];
 
 test('hằng số và nhãn đủ', () => {
   assert.equal(N.MA_KTT, '530100');
@@ -62,6 +63,8 @@ test('danhGiaMotLuot: đo được (ví dụ chuẩn)', () => {
   assert.equal(r.thoiGianThucGiay, 22814);
   assert.deepEqual(r.quyConLaiGiay, { F1_3: 27586, F4_1: 22186, F4_2: 18586 });
   assert.equal(r.nghiNgo, false);
+  assert.equal(r.nguonMocBatDau, 'KTT');
+  assert.equal(luot({ bd10No: KHAC_BD10 }).nguonMocBatDau, 'KTT');
   assert.equal(luot({ bd10No: KHAC_BD10 }).trangThai, 'DO_DUOC'); // nhóm 53 khác có KTT
   assert.equal(luot({ bd10No: '700916539999610211' }).trangThai, 'DO_DUOC'); // ngoài 53 có KTT
   const bang = luot({ ktt: '2026-10-20 10:00:00', xnd: '2026-10-20 10:00:00' }); // bằng nhau
@@ -95,7 +98,7 @@ test('danhGiaMotLuot: thiếu mốc theo nhóm', () => {
   for (const v of ['', null, undefined, 'NULL', 'null', '2026-13-40 00:00:00']) {
     assert.equal(khongKtt(KTT_BD10, v).lyDo, 'THIEU_XAC_NHAN_KTT');
     assert.equal(khongKtt(KHAC_BD10, v).lyDo, 'KHONG_QUA_KTT');
-    assert.equal(khongKtt('700916539999610211', v).lyDo, 'NHAN_TRUC_TIEP_KHONG_QUA_KTT');
+    assert.equal(khongKtt(NGOAI, v).trangThai, 'DO_DUOC'); // QUYTG-7a: ngoài 53 không cần KTT (đo từ XNĐ BCVH)
     assert.equal(khongKtt(KTT_BD10, v).trangThai, 'KHONG_DO_DUOC');
   }
   for (const v of ['', null, undefined, 'NULL', 'hỏng']) {
@@ -109,6 +112,42 @@ test('danhGiaMotLuot: thiếu mốc theo nhóm', () => {
   }
   // thiếu cả hai: ưu tiên báo thiếu KTT
   assert.equal(luot({ ktt: '', xnd: '' }).lyDo, 'THIEU_XAC_NHAN_KTT');
+});
+
+test('danhGiaMotLuot: nhóm ngoài 53 đo từ XNĐ BCVH (QUYTG-7a)', () => {
+  const ngoai = (o) => luot({ bd10No: NGOAI, ...o });
+  const XND = '2026-10-21 07:45:14';
+  const r = ngoai({ ktt: '', xnd: XND });
+  assert.deepEqual(Object.keys(r).sort(), KHOA);
+  assert.deepEqual([r.nhom, r.trangThai, r.lyDo, r.nghiNgo, r.nguonMocBatDau], ['NGOAI_53', 'DO_DUOC', null, false, 'XND_BCVH']);
+  assert.equal(r.thoiGianThucGiay, 0);
+  assert.equal(r.chiTieuGio, 14);
+  assert.deepEqual(r.quyConLaiGiay, { F1_3: 50400, F4_1: 12.5 * 3600, F4_2: 11.5 * 3600 }); // 14 giờ = 50.400 s
+  // chỉ tiêu của lượt (QUYTG-7b): 12 giờ -> 43.200 s; F4_1 / F4_2 không đổi
+  const r12 = ngoai({ ktt: null, xnd: XND, chiTieuF13Gio: 12 });
+  assert.equal(r12.chiTieuGio, 12);
+  assert.equal(r12.quyConLaiGiay.F1_3, 43200);
+  assert.deepEqual([r12.quyConLaiGiay.F4_1, r12.quyConLaiGiay.F4_2], [r.quyConLaiGiay.F4_1, r.quyConLaiGiay.F4_2]);
+  assert.equal(r12.nguonMocBatDau, 'XND_BCVH');
+  // có KTT giả (trước, sau, cách XNĐ rất xa, hỏng) vẫn bỏ qua; kết quả y hệt ca không có KTT; không âm, không nghi ngờ
+  for (const ktt of ['2026-10-21 07:45:14', '2026-10-20 08:00:00', '2026-10-21 12:00:00', '2026-01-01 00:00:00', '2027-01-01 00:00:00', 'hỏng', 'NULL']) {
+    assert.deepEqual(ngoai({ ktt, xnd: XND }), r, ktt);
+    assert.deepEqual(ngoai({ ktt, xnd: XND, chiTieuF13Gio: 12 }), r12, ktt);
+  }
+  assert.ok(r.thoiGianThucGiay >= 0 && Object.values(r.quyConLaiGiay).every((g) => g > 0));
+  // không có XNĐ (kể cả khi có KTT) -> không đo được
+  for (const xnd of ['', null, undefined, 'NULL', 'hỏng', '2026-02-30 00:00:00']) {
+    for (const ktt of ['', '2026-10-20 15:25:00']) {
+      const k = ngoai({ ktt, xnd });
+      assert.deepEqual([k.trangThai, k.lyDo, k.thoiGianThucGiay, k.quyConLaiGiay, k.nghiNgo, k.nguonMocBatDau], ['KHONG_DO_DUOC', 'THIEU_XND_BCVH', null, null, false, null], String(xnd));
+    }
+  }
+  // các nhóm khác không đổi: KTT / 53 khác vẫn đo từ KTT; không đo -> nguonMocBatDau null
+  assert.equal(luot({ xnd: '2026-10-20 15:25:00' }).nguonMocBatDau, 'KTT');
+  assert.equal(luot({ ktt: '2026-10-21 09:00:00', xnd: '2026-10-21 08:00:00' }).nguonMocBatDau, 'KTT'); // AM vẫn đo từ KTT
+  assert.equal(luot({ ktt: '' }).nguonMocBatDau, null);
+  assert.equal(luot({ bd10No: KHAC_BD10, ktt: '' }).lyDo, 'KHONG_QUA_KTT');
+  for (const b of ['539999530100610203', '', '53012']) assert.equal(luot({ bd10No: b }).nguonMocBatDau, null);
 });
 
 test('danhGiaMotLuot: nhóm không đo dù có đủ hai mốc', () => {
@@ -158,7 +197,7 @@ test('danhGiaMotLuot: đầu vào xấu không ném lỗi, luôn đủ khóa', (
   assert.equal(N.danhGiaMotLuot().lyDo, 'KHONG_CO_BD10');
 });
 
-test('mọi kết quả đủ 6 khóa; lyDo luôn nằm trong LY_DO hoặc null', () => {
+test('mọi kết quả đủ 8 khóa; lyDo luôn nằm trong LY_DO hoặc null', () => {
   const bd10s = [KTT_BD10, KHAC_BD10, '700916539999610211', '539999530100610203', '', '53012'];
   const moc = ['', '2026-10-20 08:00:00', '2026-10-27 08:00:01', '2026-10-13 07:59:59'];
   for (const b of bd10s) for (const k of moc) for (const x of moc) {

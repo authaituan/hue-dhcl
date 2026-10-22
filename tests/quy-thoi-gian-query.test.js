@@ -112,7 +112,7 @@ test('số âm, KTT trống ở 3 nhóm, XNĐ trống, lập đi, rỗng / ngắ
   assert.deepEqual([am.trangThai, am.lyDo, am.thoiGianThucGiay, am.quyConLaiGiay], ['AM', 'KTT_SAU_XND_BCVH', -5400, null]);
   assert.deepEqual([theo(kq, 'QT0003VN').nhom, theo(kq, 'QT0003VN').lyDo], ['KTT', 'THIEU_XAC_NHAN_KTT']);
   assert.deepEqual([theo(kq, 'QT0004VN').nhom, theo(kq, 'QT0004VN').lyDo], ['NOI_TINH_KHAC', 'KHONG_QUA_KTT']);
-  assert.deepEqual([theo(kq, 'QT0005VN').nhom, theo(kq, 'QT0005VN').lyDo], ['NGOAI_53', 'NHAN_TRUC_TIEP_KHONG_QUA_KTT']);
+  assert.deepEqual([theo(kq, 'QT0005VN').nhom, theo(kq, 'QT0005VN').trangThai, theo(kq, 'QT0005VN').lyDo, theo(kq, 'QT0005VN').thoiGianThucGiay], ['NGOAI_53', 'DO_DUOC', null, 0]); // QUYTG-7a: ngoài 53 đo từ XNĐ BCVH, không còn «không đo được»
   const thieuXnd = theo(kq, 'QT0006VN');
   assert.deepEqual([thieuXnd.nhom, thieuXnd.trangThai, thieuXnd.lyDo, thieuXnd.xnd, thieuXnd.ktt], ['KTT', 'KHONG_DO_DUOC', 'THIEU_XND_BCVH', null, '2026-10-21 06:00:00']);
   assert.deepEqual([theo(kq, 'QT0007VN').nhom, theo(kq, 'QT0007VN').lyDo], ['LAP_DI_TAI_BCVH', 'LAP_DI_TAI_BCVH']);
@@ -129,7 +129,7 @@ test('SHBG nhiều dòng cùng BCVH: đo theo dòng XNĐ sớm nhất, KTT và B
   assert.equal(l.nhom, 'NGOAI_53');
   assert.equal(l.ktt, '2026-10-20 23:00:00'); // KTT của dòng B, không phải 06:00 (A) hay 19/10 (C)
   assert.equal(l.xnd, '2026-10-21 08:00:00');
-  assert.equal(l.thoiGianThucGiay, 3600); // 23:00→07:00 bị loại, 07:00→08:00 = 1 giờ
+  assert.equal(l.thoiGianThucGiay, 0); // QUYTG-7a: ngoài 53 đo từ XNĐ BCVH nên bỏ qua KTT (23:00 hôm trước) -> 0
   assert.equal(l.trangThai, 'DO_DUOC');
   // không dòng nào có XNĐ -> dòng đại diện (túi sớm nhất), xnd = null
   const k = theo(lay(), 'QT0012VN');
@@ -232,12 +232,12 @@ test('tổng hợp: BCVH và nhóm, trung vị', () => {
   assert.equal(tong.theo_nhom.KHONG_HOP_LE.tong_shbg, 1);
   assert.equal(tong.tong.am, 1);
   assert.equal(tong.tong.nghi_ngo, 1);
-  // lượt chinh: QT0001 (22814), QT0011 (3600), QT0015 (BC2: KTT 07:00→XNĐ 09:00 = 7200) ; QT0010 nghi ngờ nên không chinh
-  assert.equal(tong.tong.chinh, 3);
-  assert.equal(tong.chi_tieu.tong.thoi_gian_thuc_trung_vi_giay, 7200);
-  assert.deepEqual(tong.chi_tieu.tong.F1_3, { con_quy: 3, het_quy: 0 });
+  // lượt chinh: QT0001 (22814), QT0005 (0, ngoài 53), QT0011 (0, ngoài 53), QT0015 (BC2: KTT 07:00→XNĐ 09:00 = 7200) ; QT0010 nghi ngờ nên không chinh
+  assert.equal(tong.tong.chinh, 4);
+  assert.equal(tong.chi_tieu.tong.thoi_gian_thuc_trung_vi_giay, 3600); // trung vị của [0, 0, 7200, 22814]
+  assert.deepEqual(tong.chi_tieu.tong.F1_3, { con_quy: 4, het_quy: 0 });
   assert.equal(tong.chi_tieu.theo_nhom.KTT.thoi_gian_thuc_trung_vi_giay, (22814 + 7200) / 2);
-  assert.equal(tong.chi_tieu.theo_nhom.NGOAI_53.thoi_gian_thuc_trung_vi_giay, 3600);
+  assert.equal(tong.chi_tieu.theo_nhom.NGOAI_53.thoi_gian_thuc_trung_vi_giay, 0);
 });
 
 test('hết quỹ: lượt chinh với F4_2 âm còn F1_3 dương', () => {
