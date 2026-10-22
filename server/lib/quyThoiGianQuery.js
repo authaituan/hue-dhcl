@@ -29,6 +29,9 @@ const KHOA_LOC_CHUNG = ['from', 'to', 'receiver_code', 'ward_key'];
 const NGUONG_SAP_HET_GIAY = 2 * 3600;
 const NGUONG_CON_2_6_GIAY = 6 * 3600;
 const DAI = Object.freeze(['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6']);
+// QUYTG-7c: giá trị lọc `dai` của /luot = 4 dải + CON_THOI_GIAN (= CON_2_6 hoặc CON_TREN_6). DAI giữ 4 dải (khóa của bộ đếm tổng hợp).
+const CON_THOI_GIAN = 'CON_THOI_GIAN';
+const DAI_LOC = Object.freeze([...DAI, CON_THOI_GIAN]);
 const DUONG_THU_TRONG = 'Chưa rõ đường thư';
 const MAX_NGAY_THEO_NGAY = 31;
 // Khung giờ XNĐ BCVH (nửa mở): chỉ số theo giờ 0-9 / 10-11 / 12-13 / 14-15 / 16-17 / 18-23.
@@ -39,6 +42,20 @@ function daiCua(quyGiay) {
   if (quyGiay < NGUONG_SAP_HET_GIAY) return 'SAP_HET';
   if (quyGiay < NGUONG_CON_2_6_GIAY) return 'CON_2_6';
   return 'CON_TREN_6';
+}
+/** QUYTG-7c: tên phường/xã GỐC của dòng đo (cắt khoảng trắng hai đầu, không chuẩn hoá, không bỏ dấu); rỗng / null / chữ NULL -> null. */
+function tenPhuongXaGoc(ten) {
+  if (ten === null || ten === undefined) return null;
+  const s = String(ten).trim();
+  return s === '' || s.toUpperCase() === 'NULL' ? null : s;
+}
+/** Trả bản đã gặp đầu tiên của chuỗi `ten` trong `bang` (null giữ nguyên). */
+function dungChung(bang, ten) {
+  if (ten === null) return null;
+  const co = bang.get(ten);
+  if (co !== undefined) return co;
+  bang.set(ten, ten);
+  return ten;
 }
 /** Chỉ số khung giờ từ giờ trong chuỗi 'YYYY-MM-DD HH:MM:SS' (cắt chuỗi, không dựng Date). */
 const chiSoKhungGio = (xnd) => { const h = Number(xnd.slice(11, 13)); return h < 10 ? 0 : h >= 18 ? 5 : (h >> 1) - 4; };
@@ -62,7 +79,7 @@ function docThamSo(query, { coPhanTrang }) {
     if (rieng.nhom !== undefined && !Object.prototype.hasOwnProperty.call(N.NHOM_BD10, rieng.nhom)) throw new QueryParamError(`Tham số "nhom" phải là một trong: ${Object.keys(N.NHOM_BD10).join(', ')}`);
     if (rieng.trang_thai !== undefined && !TRANG_THAI.includes(rieng.trang_thai)) throw new QueryParamError(`Tham số "trang_thai" phải là một trong: ${TRANG_THAI.join(', ')}`);
     if (rieng.ly_do !== undefined && !Object.prototype.hasOwnProperty.call(N.LY_DO, rieng.ly_do)) throw new QueryParamError(`Tham số "ly_do" phải là một trong: ${Object.keys(N.LY_DO).join(', ')}`);
-    if (rieng.dai !== undefined && !DAI.includes(rieng.dai)) throw new QueryParamError(`Tham số "dai" phải là một trong: ${DAI.join(', ')}`);
+    if (rieng.dai !== undefined && !DAI_LOC.includes(rieng.dai)) throw new QueryParamError(`Tham số "dai" phải là một trong: ${DAI_LOC.join(', ')}`);
     if (rieng.nghi_ngo !== undefined) {
       const v = rieng.nghi_ngo.toLowerCase();
       if (v === '1' || v === 'true') rieng.nghi_ngo = true;
@@ -96,6 +113,7 @@ function layDongDo(db, f) {
 
 /** Toàn bộ lượt đã đánh giá của bộ lọc đã chuẩn hoá `f` (không phân trang). */
 function tatCaLuot(db, f) {
+  const tenPhuong = new Map(); // ~40 tên phường/xã khác nhau trên ~10^5 lượt: dùng chung một chuỗi cho mỗi tên để danh sách trong cache không giữ mỗi lượt một bản sao
   return layDongDo(db, f).map((d) => {
     const gio = CT.chiTieuGio(d.receiver_code, d.ward_name); // phường/xã của CHÍNH dòng đo (chữ gốc, không phải ward_key đã bỏ dấu)
     const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio });
@@ -105,7 +123,8 @@ function tatCaLuot(db, f) {
       trangThai: r.trangThai, lyDo: r.lyDo, thoiGianThucGiay: r.thoiGianThucGiay, quyConLaiGiay: r.quyConLaiGiay, nghiNgo: r.nghiNgo,
       chi_tieu_gio: r.chiTieuGio, phuong_trong: CT.maCoNgoaiLe(d.receiver_code) && CT.chuanHoaTenXaPhuong(d.ward_name) === '',
       duong_thu: String(d.route_name ?? '').trim() || DUONG_THU_TRONG, ngay_den: d.t_den.slice(0, 10), nguon_moc_bat_dau: r.nguonMocBatDau,
-      dai: chinh ? daiCua(r.quyConLaiGiay.F1_3) : null // chỉ lượt chính được xếp dải
+      dai: chinh ? daiCua(r.quyConLaiGiay.F1_3) : null, // chỉ lượt chính được xếp dải
+      phuong_xa: dungChung(tenPhuong, tenPhuongXaGoc(d.ward_name)) // QUYTG-7c: cùng dòng đo với chi_tieu_gio
     };
   });
 }
@@ -140,7 +159,8 @@ function trangTuLuot(luotDay, f, rieng) {
   if (rieng.ly_do) luot = luot.filter((l) => l.lyDo === rieng.ly_do);
   if (rieng.nghi_ngo !== undefined) luot = luot.filter((l) => l.nghiNgo === rieng.nghi_ngo);
   if (rieng.duong_thu) luot = luot.filter((l) => l.duong_thu === rieng.duong_thu);
-  if (rieng.dai) luot = luot.filter((l) => l.dai === rieng.dai);
+  if (rieng.dai === CON_THOI_GIAN) luot = luot.filter((l) => l.dai === 'CON_2_6' || l.dai === 'CON_TREN_6');
+  else if (rieng.dai) luot = luot.filter((l) => l.dai === rieng.dai);
   const total = luot.length;
   const items = luot.slice((f.page - 1) * f.pageSize, f.page * f.pageSize);
   return {
@@ -151,7 +171,7 @@ function trangTuLuot(luotDay, f, rieng) {
 }
 
 /**
- * query: from, to (bắt buộc), receiver_code, ward_key, page, page_size, nhom, trang_thai, ly_do, nghi_ngo (1/true | 0/false), duong_thu (khớp chính xác), dai (date_basis bị bỏ qua).
+ * query: from, to (bắt buộc), receiver_code, ward_key, page, page_size, nhom, trang_thai, ly_do, nghi_ngo (1/true | 0/false), duong_thu (khớp chính xác), dai (4 dải hoặc CON_THOI_GIAN = CON_2_6 + CON_TREN_6) (date_basis bị bỏ qua).
  * Trả { items, pagination: { total, page, page_size, total_pages }, meta }; items sắp theo quỹ F1_3 tăng dần (null cuối), hòa theo shbg.
  */
 function layLuotQuyThoiGian(db, query) {
@@ -321,6 +341,6 @@ function theoNgayQuyThoiGian(db, query) {
 }
 
 module.exports = {
-  QueryParamError, TRANG_THAI, DAI, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, daiCua,
+  QueryParamError, TRANG_THAI, DAI, DAI_LOC, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, daiCua,
   layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot
 };
