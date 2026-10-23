@@ -1,9 +1,11 @@
 // ==========================================
-// Lõi truy vấn «Quỹ thời gian còn lại khi hàng đến BCVH» (QUYTG-4). Chỉ đọc DB. Chưa có route / cache / giao diện.
+// Lõi truy vấn «Thời gian Khai thác-Vận chuyển» (QUYTG-4). Chỉ đọc DB.
 //
-// Tập SHBG = đúng tập `s` của aq.buildCountedCte với date_basis = 'arrival' (khung ngày theo arrival_at, mỗi SHBG một lần) -> số lượt = «Sản lượng đến» cùng bộ lọc.
-// Dòng ĐO của mỗi SHBG (MỘT truy vấn gộp, không truy vấn theo từng SHBG): trong các dòng CÙNG BCVH nhận với dòng đại diện của `s`, lấy dòng có XNĐ BD10 SỚM nhất
-// (bỏ dòng XNĐ trống; hòa -> id nhỏ nhất; KHÔNG giới hạn theo khung ngày). Mốc KTT và bd10_no lấy từ CÙNG dòng đó. Không dòng nào có XNĐ -> dùng chính dòng đại diện (xnd = null).
+// QUYTG-9a (PO chốt 23/10/2026): CỘNG TỪNG NGÀY. Mỗi lượt = một (SHBG, ngày đến): khung ngày theo arrival_at, SHBG đến lại ở ngày khác của khoảng được tính ở MỖI ngày đến
+// (khác aq.buildCountedCte vốn đếm mỗi SHBG một lần trên cả khoảng — hàm đó KHÔNG đổi). Khoảng một ngày cho kết quả y hệt trước (= «Sản lượng đến» cùng bộ lọc);
+// khoảng nhiều ngày: tổng = Σ các ngày, nên có thể lớn hơn «Sản lượng đến» của cả khoảng đúng bằng số lượt đến lại. Không lọc BCVH: SHBG đi qua nhiều BCVH cùng ngày vẫn một lượt (xuyên BCVH trong ngày).
+// Dòng ĐO của mỗi lượt (MỘT truy vấn gộp, không truy vấn theo từng SHBG): trong các dòng CÙNG BCVH nhận với dòng đại diện của lượt, lấy dòng có XNĐ BD10 SỚM nhất
+// (bỏ dòng XNĐ trống; hòa -> id nhỏ nhất; KHÔNG giới hạn theo ngày — lượt đến lại dùng cùng dòng đo với lần đến đầu: còn nợ, xem docs/ai/35). Mốc KTT và bd10_no lấy từ CÙNG dòng đó. Không dòng nào có XNĐ -> dùng chính dòng đại diện (xnd = null).
 // Đánh giá từng lượt bằng danhGiaMotLuot (quyThoiGianNhom.js); tổng hợp luôn từ danh sách lượt (cùng một nguồn), không có SQL đếm thứ hai.
 // Chỉ tiêu "chinh" = đo được (DO_DUOC) và KHÔNG nghi ngờ; con_quy / het_quy và trung vị tính trên lượt chinh.
 // QUYTG-7: mỗi lượt thêm duong_thu, ngay_den, nguon_moc_bat_dau, dai (QUA_HAN | SAP_HET | CON_2_6 | CON_TREN_6 theo quyConLaiGiay.F1_3; null nếu không phải lượt chinh);
@@ -14,6 +16,7 @@ const aq = require('./arrivalsQuery');
 const Q = require('./quyThoiGian');
 const N = require('./quyThoiGianNhom');
 const CT = require('./quyThoiGianChiTieu');
+const { VALID_BCVH_CODES } = require('./userBcvh');
 
 const { QueryParamError } = aq;
 const CHI_TIEU = Object.keys(Q.CHI_TIEU_GIO); // F1_3, F4_1, F4_2
@@ -33,7 +36,10 @@ const DAI = Object.freeze(['QUA_HAN', 'SAP_HET', 'CON_2_6', 'CON_TREN_6']);
 const CON_THOI_GIAN = 'CON_THOI_GIAN';
 const DAI_LOC = Object.freeze([...DAI, CON_THOI_GIAN]);
 const DUONG_THU_TRONG = 'Chưa rõ đường thư';
-const MAX_NGAY_THEO_NGAY = 31;
+// QUYTG-9a: trần khoảng ngày của CẢ BA route (/tong-hop, /luot, /theo-ngay), đếm theo ngày của from / to.
+const MAX_NGAY_KHOANG = 31;
+// QUYTG-9a (TẠM, PO chốt 23/10/2026; chưa nối sổ «Tham số hệ thống»): (BCVH, ngày) có ÍT HƠN số lượt đến này thì không vào lũy kế (DUOI_SAN). BCVH nhỏ có thể dưới sàn dù đủ file; PO chỉnh khi có số thật.
+const SAN_NGAY_CO_DU_LIEU = 50;
 // Khung giờ XNĐ BCVH (nửa mở): chỉ số theo giờ 0-9 / 10-11 / 12-13 / 14-15 / 16-17 / 18-23.
 const KHUNG_GIO = Object.freeze(['Trước 10h', '10–12h', '12–14h', '14–16h', '16–18h', 'Sau 18h']);
 
@@ -57,6 +63,9 @@ function dungChung(bang, ten) {
   bang.set(ten, ten);
   return ten;
 }
+/** Giây UTC (số) của 00:00 ngày 'YYYY-MM-DD' đã hợp lệ — dựng từ các trường số, không phân tích chuỗi bằng Date. */
+const utcNgay = (s) => Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));
+const soNgay = (tu, den) => Math.round((utcNgay(den) - utcNgay(tu)) / 86400000) + 1;
 /** Chỉ số khung giờ từ giờ trong chuỗi 'YYYY-MM-DD HH:MM:SS' (cắt chuỗi, không dựng Date). */
 const chiSoKhungGio = (xnd) => { const h = Number(xnd.slice(11, 13)); return h < 10 ? 0 : h >= 18 ? 5 : (h >> 1) - 4; };
 
@@ -90,43 +99,72 @@ function docThamSo(query, { coPhanTrang }) {
   const allowed = coPhanTrang ? [...KHOA_LOC_CHUNG, 'page', 'page_size'] : KHOA_LOC_CHUNG;
   const f = aq.parseFilters(goc, { allowed });
   f.dateBasis = 'arrival';
+  if (soNgay(f.fromDate, f.toDate) > MAX_NGAY_KHOANG) throw new QueryParamError(`Khoảng thời gian tối đa ${MAX_NGAY_KHOANG} ngày`);
   return { f, rieng };
 }
 
 // ------------------------------------------
 // Lấy lượt
 // ------------------------------------------
-/** Một truy vấn gộp: mỗi phần tử của `s` -> một dòng đo { receiver_code, shbg, bd10_no, ktt, xnd }. */
-function layDongDo(db, f) {
-  const { sql, params } = aq.buildCountedCte(db, f, { materialize: true });
-  return db.prepare(`WITH ${sql},
+/**
+ * SQL lấy dòng ĐO của từng lượt (QUYTG-9a: một lượt = một (SHBG, ngày đến); KHÔNG dùng aq.buildCountedCte để không đổi cách đếm của /summary và dashboard).
+ *  r      : dòng có arrival_at trong [from, to] (+ BCVH nhận nếu lọc);
+ *  firsts : mỗi (SHBG, ngày đến) một khoá "arrival_at||id" nhỏ nhất -> dòng đại diện của lượt. theoBcvh=true thêm BCVH vào khoá nhóm (lũy kế: công thức A, mỗi (SHBG, BCVH, ngày) một lượt);
+ *  s      : dòng đại diện (lọc phường/xã nếu có);
+ *  m      : dòng ĐO = XNĐ sớm nhất trong các dòng CÙNG SHBG và CÙNG BCVH với dòng đại diện (không giới hạn theo ngày); nhóm theo (SHBG, BCVH) vì một SHBG có thể có đại diện ở nhiều BCVH.
+ */
+function sqlDongDo(f, { theoBcvh = false } = {}) {
+  const where = ['arrival_date BETWEEN @dfrom AND @dto', 'arrival_at BETWEEN @from AND @to'];
+  const params = { from: f.from, to: f.to, dfrom: f.fromDate, dto: f.toDate };
+  if (f.receiverCodes.length) {
+    where.push('receiver_code IN (SELECT value FROM json_each(@recv))');
+    params.recv = JSON.stringify(f.receiverCodes);
+  }
+  if (f.wardKey) params.ward = f.wardKey;
+  const sql = `WITH r AS MATERIALIZED (
+      SELECT id, tracking_no, receiver_code, arrival_at AS t FROM arrival_items WHERE ${where.join(' AND ')}),
+    firsts AS (
+      SELECT tracking_no, MIN(t || printf('%012d', id)) AS k FROM r GROUP BY tracking_no, substr(t, 1, 10)${theoBcvh ? ', receiver_code' : ''}),
+    s AS MATERIALIZED (
+      SELECT x.tracking_no, substr(x.k, 1, 19) AS t, a.id, a.receiver_code
+      FROM firsts x JOIN arrival_items a ON a.id = CAST(substr(x.k, 20, 12) AS INTEGER)${f.wardKey ? ' WHERE a.ward_key = @ward' : ''}),
     m AS (
-      SELECT a.tracking_no AS tn, MIN(a.bd10_confirmed_at || printf('%012d', a.id)) AS k
-      FROM arrival_items a JOIN s ON s.tracking_no = a.tracking_no AND s.receiver_code = a.receiver_code
+      SELECT a.tracking_no AS tn, a.receiver_code AS rc, MIN(a.bd10_confirmed_at || printf('%012d', a.id)) AS k
+      FROM arrival_items a JOIN (SELECT DISTINCT tracking_no, receiver_code FROM s) u ON u.tracking_no = a.tracking_no AND u.receiver_code = a.receiver_code
       WHERE a.bd10_confirmed_at IS NOT NULL AND a.bd10_confirmed_at <> ''
-      GROUP BY a.tracking_no)
+      GROUP BY a.tracking_no, a.receiver_code)
     SELECT r.receiver_code AS receiver_code, r.ward_name AS ward_name, r.tracking_no AS shbg, r.bd10_no AS bd10_no,
       r.bd10_ttkt_confirmed_at AS ktt, r.bd10_confirmed_at AS xnd, r.route_name AS route_name, s.t AS t_den
-    FROM s LEFT JOIN m ON m.tn = s.tracking_no
-    JOIN arrival_items r ON r.id = COALESCE(CAST(substr(m.k, 20, 12) AS INTEGER), s.id)`).all(params);
+    FROM s LEFT JOIN m ON m.tn = s.tracking_no AND m.rc = s.receiver_code
+    JOIN arrival_items r ON r.id = COALESCE(CAST(substr(m.k, 20, 12) AS INTEGER), s.id)`;
+  return { sql, params };
+}
+
+/** Một truy vấn gộp: mỗi lượt (SHBG, ngày đến) -> một dòng đo { receiver_code, shbg, bd10_no, ktt, xnd, t_den, ... }. */
+function layDongDo(db, f, opts) {
+  const { sql, params } = sqlDongDo(f, opts);
+  return db.prepare(sql).all(params);
+}
+
+/** Đánh giá MỘT dòng đo thành lượt. `tenPhuong`: bảng dùng chung chuỗi tên phường/xã (xem tatCaLuot). */
+function danhGiaDong(d, tenPhuong) {
+  const gio = CT.chiTieuGio(d.receiver_code, d.ward_name); // phường/xã của CHÍNH dòng đo (chữ gốc, không phải ward_key đã bỏ dấu)
+  const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio });
+  const chinh = r.trangThai === 'DO_DUOC' && !r.nghiNgo;
+  return {
+    receiver_code: d.receiver_code, shbg: d.shbg, bd10_no: d.bd10_no, nhom: r.nhom, ktt: d.ktt || null, xnd: d.xnd || null,
+    trangThai: r.trangThai, lyDo: r.lyDo, thoiGianThucGiay: r.thoiGianThucGiay, quyConLaiGiay: r.quyConLaiGiay, nghiNgo: r.nghiNgo,
+    chi_tieu_gio: r.chiTieuGio, phuong_trong: CT.maCoNgoaiLe(d.receiver_code) && CT.chuanHoaTenXaPhuong(d.ward_name) === '',
+    duong_thu: String(d.route_name ?? '').trim() || DUONG_THU_TRONG, ngay_den: d.t_den.slice(0, 10), nguon_moc_bat_dau: r.nguonMocBatDau,
+    dai: chinh ? daiCua(r.quyConLaiGiay.F1_3) : null, // chỉ lượt chính được xếp dải
+    phuong_xa: dungChung(tenPhuong, tenPhuongXaGoc(d.ward_name)) // QUYTG-7c: cùng dòng đo với chi_tieu_gio
+  };
 }
 
 /** Toàn bộ lượt đã đánh giá của bộ lọc đã chuẩn hoá `f` (không phân trang). */
 function tatCaLuot(db, f) {
   const tenPhuong = new Map(); // ~40 tên phường/xã khác nhau trên ~10^5 lượt: dùng chung một chuỗi cho mỗi tên để danh sách trong cache không giữ mỗi lượt một bản sao
-  return layDongDo(db, f).map((d) => {
-    const gio = CT.chiTieuGio(d.receiver_code, d.ward_name); // phường/xã của CHÍNH dòng đo (chữ gốc, không phải ward_key đã bỏ dấu)
-    const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio });
-    const chinh = r.trangThai === 'DO_DUOC' && !r.nghiNgo;
-    return {
-      receiver_code: d.receiver_code, shbg: d.shbg, bd10_no: d.bd10_no, nhom: r.nhom, ktt: d.ktt || null, xnd: d.xnd || null,
-      trangThai: r.trangThai, lyDo: r.lyDo, thoiGianThucGiay: r.thoiGianThucGiay, quyConLaiGiay: r.quyConLaiGiay, nghiNgo: r.nghiNgo,
-      chi_tieu_gio: r.chiTieuGio, phuong_trong: CT.maCoNgoaiLe(d.receiver_code) && CT.chuanHoaTenXaPhuong(d.ward_name) === '',
-      duong_thu: String(d.route_name ?? '').trim() || DUONG_THU_TRONG, ngay_den: d.t_den.slice(0, 10), nguon_moc_bat_dau: r.nguonMocBatDau,
-      dai: chinh ? daiCua(r.quyConLaiGiay.F1_3) : null, // chỉ lượt chính được xếp dải
-      phuong_xa: dungChung(tenPhuong, tenPhuongXaGoc(d.ward_name)) // QUYTG-7c: cùng dòng đo với chi_tieu_gio
-    };
-  });
+  return layDongDo(db, f).map((d) => danhGiaDong(d, tenPhuong));
 }
 
 /** meta.chi_tieu_f13 cho giao diện ghi chú: chỉ tiêu mặc định + các ngoại lệ theo BCVH / phường-xã (bản sao, không trỏ vào hằng số). */
@@ -143,7 +181,9 @@ function soSanhLuot(a, b) {
   if (x === null && y !== null) return 1;
   if (x !== null && y === null) return -1;
   if (x !== y) return x - y;
-  return a.shbg < b.shbg ? -1 : a.shbg > b.shbg ? 1 : (a.receiver_code < b.receiver_code ? -1 : a.receiver_code > b.receiver_code ? 1 : 0);
+  if (a.shbg !== b.shbg) return a.shbg < b.shbg ? -1 : 1;
+  if (a.receiver_code !== b.receiver_code) return a.receiver_code < b.receiver_code ? -1 : 1;
+  return a.ngay_den < b.ngay_den ? -1 : a.ngay_den > b.ngay_den ? 1 : 0; // QUYTG-9a: cùng SHBG có thể có lượt ở nhiều ngày
 }
 
 /** Toàn bộ lượt của khung `f`, đã sắp (quỹ F1_3 tăng dần, null cuối, hòa theo shbg). Danh sách đầy đủ này là thứ được cache (quyThoiGianCache.js): KHÔNG sửa tại chỗ. */
@@ -304,15 +344,10 @@ function tongHopTuLuot(luot, f) {
 // ------------------------------------------
 // Theo ngày đến (QUYTG-7)
 // ------------------------------------------
-/** Như docThamSo (không phân trang) nhưng khoảng ngày tối đa 31 ngày (tính theo ngày của from / to). */
+/** Như docThamSo không phân trang (từ QUYTG-9a trần 31 ngày đã nằm trong docThamSo cho cả ba route). */
 function docThamSoTheoNgay(query) {
-  const r = docThamSo(query, { coPhanTrang: false });
-  if (soNgay(r.f.fromDate, r.f.toDate) > MAX_NGAY_THEO_NGAY) throw new QueryParamError(`Khoảng thời gian tối đa ${MAX_NGAY_THEO_NGAY} ngày`);
-  return r;
+  return docThamSo(query, { coPhanTrang: false });
 }
-/** Giây UTC (số) của 00:00 ngày 'YYYY-MM-DD' đã hợp lệ — dựng từ các trường số, không phân tích chuỗi bằng Date. */
-const utcNgay = (s) => Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));
-const soNgay = (tu, den) => Math.round((utcNgay(den) - utcNgay(tu)) / 86400000) + 1;
 /** Mọi ngày từ `tu` đến `den` (YYYY-MM-DD), giảm dần. */
 function cacNgayGiam(tu, den) {
   const ds = [];
@@ -340,7 +375,154 @@ function theoNgayQuyThoiGian(db, query) {
   return theoNgayTuLuot(tatCaLuot(db, f), f);
 }
 
+// ------------------------------------------
+// Lũy kế tháng (QUYTG-9a): GET …/quy-thoi-gian/luy-ke. Từ ngày 01 của tháng chứa `den` đến `den` (mặc định: ngày mới nhất có dữ liệu), theo BCVH đang lọc,
+// KHÔNG phụ thuộc khoảng ngày người dùng chọn. Cộng từng cặp (BCVH, ngày) «có dữ liệu» (công thức A như «Xử lý và tỷ lệ phát»: cộng từng BCVH, không lọc trùng xuyên BCVH);
+// tỉ lệ = Σ quá hạn / Σ chinh (cộng đếm rồi chia, KHÔNG trung bình tỉ lệ ngày). Cache theo (BCVH, ngày) nằm ở quyThoiGianCache.js.
+// (BCVH, ngày) «có dữ liệu» khi: có ≥ 1 file OK với file_date = ngày (nếu không: THIEU_FILE); ngày mới nhất của phạm vi mà BCVH có < 2 file OK / EMPTY thì đang cập nhật
+// (DANG_CAP_NHAT, chưa gồm); số lượt đến ≥ SAN_NGAY_CO_DU_LIEU (nếu không: DUOI_SAN).
+// ------------------------------------------
+const LY_DO_NGAY = Object.freeze({ THIEU_FILE: 'THIEU_FILE', DANG_CAP_NHAT: 'DANG_CAP_NHAT', DUOI_SAN: 'DUOI_SAN' });
+const SO_FILE_DU_DOT = 2;
+const KHOA_LUY_KE = ['receiver_code', 'den'];
+
+/** query: receiver_code (tùy chọn, mã trong 6 BCVH; vắng = cả 6), den (YYYY-MM-DD, tùy chọn). Khóa lạ / mã ngoài danh mục / ngày sai -> QueryParamError. Trả { codes (đã sắp, bỏ trùng), den (hoặc null) }. */
+function docThamSoLuyKe(query) {
+  const goc = query && typeof query === 'object' ? { ...query } : {};
+  for (const k of Object.keys(goc)) if (!KHOA_LUY_KE.includes(k)) throw new QueryParamError(`Tham số không hỗ trợ: "${k}"`);
+  let den = null;
+  if (goc.den !== undefined) {
+    if (Array.isArray(goc.den)) throw new QueryParamError('Tham số "den" chỉ nhận 1 giá trị');
+    const s = String(goc.den).trim();
+    if (s !== '') {
+      const m = aq.DATE_RE.exec(s);
+      if (!m || !aq.validYmd(+m[1], +m[2], +m[3])) throw new QueryParamError('Tham số "den" phải là ngày hợp lệ dạng YYYY-MM-DD');
+      den = s;
+    }
+  }
+  const f = aq.parseFilters({ receiver_code: goc.receiver_code }, { allowed: ['receiver_code'], requireRange: false });
+  const codes = [...new Set(f.receiverCodes)].sort();
+  const la = codes.filter((c) => !VALID_BCVH_CODES.includes(c));
+  if (la.length) throw new QueryParamError(`Tham số "receiver_code" phải là mã trong: ${VALID_BCVH_CODES.join(', ')}`);
+  return { codes: codes.length ? codes : [...VALID_BCVH_CODES].sort(), den };
+}
+
+/** Mọi ngày từ `tu` đến `den` (YYYY-MM-DD), tăng dần. */
+const cacNgayTang = (tu, den) => cacNgayGiam(tu, den).reverse();
+
+/** Khung của lũy kế: { codes, tu, den, ngays, ngayMoiNhat }. Chưa có file OK nào trong phạm vi và không truyền `den` -> tu / den null, ngays rỗng. */
+function khungLuyKe(db, p) {
+  const ngayMoiNhat = aq.latestFileDate(db, p.codes, aq.latestFileDates(db));
+  const den = p.den || ngayMoiNhat;
+  if (!den) return { codes: p.codes, tu: null, den: null, ngays: [], ngayMoiNhat: null };
+  const tu = `${den.slice(0, 7)}-01`;
+  return { codes: p.codes, tu, den, ngays: cacNgayTang(tu, den), ngayMoiNhat };
+}
+
+/** File hàng đến của phạm vi: Map `mã|file_date` -> { ok (số file OK), tong (OK + EMPTY) }. Bảng nhỏ, đọc mỗi lần. */
+function thongTinFile(db, codes, tu, den) {
+  const out = new Map();
+  const rows = db.prepare(`SELECT unit_code AS b, file_date AS d, COALESCE(SUM(status = 'OK'), 0) AS ok, COALESCE(SUM(status IN ('OK', 'EMPTY')), 0) AS tong
+    FROM arrival_import_files WHERE file_date BETWEEN @tu AND @den AND unit_code IN (SELECT value FROM json_each(@j)) GROUP BY unit_code, file_date`)
+    .all({ tu, den, j: JSON.stringify(codes) });
+  for (const r of rows) out.set(`${r.b}|${r.d}`, { ok: r.ok, tong: r.tong });
+  return out;
+}
+
+/**
+ * Chữ ký dữ liệu hàng đến theo (BCVH, ngày đến) trong [tu, den]: Map `mã|ngày` -> chuỗi. MỘT truy vấn gộp. Đổi khi thêm / xóa dòng hoặc SỬA TẠI CHỖ giờ đến, XNĐ, KTT,
+// phường/xã, số BD10 của dòng thuộc cặp. Không bắt được dòng của CÙNG SHBG ở ngày khác (dòng đo không giới hạn theo ngày): cache có chốt tuổi tối đa ở quyThoiGianCache.js.
+ */
+function chuKyDuLieu(db, codes, tu, den) {
+  const out = new Map();
+  const rows = db.prepare(`SELECT receiver_code AS b, arrival_date AS d, COUNT(*) AS n, COALESCE(SUM(id), 0) AS s,
+      COALESCE(SUM(CAST(strftime('%s', arrival_at) AS INTEGER)), 0) AS a, COALESCE(SUM(CAST(strftime('%s', bd10_confirmed_at) AS INTEGER)), 0) AS x,
+      COALESCE(SUM(CAST(strftime('%s', bd10_ttkt_confirmed_at) AS INTEGER)), 0) AS k, COALESCE(SUM(length(ward_name)), 0) AS w, COALESCE(SUM(length(bd10_no)), 0) AS bn
+    FROM arrival_items WHERE arrival_date BETWEEN @tu AND @den AND receiver_code IN (SELECT value FROM json_each(@j)) GROUP BY receiver_code, arrival_date`)
+    .all({ tu, den, j: JSON.stringify(codes) });
+  for (const r of rows) out.set(`${r.b}|${r.d}`, `${r.n}.${r.s}.${r.a}.${r.x}.${r.k}.${r.w}.${r.bn}`);
+  return out;
+}
+const CHU_KY_TRONG = '0';
+
+/**
+ * Số đếm theo (BCVH, ngày đến) trong [tu, den] của các BCVH `codes`: Map `mã|ngày` -> demRong(). MỘT truy vấn gộp đọc theo luồng (không giữ danh sách lượt).
+ * Cặp không có lượt không có trong Map. Mỗi (SHBG, BCVH, ngày) một lượt.
+ */
+function tinhTheoBcvhNgay(db, codes, tu, den) {
+  const f = { from: `${tu} 00:00:00`, to: `${den} 23:59:59`, fromDate: tu, toDate: den, receiverCodes: codes, wardKey: null };
+  const { sql, params } = sqlDongDo(f, { theoBcvh: true });
+  const tenPhuong = new Map();
+  const out = new Map();
+  for (const d of db.prepare(sql).iterate(params)) {
+    const l = danhGiaDong(d, tenPhuong);
+    const k = `${l.receiver_code}|${l.ngay_den}`;
+    let g = out.get(k);
+    if (!g) { g = demRong(); out.set(k, g); }
+    congLuot(g, l);
+  }
+  return out;
+}
+
+/** Ghép kết quả lũy kế (THUẦN). files: thongTinFile; agg: Map `mã|ngày` -> demRong() (thiếu = 0 lượt). */
+function ghepLuyKe(kh, files, agg) {
+  const tong = { tong_shbg: 0, do_duoc: 0, chinh: 0, truc_tiep: 0, dai: demDai(), ty_le_qua_han: null };
+  const theoNgay = [];
+  const dangCapNhat = new Set();
+  let luyQuaHan = 0;
+  let luyChinh = 0;
+  let soNgayCo = 0;
+  for (const ngay of kh.ngays) {
+    const n = { den: 0, chinh: 0, qua_han: 0 };
+    const thieu = [];
+    let trong = 0;
+    for (const ma of kh.codes) {
+      const fi = files.get(`${ma}|${ngay}`);
+      const a = agg.get(`${ma}|${ngay}`) || null;
+      let lyDo = null;
+      if (!fi || fi.ok < 1) lyDo = LY_DO_NGAY.THIEU_FILE;
+      else if (ngay === kh.ngayMoiNhat && fi.tong < SO_FILE_DU_DOT) lyDo = LY_DO_NGAY.DANG_CAP_NHAT;
+      else if ((a ? a.tong_shbg : 0) < SAN_NGAY_CO_DU_LIEU) lyDo = LY_DO_NGAY.DUOI_SAN;
+      if (lyDo) {
+        thieu.push({ ma, ly_do: lyDo });
+        if (lyDo === LY_DO_NGAY.DANG_CAP_NHAT) dangCapNhat.add(ma);
+        continue;
+      }
+      trong++;
+      tong.tong_shbg += a.tong_shbg; tong.do_duoc += a.do_duoc; tong.chinh += a.chinh; tong.truc_tiep += a.truc_tiep;
+      for (const k of DAI) tong.dai[k] += a.dai[k];
+      n.den += a.tong_shbg; n.chinh += a.chinh; n.qua_han += a.dai.QUA_HAN;
+    }
+    const coDuLieu = trong > 0;
+    if (coDuLieu) { soNgayCo++; luyQuaHan += n.qua_han; luyChinh += n.chinh; }
+    const lyDoNgay = coDuLieu ? null : (thieu.find((t) => t.ly_do === LY_DO_NGAY.DANG_CAP_NHAT) || thieu.find((t) => t.ly_do === LY_DO_NGAY.DUOI_SAN) || thieu[0] || { ly_do: LY_DO_NGAY.THIEU_FILE }).ly_do;
+    theoNgay.push({
+      ngay, co_du_lieu: coDuLieu, ly_do: lyDoNgay, so_bcvh_trong_ngay: trong, bcvh_thieu: thieu,
+      den: n.den, chinh: n.chinh, qua_han: n.qua_han, ty_le_qua_han: coDuLieu && n.chinh ? n.qua_han / n.chinh : null,
+      luy_ke_qua_han: luyQuaHan, luy_ke_chinh: luyChinh, luy_ke_ty_le: luyChinh ? luyQuaHan / luyChinh : null
+    });
+  }
+  tong.ty_le_qua_han = tong.chinh ? tong.dai.QUA_HAN / tong.chinh : null;
+  const cap = dangCapNhat.size > 0;
+  return {
+    tu: kh.tu, den: kh.den, thang: kh.den ? kh.den.slice(0, 7) : null, ngay_moi_nhat: kh.ngayMoiNhat, ngay_dang_cap_nhat: cap ? kh.ngayMoiNhat : null,
+    so_ngay_co_du_lieu: soNgayCo, bcvh: kh.codes, tong, theo_ngay: theoNgay,
+    meta: {
+      cach_tinh: 'CONG_TUNG_NGAY', chi_tieu: 'F1_3', dang_cap_nhat: cap, bcvh_dang_cap_nhat: [...dangCapNhat].sort(), san_ngay_co_du_lieu: SAN_NGAY_CO_DU_LIEU,
+      nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY
+    }
+  };
+}
+
+/** Lũy kế KHÔNG qua cache (dùng cho test đối chiếu và làm chuẩn): query như docThamSoLuyKe. */
+function luyKeQuyThoiGian(db, query) {
+  const kh = khungLuyKe(db, docThamSoLuyKe(query));
+  if (!kh.den) return ghepLuyKe(kh, new Map(), new Map());
+  return ghepLuyKe(kh, thongTinFile(db, kh.codes, kh.tu, kh.den), tinhTheoBcvhNgay(db, kh.codes, kh.tu, kh.den));
+}
+
 module.exports = {
-  QueryParamError, TRANG_THAI, DAI, DAI_LOC, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, daiCua,
-  layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot
+  QueryParamError, TRANG_THAI, DAI, DAI_LOC, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, MAX_NGAY_KHOANG, SAN_NGAY_CO_DU_LIEU, LY_DO_NGAY, daiCua,
+  layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot,
+  sqlDongDo, danhGiaDong, luyKeQuyThoiGian, docThamSoLuyKe, khungLuyKe, thongTinFile, chuKyDuLieu, CHU_KY_TRONG, tinhTheoBcvhNgay, ghepLuyKe
 };

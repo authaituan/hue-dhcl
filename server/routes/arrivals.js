@@ -85,6 +85,9 @@ router.get('/arrivals/quy-thoi-gian/tong-hop', handle((req) => quyThoiGianCache.
 router.get('/arrivals/quy-thoi-gian/luot', handle((req) => quyThoiGianCache.luot(db, req.query), 'quy-thoi-gian-luot'));
 // QUYTG-7: /luot thêm duong_thu, dai; /theo-ngay: from, to (tối đa 31 ngày), receiver_code, ward_key — một phần tử mỗi ngày đến.
 router.get('/arrivals/quy-thoi-gian/theo-ngay', handle((req) => quyThoiGianCache.theoNgay(db, req.query), 'quy-thoi-gian-theo-ngay'));
+// QUYTG-9a: cả ba route trên giới hạn khoảng 31 ngày và CỘNG TỪNG NGÀY (SHBG đến lại tính ở mỗi ngày đến). /luy-ke: lũy kế từ ngày 01 của tháng đến `den` (mặc định ngày mới nhất có dữ liệu),
+// tham số receiver_code, den; TIVI 403 như các route trên (không thêm vào allowlist).
+router.get('/arrivals/quy-thoi-gian/luy-ke', handle((req) => quyThoiGianCache.luyKe(db, req.query), 'quy-thoi-gian-luy-ke'));
 router.get('/arrivals/items', handle((req) => q.items(db, filters(req, ['page', 'page_size'])), 'items'));
 router.get('/arrivals/lookup', handle((req) => q.lookup(db, req.query), 'lookup'));
 
