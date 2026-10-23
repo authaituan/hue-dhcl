@@ -2,6 +2,17 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - QUYTG-9a-2: lũy kế «Tất cả BCVH» khớp `/tong-hop` từng ngày (backend)
+
+- **Vấn đề** (đo ngày 23/10 trên bản sao DB, báo cáo 9a-1): `/luy-ke` cộng theo từng (BCVH, ngày) còn `/tong-hop` «Tất cả» loại trùng SHBG đi qua nhiều BCVH trong ngày; lũy kế 01–22/10 = 142.421 lượt so với 140.310 (lệch 1,48 %, 2.111 cặp (SHBG, ngày) qua hơn một BCVH). Quyết định CTO: với «Tất cả», từng ngày của `/luy-ke` PHẢI bằng `/tong-hop` Tất cả của ngày đó; một BCVH giữ nguyên.
+- **Sửa** `server/lib/quyThoiGianQuery.js`: thêm `tinhNgayGop` (đếm một ngày bằng đúng `sqlDongDo` / `danhGiaDong` / `congLuot` của `/tong-hop`), `demLuotTheoBcvhNgay` (đếm nhẹ bằng SQL số lượt riêng từng BCVH để xét sàn 50), `lyDoThieuNgay`, `luyKeGop`, `congVaoLuyKe`; `ghepLuyKe` nhận thêm hàm tính số của ngày. Từ 2 mã trở lên (kể cả vắng `receiver_code` = cả 6) số của ngày loại trùng xuyên BCVH trên các BCVH «có dữ liệu» của ngày; điều kiện thiếu file / đang cập nhật / dưới sàn vẫn xét riêng từng BCVH. Một BCVH y nguyên. Khóa mới `meta.loai_trung_xuyen_bcvh_trong_ngay`; không đổi / xóa khóa cũ.
+- **Sửa** `server/lib/quyThoiGianCache.js`: thêm `luyKeLuot` (số lượt riêng của cặp) và `luyKeNgayGop` (khóa `tập BCVH yêu cầu|ngày`, chữ ký = danh sách BCVH có dữ liệu + chữ ký dữ liệu đến của từng BCVH đó); giữ tầng tuổi 10 phút / 6 giờ, đổi chữ ký thì tính lại ngay; đổi một cặp chỉ tính lại đúng ngày đó. Bộ đếm mới `ngayGopTinhLai`.
+- **Thêm** `tests/quy-thoi-gian-luy-ke-tat-ca.test.js` (8 ca + 1 ca đo `QTG_PERF=1`; đăng ký vào `package.json` `npm test`). Ca chính đỏ trước sửa (ngày 2: 190 so với 185). Gồm ca chứng minh `qua_han` lấy từ đếm quá hạn, không từ `den` (nghi vấn trùng số 3.425 là ngẫu nhiên: `quyThoiGianQuery.js:510`).
+- **Sửa** `docs/ai/35_QUYTG9A_KHOANG_NGAY_LUY_KE.md`: cách cộng «Tất cả», Σ theo từng BCVH có thể lớn hơn `tong`, cache hai cấp, mục 2b số đo.
+- **Đo** (DB giả 6 BCVH × 31 ngày × 1.500 + SHBG chung): lạnh 3,30–3,54 s → 3,44–3,63 s; chỉ ghi bảng phát 317–403 → 312–372 ms (0 ngày tính lại); đổi một cặp 361–407 → 372–429 ms (1 ngày). Chưa đo trên DB thật.
+- **Test:** `npm test` 874 ca (869 pass, 0 fail, 5 skip — đều là ca đo bật bằng `PHAT_PERF` / `QTG_PERF`); trước sửa 865 (861 pass, 4 skip).
+- **Còn nợ:** phạm vi «nhiều BCVH» áp cho mọi tập ≥ 2 mã (ticket chỉ nói `all`); ngày có BCVH bị loại bằng `/tong-hop` lọc các BCVH còn lại, không bằng `/tong-hop` Tất cả đủ 6; giao diện (9c) không được cộng số từng BCVH để ra «Tất cả».
+
 ## [2026-10-22] - QUYTG-8: Giao diện «Thời gian Khai thác-Vận chuyển» (2 màn) theo canvas
 
 - **Thêm** `src/components/quythoigian/`:

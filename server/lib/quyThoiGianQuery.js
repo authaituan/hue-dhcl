@@ -377,8 +377,11 @@ function theoNgayQuyThoiGian(db, query) {
 
 // ------------------------------------------
 // Lũy kế tháng (QUYTG-9a): GET …/quy-thoi-gian/luy-ke. Từ ngày 01 của tháng chứa `den` đến `den` (mặc định: ngày mới nhất có dữ liệu), theo BCVH đang lọc,
-// KHÔNG phụ thuộc khoảng ngày người dùng chọn. Cộng từng cặp (BCVH, ngày) «có dữ liệu» (công thức A như «Xử lý và tỷ lệ phát»: cộng từng BCVH, không lọc trùng xuyên BCVH);
-// tỉ lệ = Σ quá hạn / Σ chinh (cộng đếm rồi chia, KHÔNG trung bình tỉ lệ ngày). Cache theo (BCVH, ngày) nằm ở quyThoiGianCache.js.
+// KHÔNG phụ thuộc khoảng ngày người dùng chọn. Cộng từng cặp (BCVH, ngày) «có dữ liệu»;
+// tỉ lệ = Σ quá hạn / Σ chinh (cộng đếm rồi chia, KHÔNG trung bình tỉ lệ ngày). Cache theo (BCVH, ngày) / (tập BCVH, ngày) nằm ở quyThoiGianCache.js.
+// QUYTG-9a-2 (CTO chốt): MỘT BCVH -> số của ngày = số của cặp (BCVH, ngày) (như trước). NHIỀU BCVH (kể cả «Tất cả» = cả 6) -> số của MỖI NGÀY lấy bằng đúng cách tính của /tong-hop
+// trong ngày đó, trên các BCVH «có dữ liệu» của ngày (loại trùng SHBG đi qua nhiều BCVH trong ngày) -> bằng /tong-hop «Tất cả» của ngày khi cả 6 BCVH đều có dữ liệu. Tổng, luy_ke_* cộng từ các ngày đó.
+// Sàn 50 / thiếu file / đang cập nhật vẫn xét RIÊNG TỪNG BCVH (số lượt riêng của BCVH, đếm nhẹ bằng SQL: demLuotTheoBcvhNgay).
 // (BCVH, ngày) «có dữ liệu» khi: có ≥ 1 file OK với file_date = ngày (nếu không: THIEU_FILE); ngày mới nhất của phạm vi mà BCVH có < 2 file OK / EMPTY thì đang cập nhật
 // (DANG_CAP_NHAT, chưa gồm); số lượt đến ≥ SAN_NGAY_CO_DU_LIEU (nếu không: DUOI_SAN).
 // ------------------------------------------
@@ -464,8 +467,55 @@ function tinhTheoBcvhNgay(db, codes, tu, den) {
   return out;
 }
 
-/** Ghép kết quả lũy kế (THUẦN). files: thongTinFile; agg: Map `mã|ngày` -> demRong() (thiếu = 0 lượt). */
-function ghepLuyKe(kh, files, agg) {
+/**
+ * Số lượt theo (BCVH, ngày đến) trong [tu, den] của các BCVH `codes`: Map `mã|ngày` -> { tong_shbg }. Chỉ ĐẾM (một truy vấn SQL, không đánh giá từng lượt):
+ * = tong_shbg của tinhTheoBcvhNgay, vì mỗi (SHBG, BCVH, ngày) là một lượt. Dùng cho sàn SAN_NGAY_CO_DU_LIEU ở chế độ nhiều BCVH.
+ */
+function demLuotTheoBcvhNgay(db, codes, tu, den) {
+  const out = new Map();
+  const rows = db.prepare(`SELECT receiver_code AS b, substr(arrival_at, 1, 10) AS d, COUNT(DISTINCT tracking_no) AS n FROM arrival_items
+    WHERE arrival_date BETWEEN @tu AND @den AND arrival_at BETWEEN @from AND @to AND receiver_code IN (SELECT value FROM json_each(@j))
+    GROUP BY receiver_code, substr(arrival_at, 1, 10)`).all({ tu, den, from: `${tu} 00:00:00`, to: `${den} 23:59:59`, j: JSON.stringify(codes) });
+  for (const r of rows) out.set(`${r.b}|${r.d}`, { tong_shbg: r.n });
+  return out;
+}
+
+/**
+ * Số đếm của MỘT ngày cho các BCVH `codes` theo đúng cách /tong-hop tính (cùng sqlDongDo / danhGiaDong / congLuot, khung ngày đó, không lọc phường/xã): SHBG đi qua nhiều BCVH
+ * trong ngày là MỘT lượt. Trả demRong() hoặc null nếu ngày không có lượt. `codes` phải là các BCVH «có dữ liệu» của ngày.
+ */
+function tinhNgayGop(db, codes, ngay) {
+  const f = { from: `${ngay} 00:00:00`, to: `${ngay} 23:59:59`, fromDate: ngay, toDate: ngay, receiverCodes: [...codes].sort(), wardKey: null };
+  const { sql, params } = sqlDongDo(f);
+  const tenPhuong = new Map();
+  const g = demRong();
+  for (const d of db.prepare(sql).iterate(params)) congLuot(g, danhGiaDong(d, tenPhuong));
+  return g.tong_shbg ? g : null;
+}
+
+/** Lý do (BCVH, ngày) KHÔNG vào lũy kế: THIEU_FILE > DANG_CAP_NHAT > DUOI_SAN; null = có dữ liệu. fi: thongTinFile của cặp; soLuot: số lượt đến của cặp. */
+function lyDoThieuNgay(kh, ngay, fi, soLuot) {
+  if (!fi || fi.ok < 1) return LY_DO_NGAY.THIEU_FILE;
+  if (ngay === kh.ngayMoiNhat && fi.tong < SO_FILE_DU_DOT) return LY_DO_NGAY.DANG_CAP_NHAT;
+  if (soLuot < SAN_NGAY_CO_DU_LIEU) return LY_DO_NGAY.DUOI_SAN;
+  return null;
+}
+/** Lũy kế gộp (loại trùng xuyên BCVH trong ngày) khi xét NHIỀU BCVH; một BCVH giữ cách cộng riêng. */
+const luyKeGop = (kh) => kh.codes.length > 1;
+
+/** Cộng số đếm `a` (demRong) vào tổng `tong` và vào dòng ngày `n`. */
+function congVaoLuyKe(tong, n, a) {
+  tong.tong_shbg += a.tong_shbg; tong.do_duoc += a.do_duoc; tong.chinh += a.chinh; tong.truc_tiep += a.truc_tiep;
+  for (const k of DAI) tong.dai[k] += a.dai[k];
+  n.den += a.tong_shbg; n.chinh += a.chinh; n.qua_han += a.dai.QUA_HAN; // qua_han = ĐẾM QUÁ HẠN (dai.QUA_HAN), không lấy từ số lượt đến
+}
+
+/**
+ * Ghép kết quả lũy kế (THUẦN). files: thongTinFile.
+ *  - Một BCVH: agg = Map `mã|ngày` -> demRong() (thiếu = 0 lượt); số của ngày = số của cặp.
+ *  - Nhiều BCVH: agg = Map `mã|ngày` -> { tong_shbg } (chỉ để xét sàn); gopNgay(ngày, các BCVH có dữ liệu) -> demRong() | null cho số của ngày.
+ */
+function ghepLuyKe(kh, files, agg, gopNgay = null) {
   const tong = { tong_shbg: 0, do_duoc: 0, chinh: 0, truc_tiep: 0, dai: demDai(), ty_le_qua_han: null };
   const theoNgay = [];
   const dangCapNhat = new Set();
@@ -475,23 +525,23 @@ function ghepLuyKe(kh, files, agg) {
   for (const ngay of kh.ngays) {
     const n = { den: 0, chinh: 0, qua_han: 0 };
     const thieu = [];
-    let trong = 0;
+    const coDuLieuMa = [];
     for (const ma of kh.codes) {
       const fi = files.get(`${ma}|${ngay}`);
       const a = agg.get(`${ma}|${ngay}`) || null;
-      let lyDo = null;
-      if (!fi || fi.ok < 1) lyDo = LY_DO_NGAY.THIEU_FILE;
-      else if (ngay === kh.ngayMoiNhat && fi.tong < SO_FILE_DU_DOT) lyDo = LY_DO_NGAY.DANG_CAP_NHAT;
-      else if ((a ? a.tong_shbg : 0) < SAN_NGAY_CO_DU_LIEU) lyDo = LY_DO_NGAY.DUOI_SAN;
+      const lyDo = lyDoThieuNgay(kh, ngay, fi, a ? a.tong_shbg : 0);
       if (lyDo) {
         thieu.push({ ma, ly_do: lyDo });
         if (lyDo === LY_DO_NGAY.DANG_CAP_NHAT) dangCapNhat.add(ma);
         continue;
       }
-      trong++;
-      tong.tong_shbg += a.tong_shbg; tong.do_duoc += a.do_duoc; tong.chinh += a.chinh; tong.truc_tiep += a.truc_tiep;
-      for (const k of DAI) tong.dai[k] += a.dai[k];
-      n.den += a.tong_shbg; n.chinh += a.chinh; n.qua_han += a.dai.QUA_HAN;
+      coDuLieuMa.push(ma);
+      if (!gopNgay) congVaoLuyKe(tong, n, a);
+    }
+    const trong = coDuLieuMa.length;
+    if (gopNgay && trong) {
+      const g = gopNgay(ngay, coDuLieuMa);
+      if (g) congVaoLuyKe(tong, n, g);
     }
     const coDuLieu = trong > 0;
     if (coDuLieu) { soNgayCo++; luyQuaHan += n.qua_han; luyChinh += n.chinh; }
@@ -508,7 +558,7 @@ function ghepLuyKe(kh, files, agg) {
     tu: kh.tu, den: kh.den, thang: kh.den ? kh.den.slice(0, 7) : null, ngay_moi_nhat: kh.ngayMoiNhat, ngay_dang_cap_nhat: cap ? kh.ngayMoiNhat : null,
     so_ngay_co_du_lieu: soNgayCo, bcvh: kh.codes, tong, theo_ngay: theoNgay,
     meta: {
-      cach_tinh: 'CONG_TUNG_NGAY', chi_tieu: 'F1_3', dang_cap_nhat: cap, bcvh_dang_cap_nhat: [...dangCapNhat].sort(), san_ngay_co_du_lieu: SAN_NGAY_CO_DU_LIEU,
+      cach_tinh: 'CONG_TUNG_NGAY', loai_trung_xuyen_bcvh_trong_ngay: gopNgay !== null, chi_tieu: 'F1_3', dang_cap_nhat: cap, bcvh_dang_cap_nhat: [...dangCapNhat].sort(), san_ngay_co_du_lieu: SAN_NGAY_CO_DU_LIEU,
       nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY
     }
   };
@@ -518,11 +568,13 @@ function ghepLuyKe(kh, files, agg) {
 function luyKeQuyThoiGian(db, query) {
   const kh = khungLuyKe(db, docThamSoLuyKe(query));
   if (!kh.den) return ghepLuyKe(kh, new Map(), new Map());
-  return ghepLuyKe(kh, thongTinFile(db, kh.codes, kh.tu, kh.den), tinhTheoBcvhNgay(db, kh.codes, kh.tu, kh.den));
+  const files = thongTinFile(db, kh.codes, kh.tu, kh.den);
+  if (!luyKeGop(kh)) return ghepLuyKe(kh, files, tinhTheoBcvhNgay(db, kh.codes, kh.tu, kh.den));
+  return ghepLuyKe(kh, files, demLuotTheoBcvhNgay(db, kh.codes, kh.tu, kh.den), (ngay, codes) => tinhNgayGop(db, codes, ngay));
 }
 
 module.exports = {
   QueryParamError, TRANG_THAI, DAI, DAI_LOC, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, MAX_NGAY_KHOANG, SAN_NGAY_CO_DU_LIEU, LY_DO_NGAY, daiCua,
   layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot,
-  sqlDongDo, danhGiaDong, luyKeQuyThoiGian, docThamSoLuyKe, khungLuyKe, thongTinFile, chuKyDuLieu, CHU_KY_TRONG, tinhTheoBcvhNgay, ghepLuyKe
+  sqlDongDo, danhGiaDong, luyKeQuyThoiGian, docThamSoLuyKe, khungLuyKe, thongTinFile, chuKyDuLieu, CHU_KY_TRONG, tinhTheoBcvhNgay, demLuotTheoBcvhNgay, tinhNgayGop, luyKeGop, ghepLuyKe
 };
