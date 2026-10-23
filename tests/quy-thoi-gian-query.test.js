@@ -172,12 +172,16 @@ test('tham số sai -> QueryParamError', () => {
   assert.throws(() => QQ.tongHopQuyThoiGian(db, undefined), QQ.QueryParamError);
 });
 
-test('phân trang và sắp xếp ổn định (quỹ F1_3 tăng dần, null cuối, hòa theo shbg)', () => {
-  const tat = lay().items;
+test('phân trang và sắp xếp ổn định (không nghi ngờ trước: quỹ F1_3 tăng dần, null cuối, hòa theo shbg; nghi ngờ cuối — QUYTG-9d)', () => {
+  const all = lay().items;
   const khoa = (l) => (l.quyConLaiGiay ? l.quyConLaiGiay.F1_3 : null);
-  const coSo = tat.filter((l) => khoa(l) !== null);
-  const khongSo = tat.filter((l) => khoa(l) === null);
-  assert.deepEqual(tat.slice(0, coSo.length), coSo); // mọi lượt có quỹ đứng trước mọi lượt null
+  const tat = [...all.filter((l) => !l.nghiNgo), ...all.filter((l) => l.nghiNgo)];
+  assert.deepEqual(all, tat); // lượt nghi ngờ (QT0010VN) nằm sau mọi lượt thường
+  assert.equal(all[all.length - 1].shbg, 'QT0010VN');
+  const thuong = all.filter((l) => !l.nghiNgo);
+  const coSo = thuong.filter((l) => khoa(l) !== null);
+  const khongSo = thuong.filter((l) => khoa(l) === null);
+  assert.deepEqual(thuong.slice(0, coSo.length), coSo); // mọi lượt có quỹ đứng trước mọi lượt null
   for (let i = 1; i < coSo.length; i++) assert.ok(khoa(coSo[i - 1]) <= khoa(coSo[i]));
   for (let i = 1; i < khongSo.length; i++) assert.ok(khongSo[i - 1].shbg <= khongSo[i].shbg);
   // ghép các trang = danh sách đầy đủ, không trùng / sót
