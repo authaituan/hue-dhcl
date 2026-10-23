@@ -95,6 +95,10 @@ const thongKe = () => ({ tong: tong.size, danh_sach: danhSach.size });
 //    ngày XA (cách > LUY_KE_NGAY_XA ngày) LUY_KE_TUOI_NGAY_XA_MS = 6 giờ. Chữ ký của cặp đổi (nạp / «Thay thế» / khôi phục / sửa tại chỗ — kể cả ngày xa) thì tính lại NGAY, không chờ trần.
 //    Nhờ vậy cứ 10 phút không phải tính lại cả tháng, chỉ vài ngày gần nhất.
 // Giới hạn đã biết: chữ ký của một cặp không bắt được dòng của CÙNG SHBG ở ngày khác (dòng đo không giới hạn theo ngày) — chốt tuổi (10 phút / 6 giờ) bù lại.
+// QUYTG-9a-2 — NHIỀU BCVH («Tất cả»): số của mỗi NGÀY lấy bằng cách tính của /tong-hop (loại trùng SHBG đi qua nhiều BCVH), nên cache có HAI cấp:
+//  - luyKeLuot  `mã|ngày` -> { chuKy, tong_shbg }: số lượt riêng của (BCVH, ngày), chỉ để xét sàn 50 (đếm nhẹ bằng SQL). Cùng chữ ký / tầng tuổi như cặp của chế độ một BCVH;
+//  - luyKeNgayGop `tập BCVH yêu cầu|ngày` -> { sig, g }: số đếm đã loại trùng của cả NGÀY. sig = danh sách BCVH «có dữ liệu» của ngày + chữ ký dữ liệu đến của từng BCVH đó,
+//    nên đổi MỘT cặp (BCVH, ngày) hay đổi tập BCVH đủ điều kiện (file về đủ, qua sàn) chỉ tính lại NGÀY đó; cùng tầng tuổi (10 phút / 6 giờ).
 // ------------------------------------------
 const LUY_KE_KET_QUA_MAX = 64;
 const LUY_KE_NGAY_MAX = 4000;
@@ -102,9 +106,14 @@ const LUY_KE_NGAY_XA = 3; // ngày XA = cách ngày mới nhất của phạm vi
 const LUY_KE_TUOI_NGAY_XA_MS = 6 * 60 * 60 * 1000;
 const lui = (ngay, n) => new Date(Date.parse(`${ngay}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
 const luyKeKetQua = new Map(); // khóa (BCVH|tháng|ngày cuối) -> { token, ket_qua }
-const luyKeNgay = new Map(); // `mã|ngày` -> { chuKy, g (demRong hoặc null = không có lượt) }
-const demLuyKe = { lanTinh: 0, capTinhLai: 0, lanChuKy: 0 }; // chỉ để test / đo
-function xoaLuyKe() { luyKeKetQua.clear(); luyKeNgay.clear(); demLuyKe.lanTinh = 0; demLuyKe.capTinhLai = 0; demLuyKe.lanChuKy = 0; }
+const luyKeNgay = new Map(); // chế độ MỘT BCVH: `mã|ngày` -> { chuKy, g (demRong hoặc null = không có lượt) }
+const luyKeLuot = new Map(); // chế độ NHIỀU BCVH: `mã|ngày` -> { chuKy, tong_shbg }
+const luyKeNgayGop = new Map(); // chế độ NHIỀU BCVH: `mã1,mã2,…|ngày` -> { sig, g (demRong đã loại trùng xuyên BCVH, hoặc null) }
+const demLuyKe = { lanTinh: 0, capTinhLai: 0, lanChuKy: 0, ngayGopTinhLai: 0 }; // chỉ để test / đo
+function xoaLuyKe() {
+  luyKeKetQua.clear(); luyKeNgay.clear(); luyKeLuot.clear(); luyKeNgayGop.clear();
+  demLuyKe.lanTinh = 0; demLuyKe.capTinhLai = 0; demLuyKe.lanChuKy = 0; demLuyKe.ngayGopTinhLai = 0;
+}
 
 function luyKe(db, query, now = Date.now()) {
   const kh = QQ.khungLuyKe(db, QQ.docThamSoLuyKe(query));
@@ -116,13 +125,16 @@ function luyKe(db, query, now = Date.now()) {
 
   demLuyKe.lanChuKy++;
   const chuKy = QQ.chuKyDuLieu(db, kh.codes, kh.tu, kh.den);
+  const gop = QQ.luyKeGop(kh); // nhiều BCVH: số của ngày loại trùng xuyên BCVH (như /tong-hop)
+  const kho = gop ? luyKeLuot : luyKeNgay;
   const can = [];
   const ranhXa = kh.ngayMoiNhat ? lui(kh.ngayMoiNhat, LUY_KE_NGAY_XA) : null; // ngày < ranh giới này là ngày XA
+  const tuoiCua = (ngay) => (ranhXa !== null && ngay < ranhXa ? LUY_KE_TUOI_NGAY_XA_MS : CACHE_MAX_AGE_MS);
   for (const ngay of kh.ngays) {
-    const tuoiToiDa = ranhXa !== null && ngay < ranhXa ? LUY_KE_TUOI_NGAY_XA_MS : CACHE_MAX_AGE_MS;
+    const tuoiToiDa = tuoiCua(ngay);
     for (const ma of kh.codes) {
       const k = `${ma}|${ngay}`;
-      const e = luyKeNgay.get(k);
+      const e = kho.get(k);
       const conHan = e && now - e.luc < tuoiToiDa;
       if (!conHan || e.kq.chuKy !== (chuKy.get(k) || QQ.CHU_KY_TRONG)) can.push({ ma, ngay, k }); // chữ ký đổi -> tính lại NGAY, kể cả ngày xa
     }
@@ -132,22 +144,41 @@ function luyKe(db, query, now = Date.now()) {
     demLuyKe.capTinhLai += can.length;
     const maCan = [...new Set(can.map((x) => x.ma))].sort();
     const ngayCan = can.map((x) => x.ngay).sort();
-    const tinh = QQ.tinhTheoBcvhNgay(db, maCan, ngayCan[0], ngayCan[ngayCan.length - 1]); // hộp bao: BCVH cần × [ngày nhỏ nhất, ngày lớn nhất]
-    for (const x of can) dat(luyKeNgay, LUY_KE_NGAY_MAX, x.k, { chuKy: chuKy.get(x.k) || QQ.CHU_KY_TRONG, g: tinh.get(x.k) || null }, now);
+    const hopBao = [maCan, ngayCan[0], ngayCan[ngayCan.length - 1]]; // hộp bao: BCVH cần × [ngày nhỏ nhất, ngày lớn nhất]
+    if (gop) {
+      const dem = QQ.demLuotTheoBcvhNgay(db, ...hopBao);
+      for (const x of can) dat(luyKeLuot, LUY_KE_NGAY_MAX, x.k, { chuKy: chuKy.get(x.k) || QQ.CHU_KY_TRONG, tong_shbg: dem.has(x.k) ? dem.get(x.k).tong_shbg : 0 }, now);
+    } else {
+      const tinh = QQ.tinhTheoBcvhNgay(db, ...hopBao);
+      for (const x of can) dat(luyKeNgay, LUY_KE_NGAY_MAX, x.k, { chuKy: chuKy.get(x.k) || QQ.CHU_KY_TRONG, g: tinh.get(x.k) || null }, now);
+    }
   }
   const agg = new Map();
   for (const ma of kh.codes) {
     for (const ngay of kh.ngays) {
-      const e = luyKeNgay.get(`${ma}|${ngay}`);
-      if (e && e.kq.g) agg.set(`${ma}|${ngay}`, e.kq.g);
+      const e = kho.get(`${ma}|${ngay}`);
+      if (!e) continue;
+      if (gop) { if (e.kq.tong_shbg) agg.set(`${ma}|${ngay}`, { tong_shbg: e.kq.tong_shbg }); } else if (e.kq.g) agg.set(`${ma}|${ngay}`, e.kq.g);
     }
   }
-  const ketQua = QQ.ghepLuyKe(kh, QQ.thongTinFile(db, kh.codes, kh.tu, kh.den), agg);
+  // Nhiều BCVH: số của ngày theo (tập BCVH yêu cầu, ngày), tính lại khi tập BCVH đủ điều kiện hoặc chữ ký của một trong số đó đổi, hoặc quá tuổi tối đa của tầng.
+  const khoaMa = kh.codes.join(',');
+  const gopNgay = !gop ? null : (ngay, coDuLieu) => {
+    const k = `${khoaMa}|${ngay}`;
+    const sig = `${coDuLieu.join(',')}#${coDuLieu.map((ma) => chuKy.get(`${ma}|${ngay}`) || QQ.CHU_KY_TRONG).join('/')}`;
+    const e = luyKeNgayGop.get(k);
+    if (e && now - e.luc < tuoiCua(ngay) && e.kq.sig === sig) return e.kq.g;
+    demLuyKe.ngayGopTinhLai++;
+    const g = QQ.tinhNgayGop(db, coDuLieu, ngay);
+    dat(luyKeNgayGop, LUY_KE_NGAY_MAX, k, { sig, g }, now);
+    return g;
+  };
+  const ketQua = QQ.ghepLuyKe(kh, QQ.thongTinFile(db, kh.codes, kh.tu, kh.den), agg, gopNgay);
   dat(luyKeKetQua, LUY_KE_KET_QUA_MAX, khoa, { token, ket_qua: ketQua }, now);
   return ketQua;
 }
 
 /** Chỉ để test / đo: số khóa đang giữ và bộ đếm tính lại của lũy kế. */
-const thongKeLuyKe = () => ({ ket_qua: luyKeKetQua.size, ngay: luyKeNgay.size, ...demLuyKe });
+const thongKeLuyKe = () => ({ ket_qua: luyKeKetQua.size, ngay: luyKeNgay.size, luot: luyKeLuot.size, ngayGop: luyKeNgayGop.size, ...demLuyKe });
 
 module.exports = { CACHE_MAX_AGE_MS, TONG_MAX, DANH_SACH_MAX, LUY_KE_KET_QUA_MAX, LUY_KE_NGAY_MAX, LUY_KE_NGAY_XA, LUY_KE_TUOI_NGAY_XA_MS, khoaKhung, luot, tongHop, theoNgay, luyKe, xoaCache, thongKe, thongKeLuyKe };
