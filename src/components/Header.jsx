@@ -7,6 +7,7 @@ export default function Header({ activeTab }) {
       case 'ops_today': return 'Điều hành hôm nay';
       case 'arrivals': return 'Sản lượng đến';
       case 'processing': return 'Xử lý và tỷ lệ phát';
+      case 'quy_thoi_gian': return 'Thời gian Khai thác-Vận chuyển';
       case 'network': return 'Quản lý mạng lưới';
       case 'useradmin': return 'Quản lý người dùng';
       case 'replace_day': return 'Thay thế ngày';

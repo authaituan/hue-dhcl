@@ -2,6 +2,21 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-22] - QUYTG-8: Giao diện «Thời gian Khai thác-Vận chuyển» (2 màn) theo canvas
+
+- **Thêm** `src/components/quythoigian/`:
+  - `QuyThoiGianView.jsx`: Component điều phối chính giữa Màn 1 (Tổng quan) và Màn 2 (Danh sách bưu gửi); quản lý bộ lọc ngày và BCVH, xử lý phạm vi GDVH qua `export-scope`.
+  - `QuyThoiGianOverview.jsx`: Màn 1 «Tổng quan», đầy đủ 12 thành phần theo canvas: bộ lọc ngày/BCVH, hộp Quy định, hộp Cách đọc, 6 ô số KPI, thanh tỉ trọng 4 dải xếp chồng, biểu đồ cột 6 khung giờ trong ngày, bảng theo đường thư (kèm liên kết sang Màn 2), bảng theo BCVH (ẩn khi chọn 1 BCVH), bảng theo nguồn hàng BD10, sản lượng không đo được phân theo chip lý do, bảng 7 ngày gần đây, khối minh họa ví dụ tính thời gian một bưu gửi.
+  - `QuyThoiGianLuotView.jsx`: Màn 2 «Danh sách bưu gửi», lọc theo tình trạng (chips: Tất cả, Quá hạn, Sắp hết hạn, Còn thời gian, Giao nhận trực tiếp, Không đo được), BCVH, đường thư, nguồn hàng BD10, cần kiểm tra lại (> 7 ngày); bảng phân trang 50 dòng/trang, cột số hiệu bưu gửi chuẩn `font-mono`, tô màu nền dòng cho lệch mốc / cần kiểm tra lại / giao nhận trực tiếp; hộp cách đọc chân bảng.
+  - `QuyThoiGianHourChart.jsx`: Biểu đồ cột 6 khung giờ xếp chồng 4 dải màu chuẩn bảng màu Huế.
+  - `QuyThoiGianExampleBox.jsx`: Khối minh họa timeline tĩnh cách đo một bưu gửi.
+  - `quyThoiGianApi.js`: Lớp gọi API `/api/arrivals/quy-thoi-gian/tong-hop`, `/luot`, `/theo-ngay`, `/api/arrivals/export-scope`.
+  - `quyThoiGianFormatters.js`: Các hàm tiện ích định dạng số, phần trăm, thời gian dạng `6 g 20 p`, ngày giờ, ánh xạ nhãn nhóm và lý do.
+- **Sửa** `src/components/Header.jsx`: thêm breadcrumb màn `quy_thoi_gian`.
+- **Sửa** `src/components/TopNav.jsx`: thêm tab menu «Thời gian Khai thác-Vận chuyển» sau tab «Xử lý và tỷ lệ phát», trước tab «Quản trị», phân quyền `isViewer`.
+- **Sửa** `src/App.jsx`: đăng ký tab `quy_thoi_gian`, kết nối `QuyThoiGianView`.
+
+
 ## [2026-10-20] - BRAND-1: đổi tên hệ thống ở tiêu đề tab và thanh đầu (chỉ hai chỗ này)
 
 - **Sửa** `index.html:7`: tiêu đề tab → «Hệ thống giám sát hàng đến và chất lượng phát».

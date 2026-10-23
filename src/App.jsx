@@ -8,6 +8,7 @@ import ArrivalsView from './components/arrivals/ArrivalsView';
 import DailyOpsDashboard from './components/arrivals/DailyOpsDashboard';
 import TiviView from './components/TiviView';
 import ProcessingDeliveryView from './components/phat/ProcessingDeliveryView';
+import QuyThoiGianView from './components/quythoigian/QuyThoiGianView';
 import ReplaceDayView from './components/arrivals/ReplaceDayView';
 import SourceIngestView from './components/arrivals/SourceIngestView';
 import ThamSoView from './components/thamso/ThamSoView';
@@ -238,6 +239,10 @@ export default function App() {
 
           {activeTab === 'processing' && isViewer && (
             <ProcessingDeliveryView authUser={authUser} />
+          )}
+
+          {activeTab === 'quy_thoi_gian' && isViewer && (
+            <QuyThoiGianView authUser={authUser} />
           )}
 
           {activeTab === 'useradmin' && isAdmin && (
