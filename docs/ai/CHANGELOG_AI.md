@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - KTT-2: Lớp dữ liệu «Hàng tại KTT» — bảng SQLite, importer hai file CSV (túi, bưu gửi), bảng cấu hình mốc chuyến
+
+- **Schema** `server/lib/kttSchema.js` (mới): `ensureKttSchema(db)` idempotent, năm bảng `ktt_nap_lan`, `ktt_tui`, `ktt_buu_gui`, `ktt_cau_hinh_chuyen`, `ktt_cau_hinh`; bảng ánh xạ cột CSV → DB là hằng số `COT_TUI` / `COT_BUU_GUI` (schema và importer cùng sinh từ đó). Khóa túi 7 cột lưu TEXT; `ktt_buu_gui` không FOREIGN KEY sang `ktt_tui`. Dữ liệu mặc định V1 (12 mốc chuyến, 4 ngưỡng) nạp bằng `INSERT OR IGNORE`, không ghi đè giá trị PO đã sửa. `server/db.js`: thêm một khối gọi `ensureKttSchema(db)` (+7 dòng, theo mẫu try/catch có sẵn).
+- **Importer** `server/lib/kttImport.js` (mới): `importKttTui`, `importKttBuuGui`, `importKttDuongDan`, `chayThu`. Đồng bộ, đọc theo lô 1 MiB, mỗi file một giao dịch; UPSERT theo khóa tự nhiên (`nguon_xuat_luc` mới ≥ cũ thì thay, cũ hơn thì bỏ qua); bỏ qua dòng lỗi và đếm, ≤ 20 mẫu `{dong, cot, ma}` không kèm giá trị; thiếu cột khóa / `Nguon_xuat_luc` hoặc lỗi cấu trúc CSV → từ chối cả file. Không lưu `BD10_di_status`, `BD10_di_TransferDate`, `DestinationPOSCode`, lái xe, biển số, người thao tác. Không gắn nhãn «treo» / «nằm lâu» / «trễ chuyến» (KTT-4).
+- **CLI** `scripts/ktt-import.js` (mới): `<file|thư-mục> [--dry-run] [--db]`; `--dry-run` hoàn tác cả lượt nên không ghi gì.
+- **Test** `tests/ktt-import.test.js` (mới, +23 ca, đã thêm vào script `npm test` ở `package.json`). **Tài liệu** `docs/ai/36_KTT_TU_DIEN_DU_LIEU.md`.
+- **KTT-2b (đối chiếu tiêu đề, cùng ngày):** đối chiếu `COT_TUI` (49 cột nguồn, 47 lưu + bỏ `BD10_di_status`, `BD10_di_TransferDate`) và `COT_BUU_GUI` (24 cột) với tiêu đề chính xác của script nguồn. Sửa tên: `Khoi_luong_tui_kg` → `Khoi_luong_tui` (cột DB vẫn `khoi_luong_tui_kg`), `So_BD10_den` → `So_bd10_den`, `Ma_Loai_Buu_Gui` / `Ten_Loai_Buu_Gui` → `Ma_loai_buu_gui` / `Ten_loai_buu_gui`; các cột còn lại đoán đúng. `Ten_Quan_Huyen`, `Ten_loai_buu_gui` đánh dấu `luonNull` (luôn NULL, vắng cột không vào `cotTuyChonVang`). Importer đọc đúng BOM UTF-8 và dấu nháy chuẩn CSV (không đổi mã, thêm test). +4 ca trong `tests/ktt-import.test.js` (27 ca). Còn chưa thử với file xuất thật.
+- **Ngoài phạm vi:** SFTP, hẹn giờ, API, giao diện, quyền, tính toán (KTT-4).
+
 ## [2026-10-23] - QUYTG-9c: Giao diện «Thời gian Khai thác-Vận chuyển» — khoảng ngày, lũy kế tháng, biểu đồ cả tháng, bảng khung giờ
 
 - **Khoảng ngày & Bộ chọn ngày:**
