@@ -196,6 +196,34 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
           </button>
         )}
 
+        {/* Tab mới: Thời gian Khai thác-Vận chuyển */}
+        {isViewer && (
+          <button
+            id="nav-quy_thoi_gian"
+            type="button"
+            onClick={() => setActiveTab('quy_thoi_gian')}
+            className={`whitespace-nowrap py-[10px] px-[13px] max-[1439px]:px-[10px] rounded-[10px] flex items-center justify-center gap-2 font-serif font-bold text-[15px] max-[1365px]:text-[14px] tracking-[0.01em] cursor-pointer transition-colors ${
+              activeTab === 'quy_thoi_gian'
+                ? 'bg-[#E0A82E] text-[#3B1450]'
+                : 'text-[#E6D6F2] hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <svg
+              className={`w-5 h-5 shrink-0 ${activeTab === 'quy_thoi_gian' ? 'text-[#3B1450]' : 'text-[#E0A82E]'}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 3" />
+            </svg>
+            <span>Thời gian Khai thác-Vận chuyển</span>
+          </button>
+        )}
+
         {/* Tab 4: Quản trị ▾ (chỉ hiện khi isAdmin) */}
         {isAdmin && (
           <div className="relative shrink-0" ref={adminMenuRef}>
