@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - KTT-4: Hàm thuần tính chỉ tiêu, chuyến, «đến sát giờ», «nằm lâu», «treo» cho «Hàng tại KTT» + đọc cấu hình
+
+- **Mới** `server/lib/kttTinh.js` (hàm thuần, chỉ `require('./quyThoiGian')`): `phanNhomDich`, `tinhChiTieu` (F1.3 14 giờ / 12 giờ phường 49135, 49133), `namThucTe`, `doTreXacNhan`, `phanBacNamLau`, `danhGiaChuyen` (mốc chuyến sinh theo ngày, chuyến đáng lẽ đi, trễ chuyến, đến sát giờ), `trangThaiNamLau`, `trangThaiTreo`. Số âm / NULL giữ nguyên có nhãn riêng; kết quả không phụ thuộc `TZ`; không dùng `new Date` / `Date.parse`.
+- **Mới** `server/lib/kttCauHinh.js`: `docCauHinhKtt(db)` đọc `ktt_cau_hinh_chuyen` + `ktt_cau_hinh`, trả `{ lich, nguong, canhBao }`; thiếu bảng / khóa → mặc định + `canhBao`, không ném lỗi, không ghi DB.
+- **Test** `tests/ktt-tinh.test.js`, `tests/ktt-cau-hinh.test.js` (+43 ca, đã thêm vào `npm test`; chạy ở ba `TZ`). **Tài liệu** `docs/ai/37_KTT_QUY_TAC_TINH.md`.
+- **Sửa theo PO (cùng ngày):** `trangThaiTreo` — `CHUA_MO_TUI` xét mọi túi chiều `DEN` (mọi luồng, kể cả `DI_NGOAI`, `KHAI_THAC_DEN`), chưa mở túi, quá ngưỡng; túi chiều đi (`KHAI_THAC_DI`) không thuộc loại này; bỏ hằng `LUONG_CAN_MO_TUI`. +2 ca test (45 ca KTT-4).
+- **Chưa chắc:** `KTT-quy-tac-tinh.md` không có trong repo (lấy quy tắc từ ticket). Ngoài phạm vi: truy vấn tổng hợp, API, giao diện, quyền, địa bàn phát, importer.
+
 ## [2026-10-23] - KTT-2: Lớp dữ liệu «Hàng tại KTT» — bảng SQLite, importer hai file CSV (túi, bưu gửi), bảng cấu hình mốc chuyến
 
 - **Schema** `server/lib/kttSchema.js` (mới): `ensureKttSchema(db)` idempotent, năm bảng `ktt_nap_lan`, `ktt_tui`, `ktt_buu_gui`, `ktt_cau_hinh_chuyen`, `ktt_cau_hinh`; bảng ánh xạ cột CSV → DB là hằng số `COT_TUI` / `COT_BUU_GUI` (schema và importer cùng sinh từ đó). Khóa túi 7 cột lưu TEXT; `ktt_buu_gui` không FOREIGN KEY sang `ktt_tui`. Dữ liệu mặc định V1 (12 mốc chuyến, 4 ngưỡng) nạp bằng `INSERT OR IGNORE`, không ghi đè giá trị PO đã sửa. `server/db.js`: thêm một khối gọi `ensureKttSchema(db)` (+7 dòng, theo mẫu try/catch có sẵn).
