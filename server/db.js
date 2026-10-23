@@ -186,4 +186,11 @@ try {
   console.error('[db] Lỗi tạo bảng tham_so*:', err.message);
 }
 
+// «Hàng tại KTT» (ktt_nap_lan, ktt_tui, ktt_buu_gui, ktt_cau_hinh_chuyen, ktt_cau_hinh) — KTT-2. Idempotent; schema + dữ liệu cấu hình mặc định V1 ở server/lib/kttSchema.js. Giờ lưu UTC ở cột cap_nhat_luc / nap_luc.
+try {
+  require('./lib/kttSchema').ensureKttSchema(db);
+} catch (err) {
+  console.error('[db] Lỗi tạo bảng ktt_*:', err.message);
+}
+
 module.exports = db;
