@@ -89,10 +89,13 @@ function ketQua(nhom, trangThai, lyDo, thuc, quy, nghiNgo, chiTieuGio, nguonMocB
   return { nhom, trangThai, lyDo, thoiGianThucGiay: thuc, quyConLaiGiay: quy, nghiNgo, chiTieuGio, nguonMocBatDau };
 }
 
-/** Quỹ { F1_3, F4_1, F4_2 } (giây) từ mốc `tu` đến `den`; F1_3 theo chỉ tiêu của lượt `f13Gio`. */
-function quyCacChiTieu(tu, den, f13Gio) {
+/**
+ * Quỹ { F1_3, F4_1, F4_2 } (giây) từ thời gian thực `thuc` (giây, đã đo MỘT lần bằng Q.thoiGianThucGiay); F1_3 theo chỉ tiêu của lượt `f13Gio`.
+ * QUYTG-9a: đo thời gian thực một lần thay vì ba lần (cùng công thức `chiTieuGio * 3600 - thuc` của Q.quyConLaiGiay, kết quả y hệt) — lũy kế tháng đánh giá ~10^5 lượt mỗi lần tính.
+ */
+function quyCacChiTieu(thuc, f13Gio) {
   const quy = {};
-  for (const [k, gio] of Object.entries(Q.CHI_TIEU_GIO)) quy[k] = Q.quyConLaiGiay(tu, den, k === 'F1_3' ? f13Gio : gio);
+  for (const [k, gio] of Object.entries(Q.CHI_TIEU_GIO)) quy[k] = (k === 'F1_3' ? f13Gio : gio) * 3600 - thuc;
   return quy;
 }
 
@@ -107,7 +110,8 @@ function danhGiaMotLuot(luot) {
 
   if (nhom === NHOM_BD10.NGOAI_53) { // nhận trực tiếp: mốc bắt đầu = XNĐ BCVH, bỏ qua `ktt`
     if (Q.docGiay(xnd) === null) return khong(LY_DO.THIEU_XND_BCVH);
-    return ketQua(nhom, 'DO_DUOC', null, Q.thoiGianThucGiay(xnd, xnd), quyCacChiTieu(xnd, xnd, f13Gio), false, f13Gio, 'XND_BCVH');
+    const thucTrucTiep = Q.thoiGianThucGiay(xnd, xnd);
+    return ketQua(nhom, 'DO_DUOC', null, thucTrucTiep, quyCacChiTieu(thucTrucTiep, f13Gio), false, f13Gio, 'XND_BCVH');
   }
 
   const gKtt = Q.docGiay(ktt);
@@ -119,7 +123,7 @@ function danhGiaMotLuot(luot) {
   const nghiNgo = Math.abs(gop) > nguongNghiNgoGiay;
   const thuc = Q.thoiGianThucGiay(ktt, xnd);
   if (gop < 0) return ketQua(nhom, 'AM', LY_DO.KTT_SAU_XND_BCVH, thuc, null, nghiNgo, f13Gio, 'KTT');
-  return ketQua(nhom, 'DO_DUOC', null, thuc, quyCacChiTieu(ktt, xnd, f13Gio), nghiNgo, f13Gio, 'KTT');
+  return ketQua(nhom, 'DO_DUOC', null, thuc, quyCacChiTieu(thuc, f13Gio), nghiNgo, f13Gio, 'KTT');
 }
 
 module.exports = { MA_KTT, NHOM_BD10, NHAN_NHOM, LY_DO, NHAN_LY_DO, NGUONG_NGHI_NGO_GIAY, phanNhomBd10, danhGiaMotLuot };
