@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import {
@@ -6,16 +6,20 @@ import {
   formatDurationGiay,
   formatDateTime,
   formatDdMmYyyy,
+  countDaysInclusive,
   NHOM_BD10_LABELS,
   LY_DO_KHONG_DO_LABELS
 } from './quyThoiGianFormatters';
 import { fetchQuyThoiGianLuot } from './quyThoiGianApi';
+import QuyThoiGianDateRangePicker from './QuyThoiGianDateRangePicker';
 
 const PAGE_SIZE = 50;
 
 export default function QuyThoiGianLuotView({
-  selectedDate,
-  selectedBcvh,
+  dateRange = { from: '', to: '' },
+  onChangeDateRange,
+  selectedBcvh = 'all',
+  onChangeBcvh,
   initialFilters = {},
   summaryData,
   onBackToOverview,
@@ -33,6 +37,19 @@ export default function QuyThoiGianLuotView({
   const [pagination, setPagination] = useState({ total: 0, page: 1, page_size: PAGE_SIZE, total_pages: 1 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [validationError, setValidationError] = useState(null);
+
+  const reqIdRef = useRef(0);
+
+  // Đồng bộ BCVH nếu selectedBcvh từ ngoài đổi
+  useEffect(() => {
+    if (selectedBcvh) setBcvh(selectedBcvh);
+  }, [selectedBcvh]);
+
+  const handleBcvhChange = (newVal) => {
+    setBcvh(newVal);
+    if (onChangeBcvh) onChangeBcvh(newVal);
+  };
 
   // Lấy tên BCVH từ mã
   const getBcvhShortName = (ma) => {
@@ -43,12 +60,27 @@ export default function QuyThoiGianLuotView({
 
   // Tải danh sách lượt từ API
   const loadLuot = useCallback(async (pageToLoad = 1) => {
+    if (!dateRange.from || !dateRange.to) return;
+    const days = countDaysInclusive(dateRange.from, dateRange.to);
+    if (days <= 0) {
+      setValidationError('Đến ngày không được nhỏ hơn Từ ngày.');
+      setItems([]);
+      return;
+    }
+    if (days > 31) {
+      setValidationError('Khoảng thời gian tối đa 31 ngày.');
+      setItems([]);
+      return;
+    }
+    setValidationError(null);
+
+    const currentReqId = ++reqIdRef.current;
     setLoading(true);
     setError(null);
 
     const params = {
-      from: selectedDate,
-      to: selectedDate,
+      from: dateRange.from,
+      to: dateRange.to,
       page: pageToLoad,
       page_size: PAGE_SIZE,
     };
@@ -85,6 +117,8 @@ export default function QuyThoiGianLuotView({
 
     try {
       const res = await fetchQuyThoiGianLuot(params);
+      if (currentReqId !== reqIdRef.current) return;
+
       if (res.ok) {
         setItems(res.data?.items || []);
         setPagination(res.data?.pagination || { total: 0, page: pageToLoad, page_size: PAGE_SIZE, total_pages: 1 });
@@ -93,12 +127,15 @@ export default function QuyThoiGianLuotView({
         setItems([]);
       }
     } catch (err) {
+      if (currentReqId !== reqIdRef.current) return;
       setError(err?.message || 'Lỗi kết nối khi tải danh sách bưu gửi.');
       setItems([]);
     } finally {
-      setLoading(false);
+      if (currentReqId === reqIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [selectedDate, bcvh, statusChip, duongThu, nhomBd10, chiNghiNgo, specificLyDo]);
+  }, [dateRange, bcvh, statusChip, duongThu, nhomBd10, chiNghiNgo, specificLyDo]);
 
   useEffect(() => {
     loadLuot(1);
@@ -119,26 +156,47 @@ export default function QuyThoiGianLuotView({
   const startRow = pagination.total > 0 ? (pagination.page - 1) * pagination.page_size + 1 : 0;
   const endRow = Math.min(pagination.page * pagination.page_size, pagination.total);
 
+  const isSingleDay = dateRange.from === dateRange.to;
+  const rangeTitleStr = isSingleDay
+    ? `Hàng đến BCVH ngày ${formatDdMmYyyy(dateRange.from)}`
+    : `Hàng đến BCVH từ ${formatDdMmYyyy(dateRange.from)} đến ${formatDdMmYyyy(dateRange.to)}`;
+
   return (
     <div className="p-6 space-y-5">
       {/* ── 1. ĐẦU TRANG & TIÊU ĐỀ ────────────────────────────────────────── */}
-      <div>
-        <button
-          type="button"
-          onClick={onBackToOverview}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4A1D6E] hover:underline mb-2 cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Thời gian Khai thác-Vận chuyển</span>
-        </button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button
+            type="button"
+            onClick={onBackToOverview}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4A1D6E] hover:underline mb-2 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Thời gian Khai thác-Vận chuyển</span>
+          </button>
 
-        <h1 className="hue-h1">
-          Danh sách bưu gửi — thời gian còn lại để phát tại BCVH
-        </h1>
-        <p className="text-xs text-gray-600 mt-1">
-          Hàng đến BCVH ngày {formatDdMmYyyy(selectedDate)} · {formatInt(pagination.total)} bưu gửi
-        </p>
+          <h1 className="hue-h1">
+            Danh sách bưu gửi — thời gian còn lại để phát tại BCVH
+          </h1>
+          <p className="text-xs text-gray-600 mt-1">
+            {rangeTitleStr} · {formatInt(pagination.total)} bưu gửi
+          </p>
+        </div>
+
+        {/* Bộ chọn khoảng ngày (dùng chung với Màn 1) */}
+        <QuyThoiGianDateRangePicker
+          dateRange={dateRange}
+          onChangeDateRange={onChangeDateRange}
+          idPrefix="luot-view"
+        />
       </div>
+
+      {validationError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex items-center gap-2 font-medium">
+          <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+          <span>{validationError}</span>
+        </div>
+      )}
 
       {/* ── 2. KHỐI BỘ LỌC ───────────────────────────────────────────────── */}
       <div className="bg-white rounded-[14px] border border-gray-200 p-4 shadow-none space-y-4">
@@ -238,7 +296,7 @@ export default function QuyThoiGianLuotView({
             <select
               id="luot-bcvh-select"
               value={bcvh}
-              onChange={(e) => setBcvh(e.target.value)}
+              onChange={(e) => handleBcvhChange(e.target.value)}
               className="w-full text-xs font-medium text-gray-900 bg-white border border-[#D9CBA8] rounded-[8px] px-2.5 py-1.5 focus:outline-none focus:border-[#4A1D6E]"
             >
               <option value="all">Tất cả BCVH</option>
