@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - QUYTG-9d: `/luot` xếp lượt «nghi ngờ» (cần kiểm tra lại) CUỐI danh sách (backend)
+
+- **Vấn đề** (Antigravity, QUYTG-9c Việc 0e): `soSanhLuot` sắp theo quỹ F1_3 tăng dần nên lượt nghi ngờ (hai mốc cách > 7 ngày, quỹ âm rất sâu) đứng ĐẦU danh sách, đẩy lượt quá hạn thật xuống dưới. Phân trang ở máy chủ nên chỉ sửa được ở backend. Quyết định PO 23/10: dòng «Cần kiểm tra lại» xuống cuối.
+- **Sửa** `server/lib/quyThoiGianQuery.js` (`soSanhLuot` + chú thích): khóa đầu tiên là `nghiNgo` (không nghi ngờ trước); trong mỗi nhóm giữ quỹ F1_3 tăng dần, null cuối, hòa theo `shbg`, `receiver_code`, `ngay_den`. Thứ tự: A = không nghi ngờ có quỹ; B = không nghi ngờ quỹ null; C = nghi ngờ (quỹ tăng dần, null cuối). Không đổi khóa JSON, bộ lọc, cách đánh giá nghi ngờ. `quyThoiGianCache.js` không đổi (vẫn cache MỘT danh sách đã sắp theo cùng khóa khung; mọi trang / bộ lọc / `/tong-hop` / `/theo-ngay` dùng chung, không tính lại).
+- **Thêm** `tests/quy-thoi-gian-sap-xep-nghi-ngo.test.js` (5 ca: thiết kế dữ liệu, thứ tự A/B/C, phân trang qua ranh giới nhóm, bộ lọc `nghi_ngo=1/0`, cache); đăng ký vào `package.json` `npm test`. 3 ca đỏ trước sửa. **Sửa** ca cũ «phân trang và sắp xếp ổn định» trong `tests/quy-thoi-gian-query.test.js` (khẳng định thứ tự mới: `QT0010VN` nghi ngờ nằm cuối).
+- **Tài liệu**: không có dòng mô tả thứ tự sắp của `/luot` trong `docs/ai/` cần sửa.
+- **Nợ / chưa chắc**: giao diện không tự sắp lại; nếu nơi nào khác (xuất Excel, ...) tự sắp danh sách `/luot` thì cần xem lại riêng.
+
 ## [2026-10-23] - QUYTG-9a-2: lũy kế «Tất cả BCVH» khớp `/tong-hop` từng ngày (backend)
 
 - **Vấn đề** (đo ngày 23/10 trên bản sao DB, báo cáo 9a-1): `/luy-ke` cộng theo từng (BCVH, ngày) còn `/tong-hop` «Tất cả» loại trùng SHBG đi qua nhiều BCVH trong ngày; lũy kế 01–22/10 = 142.421 lượt so với 140.310 (lệch 1,48 %, 2.111 cặp (SHBG, ngày) qua hơn một BCVH). Quyết định CTO: với «Tất cả», từng ngày của `/luy-ke` PHẢI bằng `/tong-hop` Tất cả của ngày đó; một BCVH giữ nguyên.

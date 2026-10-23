@@ -176,7 +176,13 @@ function metaChiTieuF13() {
 }
 
 const khoaSapXep =(l) => (l.quyConLaiGiay ? l.quyConLaiGiay.F1_3 : null);
+/**
+ * Thứ tự /luot (QUYTG-9d): nhóm A = không nghi ngờ, có quỹ F1_3 (tăng dần); nhóm B = không nghi ngờ, quỹ null; nhóm C = nghi ngờ, CUỐI danh sách
+ * (trong nhóm C cũng quỹ tăng dần, null cuối). Lượt nghi ngờ có quỹ âm rất sâu nên nếu để chung sẽ đẩy lượt quá hạn thật xuống dưới.
+ * Hòa: shbg, receiver_code, ngay_den.
+ */
 function soSanhLuot(a, b) {
+  if (a.nghiNgo !== b.nghiNgo) return a.nghiNgo ? 1 : -1;
   const x = khoaSapXep(a); const y = khoaSapXep(b);
   if (x === null && y !== null) return 1;
   if (x !== null && y === null) return -1;
@@ -186,7 +192,7 @@ function soSanhLuot(a, b) {
   return a.ngay_den < b.ngay_den ? -1 : a.ngay_den > b.ngay_den ? 1 : 0; // QUYTG-9a: cùng SHBG có thể có lượt ở nhiều ngày
 }
 
-/** Toàn bộ lượt của khung `f`, đã sắp (quỹ F1_3 tăng dần, null cuối, hòa theo shbg). Danh sách đầy đủ này là thứ được cache (quyThoiGianCache.js): KHÔNG sửa tại chỗ. */
+/** Toàn bộ lượt của khung `f`, đã sắp (xem soSanhLuot: lượt không nghi ngờ trước, quỹ F1_3 tăng dần, null cuối, hòa theo shbg; lượt nghi ngờ cuối). Danh sách đầy đủ này là thứ được cache (quyThoiGianCache.js): KHÔNG sửa tại chỗ. */
 function luotDaSapXep(db, f) {
   return tatCaLuot(db, f).sort(soSanhLuot);
 }
@@ -212,7 +218,7 @@ function trangTuLuot(luotDay, f, rieng) {
 
 /**
  * query: from, to (bắt buộc), receiver_code, ward_key, page, page_size, nhom, trang_thai, ly_do, nghi_ngo (1/true | 0/false), duong_thu (khớp chính xác), dai (4 dải hoặc CON_THOI_GIAN = CON_2_6 + CON_TREN_6) (date_basis bị bỏ qua).
- * Trả { items, pagination: { total, page, page_size, total_pages }, meta }; items sắp theo quỹ F1_3 tăng dần (null cuối), hòa theo shbg.
+ * Trả { items, pagination: { total, page, page_size, total_pages }, meta }; items sắp: lượt không nghi ngờ theo quỹ F1_3 tăng dần (null cuối), rồi lượt nghi ngờ (QUYTG-9d) cũng theo quỹ tăng dần (null cuối); hòa theo shbg.
  */
 function layLuotQuyThoiGian(db, query) {
   const { f, rieng } = docThamSo(query, { coPhanTrang: true });
