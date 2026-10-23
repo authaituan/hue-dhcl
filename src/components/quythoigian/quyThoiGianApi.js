@@ -62,3 +62,17 @@ export async function fetchQuyThoiGianLuot(params = {}) {
 export async function fetchExportScope() {
   return apiFetchJson('/api/arrivals/export-scope');
 }
+
+/**
+ * Gọi API lũy kế tháng của thời gian khai thác - vận chuyển
+ * @param {Object} [params]
+ * @param {string} [params.receiver_code] Mã BCVH (bỏ qua nếu chọn 'all' hoặc vắng)
+ */
+export async function fetchQuyThoiGianLuyKe({ receiver_code } = {}) {
+  const q = new URLSearchParams();
+  if (receiver_code && receiver_code !== 'all') {
+    q.set('receiver_code', receiver_code);
+  }
+  const qs = q.toString();
+  return apiFetchJson(`/api/arrivals/quy-thoi-gian/luy-ke${qs ? `?${qs}` : ''}`);
+}

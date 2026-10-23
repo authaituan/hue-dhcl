@@ -1,49 +1,51 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import QuyThoiGianOverview from './QuyThoiGianOverview';
 import QuyThoiGianLuotView from './QuyThoiGianLuotView';
 import {
   fetchQuyThoiGianTongHop,
   fetchQuyThoiGianTheoNgay,
+  fetchQuyThoiGianLuyKe,
   fetchExportScope
 } from './quyThoiGianApi';
-
-/**
- * Lấy ngày hôm nay theo múi giờ Việt Nam dạng YYYY-MM-DD
- */
-function getTodayVnYmd() {
-  const d = new Date();
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-  return formatter.format(d);
-}
-
-/**
- * Tính ngày trước hoặc sau n ngày từ chuỗi YYYY-MM-DD
- */
-function shiftDay(ymd, offsetDays) {
-  if (!ymd) return getTodayVnYmd();
-  const [y, m, d] = ymd.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + offsetDays));
-  return dt.toISOString().slice(0, 10);
-}
+import {
+  getTodayVnYmd,
+  shiftDay,
+  countDaysInclusive
+} from './quyThoiGianFormatters';
 
 export default function QuyThoiGianView({ authUser }) {
   // Chế độ màn hình: 'overview' (Màn 1: Tổng quan) | 'luot' (Màn 2: Danh sách bưu gửi)
   const [currentScreen, setCurrentScreen] = useState('overview');
 
-  // Ngày đang chọn (mặc định hôm nay theo giờ VN)
-  const [selectedDate, setSelectedDate] = useState(getTodayVnYmd);
+  // Khoảng ngày đang chọn (mặc định hôm nay theo giờ VN, Từ = Đến)
+  const [dateRange, setDateRange] = useState(() => {
+    const today = getTodayVnYmd();
+    return { from: today, to: today };
+  });
+
+  // Lỗi kiểm tra tính hợp lệ của khoảng ngày
+  const [validationError, setValidationError] = useState(null);
 
   // BCVH đang chọn (mặc định 'all' cho ADMIN/TTVH, GDVH sẽ cập nhật sau khi nạp scope)
   const [selectedBcvh, setSelectedBcvh] = useState('all');
 
-  // Dữ liệu Màn 1
+  // Dữ liệu Màn 1 (Khoảng ngày)
   const [overviewData, setOverviewData] = useState(null);
   const [recentDaysData, setRecentDaysData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Dữ liệu Lũy kế tháng (Độc lập với khoảng ngày, chỉ đổi khi đổi BCVH)
+  const [luyKeData, setLuyKeData] = useState(null);
+  const [luyKeLoading, setLuyKeLoading] = useState(false);
+  const [luyKeError, setLuyKeError] = useState(null);
+
   // Bộ lọc truyền từ Màn 1 sang Màn 2 (ví dụ bấm xem đường thư hoặc lý do không đo được)
   const [luotFilters, setLuotFilters] = useState({});
+
+  // Request ID ref để chống stale request khi đổi khoảng ngày liên tục
+  const overviewReqIdRef = useRef(0);
+  const luyKeReqIdRef = useRef(0);
 
   // 1. Phân quyền BCVH ban đầu cho GDVH
   useEffect(() => {
@@ -67,28 +69,51 @@ export default function QuyThoiGianView({ authUser }) {
     };
   }, [authUser?.role]);
 
-  // 2. Tải dữ liệu Màn 1 (Tổng quan & 7 ngày gần đây)
+  // 2. Validate khoảng ngày
+  const validateRange = useCallback((range) => {
+    if (!range?.from || !range?.to) return 'Vui lòng chọn đầy đủ Từ ngày và Đến ngày.';
+    const days = countDaysInclusive(range.from, range.to);
+    if (days <= 0) return 'Đến ngày không được nhỏ hơn Từ ngày.';
+    if (days > 31) return 'Khoảng thời gian tối đa 31 ngày.';
+    return null;
+  }, []);
+
+  // 3. Tải dữ liệu Màn 1 theo khoảng ngày (/tong-hop & /theo-ngay)
   const loadOverview = useCallback(async () => {
-    if (!selectedDate) return;
+    const valErr = validateRange(dateRange);
+    setValidationError(valErr);
+    if (valErr) {
+      setLoading(false);
+      return;
+    }
+
+    const currentReqId = ++overviewReqIdRef.current;
     setLoading(true);
     setError(null);
 
-    // Tính 7 ngày gần đây: to = selectedDate, from = selectedDate - 6 ngày
-    const from7Days = shiftDay(selectedDate, -6);
+    // Tính khoảng cho theo-ngay:
+    // Nếu khoảng đúng 1 ngày (from === to): lấy 7 ngày tính đến ngày đó
+    // Nếu khoảng >= 2 ngày: lấy đúng các ngày trong khoảng
+    const isSingleDay = dateRange.from === dateRange.to;
+    const theoNgayFrom = isSingleDay ? shiftDay(dateRange.to, -6) : dateRange.from;
+    const theoNgayTo = dateRange.to;
 
     try {
       const [tongHopRes, theoNgayRes] = await Promise.all([
         fetchQuyThoiGianTongHop({
-          from: selectedDate,
-          to: selectedDate,
+          from: dateRange.from,
+          to: dateRange.to,
           receiver_code: selectedBcvh,
         }),
         fetchQuyThoiGianTheoNgay({
-          from: from7Days,
-          to: selectedDate,
+          from: theoNgayFrom,
+          to: theoNgayTo,
           receiver_code: selectedBcvh,
         }),
       ]);
+
+      // Nếu đã có request mới hơn thì bỏ qua kết quả này
+      if (currentReqId !== overviewReqIdRef.current) return;
 
       if (tongHopRes.ok) {
         setOverviewData(tongHopRes.data);
@@ -103,29 +128,58 @@ export default function QuyThoiGianView({ authUser }) {
         setRecentDaysData(null);
       }
     } catch (err) {
+      if (currentReqId !== overviewReqIdRef.current) return;
       setError(err?.message || 'Lỗi kết nối khi tải dữ liệu.');
       setOverviewData(null);
     } finally {
-      setLoading(false);
+      if (currentReqId === overviewReqIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [selectedDate, selectedBcvh]);
+  }, [dateRange, selectedBcvh, validateRange]);
 
+  // Kích hoạt loadOverview khi đổi khoảng ngày hoặc BCVH
   useEffect(() => {
-    let active = true;
     loadOverview();
-    return () => {
-      active = false;
-    };
   }, [loadOverview]);
 
-  // Điều hướng ngày: Lùi 1 ngày
-  const handlePrevDate = () => {
-    setSelectedDate((prev) => shiftDay(prev, -1));
-  };
+  // 4. Tải dữ liệu Lũy kế tháng (/luy-ke)
+  // CHỈ gọi khi đổi BCVH, khi mở màn hoặc khi bấm Thử lại (KHÔNG phụ thuộc khoảng ngày)
+  const loadLuyKe = useCallback(async () => {
+    const currentReqId = ++luyKeReqIdRef.current;
+    setLuyKeLoading(true);
+    setLuyKeError(null);
 
-  // Điều hướng ngày: Tiến 1 ngày
-  const handleNextDate = () => {
-    setSelectedDate((prev) => shiftDay(prev, 1));
+    try {
+      const res = await fetchQuyThoiGianLuyKe({
+        receiver_code: selectedBcvh,
+      });
+
+      if (currentReqId !== luyKeReqIdRef.current) return;
+
+      if (res.ok) {
+        setLuyKeData(res.data);
+      } else {
+        setLuyKeError(res.error || 'Không tải được lũy kế tháng.');
+      }
+    } catch (err) {
+      if (currentReqId !== luyKeReqIdRef.current) return;
+      setLuyKeError(err?.message || 'Lỗi kết nối khi tải lũy kế.');
+    } finally {
+      if (currentReqId === luyKeReqIdRef.current) {
+        setLuyKeLoading(false);
+      }
+    }
+  }, [selectedBcvh]);
+
+  // Kích hoạt loadLuyKe khi đổi BCVH hoặc mở màn
+  useEffect(() => {
+    loadLuyKe();
+  }, [loadLuyKe]);
+
+  // Cập nhật khoảng ngày từ component con
+  const handleChangeDateRange = (newRange) => {
+    setDateRange(newRange);
   };
 
   // Chuyển sang Màn 2 (Danh sách bưu gửi)
@@ -143,23 +197,28 @@ export default function QuyThoiGianView({ authUser }) {
     <div className="w-full">
       {currentScreen === 'overview' ? (
         <QuyThoiGianOverview
-          selectedDate={selectedDate}
-          onChangeDate={setSelectedDate}
-          onPrevDate={handlePrevDate}
-          onNextDate={handleNextDate}
+          dateRange={dateRange}
+          onChangeDateRange={handleChangeDateRange}
           selectedBcvh={selectedBcvh}
           onChangeBcvh={setSelectedBcvh}
           data={overviewData}
           recentDaysData={recentDaysData}
+          luyKeData={luyKeData}
+          luyKeLoading={luyKeLoading}
+          luyKeError={luyKeError}
           loading={loading}
           error={error}
+          validationError={validationError}
           onRetry={loadOverview}
+          onRetryLuyKe={loadLuyKe}
           onNavigateToLuot={handleNavigateToLuot}
         />
       ) : (
         <QuyThoiGianLuotView
-          selectedDate={selectedDate}
+          dateRange={dateRange}
+          onChangeDateRange={handleChangeDateRange}
           selectedBcvh={selectedBcvh}
+          onChangeBcvh={setSelectedBcvh}
           initialFilters={luotFilters}
           summaryData={overviewData}
           onBackToOverview={handleBackToOverview}

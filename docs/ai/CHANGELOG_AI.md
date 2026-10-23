@@ -2,6 +2,28 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - QUYTG-9c: Giao diện «Thời gian Khai thác-Vận chuyển» — khoảng ngày, lũy kế tháng, biểu đồ cả tháng, bảng khung giờ
+
+- **Khoảng ngày & Bộ chọn ngày:**
+  - Tạo component `src/components/quythoigian/QuyThoiGianDateRangePicker.jsx`: bộ chọn khoảng ngày (Từ ngày – Đến ngày) tái dùng cho cả Màn 1 (`QuyThoiGianOverview`) và Màn 2 (`QuyThoiGianLuotView`), 3 nút nhanh «Hôm nay», «7 ngày», «Tháng này» tính theo giờ Việt Nam. Chặn Đến < Từ và khoảng > 31 ngày ở giao diện (thông báo lỗi, không gọi API, khớp 400 của backend).
+  - Quản lý khoảng ngày `dateRange = { from, to }` ở `QuyThoiGianView.jsx`, chống ghi đè số liệu khi đổi khoảng ngày liên tục (request ID counter).
+- **Lũy kế tháng:**
+  - `quyThoiGianApi.js`: thêm `fetchQuyThoiGianLuyKe` gọi `GET /api/arrivals/quy-thoi-gian/luy-ke` (chỉ phụ thuộc BCVH, không đổi theo khoảng chọn; chỉ gọi khi đổi BCVH, khi mở màn hoặc khi bấm Thử lại). Tải độc lập, không chặn Màn 1.
+  - 6 ô KPI (`QuyThoiGianOverview.jsx`): thêm dòng phụ «Lũy kế tháng» gạch đứt mảnh phía trên (`border-t border-dashed border-[#E4D5AE]`), chữ màu `#4A1D6E`, chiều cao các ô đồng đều; chú thích ngày đang cập nhật và trạng thái chưa đủ ngày.
+- **Biểu đồ Diễn biến cả tháng:**
+  - Tạo `src/components/quythoigian/QuyThoiGianMonthChart.jsx` bằng Pure SVG co giãn (`viewBox` 960x260): đường liền tím (lũy kế), đường đứt đỏ (tỉ lệ ngày); ngắt đường khi thiếu dữ liệu kèm dấu nhỏ trên trục và tooltip lý do; dải vàng mờ bao phủ khoảng ngày đang chọn; hỗ trợ phím (Tab, Enter) và bấm chọn ngày; tooltip clamp vị trí không tràn mép.
+  - Dòng so sánh khoảng chọn với lũy kế: hiển thị cả tỉ lệ quá hạn và tỉ lệ còn thời gian (chỉ hiện khi khoảng có $\ge 50$ đo được và lũy kế $\ge 2$ ngày).
+  - Chú thích danh sách BCVH thiếu trong ngày và ghi chú loại trùng xuyên BCVH.
+- **Bảng khung giờ (thay biểu đồ cột):**
+  - Tạo `src/components/quythoigian/QuyThoiGianHourTable.jsx`, xóa `QuyThoiGianHourChart.jsx`. Cột: Khung giờ | Đo được | Cơ cấu thời gian còn lại (thanh xếp chồng 100% 4 dải) | Quá hạn (số · %) | Sắp hết hạn (số). Chú giải 4 màu ngay trên bảng; dòng cuối «Cả khoảng chọn». Khung có `chinh` < 10 hiện chữ nghiêng «ít số liệu».
+- **Bảng Theo từng ngày trong khoảng đã chọn:**
+  - Tạo `src/components/quythoigian/QuyThoiGianDayTable.jsx` thay «Các ngày gần đây»: khoảng $\ge 2$ ngày hiển thị đúng các ngày của khoảng; khoảng 1 ngày hiển thị 7 ngày tính đến ngày đó. Sắp ngày giảm dần; bấm dòng thu về ngày đó; dòng trong khoảng chọn tô nền vàng nhạt `bg-[#FFF8E6]`.
+- **Ngưỡng ít số liệu:**
+  - `quyThoiGianFormatters.js`: đặt 4 hằng số có tên (`NGUONG_IT_SO_LIEU_BANG = 30`, `NGUONG_IT_SO_LIEU_KHUNG_GIO = 10`, `NGUONG_SO_SANH_LUY_KE_CHINH = 50`, `NGUONG_SO_SANH_LUY_KE_SO_NGAY = 2`).
+  - Bảng đường thư và bảng BCVH: dòng có `chinh` < 30 hiện tỉ lệ quá hạn in nghiêng xám kèm nhãn «ít số liệu».
+- **Màn 2 (Danh sách bưu gửi):**
+  - Cập nhật 2 ô Từ ngày – Đến ngày đồng bộ với Màn 1; giữ nguyên sắp xếp và tô màu nền vàng nhạt cho lượt nghi ngờ (lượt «cần kiểm tra lại» xuống cuối danh sách do backend QUYTG-9d xử lý, giao diện giữ nguyên).
+
 ## [2026-10-23] - QUYTG-9d: `/luot` xếp lượt «nghi ngờ» (cần kiểm tra lại) CUỐI danh sách (backend)
 
 - **Vấn đề** (Antigravity, QUYTG-9c Việc 0e): `soSanhLuot` sắp theo quỹ F1_3 tăng dần nên lượt nghi ngờ (hai mốc cách > 7 ngày, quỹ âm rất sâu) đứng ĐẦU danh sách, đẩy lượt quá hạn thật xuống dưới. Phân trang ở máy chủ nên chỉ sửa được ở backend. Quyết định PO 23/10: dòng «Cần kiểm tra lại» xuống cuối.

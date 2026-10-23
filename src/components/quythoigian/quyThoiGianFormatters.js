@@ -3,6 +3,55 @@
  * Tuân thủ quy tắc: Không dùng chữ bị cấm (tuổi, nghi ngờ, quỹ, bưu cục văn hóa xã, F4.1, F4.2)
  */
 
+/* TẠM — PO có thể đổi */
+export const NGUONG_IT_SO_LIEU_BANG = 30; // dòng có chinh < 30 -> tỉ lệ quá hạn hiện chữ nghiêng xám kèm nhãn «ít số liệu»
+export const NGUONG_IT_SO_LIEU_KHUNG_GIO = 10; // khung giờ có chinh < 10 -> chữ nghiêng «ít số liệu»
+export const NGUONG_SO_SANH_LUY_KE_CHINH = 50; // chỉ hiện chênh lệch so với lũy kế khi khoảng chọn có >= 50 bưu gửi đo được
+export const NGUONG_SO_SANH_LUY_KE_SO_NGAY = 2; // và lũy kế có >= 2 ngày có dữ liệu
+
+/**
+ * Lấy ngày hôm nay theo múi giờ Việt Nam dạng YYYY-MM-DD
+ */
+export function getTodayVnYmd() {
+  const d = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return formatter.format(d);
+}
+
+/**
+ * Tính ngày trước hoặc sau n ngày từ chuỗi YYYY-MM-DD (dùng Date.UTC để không bị lệch múi giờ)
+ */
+export function shiftDay(ymd, offsetDays) {
+  if (!ymd) return getTodayVnYmd();
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + offsetDays));
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Đếm số ngày (bao gồm cả 2 đầu mút) giữa from và to dạng YYYY-MM-DD
+ */
+export function countDaysInclusive(fromYmd, toYmd) {
+  if (!fromYmd || !toYmd) return 0;
+  const [y1, m1, d1] = fromYmd.split('-').map(Number);
+  const [y2, m2, d2] = toYmd.split('-').map(Number);
+  const t1 = Date.UTC(y1, m1 - 1, d1);
+  const t2 = Date.UTC(y2, m2 - 1, d2);
+  return Math.round((t2 - t1) / 86400000) + 1;
+}
+
+/**
+ * Định dạng điểm chênh lệch so với lũy kế (ví dụ: +1,2 điểm -> tăng 1,2 điểm; -0,8 điểm -> giảm 0,8 điểm)
+ * @param {number|null} diff Điểm phần trăm chênh lệch (đã nhân 100)
+ */
+export function formatDiemChenhLech(diff) {
+  if (diff === null || diff === undefined || isNaN(diff)) return '—';
+  const val = Number(diff);
+  if (Math.abs(val) < 0.05) return 'không đổi';
+  const absStr = Math.abs(val).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return val > 0 ? `tăng ${absStr} điểm` : `giảm ${absStr} điểm`;
+}
+
 export function formatInt(n) {
   if (n === null || n === undefined || isNaN(n)) return '0';
   return Number(n).toLocaleString('vi-VN');
