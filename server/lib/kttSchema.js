@@ -1,6 +1,6 @@
 // ==========================================
 // Lớp dữ liệu «Hàng tại KTT» (KTT-2): schema SQLite + bảng ánh xạ cột CSV -> cột DB + dữ liệu cấu hình mặc định V1.
-// Năm bảng: ktt_nap_lan, ktt_tui, ktt_buu_gui (dữ liệu) và ktt_cau_hinh_chuyen, ktt_cau_hinh (cấu hình).
+// Sáu bảng: ktt_nap_lan, ktt_tui, ktt_buu_gui (dữ liệu) và ktt_cau_hinh_chuyen, ktt_cau_hinh, ktt_dia_ban_phat (cấu hình / danh mục; ktt_dia_ban_phat thêm ở KTT-5).
 // Nguồn CSV: script SQL chạy tay trên CSDL KTT (POSCode 530100), hai file KTT_Tui_*.csv và KTT_BuuGui_*.csv. Chỉ LƯU NGUYÊN giá trị nguồn:
 // KHÔNG tính «treo», «nằm lâu», «trễ chuyến» ở đây (đó là KTT-4). Mọi giờ là giờ địa phương VN (không đổi múi giờ), lưu TEXT `YYYY-MM-DD HH:MM:SS`;
 // riêng `cap_nhat_luc` / `nap_luc` là UTC.
@@ -117,6 +117,17 @@ const NGUONG_MAC_DINH = [
   ['chi_tieu_f13_gio_thuan_hoa_phu_xuan', 12, 'Chỉ tiêu F1.3 cho tuyến Thuận Hóa / Phú Xuân, đơn vị giờ']
 ];
 
+// Địa bàn phát (KTT-5): phường/xã -> BCVH Huế phát. Danh mục hành chính công khai. Chính tả giữ nguyên theo ticket KTT-5 (kể cả «Phong Dinh»); PO sẽ chỉnh sau nếu cần.
+// [BCVH, tên BCVH, [[mã phường/xã, tên phường/xã], ...]]
+const DIA_BAN_PHAT_MAC_DINH = [
+  ['535790', 'A Lưới', [['49527', 'Xã A Lưới 1'], ['49528', 'Xã A Lưới 2'], ['49529', 'Xã A Lưới 3'], ['49530', 'Xã A Lưới 4'], ['49531', 'Xã A Lưới 5']]],
+  ['536250', 'Hương Thủy', [['49620', 'Phường Hương Thủy'], ['49612', 'Phường Phú Bài'], ['49619', 'Phường Thanh Thủy'], ['49424', 'Xã Bình Điền'], ['49925', 'Xã Phú Hồ'], ['49929', 'Xã Phú Vang'], ['49928', 'Xã Phú Vinh'], ['49824', 'Xã Vinh Lộc']]],
+  ['535470', 'Hương Trà', [['49134', 'Phường Hóa Châu'], ['49422', 'Phường Hương Trà'], ['49423', 'Phường Kim Trà'], ['49322', 'Phường Phong Điền'], ['49325', 'Phường Phong Dinh'], ['49309', 'Phường Phong Phú'], ['49324', 'Phường Phong Quảng'], ['49323', 'Phường Phong Thái'], ['49218', 'Xã Đan Điền'], ['49217', 'Xã Quảng Điền']]],
+  ['537220', 'Phú Lộc', [['49825', 'Xã Chân Mây – Lăng Cô'], ['49828', 'Xã Hưng Lộc'], ['49706', 'Xã Khe Tre'], ['49814', 'Xã Lộc An'], ['49826', 'Xã Long Quảng'], ['49827', 'Xã Nam Đông'], ['49806', 'Xã Phú Lộc']]],
+  ['537015', 'Thuận An', [['49142', 'Phường Dương Nỗ'], ['49927', 'Phường Mỹ Thượng'], ['49141', 'Phường Thuận An']]],
+  ['533140', 'Thuận Hóa', [['49129', 'Phường An Cựu'], ['49136', 'Phường Hương An'], ['49122', 'Phường Kim Long'], ['49133', 'Phường Phú Xuân'], ['49135', 'Phường Thuận Hóa'], ['49131', 'Phường Thủy Xuân'], ['49107', 'Phường Vỹ Dạ']]]
+];
+
 function sqlCot(c) {
   return `${c.db} ${SQL_TYPE[c.kind]}${c.key ? ' NOT NULL' : ''}`;
 }
@@ -136,7 +147,7 @@ function taoBangDuLieu(cfg) {
 
 const KHOA_TUI_DB = KHOA_TUI.map((c) => c.db).join(', ');
 
-/** Tạo (nếu chưa có) năm bảng KTT + chỉ mục + dữ liệu cấu hình mặc định. Idempotent; không đụng bảng của module khác. */
+/** Tạo (nếu chưa có) sáu bảng KTT + chỉ mục + dữ liệu cấu hình mặc định. Idempotent; không đụng bảng của module khác. */
 function ensureKttSchema(db) {
   db.exec(`
     -- Một dòng mỗi file đã nạp. Chỉ file trang_thai = 'OK' mới chặn nạp lại (cùng loai + sha256); REJECTED ghi lại để tra cứu.
@@ -185,16 +196,26 @@ function ensureKttSchema(db) {
       mo_ta TEXT,
       cap_nhat_luc TEXT NOT NULL
     );
+
+    -- Địa bàn phát (KTT-5): phường/xã -> BCVH Huế phát. Dùng để tra đích của bưu gửi chưa vào BD10 đi.
+    CREATE TABLE IF NOT EXISTS ktt_dia_ban_phat (
+      ma_phuong_xa TEXT NOT NULL UNIQUE,
+      ten_phuong_xa TEXT NOT NULL,
+      ma_bcvh TEXT NOT NULL,
+      ten_bcvh TEXT NOT NULL
+    );
   `);
 
   // Dữ liệu mặc định: INSERT OR IGNORE nên chạy lại không nhân dòng và không ghi đè giá trị PO đã sửa.
   const bayGio = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const themChuyen = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh_chuyen (ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, 30, ?, ?)');
   const themNguong = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?)');
+  const themDiaBan = db.prepare('INSERT OR IGNORE INTO ktt_dia_ban_phat (ma_phuong_xa, ten_phuong_xa, ma_bcvh, ten_bcvh) VALUES (?, ?, ?, ?)');
   db.transaction(() => {
+    for (const [maBcvh, tenBcvh, phuongXa] of DIA_BAN_PHAT_MAC_DINH) for (const [maPx, tenPx] of phuongXa) themDiaBan.run(maPx, tenPx, maBcvh, tenBcvh);
     for (const [ma, chuyen, gio] of CHUYEN_MAC_DINH) themChuyen.run(ma, chuyen, gio, GHI_CHU_CHUYEN_V1, bayGio);
     for (const [khoa, giaTri, moTa] of NGUONG_MAC_DINH) themNguong.run(khoa, giaTri, moTa, bayGio);
   })();
 }
 
-module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1 };
+module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH };

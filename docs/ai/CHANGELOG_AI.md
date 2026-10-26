@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-23] - KTT-5: Truy vấn tổng hợp «Hàng tại KTT» (sản lượng, treo, chuyến, nằm lâu, F1.3, chi tiết) + khối «Đánh giá» + bảng địa bàn phát
+
+- **Schema** `server/lib/kttSchema.js`: thêm bảng `ktt_dia_ban_phat` (`ma_phuong_xa` UNIQUE, `ten_phuong_xa`, `ma_bcvh`, `ten_bcvh`) + 40 dòng mặc định (`DIA_BAN_PHAT_MAC_DINH`, 6 BCVH Huế) nạp bằng `INSERT OR IGNORE` (không nhân đôi, không ghi đè dòng PO đã sửa). Không thêm cột vào bảng KTT nào.
+- **Mới** `server/lib/kttQuery.js` (chỉ ĐỌC): `sanLuongTheoNgay`, `tonTreo`, `chuyenTheoBcvh`, `namLauTheoBac`, `chiTieuF13`, `chiTiet` (lọc theo loại / BCVH / ngày, trang ≤ 200 dòng, có tổng), `tongHopKtt` (MỘT lượt đọc, kèm `canhBao`, `khoangNgay`). Hai lượt `.iterate()` (túi; SHBG theo `shbg`), dùng `docCauHinhKtt` và các hàm của `kttTinh.js` (không sửa). Chuyển tiếp đi tính ở mức túi, hàng khai thác lại ở mức SHBG (túi đến → túi đi, dùng lần đi cuối; hai mốc cách > 7 ngày → «Cần kiểm tra lại», ngoài thống kê chính).
+- **Mới** `server/lib/kttDanhGia.js`: `taoDanhGia(tongHop, tuyChon)` (hàm thuần) → `[{ ma, mucDo, cau, soLieu, loc }]`: đúng chuyến (theo giờ quét đến, theo BCVH), đi trễ, đến sát giờ, treo, nằm lâu, ngày bất thường (so với các ngày còn lại), xác nhận đến / quét đến sau giờ đi, F1.3, chất lượng dữ liệu. Ngưỡng mức độ ở hằng `NGUONG_DANH_GIA` đầu file.
+- **Test** `tests/ktt-query.test.js` (23 ca, gồm đo cỡ một tuần: 15.000 túi / 75.000 dòng bưu gửi, ba `TZ`, kết nối chỉ đọc), `tests/ktt-danh-gia.test.js` (15 ca); +38 ca, đã thêm hai tên file vào script `test` của `package.json`. **Tài liệu** `docs/ai/38_KTT_TRUY_VAN.md`.
+- **Hiệu năng** (dữ liệu giả cỡ tuần, máy dev, chạy riêng): `tongHopKtt` ≈ 1,1 giây (từng hàm 0,6–0,9 giây); song song với cả bộ test ≈ 2,5 giây. Không cần thêm chỉ mục ở cỡ này (xem 38 §5).
+- **Chưa chắc / còn nợ:** quy tắc ghép túi đến → túi đi và ngưỡng mức độ nhận xét là đề xuất của KTT-5 (chưa PO chốt); chưa thử với file xuất thật; chưa API / route / cache / giao diện / quyền (ticket sau).
+
 ## [2026-10-23] - KTT-4: Hàm thuần tính chỉ tiêu, chuyến, «đến sát giờ», «nằm lâu», «treo» cho «Hàng tại KTT» + đọc cấu hình
 
 - **Mới** `server/lib/kttTinh.js` (hàm thuần, chỉ `require('./quyThoiGian')`): `phanNhomDich`, `tinhChiTieu` (F1.3 14 giờ / 12 giờ phường 49135, 49133), `namThucTe`, `doTreXacNhan`, `phanBacNamLau`, `danhGiaChuyen` (mốc chuyến sinh theo ngày, chuyến đáng lẽ đi, trễ chuyến, đến sát giờ), `trangThaiNamLau`, `trangThaiTreo`. Số âm / NULL giữ nguyên có nhãn riêng; kết quả không phụ thuộc `TZ`; không dùng `new Date` / `Date.parse`.
