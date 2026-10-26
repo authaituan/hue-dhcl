@@ -17,6 +17,7 @@ const arrivalsRoutes = require('./routes/arrivals');
 const phatRoutes = require('./routes/phat');
 const napNguonRoutes = require('./routes/napNguon');
 const kttNapRoutes = require('./routes/kttNap');
+const kttRoutes = require('./routes/ktt');
 const thamSoRoutes = require('./routes/thamSo');
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api', arrivalsRoutes);
 app.use('/api', phatRoutes);
 app.use('/api', napNguonRoutes);
 app.use('/api', kttNapRoutes);
+app.use('/api/ktt', kttRoutes); // KTT-8: chỉ ADMIN, TTVH (requireRoles ở đầu router); GDVH / TIVI 403
 app.use('/api', thamSoRoutes);
 
 // Serve frontend static files in production

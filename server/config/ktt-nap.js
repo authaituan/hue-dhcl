@@ -12,6 +12,7 @@ module.exports = T.taoDoiTuong({
   KHUNG_GIO_TU: T.theoKhoa('ktt_khung_gio_tu'), // (*)
   KHUNG_GIO_DEN: T.theoKhoa('ktt_khung_gio_den'), // (*)
   SO_CAP_TOI_THIEU_NGAY: T.theoKhoa('ktt_so_cap_toi_thieu_ngay'), // (*)
+  GIO_CHOT_NGAY: T.theoKhoa('ktt_gio_chot_ngay'), // (*) số của ngày D chỉ chốt khi độ mới dữ liệu ≥ giờ này của ngày D+1 ('HH:MM')
   // Giới hạn kỹ thuật (không phải tham số điều hành)
   SO_CAP_TOI_DA_MOI_LUOT: 10, // số cặp tối đa nạp trong một lượt quét (cũ trước)
   SO_LAN_THU_TOI_DA: 5, // một cặp LỖI (tải / ghi) được thử lại tối đa chừng này lần cho cùng kích thước + mtime

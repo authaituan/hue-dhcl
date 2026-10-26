@@ -177,13 +177,13 @@ const GETTER_THEO_KHOA = {
   gio_mong_doi_sang: () => NN.GIO_MONG_DOI_SANG, gio_mong_doi_chieu: () => NN.GIO_MONG_DOI_CHIEU, an_han_phut: () => NN.AN_HAN_PHUT,
   nguong_it: () => NN.NGUONG_IT, nguong_nhieu: () => NN.NGUONG_NHIEU, so_tuan_mau: () => NN.SO_TUAN_MAU, toi_thieu_ngay_mau: () => NN.TOI_THIEU_NGAY_MAU,
   ktt_chu_ky_quet_phut: () => KN.CHU_KY_QUET_PHUT, ktt_cho_cap_phut: () => KN.CHO_CAP_PHUT, ktt_cu_gio: () => KN.CU_GIO, ktt_khung_gio_tu: () => KN.KHUNG_GIO_TU,
-  ktt_khung_gio_den: () => KN.KHUNG_GIO_DEN, ktt_so_cap_toi_thieu_ngay: () => KN.SO_CAP_TOI_THIEU_NGAY
+  ktt_khung_gio_den: () => KN.KHUNG_GIO_DEN, ktt_so_cap_toi_thieu_ngay: () => KN.SO_CAP_TOI_THIEU_NGAY, ktt_gio_chot_ngay: () => KN.GIO_CHOT_NGAY
 };
 const CHI_DOC = ['nguong_du_so_lieu', 'ranh_gioi_dot', 'khung_gio_den', 'nhom_cho', 'rang_ngay_nap_truoc', 'rang_ngay_nap_sau', 'ty_le_ngoai_khoang_toi_da'];
 
 test('danh bạ: mọi `mac_dinh` khớp hằng số mặc định VÀ giá trị hiệu lực của 4 file hằng số (khi chưa ai chỉnh)', () => {
   const sua = DB_TS.DANH_BA.filter((x) => !x.chi_doc);
-  assert.deepEqual(sua.map((x) => x.khoa).sort(), Object.keys(GETTER_THEO_KHOA).sort(), 'đúng 31 khóa sửa được');
+  assert.deepEqual(sua.map((x) => x.khoa).sort(), Object.keys(GETTER_THEO_KHOA).sort(), 'đúng 32 khóa sửa được');
   for (const x of sua) {
     assert.deepEqual(x.mac_dinh, MD[x.khoa], x.khoa);
     assert.deepEqual(GETTER_THEO_KHOA[x.khoa](), x.mac_dinh, `getter ${x.khoa}`);
@@ -267,11 +267,11 @@ test('lớp đọc tải riêng (chưa khoiTao, không DB): trả mặc định 
 // =====================================================================
 // 2. API đọc, quyền
 // =====================================================================
-test('GET /api/tham-so: hình dạng — nhóm, tham_so[38 khóa: 31 sửa được + 7 chỉ-đọc], phien_ban; chưa sửa thì la_mac_dinh true, cap_nhat_* null', async () => {
+test('GET /api/tham-so: hình dạng — nhóm, tham_so[39 khóa: 32 sửa được + 7 chỉ-đọc], phien_ban; chưa sửa thì la_mac_dinh true, cap_nhat_* null', async () => {
   const g = await get();
   assert.equal(g.status, 200);
   assert.deepEqual(Object.keys(g.body), ['nhom', 'tham_so', 'phien_ban']);
-  assert.equal(g.body.tham_so.length, 38);
+  assert.equal(g.body.tham_so.length, 39);
   assert.deepEqual(Object.keys(g.body.tham_so[0]), ['khoa', 'nhom', 'nhan', 'mo_ta', 'anh_huong', 'vi_du', 'nhin_thay_o', 'kieu', 'don_vi', 'min', 'max', 'rang_buoc', 'mac_dinh', 'gia_tri', 'la_mac_dinh', 'chi_doc', 'cap_nhat_luc', 'cap_nhat_boi']);
   for (const x of g.body.tham_so) { assert.equal(x.la_mac_dinh, true, x.khoa); assert.equal(x.cap_nhat_luc, null); assert.equal(x.cap_nhat_boi, null); assert.deepEqual(x.gia_tri, x.mac_dinh); }
   assert.deepEqual(g.body.tham_so.filter((x) => x.chi_doc).map((x) => x.khoa).sort(), [...CHI_DOC].sort());
@@ -411,7 +411,7 @@ test('hình dạng thân yêu cầu: không phải đối tượng, trường th
     const res = await chuaDoi(() => put(body));
     assert.deepEqual([res.status, res.body.ma], [400, 'THAM_SO_SAI'], ten);
   }
-  const nhieu = Array.from({ length: 31 }, (_, i) => ({ khoa: DB_TS.DANH_BA[i % 31].khoa + (i >= 31 ? 'x' : ''), gia_tri: 1 }));
+  const nhieu = Array.from({ length: 31 }, (_, i) => ({ khoa: DB_TS.DANH_BA[i % 32].khoa + (i >= 32 ? 'x' : ''), gia_tri: 1 }));
   assert.equal((await chuaDoi(() => put({ ly_do: 'x', thay_doi: nhieu }))).body.ma, 'THAM_SO_SAI', '31 phần tử');
   assert.equal((await chuaDoi(() => goi('PUT', '/api/tham-so?x=1', 'admin', { ly_do: 'x', thay_doi: [hop('ptc_dat')] }))).body.ma, 'THAM_SO_SAI', 'tham số truy vấn lạ');
 });

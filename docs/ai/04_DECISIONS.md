@@ -813,5 +813,29 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. `trang_thai` nhận thêm `DA_VU_HOI` = các dòng PKTC có cờ. `PKTC` giữ nghĩa «mọi dòng PKTC» (gồm cả dòng có cờ) vì vu hồi là cờ phụ của PKTC (#106). Giá trị lạ vẫn 400, thông báo nêu đủ 6 giá trị. `DA_VU_HOI` KHÔNG vào `TT_MA` / `TRANG_THAI` / CHECK 5 mã.
 3. Cờ lấy bằng `LEFT JOIN phat_status_history h ON h.id = r.sel` ngoài `NHAP_ROW` (cùng cách `phatVuHoi.demNgay`, #107): đúng bản nhập #92 đã chọn; không đổi `NHAP_*`, không đổi tập hàng, không migration. Quyền, giới hạn 50.000 dòng, nhật ký `phat_tai_ve` không đổi.
 
+### 109. «Hàng tại KTT»: bộ nạp KTT RIÊNG, không tổng quát hóa `sftpSync` (PO chốt 26/10/2026 — KTT-6)
+1. Đường nạp tự động KTT (`server/lib/kttSftp.js` + `kttNapCap.js`) là bộ nạp riêng: dùng lại lớp kết nối / cấu hình SFTP của «Hàng đến» nhưng KHÔNG sửa `sftpSync.js`, `arrivalsImport.js`, lưới «Nạp dữ liệu nguồn». Mục tiêu: không đổi hành vi nạp «Hàng đến» đang chạy.
+2. Nạp theo CẶP file túi + bưu gửi (cùng `<yyyymmdd>_<hhmmss>`) trong MỘT giao dịch; UPSERT theo `Nguon_xuat_luc`; cùng tên khác nội dung → từ chối; nhật ký `ktt_nap_cap`, cảnh báo cho ADMIN. Khóa chạy: khóa trong tiến trình + đọc-chỉ `luotDangChay`; không dùng `sftp_sync_runs` (`39_KTT_NAP_SFTP.md`).
+
+### 110. Chỉ ADMIN và TTVH xem «Hàng tại KTT»; hoãn vai trò TTKT đến sau khi lên production (PO chốt 26/10/2026 — KTT-8)
+1. `/api/ktt/*` mount riêng, `requireRoles(ADMIN, TTVH)`; GDVH và TIVI 403 (TIVI do allowlist `tivi.js` từ chối mặc định); trạng thái nạp KTT (`/api/nap-nguon/ktt/trang-thai`) chỉ ADMIN. ADMIN và TTVH thấy cùng số liệu.
+2. KHÔNG thêm vai trò TTKT lúc này (không đổi `roles.js`); cân nhắc lại sau khi hệ thống lên production.
+
+### 111. Hai mốc giờ đến của hàng KTT (PO chốt 26/10/2026 — KTT-7b)
+1. **`ConfirmDate` (`bd10_den_xnd`)** là mốc của **đạt / không đạt** chỉ tiêu 14 giờ (12 giờ phường Thuận Hóa / Phú Xuân): chờ = giờ lập BD10 đi − `ConfirmDate`, bỏ khung 21:00–07:00.
+2. **`Gio_quet_tui_den`** là mốc **xếp chuyến** và ngày đến D của **lưu thoát** (5 trạng thái). Hai mốc lưu riêng, không gộp; mỗi chỉ số trong phản hồi ghi trường `moc`. Giờ «đã đi» = giờ LẬP BD10 đi (`bd10_di_gio_di`).
+
+### 112. Mốc chuyến = giờ xe RỜI KTT; hạn hàng đến = mốc − 60 phút (PO chốt 26/10/2026 — KTT-7a)
+1. Lịch chuyến chính thức `ktt_lich_chuyen` (14 dòng, `CA_TUAN` / `NGHI_CN`) thay lịch V1 (SÁNG / TRƯA / TỐI) cho phần «chuyến»; hạn `han_den_truoc_chuyen_phut` = 60 lưu ở `ktt_lich_cau_hinh` (bảng riêng, không thêm khóa vào `ktt_cau_hinh` để không đổi test KTT-2).
+2. Chuyến thuộc = chuyến sớm nhất có `Gio_quet_tui_den ≤ giờ rời − 60 phút` (đến đúng hạn vẫn kịp), sang ngày kế khi hết chuyến, bỏ ngày không chạy. Tên chuyến trong số liệu và câu «Đánh giá» là giờ rời (`'12:30'`). Hương Trà Chủ nhật tạm tính cả tuần.
+
+### 113. Hàng hoàn Tổ KHHH (531120) nhận diện theo túi đến gốc và đích Thuận Hóa; loại khỏi tổng và tỷ lệ (PO chốt 26/10/2026 — KTT-7b)
+1. SHBG có túi đến GỐC (quét sớm nhất) với nơi gửi BD10 đến = 531120 VÀ đích = BCVH Thuận Hóa (533140) là «hàng chuyển hoàn Tổ KHHH»: nhóm riêng (sản lượng + hiện trạng), KHÔNG vào tổng và tỷ lệ lưu thoát / đạt-không đạt / đúng chuyến.
+2. Từ 531120 đích BCVH Huế khác Thuận Hóa: tính như hàng thường (đếm ở `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa`); đích tỉnh khác: hàng mới đi liên tỉnh, không phải hàng hoàn. Nhóm «đang chờ chuyến» (chưa đi, chưa tới giờ xuất phát) tách riêng, không vào trạng thái 5 và mẫu số.
+
+### 114. Cảnh báo «dữ liệu cũ» của đường nạp KTT mặc định 10 giờ; giờ chốt ngày là tham số (PO chốt 26/10/2026 — KTT-6, KTT-8)
+1. `ktt_cu_gio` = **10** giờ (không phải 8 như ticket KTT-6): với lịch xuất 09:00 / 15:00 và khung 07:00–22:00, khoảng cách tối đa là 9 giờ; ngưỡng 8 sẽ báo sớm mỗi sáng. Chỉnh được ở «Tham số hệ thống» (nhóm «Nạp dữ liệu Hàng tại KTT»).
+2. Giờ chốt số liệu một ngày (`ktt_gio_chot_ngay`, mặc định 09:00 ngày D+1, nhóm «Hàng tại KTT») là tham số, không còn hằng trong mã. «Bây giờ» của mọi tính toán KTT = độ mới dữ liệu, không phải đồng hồ máy.
+
 ## Drift phát hiện
 _(chưa có)_

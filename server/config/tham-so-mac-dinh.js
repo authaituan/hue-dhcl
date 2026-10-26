@@ -49,5 +49,8 @@ module.exports = Object.freeze({
   ktt_cu_gio: 10,
   ktt_khung_gio_tu: 7,
   ktt_khung_gio_den: 22,
-  ktt_so_cap_toi_thieu_ngay: 2
+  ktt_so_cap_toi_thieu_ngay: 2,
+
+  // ---- Hàng tại KTT: trang Lưu thoát (KTT-8; đọc qua server/config/ktt-nap.js) ----
+  ktt_gio_chot_ngay: '09:00'
 });
