@@ -11,6 +11,7 @@ const Q = require('./kttQuery');
 const K = require('./kttNapCap');
 const S = require('./kttLuuThoat');
 const L = require('./kttLichChuyen');
+const KN = require('../config/ktt-nap');
 
 const coBang = (db, ten) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(ten);
 const BCVH = require('./kttTinh').MA_BCVH_HUE;
@@ -40,6 +41,12 @@ function docTenPhuong(db) {
 
 const khoiRong = () => S.taoKhoi().ketQua();
 
+/** Giờ chốt ngày ('HH:MM') từ tham số ktt_gio_chot_ngay (KTT-8); lỗi / sai dạng -> '09:00' (không ném lỗi). */
+function gioChot() {
+  try { const g = KN.GIO_CHOT_NGAY; if (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(g))) return g; } catch (e) { /* dùng mặc định */ }
+  return '09:00';
+}
+
 /**
  * Lưu thoát theo ngày đến. opts: { tuNgay, denNgay ('YYYY-MM-DD', ≤ 31 ngày), bayGio? }.
  * Trả { khoang_ngay, bay_gio, nguon_xuat_luc_moi_nhat, co_du_lieu, ly_do, moc, theo_ngay: [...], tong_cong, meta, canh_bao }.
@@ -59,6 +66,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   if (bayGio === null) return rong('CHUA_CO_DU_LIEU');
   if (!coBang(db, 'ktt_tui') || !coBang(db, 'ktt_buu_gui')) return rong('THIEU_BANG_DU_LIEU');
 
+  const gio_chot = gioChot();
   const tenPhuongTheoMa = docTenPhuong(db);
   const theoNgay = new Map(k.ngays.map((ngay) => [ngay, {
     ngay, tong: S.taoKhoi(), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi()])), hoan: S.taoKhoi(),
@@ -104,7 +112,7 @@ function luuThoatTheoNgay(db, opts = {}) {
     const theo_bcvh = Object.fromEntries(BCVH.map((m) => [m, n.theoBcvh.get(m).ketQua()]));
     const ngoaiTong = Object.values(n.ngoai).reduce((a, b) => a + b, 0);
     return {
-      ngay, da_chot: S.daChot(ngay, bayGio), co_du_lieu: n.tongShbg > 0 || n.tuiKhongBuuGui > 0,
+      ngay, da_chot: S.daChot(ngay, bayGio, gio_chot), co_du_lieu: n.tongShbg > 0 || n.tuiKhongBuuGui > 0,
       tong_shbg: tong.tong_shbg, tong, theo_bcvh, hang_hoan,
       khong_phan_loai: { khong_ro_dich: n.khongRo, ngoai_pham_vi: { ...n.ngoai }, tong: n.khongRo + ngoaiTong },
       tong_shbg_ngay: n.tongShbg, tui_khong_co_buu_gui: n.tuiKhongBuuGui
@@ -163,4 +171,100 @@ function congCacNgay(theoNgay) {
   };
 }
 
-module.exports = { luuThoatTheoNgay, chuanHoaNgay };
+// ------------------------------------------
+// KTT-8: ghép kết quả MỘT NGÀY thành kết quả khoảng ngày (cache theo ngày ở kttApi.js)
+// ------------------------------------------
+const cong = (a, b) => { const r = { ...a }; for (const [k, v] of Object.entries(b)) r[k] = (r[k] || 0) + v; return r; };
+const KHONG_RO_RE = /bưu gửi không rõ đích: không vào năm trạng thái lưu thoát\.$/;
+
+/**
+ * ds: kết quả luuThoatTheoNgay của TỪNG NGÀY (mỗi phần tử một ngày, liên tiếp, cùng bayGio / độ mới). Trả CÙNG kết quả như luuThoatTheoNgay trên cả khoảng (có test so khớp):
+ * theo_ngay ghép lại, tong_cong cộng các ngày, meta cộng các bộ đếm, canh_bao hợp nhất (câu «không rõ đích» tính lại theo tổng).
+ */
+function ghepKhoang(ds) {
+  const dau = ds[0];
+  const cuoi = ds[ds.length - 1];
+  const theo_ngay = ds.flatMap((x) => x.theo_ngay);
+  const rong = ds.some((x) => x.tong_cong === null);
+  const meta = { ...dau.meta };
+  for (const k of Object.keys(meta)) {
+    if (typeof meta[k] === 'number') meta[k] = ds.reduce((a, x) => a + x.meta[k], 0);
+    else if (meta[k] && typeof meta[k] === 'object' && !['moc'].includes(k)) meta[k] = ds.reduce((a, x) => cong(a, x.meta[k]), {});
+  }
+  const canh_bao = [];
+  for (const x of ds) for (const c of x.canh_bao) if (!KHONG_RO_RE.test(c) && !canh_bao.includes(c)) canh_bao.push(c);
+  if (!rong && meta.khong_ro_dich > 0) canh_bao.push(`${meta.khong_ro_dich} bưu gửi không rõ đích: không vào năm trạng thái lưu thoát.`);
+  return {
+    khoang_ngay: { tu_ngay: dau.khoang_ngay.tu_ngay, den_ngay: cuoi.khoang_ngay.den_ngay }, bay_gio: dau.bay_gio, nguon_xuat_luc_moi_nhat: dau.nguon_xuat_luc_moi_nhat,
+    co_du_lieu: theo_ngay.some((x) => x.co_du_lieu), ly_do: dau.ly_do, moc: dau.moc, theo_ngay, tong_cong: rong ? null : congCacNgay(theo_ngay), meta, canh_bao
+  };
+}
+
+// ------------------------------------------
+// KTT-8: danh sách chi tiết SHBG theo nhóm lưu thoát (để KTT kiểm tra, giải trình)
+// ------------------------------------------
+const NHOM_LUU_THOAT = Object.freeze({
+  t1: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'T1', t2: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'T2',
+  t3: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'T3', t4: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'T4',
+  t5: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'T5', dang_cho_chuyen: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai === 'DANG_CHO_CHUYEN',
+  hang_hoan: (k) => k.nhom === S.NHOM.HANG_HOAN,
+  dat: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai !== null && k.datKhongDat.trangThai === S.DAT.DAT,
+  khong_dat: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai !== null && k.datKhongDat.trangThai === S.DAT.KHONG_DAT,
+  chua_di: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai !== null && k.datKhongDat.trangThai === S.DAT.CHUA_DI,
+  chua_do_duoc: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai !== null && k.datKhongDat.trangThai === S.DAT.CHUA_DO_DUOC,
+  xnd_sau_gio_di: (k) => k.nhom === S.NHOM.PHAN_LOAI && k.trangThai !== null && k.datKhongDat.trangThai === S.DAT.XND_SAU_GIO_DI,
+  khong_ro_dich: (k) => k.nhom === S.NHOM.KHONG_RO_DICH, ngoai_pham_vi: (k) => k.nhom === S.NHOM.NGOAI_PHAM_VI,
+  khong_co_gio_quet_den: (k) => k.nhom === S.NHOM.KHONG_CO_GIO_QUET_DEN, khong_xep_duoc_chuyen: (k) => k.nhom === S.NHOM.KHONG_XEP_DUOC_CHUYEN
+});
+const TRANG_TOI_DA = 200;
+
+/**
+ * opts: { tuNgay, denNgay (≤ 31 ngày), nhom (một khóa của NHOM_LUU_THOAT), maBcvh? (một trong 6 BCVH), trang (≥ 1), kichThuocTrang (1..200, mặc định 50), bayGio? }.
+ * Trả { tong, trang, kichThuocTrang, soTrang, dong: [...], bay_gio, nguon_xuat_luc_moi_nhat }. Sắp xếp ỔN ĐỊNH theo SHBG (thứ tự đọc của kttQuery); tổng khớp số của luuThoatTheoNgay cùng khoảng / nhóm.
+ * Mỗi dòng: SHBG, số hiệu BD8 / BD10 đến + đi, ngày đến, giờ quét đến, xác nhận đến, giờ lập BD10 đi, BCVH đích, nhóm, trạng thái, chuyến thuộc (giờ rời, ngày), kết quả chuyến, nhãn đạt / không đạt, chỉ tiêu, thời gian chờ (giây). Không có tên người, biển số, lái xe.
+ */
+function danhSachLuuThoat(db, opts = {}) {
+  const k = chuanHoaNgay(opts);
+  if (!Object.prototype.hasOwnProperty.call(NHOM_LUU_THOAT, opts.nhom)) throw new Q.LoiKtt('KTT_LOAI_SAI', `nhom phải thuộc: ${Object.keys(NHOM_LUU_THOAT).join(', ')}.`);
+  const khop = NHOM_LUU_THOAT[opts.nhom];
+  const maBcvh = opts.maBcvh === undefined || opts.maBcvh === null || opts.maBcvh === '' ? null : String(opts.maBcvh).trim();
+  if (maBcvh !== null && !BCVH.includes(maBcvh)) throw new Q.LoiKtt('KTT_BCVH_SAI', 'maBcvh phải là một trong 6 BCVH Huế.');
+  const so = (x, macDinh) => { const n = x === undefined || x === null ? macDinh : Number(x); return Number.isInteger(n) && n >= 1 ? n : null; };
+  const trang = so(opts.trang, 1);
+  const kichThuoc = so(opts.kichThuocTrang, 50);
+  if (trang === null || kichThuoc === null) throw new Q.LoiKtt('KTT_TRANG_SAI', 'trang và kichThuocTrang phải là số nguyên dương.');
+  const kichThuocTrang = Math.min(kichThuoc, TRANG_TOI_DA);
+  const doMoi = docDoMoi(db);
+  const bayGio = opts.bayGio !== undefined && opts.bayGio !== null ? opts.bayGio : (doMoi ? doMoi.nguon_xuat_luc : null);
+  const ra = (tong, dong) => ({ tong, trang, kichThuocTrang, soTrang: Math.ceil(tong / kichThuocTrang), dong, bay_gio: bayGio, nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null });
+  if (bayGio === null || !coBang(db, 'ktt_tui') || !coBang(db, 'ktt_buu_gui')) return ra(0, []);
+  const tenPhuongTheoMa = docTenPhuong(db);
+  const batDau = (trang - 1) * kichThuocTrang;
+  const dong = [];
+  let tong = 0;
+  Q.chayBoDem(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, boQuaCham: true }, (c) => {
+    const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio };
+    return [{
+      shbg(u) {
+        if (!u.trongKhoangDen) return;
+        const tenPhuong = u.tenPhuong || tenPhuongTheoMa.get(String(u.maPhuong || '').trim()) || null;
+        const kq = S.phanLoaiShbg({ ...u, tenPhuong }, ngu);
+        if (maBcvh !== null && u.maBcvh !== maBcvh) return;
+        if (!khop(kq)) return;
+        if (tong >= batDau && dong.length < kichThuocTrang) {
+          const d = kq.datKhongDat || null;
+          dong.push({
+            shbg: u.shbg, soHieuBd8: u.soHieuBd8 || null, bd10Den: u.bd10Den || null, bd10Di: u.bd10Di || null, ngayDen: u.ngayDen, quetDen: u.quetDen || null,
+            xndBd10: u.xndBd10 || null, gioLapBd10Di: u.gioBd10Di || null, maBcvh: u.maBcvh || null, nhomDich: u.nhom, nhom: kq.nhom, trangThai: kq.trangThai === undefined ? null : kq.trangThai,
+            gioXuatPhat: kq.chuyen ? kq.chuyen.gio_xuat_phat : null, ngayChuyen: kq.chuyen ? kq.chuyen.ngay : null, ketQuaChuyen: kq.chuyenKq || null, lyDo: kq.lyDo || null,
+            diTruocKhiDen: !!kq.diTruocKhiDen, datKhongDat: d ? d.trangThai : null, chiTieuGio: d ? d.chiTieuGio : null, thoiGianChoGiay: d ? d.thucGiay : null, tenPhuong
+          });
+        }
+        tong++;
+      }
+    }];
+  });
+  return ra(tong, dong);
+}
+
+module.exports = { luuThoatTheoNgay, chuanHoaNgay, ghepKhoang, congCacNgay, danhSachLuuThoat, NHOM_LUU_THOAT, TRANG_TOI_DA, docDoMoi, gioChot };

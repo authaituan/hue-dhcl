@@ -15,6 +15,7 @@ const NHOM = Object.freeze([
   Object.freeze({ ma: 'nap_nguon', nhan: 'Nạp dữ liệu nguồn' }),
   Object.freeze({ ma: 'thay_the_ngay', nhan: 'Thay thế ngày' }),
   Object.freeze({ ma: 'nap_ktt', nhan: 'Nạp dữ liệu Hàng tại KTT' }),
+  Object.freeze({ ma: 'hang_tai_ktt', nhan: 'Hàng tại KTT' }),
   Object.freeze({ ma: 'quy_tac', nhan: 'Quy tắc định nghĩa (chỉ đọc)' })
 ]);
 
@@ -253,6 +254,13 @@ const SUA_DUOC = [
     anh_huong: 'Chỉ đổi lúc cảnh báo / quét tiếp theo; không đổi dữ liệu đã nạp.', rang_buoc: rbCua('ktt_khung_gio_den'),
     vi_du: 'Đặt 22: sau 22:00 thời gian không còn được tính. Đặt 23: tính đến 23:00.',
     nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_gio_chot_ngay', {
+    nhom: 'hang_tai_ktt', nhan: 'Giờ chốt số liệu của một ngày (giờ của ngày hôm sau)', kieu: 'gio_hhmm', min: '00:00', max: '23:59', don_vi: 'HH:MM',
+    mo_ta: 'Số liệu «Lưu thoát» của ngày D chỉ coi là CHỐT khi dữ liệu KTT đã cập nhật đến giờ này của ngày D+1 (cặp file xuất lúc 09:00). Chưa tới giờ thì vẫn hiện số nhưng ghi «đang cập nhật».',
+    anh_huong: 'Chỉ đổi nhãn «đã chốt / đang cập nhật» và thời gian giữ số trong bộ nhớ đệm; không đổi con số. Có hiệu lực ngay.',
+    vi_du: 'Đặt 09:00: dữ liệu cập nhật đến 08:59 ngày 21/10 thì ngày 20/10 chưa chốt, đến 09:00 là chốt. Đặt 15:00: phải đến 15:00 ngày 21/10 mới chốt.',
+    nhin_thay_o: ['Hàng tại KTT: trang «Lưu thoát» (API /api/ktt/luu-thoat, /meta): nhãn «đã chốt / đang cập nhật»']
   }),
   sua('ktt_so_cap_toi_thieu_ngay', {
     nhom: 'nap_ktt', nhan: 'Số cặp file tối thiểu mỗi ngày', kieu: 'so_nguyen', min: 1, max: 10, don_vi: 'cặp',

@@ -31,6 +31,9 @@ server/
   routes/arrivals.js    # API "Hàng đến" + Dashboard điều hành (chỉ GET, ADMIN + TTVH + GDVH)
   routes/napNguon.js    # API ĐỌC màn «Nạp dữ liệu nguồn» (/api/nap-nguon/*, chỉ ADMIN: 5 GET [5f-1; docs/ai/17_…] + 2 POST lay-ngay / lay-lai [5f-2; docs/ai/18_NAP_DU_LIEU_NGUON_API_LAY.md])
   routes/thamSo.js      # API «Tham số hệ thống» (/api/tham-so*, chỉ ADMIN; THAMSO-1, #94; docs/ai/34_…) — lõi server/lib/thamSo.js, danh bạ server/config/tham-so.js, mặc định server/config/tham-so-mac-dinh.js
+  routes/ktt.js         # API «Hàng tại KTT» (/api/ktt/*: meta, luu-thoat, tong-hop, chi-tiet; CHỈ ADMIN + TTVH; chỉ GET; KTT-8; docs/ai/42)
+  routes/kttNap.js      # API ĐỌC trạng thái nạp KTT (GET /api/nap-nguon/ktt/trang-thai, chỉ ADMIN; KTT-6; docs/ai/39)
+  lib/ktt*.js           # «Hàng tại KTT»: kttSchema (bảng), kttImport / kttNapCap / kttSftp (nạp, 39), kttTinh / kttCauHinh / kttQuery / kttDanhGia (tính, 37–38), kttLichChuyen / kttChuyen (lịch chuyến, 40), kttLuuThoat / kttLuuThoatQuery (lưu thoát, 41), kttApi / kttWorker (cache + chạy nền cho API, 42)
 src/
   App.jsx               # khung app: đăng nhập / Sidebar / Header / 3 màn hình
   utils/api.js          # apiFetch/apiFetchJson, lưu token, sự kiện hết phiên
@@ -73,6 +76,10 @@ tests/                  # node --test; helpers/serverHarness.js chạy server th
 | `sftp_source_files` | Danh sách file đang / đã thấy trên nguồn SFTP (SANLUONG-5e, `server/lib/sftpSync.js`): kích thước, mtime, lần đầu / cuối thấy, số lượt giữ nguyên (xét «file ổn định» qua nhiều lượt), `con_tren_nguon` (0 = đã biến mất). Chi tiết `15_SFTP_SCHEDULER.md` | — |
 | `thay_the_nhat_ky`, `thung_rac_file`, `thung_rac_dong`, `thay_the_khoi_phuc` (5g-5) | «Thay thế ngày của một BCVH» (SANLUONG-5g-3, `server/lib/thayTheThucHien.js`, tạo ở `server/db.js`, giờ UTC): nhật ký mỗi lần thay thành công (người, BCVH, ngày, tập file cũ / mới, số dòng, SHBG mất thật, mức cảnh báo, đường dẫn sao lưu, hạn thùng rác); thùng rác = bản sao nguyên văn bản ghi file / dòng bị xóa (cùng `id`, `import_file_id` gốc; `thung_rac_id` = `thay_the_nhat_ky.id`), giữ 30 ngày | — |
 | `tham_so`, `tham_so_nhat_ky` (THAMSO-1) | «Tham số hệ thống» (`server/lib/thamSo.js`, tạo ở `server/db.js`, giờ UTC): `tham_so(khoa PK, gia_tri JSON, cap_nhat_luc, cap_nhat_boi, che_do 'tay'|'tu_thong_ke')` chỉ lưu GIÁ TRỊ GHI ĐÈ (thiếu dòng = mặc định ở `server/config/tham-so-mac-dinh.js`); `tham_so_nhat_ky(id, khoa, gia_tri_cu, gia_tri_moi, thoi_diem_utc, nguoi_ma, ly_do, loai 'SUA'|'VE_MAC_DINH')` — #94 | — |
+| `ktt_nap_lan`, `ktt_nap_cap`, `ktt_nguon_file` (KTT-2, KTT-6) | «Hàng tại KTT» — nhật ký nạp: mức FILE (`ktt_nap_lan`, chặn trùng `(loai, sha256)`), mức CẶP file túi + bưu gửi (`ktt_nap_cap`: `OK` / `CHO_CAP` / `TU_CHOI` / `LOI`, độ mới = `nguon_xuat_luc` lớn nhất của cặp OK), theo dõi «file ổn định» (`ktt_nguon_file`); `server/lib/kttSchema.js` (tạo ở `server/db.js`) — `39_KTT_NAP_SFTP.md` | — |
+| `ktt_tui`, `ktt_buu_gui` (KTT-2) | Dữ liệu nguồn KTT (POS 530100): mức túi / mức bưu gửi-trong-túi; khóa tự nhiên 7 phần (+ SHBG chuẩn hóa); UPSERT theo `nguon_xuat_luc`; chỉ LƯU, không lưu nhãn tính toán — `36_KTT_TU_DIEN_DU_LIEU.md` | — (không khóa ngoại) |
+| `ktt_cau_hinh_chuyen`, `ktt_cau_hinh` (KTT-2), `ktt_dia_ban_phat` (KTT-5) | Cấu hình / danh mục: lịch mốc chuyến V1 (không còn dùng cho chuyến từ KTT-7b), ngưỡng treo / nằm lâu / F1.3, địa bàn phát phường-xã → 6 BCVH Huế | — |
+| `ktt_lich_chuyen`, `ktt_lich_cau_hinh` (KTT-7a) | Lịch chuyến CHÍNH THỨC (14 dòng giờ xe rời KTT, `CA_TUAN` / `NGHI_CN`, `dang_dung`) và tham số `han_den_truoc_chuyen_phut` (60) — `40_KTT_LICH_CHUYEN.md` | — |
 | `arrival_items` | 1 dòng CSV = 1 dòng: cột gốc (chữ) + `arrival_at`/`arrival_at_basis`/`arrival_evidence_count`, ngày dẫn xuất từng mốc, `ward_key`. Lượt đến = `(tracking_no, bd10_no, bd8_no)` | `import_file_id` → arrival_import_files |
 | `ward_bdx_map` | Phường/xã (`ward_key`) → BĐX, `source` AUTO/MANUAL | `commune_id` → commune |
 
@@ -166,6 +173,10 @@ Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `TIVI` (#74;
 | `GET /api/arrivals/dashboard/ket-qua-phat` (#79) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (#72; không theo `user_bcvh`) | 403 (PHAT-3d) |
 | `GET /api/arrivals/dashboard/ket-qua-phat-thang` (#91) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 |
 | `GET /api/arrivals/dashboard/vu-hoi`, `…/vu-hoi-thang` (#107) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 |
+| `/api/ktt/*` (meta, luu-thoat, tong-hop, chi-tiet; KTT-8, #110) | ✔ mọi dữ liệu KTT | ✔ mọi dữ liệu KTT (không lọc theo BCVH) | 403 | 403 |
+| `GET /api/nap-nguon/ktt/trang-thai` (KTT-6) | ✔ | 403 | 403 | 403 |
+| `GET /api/ktt/meta` · `/luu-thoat?tu=&den=` · `/tong-hop?tu=&den=` · `/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]` — «Hàng tại KTT»: độ mới + lịch chuyến + tham số; lưu thoát 5 trạng thái / đạt-không đạt / hàng hoàn theo ngày (≤ 31 ngày, `da_chot`); tổng hợp + khối «Đánh giá»; chi tiết SHBG phân trang (KTT-8, #109–#114) | ADMIN, TTVH (GDVH, TIVI 403) | `routes/ktt.js`, `lib/kttApi.js` — `42_KTT_API.md` |
+| `GET /api/nap-nguon/ktt/trang-thai` — trạng thái đường nạp KTT: hẹn giờ, độ mới, 20 cặp gần nhất, cảnh báo (a)–(d), tham số (KTT-6) | ADMIN | `routes/kttNap.js` — `39_KTT_NAP_SFTP.md` |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
 (`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).
 Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DEPLOYMENT.md` mục 7).

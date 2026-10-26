@@ -68,7 +68,7 @@ function chuyenTrongNgay(lich, maBcvh, ngay, tuyChon) {
  * (bỏ ngày chuyến không chạy), tối đa SO_NGAY_TIM_TOI_DA ngày kế, quá thì KHONG_CO_LICH.
  * Trả { ok: true, chuyen: { ma_bcvh, ngay, gio_xuat_phat, xuat_phat_luc, han_den_luc, nhan }, qua_dem } hoặc { ok: false, ly_do }.
  */
-function xepChuyen(lich, maBcvh, gioDen, tuyChon) {
+function xepChuyenKhongDem(lich, maBcvh, gioDen, tuyChon) {
   if (!MA_BCVH_HUE.includes(maBcvh)) return { ok: false, ly_do: LY_DO.KHONG_PHAI_BCVH_HUE };
   if (gioDen === null || gioDen === undefined || String(gioDen).trim() === '') return { ok: false, ly_do: LY_DO.THIEU_GIO_DEN };
   const giayDen = giayCua(gioDen);
@@ -84,6 +84,26 @@ function xepChuyen(lich, maBcvh, gioDen, tuyChon) {
     if (trung) return { ok: true, chuyen: boTam(trung), qua_dem: trung.ngay !== ngayDen };
   }
   return { ok: false, ly_do: LY_DO.KHONG_CO_LICH };
+}
+
+// KTT-8: BỘ NHỚ ĐỆM của xepChuyen trong MỘT lần tính. Khóa ngoài = chính mảng `lich` (WeakMap: mỗi lần docLichChuyen trả mảng mới nên bộ nhớ chết cùng lần tính; không giữ giữa các
+// lần gọi API), khóa trong = (BCVH, giờ quét đến, hạn). Nhiều SHBG cùng túi / cùng giờ quét đến chỉ xếp MỘT lần. Kết quả trả về được ĐÓNG BĂNG (dùng chung giữa các lần gọi). Nếu số dòng của
+// `lich` đổi giữa hai lần gọi thì bỏ bộ nhớ. KHÔNG đổi quy tắc: xepChuyenKhongDem cho kết quả y hệt (có test so khớp).
+const BO_NHO_XEP = new WeakMap();
+const BO_NHO_TOI_DA = 50000;
+const dongBang = (v) => { if (v && typeof v === 'object') { for (const k of Object.keys(v)) dongBang(v[k]); Object.freeze(v); } return v; };
+function xepChuyen(lich, maBcvh, gioDen, tuyChon) {
+  if (!Array.isArray(lich) || typeof maBcvh !== 'string' || typeof gioDen !== 'string') return xepChuyenKhongDem(lich, maBcvh, gioDen, tuyChon);
+  let b = BO_NHO_XEP.get(lich);
+  if (!b || b.n !== lich.length) { b = { n: lich.length, m: new Map() }; BO_NHO_XEP.set(lich, b); }
+  const khoa = `${maBcvh}|${gioDen}|${chuanHanPhut(tuyChon)}`;
+  let r = b.m.get(khoa);
+  if (r === undefined) {
+    r = dongBang(xepChuyenKhongDem(lich, maBcvh, gioDen, tuyChon));
+    if (b.m.size >= BO_NHO_TOI_DA) b.m.clear();
+    b.m.set(khoa, r);
+  }
+  return r;
 }
 
 /**
@@ -146,5 +166,5 @@ function docLichChuyen(db) {
 
 module.exports = {
   MA_BCVH_HUE, HAN_DEN_TRUOC_CHUYEN_PHUT, SO_NGAY_TIM_TOI_DA, LY_DO, TRANG_THAI,
-  giayCua, dinhDang, xepChuyen, chuyenTrongNgay, danhGiaDiChuyen, docLichChuyen
+  giayCua, dinhDang, xepChuyen, xepChuyenKhongDem, chuyenTrongNgay, danhGiaDiChuyen, docLichChuyen
 };

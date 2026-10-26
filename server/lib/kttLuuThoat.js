@@ -155,8 +155,9 @@ function taoKhoi() {
 }
 
 /** Ngày đã chốt chưa: độ mới của dữ liệu (nguon_xuat_luc mới nhất) ≥ 09:00 ngày D+1. So sánh chuỗi giờ (định dạng cố định). */
-function daChot(ngay, doMoi) {
-  return typeof doMoi === 'string' && L.giayCua(doMoi) !== null && L.giayCua(doMoi) >= L.giayCua(`${ngayKe(ngay)} ${GIO_CHOT_NGAY}`);
+function daChot(ngay, doMoi, gioChot = GIO_CHOT_NGAY) {
+  const gio = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(gioChot)) ? `${gioChot}:00` : GIO_CHOT_NGAY; // KTT-8: giờ chốt là tham số ('HH:MM'); sai dạng -> mặc định 09:00:00
+  return typeof doMoi === 'string' && L.giayCua(doMoi) !== null && L.giayCua(doMoi) >= L.giayCua(`${ngayKe(ngay)} ${gio}`);
 }
 
 module.exports = {
