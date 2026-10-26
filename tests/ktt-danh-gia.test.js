@@ -12,7 +12,7 @@ const { taoDanhGia, ngayBatThuong, NGUONG_DANH_GIA, CAU_GIAI_TRINH } = require('
 
 const CTD = 'CHUYEN_TIEP_DI';
 const KTL = 'KHAI_THAC_LAI';
-const hang = (o) => ({ ngay: '2026-10-20', maBcvh: '533140', chuyen: 'SANG', nguon: CTD, donVi: 'TUI', tong: 0, DUNG_CHUYEN: 0, TRE_CHUYEN: 0, LO_CHUYEN: 0, CHUA_DEN_MOC: 0, soChuyenTre: 0, treTu2Ngay: 0, ...o });
+const hang = (o) => ({ ngay: '2026-10-20', maBcvh: '533140', chuyen: '07:00', nguon: CTD, donVi: 'TUI', tong: 0, DUNG_CHUYEN: 0, TRE_CHUYEN: 0, LO_CHUYEN: 0, CHUA_DEN_MOC: 0, soChuyenTre: 0, treTu2Ngay: 0, ...o });
 const tim = (kq, ma) => kq.find((x) => x.ma === ma);
 const deepFreeze = (o) => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.values(o).forEach(deepFreeze); } return o; };
 const XAU = /NaN|undefined|Infinity|\[object|null/;
@@ -24,16 +24,16 @@ function tongHopMau() {
     chuyen: {
       chotTruocPhut: [30],
       theoBcvhChuyen: [
-        hang({ maBcvh: '533140', chuyen: 'SANG', tong: 100, DUNG_CHUYEN: 90, TRE_CHUYEN: 6, LO_CHUYEN: 2, CHUA_DEN_MOC: 2, treTu2Ngay: 1 }),
-        hang({ maBcvh: '535470', chuyen: 'TRUA', tong: 50, DUNG_CHUYEN: 30, TRE_CHUYEN: 15, LO_CHUYEN: 5, treTu2Ngay: 3 })
+        hang({ maBcvh: '533140', chuyen: '07:00', tong: 100, DUNG_CHUYEN: 90, TRE_CHUYEN: 6, LO_CHUYEN: 2, CHUA_DEN_MOC: 2, treTu2Ngay: 1 }),
+        hang({ maBcvh: '535470', chuyen: '12:30', tong: 50, DUNG_CHUYEN: 30, TRE_CHUYEN: 15, LO_CHUYEN: 5, treTu2Ngay: 3 })
       ],
       theoNgay: [{ ngay: '2026-10-20', nguon: CTD, donVi: 'TUI', tong: 150, daCham: 148, dungChuyen: 120, treChuyen: 21, loChuyen: 7 }],
       theoGioQuetDen: [
-        { gio: 7, chuyen: 'TRUA', nguon: CTD, donVi: 'TUI', tong: 623, dungChuyen: 600, treChuyen: 23 },
-        { gio: 7, chuyen: 'SANG', nguon: CTD, donVi: 'TUI', tong: 20, dungChuyen: 20, treChuyen: 0 },
-        { gio: 8, chuyen: 'TRUA', nguon: CTD, donVi: 'TUI', tong: 100, dungChuyen: 100, treChuyen: 0 }
+        { gio: 7, chuyen: '12:30', nguon: CTD, donVi: 'TUI', tong: 623, dungChuyen: 600, treChuyen: 23 },
+        { gio: 7, chuyen: '07:00', nguon: CTD, donVi: 'TUI', tong: 20, dungChuyen: 20, treChuyen: 0 },
+        { gio: 8, chuyen: '12:30', nguon: CTD, donVi: 'TUI', tong: 100, dungChuyen: 100, treChuyen: 0 }
       ],
-      denSatGio: [{ maBcvh: '533140', chuyen: 'SANG', nguon: CTD, donVi: 'TUI', soDenSatGio: 40, kipChuyenSat: 10, sangChuyenKe: 25, chuaDi: 5 }],
+      denSatGio: [{ maBcvh: '533140', chuyen: '07:00', nguon: CTD, donVi: 'TUI', soDenSatGio: 40, kipChuyenSat: 10, sangChuyenKe: 25, chuaDi: 5 }],
       khongApDung: []
     },
     tonTreo: {
@@ -114,20 +114,20 @@ test('đúng chuyến: tỷ lệ hàng đi đúng chuyến, nêu BCVH thấp nh�
   assert.equal(NGUONG_DANH_GIA.dungChuyenTot, 0.9);
 });
 
-test('theo giờ quét đến: «Quét đến 7 giờ: 623 túi vào chuyến trưa, chỉ 20 túi kịp chuyến sáng»', () => {
+test('theo giờ quét đến: «Quét đến 7 giờ: 623 túi vào chuyến 12:30, chỉ 20 túi kịp chuyến 07:00»', () => {
   const x = tim(taoDanhGia(tongHopMau()), `DUNG_CHUYEN_THEO_GIO_${CTD}`);
-  assert.ok(x.cau.startsWith('Quét đến 7 giờ: 623 túi vào chuyến trưa, chỉ 20 túi kịp chuyến sáng'), x.cau);
+  assert.ok(x.cau.startsWith('Quét đến 7 giờ: 623 túi vào chuyến 12:30, chỉ 20 túi kịp chuyến 07:00'), x.cau);
   assert.equal(x.soLieu.gioQuetDen, 7);
   assert.equal(x.soLieu.tong, 643);
   assert.deepEqual(x.loc, { loai: 'tre_chuyen' });
   // chuyến đứng sau chiếm ít hơn chuyến đứng trước: không dùng «chỉ … kịp»
   const th = tongHopMau();
   th.chuyen.theoGioQuetDen = [
-    { gio: 12, chuyen: 'SANG', nguon: KTL, donVi: 'SHBG', tong: 90, dungChuyen: 90, treChuyen: 0 },
-    { gio: 12, chuyen: 'TRUA', nguon: KTL, donVi: 'SHBG', tong: 40, dungChuyen: 40, treChuyen: 0 }
+    { gio: 12, chuyen: '07:00', nguon: KTL, donVi: 'SHBG', tong: 90, dungChuyen: 90, treChuyen: 0 },
+    { gio: 12, chuyen: '12:30', nguon: KTL, donVi: 'SHBG', tong: 40, dungChuyen: 40, treChuyen: 0 }
   ];
   const y = tim(taoDanhGia(th), `DUNG_CHUYEN_THEO_GIO_${KTL}`);
-  assert.ok(y.cau.startsWith('Quét đến 12 giờ: 90 bưu gửi vào chuyến sáng, 40 bưu gửi vào chuyến trưa'), y.cau);
+  assert.ok(y.cau.startsWith('Quét đến 12 giờ: 90 bưu gửi vào chuyến 07:00, 40 bưu gửi vào chuyến 12:30'), y.cau);
   assert.equal(y.loc, null); // không có hàng trễ ở giờ đó
 });
 
@@ -156,7 +156,7 @@ test('đến sát giờ: số đến sát giờ, tỷ lệ kịp, tỷ lệ sang
   assert.equal(x.soLieu.tyLeSangChuyenKe, 0.625);
   const th = tongHopMau();
   th.chuyen.chotTruocPhut = [30, 45];
-  th.chuyen.denSatGio = [{ maBcvh: '533140', chuyen: 'SANG', nguon: KTL, donVi: 'SHBG', soDenSatGio: 10, kipChuyenSat: 9, sangChuyenKe: 1, chuaDi: 0 }];
+  th.chuyen.denSatGio = [{ maBcvh: '533140', chuyen: '07:00', nguon: KTL, donVi: 'SHBG', soDenSatGio: 10, kipChuyenSat: 9, sangChuyenKe: 1, chuaDi: 0 }];
   const y = tim(taoDanhGia(th), `DEN_SAT_GIO_${KTL}`);
   assert.equal(y.cau, 'Đến sát giờ (bưu gửi khai thác lại): 10 bưu gửi quét đến trong khoảng chốt cuối trước mốc chuyến; 9 (90%) kịp chuyến, 1 (10%) sang chuyến kế.');
   assert.equal(y.mucDo, 'THONG_TIN');
@@ -283,7 +283,7 @@ test('câu văn trung tính: «treo» và «nằm lâu» gắn câu giải trìn
 test('không bao giờ có NaN / undefined / Infinity / null trong chuỗi, kể cả khi số liệu thiếu hoặc hỏng', () => {
   const hong = [
     { chuyen: { theoBcvhChuyen: [{ nguon: CTD, DUNG_CHUYEN: NaN, TRE_CHUYEN: undefined, LO_CHUYEN: null, maBcvh: undefined }] } },
-    { chuyen: { theoBcvhChuyen: [{ nguon: CTD, DUNG_CHUYEN: 5, TRE_CHUYEN: Infinity, LO_CHUYEN: 0, maBcvh: '533140' }], theoGioQuetDen: [{ gio: NaN, chuyen: 'SANG', nguon: CTD, tong: 4 }, { gio: 5, chuyen: 'SANG', nguon: CTD, tong: 4, treChuyen: undefined }], denSatGio: [{ nguon: CTD, soDenSatGio: Infinity }, { nguon: KTL, soDenSatGio: 5 }] } },
+    { chuyen: { theoBcvhChuyen: [{ nguon: CTD, DUNG_CHUYEN: 5, TRE_CHUYEN: Infinity, LO_CHUYEN: 0, maBcvh: '533140' }], theoGioQuetDen: [{ gio: NaN, chuyen: '07:00', nguon: CTD, tong: 4 }, { gio: 5, chuyen: '07:00', nguon: CTD, tong: 4, treChuyen: undefined }], denSatGio: [{ nguon: CTD, soDenSatGio: Infinity }, { nguon: KTL, soDenSatGio: 5 }] } },
     { tonTreo: { tong: { tui: 'x', shbg: NaN }, theoNgay: [{ ngay: '2026-10-20', tong: NaN, treo: undefined }], theoLoai: null, theoBcvh: [{ maBcvh: undefined, tui: NaN }] } },
     { tonTreo: { tong: { tui: 3 }, theoNgay: [{ ngay: '2026-10-20', tong: 10, treo: 3 }], theoLoai: [{ loai: 'CHUA_QUET_DI', tui: NaN }], theoBcvh: [{ maBcvh: undefined, tui: 3 }] } },
     { namLau: { theoBac: [{ nguon: CTD, nhom: 'BCVH_HUE', bac: 'A_DEN_3H', soDon: NaN, namLau: undefined }, { nguon: KTL, nhom: 'BCVH_HUE', bac: 'Z', soDon: 3, namLau: 1 }] } },
@@ -308,9 +308,9 @@ test('xuyên DB tạm: tongHopKtt → taoDanhGia sinh đúng câu và số từ 
   const tui = (o) => { const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(++seq), ...NG, ...o }; them('ktt_tui', r); return r; };
   const bg = (t, shbg, o) => them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o });
   const ctd = (quet, gioDi, extra = {}) => tui({ chieu: CTD, luong: 'DI_NGOAI', to_pos: '535470', gio_quet_tui_den: quet, bd10_di_gio_di: gioDi, bd10_di_so_hieu: gioDi ? 'BD10-X' : null, bd10_di_ma_diem_nhan: gioDi ? '535470' : null, ...extra });
-  ctd('2026-10-20 06:00:00', '2026-10-20 07:00:00'); // đúng chuyến SÁNG
-  ctd('2026-10-20 06:45:00', '2026-10-20 12:30:00'); // đến sát giờ, sang chuyến kế (TRƯA), vẫn đúng chuyến dự kiến
-  ctd('2026-10-20 06:00:00', null); // chưa đi: treo + lỡ chuyến
+  ctd('2026-10-20 04:30:00', '2026-10-20 06:00:00'); // đúng chuyến 06:00 của Hương Trà (hạn đến 05:00)
+  ctd('2026-10-20 05:45:00', '2026-10-20 11:30:00'); // đến sát giờ chuyến 06:00, sang chuyến kế 12:00, vẫn đúng chuyến dự kiến
+  ctd('2026-10-20 04:30:00', null); // chưa đi: treo + lỡ chuyến
   const den = tui({ chieu: 'DEN', luong: 'KHAI_THAC_DEN', co_mo_tui: 1, gio_quet_tui_den: '2026-10-20 15:25:00', bd10_den_so_hieu: 'BD10-DEN-1' });
   bg(den, 'S-TRE', { ti_xac_nhan_den_luc: '2026-10-20 15:25:00' });
   const di = tui({ chieu: 'DI', luong: 'KHAI_THAC_DI', bd10_di_gio_di: '2026-10-21 07:45:14', bd10_di_ma_diem_nhan: '533140', bd10_di_so_hieu: 'BD10-DI-1' });
@@ -323,7 +323,7 @@ test('xuyên DB tạm: tongHopKtt → taoDanhGia sinh đúng câu và số từ 
   assert.equal(tim(kq, `DUNG_CHUYEN_${KTL}`).cau, 'Hàng đi đúng chuyến (bưu gửi khai thác lại): 0/1 bưu gửi (0%) đi đúng chuyến.');
   assert.ok(tim(kq, `DI_TRE_${CTD}`).cau.includes('0 túi đi chuyến sau (0 túi đi muộn từ 2 ngày), 1 túi lỡ chuyến'));
   assert.ok(tim(kq, `DI_TRE_${KTL}`).cau.includes('1 bưu gửi đi chuyến sau (0 bưu gửi đi muộn từ 2 ngày), 0 bưu gửi lỡ chuyến'));
-  assert.equal(tim(kq, `DEN_SAT_GIO_${CTD}`).cau, 'Đến sát giờ (túi chuyển tiếp đi): 1 túi quét đến trong 30 phút cuối trước mốc chuyến; 0 (0%) kịp chuyến, 1 (100%) sang chuyến kế.');
+  assert.equal(tim(kq, `DEN_SAT_GIO_${CTD}`).cau, 'Đến sát giờ (túi chuyển tiếp đi): 1 túi quét đến trong 60 phút cuối trước mốc chuyến; 0 (0%) kịp chuyến, 1 (100%) sang chuyến kế.');
   assert.equal(tim(kq, 'TREO').cau, `Treo: 1 túi (0 bưu gửi) có mã quét đến mà chưa có bước tiếp theo quá 3 giờ (chưa quét đi 1 túi); 1 túi treo trên 3 ngày; BCVH đích nhiều nhất: Hương Trà (535470) 1 túi. ${CAU_GIAI_TRINH}`);
   assert.equal(tim(kq, 'TREO').mucDo, 'CANH_BAO');
   assert.ok(tim(kq, `NAM_LAU_${KTL}`).cau.startsWith('Nằm lâu (bưu gửi khai thác lại): 1/1 bưu gửi đã đi (100%) nằm lâu'));

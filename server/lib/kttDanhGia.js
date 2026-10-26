@@ -35,8 +35,9 @@ const NGUONG_DANH_GIA = Object.freeze({
 
 const MUC_DO = Object.freeze({ THONG_TIN: 'THONG_TIN', LUU_Y: 'LUU_Y', CANH_BAO: 'CANH_BAO' });
 const TEN_BCVH = new Map(DIA_BAN_PHAT_MAC_DINH.map(([ma, ten]) => [ma, ten]));
-const TEN_CHUYEN = { SANG: 'sáng', TRUA: 'trưa', TOI: 'tối' };
-const THU_TU_CHUYEN = { SANG: 0, TRUA: 1, TOI: 2 };
+// KTT-7b: tên chuyến là GIỜ XE RỜI KTT dạng 'HH:MM' (lịch chính thức ktt_lich_chuyen), câu văn nói «chuyến 12:30»; thứ tự chuyến = thứ tự chuỗi giờ.
+const tenChuyen = (c) => String(c);
+const truocChuyen = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const DON_VI = { TUI: 'túi', SHBG: 'bưu gửi' };
 const CAU_GIAI_TRINH = 'KTT cần kiểm tra và giải trình.';
 
@@ -128,14 +129,14 @@ function nhanXetTheoGio(chuyen, ra) {
     const ds = [...theoGio.values()];
     const coNhieuChuyen = ds.filter((a) => a.chuyen.length >= 2);
     const chon = (coNhieuChuyen.length ? coNhieuChuyen : ds).sort((a, b) => b.tong - a.tong || a.gio - b.gio)[0];
-    const c = chon.chuyen.slice().sort((a, b) => b.tong - a.tong || THU_TU_CHUYEN[a.chuyen] - THU_TU_CHUYEN[b.chuyen]);
+    const c = chon.chuyen.slice().sort((a, b) => b.tong - a.tong || truocChuyen(a.chuyen, b.chuyen));
     const dv = donViCua(nguon);
-    let cau = `Quét đến ${chon.gio} giờ: ${c[0].tong} ${dv} vào chuyến ${TEN_CHUYEN[c[0].chuyen]}`;
+    let cau = `Quét đến ${chon.gio} giờ: ${c[0].tong} ${dv} vào chuyến ${tenChuyen(c[0].chuyen)}`;
     if (c.length >= 2) {
       const sau = c[1];
-      cau += sau.tong < c[0].tong && THU_TU_CHUYEN[sau.chuyen] < THU_TU_CHUYEN[c[0].chuyen]
-        ? `, chỉ ${sau.tong} ${dv} kịp chuyến ${TEN_CHUYEN[sau.chuyen]}`
-        : `, ${sau.tong} ${dv} vào chuyến ${TEN_CHUYEN[sau.chuyen]}`;
+      cau += sau.tong < c[0].tong && truocChuyen(sau.chuyen, c[0].chuyen) < 0
+        ? `, chỉ ${sau.tong} ${dv} kịp chuyến ${tenChuyen(sau.chuyen)}`
+        : `, ${sau.tong} ${dv} vào chuyến ${tenChuyen(sau.chuyen)}`;
     }
     cau += ` (${moTaNguon(nguon)}, giờ có nhiều ${dv} nhất).`;
     const tre = tong(chon.chuyen, (x) => x.treChuyen);

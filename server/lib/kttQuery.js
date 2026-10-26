@@ -16,6 +16,8 @@
 const { docGiay } = require('./quyThoiGian');
 const T = require('./kttTinh');
 const { docCauHinhKtt } = require('./kttCauHinh');
+const { docLichChuyen } = require('./kttLichChuyen');
+const { danhGiaChuyenLich } = require('./kttChuyen');
 
 const GIAY_NGAY = 86400;
 const GIAY_7_NGAY = 7 * GIAY_NGAY;
@@ -76,8 +78,11 @@ function docBangPhuongXa(db, canhBao) {
 function taoNguCanh(db, opts) {
   const khoang = chuanHoaKhoang(opts);
   const cauHinh = opts && opts.cauHinh ? opts.cauHinh : docCauHinhKtt(db);
-  const canhBao = [...(cauHinh.canhBao || [])];
+  const lichChuyen = opts && opts.lichChuyen ? opts.lichChuyen : docLichChuyen(db); // `opts.lichChuyen` ({ lich, hanDenTruocChuyenPhut }) cho phép test cố định lịch
+  const canhBao = [...(cauHinh.canhBao || []), ...(lichChuyen.canhBao || [])];
   return {
+    boQuaCham: !!(opts && opts.boQuaCham),
+    lichChuyen,
     ...khoang,
     tuGio: `${khoang.tuNgay} 00:00:00`,
     denGio: `${ngayKeTiep(khoang.denNgay)} 00:00:00`, // cận trên mở
@@ -131,7 +136,8 @@ function chamChuyen(ctx, maBcvh, quetDen, gioDi) {
   const khoa = `${maBcvh}|${quetDen}|${gioDi || ''}`;
   let kq = ctx.boNhoChuyen.get(khoa);
   if (!kq) {
-    kq = T.danhGiaChuyen({ quetDen, gioDi, bay_gio: ctx.bayGio, maBcvh, cauHinh: ctx.cauHinh });
+    // KTT-7b: lịch chuyến CHÍNH THỨC (ktt_lich_chuyen, kttLichChuyen.js) thay lịch V1 (ktt_cau_hinh_chuyen). Hình dạng kết quả giữ nguyên; tên chuyến là giờ xe rời KTT 'HH:MM'.
+    kq = danhGiaChuyenLich({ quetDen, gioDi, bay_gio: ctx.bayGio, maBcvh, lich: ctx.lichChuyen.lich, hanPhut: ctx.lichChuyen.hanDenTruocChuyenPhut });
     ctx.boNhoChuyen.set(khoa, kq);
   }
   return kq;
@@ -189,7 +195,7 @@ function chuanHoaTui(r, ctx) {
   return {
     id: r.id, chieu: r.chieu, luong: chuoi(r.luong) || 'KHONG_RO', soHieuBd8: chuoi(r.so_hieu_bd8) || null,
     toPos: r.to_pos, dichNhomCot: r.dich_nhom, nhan: r.bd10_di_ma_diem_nhan,
-    quetDen, xndBd10, gioDi: gioDiBd10 || gioQuetDi, gioQuetDi,
+    quetDen, xndBd10, gioDi: gioDiBd10 || gioQuetDi, gioQuetDi, gioBd10Di: gioDiBd10, diemGuiDen: chuoi(r.bd10_den_ma_diem_gui) || null, // KTT-7b: giờ LẬP BD10 đi (không lẫn giờ quét đi) và nơi gửi của BD10 đến
     bd10Den: chuoi(r.bd10_den_so_hieu) || null, bd10Di: chuoi(r.bd10_di_so_hieu) || null,
     coMoTui: r.co_mo_tui === 1, coBd10Di: !!chuoi(r.bd10_di_so_hieu) || !!gioDiBd10,
     nShbg: r.n_shbg === undefined ? null : r.n_shbg, kg: soHuuHan(r.khoi_luong_tui_kg)
@@ -233,6 +239,7 @@ function chuanHoaDongShbg(r, ctx) {
   t.id = r.tui_id;
   t.gam = soHuuHan(r.gam);
   t.maPhuong = chuoi(r.ma_xa_phuong);
+  t.tenPhuong = chuoi(r.ten_xa_phuong) || null;
   t.xndSh = ctx.gio(r.xnd_sh);
   t.quetDenGiay = t.quetDen ? ctx.giay(t.quetDen) : null;
   t.gioDiGiay = t.gioDi ? ctx.giay(t.gioDi) : null;
@@ -258,6 +265,8 @@ function dungDonShbg(dong, ctx) {
 
   let den = null;
   const denCoQuet = denRows.filter((x) => x.quetDenGiay !== null);
+  // KTT-7b: túi đến GỐC = túi đến có giờ quét sớm nhất (cùng giờ: id nhỏ nhất); dùng nhận diện hàng hoàn Tổ KHHH (nơi gửi BD10 đến).
+  const denGoc = denCoQuet.length ? denCoQuet.reduce((tot, x) => (x.quetDenGiay < tot.quetDenGiay || (x.quetDenGiay === tot.quetDenGiay && x.id < tot.id) ? x : tot)) : (denRows.length ? denRows.reduce((tot, x) => (x.id < tot.id ? x : tot)) : null);
   if (denCoQuet.length) {
     let ung = gioDiGiay !== null ? denCoQuet.filter((x) => x.quetDenGiay <= gioDiGiay) : denCoQuet;
     if (!ung.length) ung = denCoQuet;
@@ -269,6 +278,8 @@ function dungDonShbg(dong, ctx) {
     donVi: 'SHBG', shbg: dong[0].shbg, gam, maPhuong, nhom: dich.nhom, maBcvh: dich.maBcvh, nguonDich: dich.nguon,
     soHieuBd8: den ? den.soHieuBd8 : (diCuoi ? diCuoi.soHieuBd8 : null), bd10Den: den ? den.bd10Den : null, bd10Di: diCuoi ? diCuoi.bd10Di : null,
     luong: den ? den.luong : null, quetDen: den ? den.quetDen : null, gioDi: diCuoi ? diCuoi.gioDi : null, xndBd10: den ? den.xndBd10 : null, xnd: null,
+    gioBd10Di: diCuoi ? diCuoi.gioBd10Di : null, gioQuetDi: diCuoi ? diCuoi.gioQuetDi : null, tenPhuong: (dong.find((x) => x.tenPhuong) || { tenPhuong: null }).tenPhuong,
+    tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
     ngayDen: den ? ngayCuaGio(den.quetDen || den.xndBd10) : null,
     chuyen: null, nam: null, bac: null, namLau: null, f13: null, canKiemTraLai: false, cells: []
   };
@@ -279,8 +290,9 @@ function dungDonShbg(dong, ctx) {
     const xnds = [den.xndSh, den.xndBd10].filter(Boolean).sort();
     u.xnd = xnds.length ? xnds[0] : null; // xác nhận đến SỚM NHẤT
     u.canKiemTraLai = cachQua7Ngay(ctx, u.quetDen, u.gioDi) || cachQua7Ngay(ctx, u.xnd, u.gioDi);
-    if (!u.canKiemTraLai && u.quetDen) Object.assign(u, chamNam(ctx, u.nhom, u.maBcvh, u.quetDen, u.gioDi));
-    if (u.maBcvh) {
+    // `ctx.boQuaCham` (KTT-7b, kttLuuThoatQuery): bên gọi tự xếp chuyến / chấm chỉ tiêu bằng hàm thuần riêng, bỏ qua phần chấm nằm lâu / chuyến / F1.3 ở đây (tránh làm hai lần).
+    if (!ctx.boQuaCham && !u.canKiemTraLai && u.quetDen) Object.assign(u, chamNam(ctx, u.nhom, u.maBcvh, u.quetDen, u.gioDi));
+    if (!ctx.boQuaCham && u.maBcvh) {
       u.f13 = u.canKiemTraLai && u.xnd
         ? { trangThai: 'CAN_KIEM_TRA_LAI', daQuaGiay: null, conLaiGiay: null, chiTieuGio: null }
         : chamF13(ctx, u.maBcvh, maPhuong, u.xnd, u.gioDi);
@@ -302,7 +314,7 @@ function dungDonShbg(dong, ctx) {
 // Hai lượt đọc
 // ------------------------------------------
 const COT_TUI_SQL = 't.id, t.chieu, t.luong, t.so_hieu_bd8, t.to_pos, t.dich_nhom, t.co_mo_tui, t.khoi_luong_tui_kg, '
-  + 't.gio_quet_tui_den, t.bd10_den_xnd, t.bd10_den_so_hieu, t.bd10_di_so_hieu, t.bd10_di_gio_di, t.gio_quet_tui_di, t.bd10_di_ma_diem_nhan';
+  + 't.gio_quet_tui_den, t.bd10_den_xnd, t.bd10_den_so_hieu, t.bd10_di_so_hieu, t.bd10_di_gio_di, t.gio_quet_tui_di, t.bd10_di_ma_diem_nhan, t.bd10_den_ma_diem_gui';
 const noiKhoa = (b, t) => ['from_pos', 'to_pos', 'mail_trip_type', 'service_code', 'year', 'mail_trip_number', 'post_bag_index'].map((c) => `${b}.${c} = ${t}.${c}`).join(' AND ');
 const NOI_KHOA = noiKhoa('b', 't');
 
@@ -327,7 +339,7 @@ function duyetShbg(db, ctx, cb) {
     ? `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}
        UNION SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu IN ('DI', 'CHUYEN_TIEP_DI') AND ${dieuKienDi('t2')}`
     : `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}`;
-  const sql = `SELECT b.shbg, b.khoi_luong_thuc_te_g AS gam, b.ma_xa_phuong, b.ti_xac_nhan_den_luc AS xnd_sh, t.id AS tui_id, ${COT_TUI_SQL}
+  const sql = `SELECT b.shbg, b.khoi_luong_thuc_te_g AS gam, b.ma_xa_phuong, b.ten_xa_phuong, b.ti_xac_nhan_den_luc AS xnd_sh, t.id AS tui_id, ${COT_TUI_SQL}
     FROM (${ungVien}) u
     CROSS JOIN ktt_buu_gui b ON b.shbg = u.shbg
     CROSS JOIN ktt_tui t ON ${NOI_KHOA}
@@ -509,7 +521,7 @@ function boDemChuyen(ctx) {
       else s.chuaDi += soLuong;
     }
   };
-  const chotTruocPhut = [...new Set(T.MA_BCVH_HUE.flatMap((ma) => (ctx.cauHinh.lich[ma] || []).map((c) => c.chotTruocPhut)))].sort((a, b) => a - b);
+  const chotTruocPhut = [ctx.lichChuyen.hanDenTruocChuyenPhut]; // hạn hàng đến trước giờ xe rời KTT (ktt_lich_cau_hinh); một giá trị chung cho mọi chuyến
   return {
     tui(u) {
       if (u.chieu !== CHIEU.CHUYEN_TIEP_DI || !u.trongKhoangDen || u.canKiemTraLai || !u.maBcvh) return;
@@ -748,6 +760,6 @@ function tongHopKtt(db, opts) {
 
 module.exports = {
   LoiKtt, CHIEU, NGUON, LOAI_CHI_TIET, DAI_QUY, TRANG_THAI_CHUYEN, TRANG_TOI_DA,
-  bayGioMacDinh, chuanHoaKhoang,
+  bayGioMacDinh, chuanHoaKhoang, chayBoDem: chay, ngayHopLe, ngayKeTiep, // KTT-7b: kttLuuThoatQuery.js dùng lại lượt đọc SHBG
   sanLuongTheoNgay, tonTreo, chuyenTheoBcvh, namLauTheoBac, chiTieuF13, chiTiet, tongHopKtt
 };
