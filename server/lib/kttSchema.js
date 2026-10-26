@@ -74,7 +74,7 @@ const COT_TUI = [
 // Bảng ánh xạ của file bưu gửi-trong-túi: 7 cột khóa túi + SHBG (khóa) + thuộc tính. Khối lượng tính bằng GAM.
 const COT_BUU_GUI = [
   ...KHOA_TUI,
-  { csv: 'SHBG', db: 'shbg', kind: 'text', key: true },
+  { csv: 'SHBG', db: 'shbg', kind: 'text', key: true, hoa: true }, // hoa: chuẩn hóa chữ HOA, Ð -> Đ (khóa so khớp ổn định)
   { csv: 'Khoi_luong_thuc_te', db: 'khoi_luong_thuc_te_g', kind: 'real' }, // gam
   { csv: 'Khoi_luong_quy_doi', db: 'khoi_luong_quy_doi', kind: 'real' }, // đang đều = 1, chưa rõ nghĩa: lưu nguyên, không dùng
   { csv: 'Dich_vu_code', db: 'dich_vu_code', kind: 'text' },
@@ -93,10 +93,10 @@ const COT_BUU_GUI = [
   NGUON_XUAT
 ];
 
-// Mỗi loại file: bảng đích, mẫu tên file, bảng ánh xạ cột, khóa tự nhiên (theo cột DB).
+// Mỗi loại file: bảng đích, gioCot (cột giờ ghi giờ dữ liệu nhỏ nhất / lớn nhất của file vào nhật ký cặp, KTT-6), mẫu tên file, bảng ánh xạ cột, khóa tự nhiên (theo cột DB).
 const LOAI_FILE = {
-  TUI: { loai: 'TUI', bang: 'ktt_tui', mauTen: /^KTT_Tui_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_Tui_<yyyymmdd>_<hhmmss>.csv', cot: COT_TUI },
-  BUU_GUI: { loai: 'BUU_GUI', bang: 'ktt_buu_gui', mauTen: /^KTT_BuuGui_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_BuuGui_<yyyymmdd>_<hhmmss>.csv', cot: COT_BUU_GUI }
+  TUI: { loai: 'TUI', bang: 'ktt_tui', mauTen: /^KTT_Tui_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_Tui_<yyyymmdd>_<hhmmss>.csv', cot: COT_TUI, gioCot: 'gio_quet_tui_den' },
+  BUU_GUI: { loai: 'BUU_GUI', bang: 'ktt_buu_gui', mauTen: /^KTT_BuuGui_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_BuuGui_<yyyymmdd>_<hhmmss>.csv', cot: COT_BUU_GUI, gioCot: 'ti_den_theo_tui_luc' }
 };
 for (const cfg of Object.values(LOAI_FILE)) cfg.khoa = cfg.cot.filter((c) => c.key).map((c) => c.db);
 
@@ -203,6 +203,31 @@ function ensureKttSchema(db) {
       ten_phuong_xa TEXT NOT NULL,
       ma_bcvh TEXT NOT NULL,
       ten_bcvh TEXT NOT NULL
+    );
+
+    -- KTT-6: một dòng mỗi CẶP file (cùng <yyyymmdd>_<hhmmss>) do đường nạp SFTP xử lý. ket_qua: OK | CHO_CAP (mới có một file) | TU_CHOI (cùng tên khác nội dung, hoặc file sai cấu trúc) | LOI (tải / ghi lỗi, thử lại được).
+    -- Không chứa nội dung dòng dữ liệu; thong_bao chỉ có tên file / tên cột / mã. Giờ *_luc của dữ liệu là giờ VN (không đổi múi giờ); thay_dau_luc, nap_luc, cap_nhat_luc là UTC.
+    CREATE TABLE IF NOT EXISTS ktt_nap_cap (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      khoa_cap TEXT NOT NULL UNIQUE,
+      ten_file_tui TEXT, ten_file_buu_gui TEXT, sha_tui TEXT, sha_buu_gui TEXT,
+      size_tui INTEGER, mtime_tui INTEGER, size_buu_gui INTEGER, mtime_buu_gui INTEGER,
+      nguon_xuat_luc TEXT, gio_min TEXT, gio_max TEXT,
+      tui_doc INTEGER NOT NULL DEFAULT 0, tui_them INTEGER NOT NULL DEFAULT 0, tui_cap_nhat INTEGER NOT NULL DEFAULT 0, tui_bo_qua INTEGER NOT NULL DEFAULT 0,
+      tui_loi INTEGER NOT NULL DEFAULT 0, tui_trung INTEGER NOT NULL DEFAULT 0, tui_khong_con INTEGER NOT NULL DEFAULT 0,
+      bg_doc INTEGER NOT NULL DEFAULT 0, bg_them INTEGER NOT NULL DEFAULT 0, bg_cap_nhat INTEGER NOT NULL DEFAULT 0, bg_bo_qua INTEGER NOT NULL DEFAULT 0,
+      bg_loi INTEGER NOT NULL DEFAULT 0, bg_trung INTEGER NOT NULL DEFAULT 0, bg_khong_con INTEGER NOT NULL DEFAULT 0,
+      ket_qua TEXT NOT NULL CHECK (ket_qua IN ('OK', 'CHO_CAP', 'TU_CHOI', 'LOI')),
+      ma_loi TEXT, thong_bao TEXT, so_lan_thu INTEGER NOT NULL DEFAULT 0,
+      thay_dau_luc TEXT NOT NULL, nap_luc TEXT, cap_nhat_luc TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS ix_ktt_nap_cap_ket_qua ON ktt_nap_cap(ket_qua, nguon_xuat_luc);
+    -- KTT-6: file đã thấy trên thư mục SFTP KTT, để xét «file ổn định» qua nhiều lượt quét (bảng RIÊNG, không dùng sftp_source_files của «Hàng đến»).
+    CREATE TABLE IF NOT EXISTS ktt_nguon_file (
+      ten_file TEXT PRIMARY KEY,
+      kich_thuoc INTEGER NOT NULL, mtime INTEGER NOT NULL,
+      lan_dau_thay TEXT NOT NULL, lan_cuoi_thay TEXT NOT NULL, giu_nguyen_tu TEXT NOT NULL,
+      so_lan_giu_nguyen INTEGER NOT NULL DEFAULT 0, con_tren_nguon INTEGER NOT NULL DEFAULT 1
     );
   `);
 

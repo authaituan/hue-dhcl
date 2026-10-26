@@ -41,5 +41,13 @@ module.exports = Object.freeze({
   toi_thieu_ngay_mau: 3,
 
   // ---- Thay thế ngày (trước đây thay-the.js) ----
-  nguong_mat_shbg_do: 0.05
+  nguong_mat_shbg_do: 0.05,
+
+  // ---- Nạp dữ liệu «Hàng tại KTT» qua SFTP (KTT-6; đọc qua server/config/ktt-nap.js) ----
+  ktt_chu_ky_quet_phut: 10,
+  ktt_cho_cap_phut: 60,
+  ktt_cu_gio: 10,
+  ktt_khung_gio_tu: 7,
+  ktt_khung_gio_den: 22,
+  ktt_so_cap_toi_thieu_ngay: 2
 });

@@ -16,6 +16,7 @@ const usersRoutes = require('./routes/users');
 const arrivalsRoutes = require('./routes/arrivals');
 const phatRoutes = require('./routes/phat');
 const napNguonRoutes = require('./routes/napNguon');
+const kttNapRoutes = require('./routes/kttNap');
 const thamSoRoutes = require('./routes/thamSo');
 
 const app = express();
@@ -55,6 +56,7 @@ app.use('/api', usersRoutes);
 app.use('/api', arrivalsRoutes);
 app.use('/api', phatRoutes);
 app.use('/api', napNguonRoutes);
+app.use('/api', kttNapRoutes);
 app.use('/api', thamSoRoutes);
 
 // Serve frontend static files in production
@@ -102,14 +104,20 @@ if (process.env.PHAT_WARM !== '0' && !process.env.NODE_TEST_CONTEXT && process.e
 try {
   const sched = require('./lib/sftpScheduler');
   sched.startSftpScheduler({ db: require('./db'), env: process.env });
-  if (sched.docTrangThaiSftp().trangThai === sched.TT.CHO) {
-    // Tắt gọn: huỷ hẹn giờ, đợi file đang nạp xong, rồi đóng máy chủ (chỉ đăng ký khi hẹn giờ đang bật, để không đổi cách tắt mặc định).
+  // KTT-6: bộ nạp «Hàng tại KTT» (cùng cờ SFTP_SYNC_ENABLED; mặc định TẮT, không chạy trong test, sai cấu hình chỉ ghi một dòng log).
+  const ktt = require('./lib/kttSftp');
+  ktt.startKttScheduler({ db: require('./db'), env: process.env });
+  const hdBat = sched.docTrangThaiSftp().trangThai === sched.TT.CHO;
+  const kttBat = ktt.docTrangThaiKtt().trangThai === ktt.TT.CHO;
+  if (hdBat || kttBat) {
+    // Tắt gọn: huỷ hẹn giờ, đợi file đang nạp xong, rồi đóng máy chủ (chỉ đăng ký khi một hẹn giờ đang bật, để không đổi cách tắt mặc định).
+    const dungHet = () => Promise.all([sched.stopSftpScheduler().catch(() => {}), ktt.stopKttScheduler().catch(() => {})]);
     const tatGon = () => {
-      sched.stopSftpScheduler().catch(() => {}).finally(() => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); });
+      dungHet().finally(() => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); });
     };
     process.once('SIGTERM', tatGon);
     process.once('SIGINT', tatGon);
-    server.on('close', () => { sched.stopSftpScheduler().catch(() => {}); });
+    server.on('close', () => { dungHet(); });
   }
 } catch (err) {
   console.error('[sftp-sync] Không khởi động được hẹn giờ:', err && err.message);
