@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-26] - KTT-7a: Lịch chuyến chính thức «Hàng tại KTT» + hàm thuần xếp chuyến / đánh giá đi chuyến
+
+- **Schema** `server/lib/kttSchema.js` (chỉ THÊM, `CREATE TABLE IF NOT EXISTS` + `INSERT OR IGNORE`): bảng `ktt_lich_chuyen` (giờ xe RỜI KTT, `ngay_chay` CA_TUAN | NGHI_CN, `dang_dung`, UNIQUE `(ma_bcvh, gio_xuat_phat)`) với **14 dòng** mặc định (lịch PO duyệt 26/10/2026) và bảng `ktt_lich_cau_hinh(khoa, gia_tri)` với `han_den_truoc_chuyen_phut` = 60. Hạn 60 phút để ở bảng MỚI (PO chọn) vì thêm khóa vào `ktt_cau_hinh` làm hỏng hai assert của `tests/ktt-import.test.js`. Bảng cũ `ktt_cau_hinh_chuyen` / `ktt_cau_hinh` KHÔNG đổi; giá trị PO sửa tay không bị ghi đè.
+- **Mới** `server/lib/kttLichChuyen.js`: `xepChuyen` (chuyến sớm nhất có `gioDen ≤ giờ rời − 60 phút`, sang ngày kế bỏ ngày nghỉ CN, tối đa 7 ngày kế, `qua_dem`, lý do `KHONG_PHAI_BCVH_HUE` / `THIEU_GIO_DEN` / `GIO_DEN_SAI` / `KHONG_CO_LICH`), `chuyenTrongNgay`, `danhGiaDiChuyen` (`DUNG_CHUYEN` / `TRUOT_CHUYEN` / `CHUA_DEN_GIO` / `LO_CHUYEN` + cờ `di_truoc_khi_den`), `docLichChuyen(db)` (không ném lỗi, kèm `canhBao`). Hàm thuần, không giờ máy, không `Date.parse` / `new Date(chuỗi)`.
+- **Tạm thời:** `kttQuery.js` (qua `kttCauHinh.js`) VẪN dùng lịch V1 (`ktt_cau_hinh_chuyen`) đến KTT-7b; bảng mới chưa có nơi nào khác đọc. Không sửa `kttQuery` / `kttDanhGia` / `kttTinh` / `kttCauHinh`, bộ nạp, Hàng đến, Phát, QUYTG, `src/`.
+- **Test** `tests/ktt-lich-chuyen.test.js` (19 ca; DB tạm trong bộ nhớ, không tạo `data/`; ba `TZ`); thêm tên file vào `npm test`.
+- **Chưa chắc:** ví dụ ticket «T2 05:50 → 06:30» mâu thuẫn quy tắc hạn 60 phút (hạn 05:30) — cài theo quy tắc (05:50 → 12:30); Hương Trà Chủ nhật tạm cả tuần. Chi tiết: `40_KTT_LICH_CHUYEN.md`.
+
 ## [2026-10-26] - KTT-6: Tự động nạp «Hàng tại KTT» qua SFTP (2 lần/ngày × 2 file), ghép cặp, nhật ký, độ mới, cảnh báo ADMIN
 
 - **Mới** `server/lib/kttNapCap.js` (không mạng): `napCap` nạp CẶP (túi + bưu gửi) trong MỘT giao dịch (một file sai thì hoàn tác cả cặp), từ chối cùng TÊN khác nội dung (sha256), file rỗng hợp lệ; `docDoMoi`, `canhBao` (a thiếu file, b thiếu cặp theo ngày, c cặp từ chối/lỗi, d dữ liệu cũ — tính từ nhật ký, không lưu), `dsCap`. Giờ tự tách chuỗi (không `Date.parse`/`new Date(chuỗi)`).
