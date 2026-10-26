@@ -14,6 +14,7 @@ const NHOM = Object.freeze([
   Object.freeze({ ma: 'dieu_hanh_den', nhan: 'Điều hành hàng đến' }),
   Object.freeze({ ma: 'nap_nguon', nhan: 'Nạp dữ liệu nguồn' }),
   Object.freeze({ ma: 'thay_the_ngay', nhan: 'Thay thế ngày' }),
+  Object.freeze({ ma: 'nap_ktt', nhan: 'Nạp dữ liệu Hàng tại KTT' }),
   Object.freeze({ ma: 'quy_tac', nhan: 'Quy tắc định nghĩa (chỉ đọc)' })
 ]);
 
@@ -29,6 +30,7 @@ const RANG_BUOC = Object.freeze([
   { khoa: ['bd10_chua_xnd_trong_ngay_pct', 'bd10_chua_xnd_xu_ly_ngay_pct'], thong_bao: 'Mức «Trong ngày» của BD10 chưa XNĐ phải nhỏ hơn mức «Xử lý ngay»', ok: (g) => g('bd10_chua_xnd_trong_ngay_pct') < g('bd10_chua_xnd_xu_ly_ngay_pct') },
   { khoa: ['nguong_it', 'nguong_nhieu'], thong_bao: 'Phải có 0 < ngưỡng ít < 1 < ngưỡng nhiều ≤ 10', ok: (g) => g('nguong_it') > 0 && g('nguong_it') < 1 && g('nguong_nhieu') > 1 && g('nguong_nhieu') <= 10 },
   { khoa: ['gio_mong_doi_sang', 'gio_mong_doi_chieu', 'ranh_gioi_dot'], thong_bao: 'Phải có giờ mong đợi đợt sáng < ranh giới đợt (12:00) ≤ giờ mong đợi đợt chiều', ok: (g) => g('gio_mong_doi_sang') < g('ranh_gioi_dot') && g('ranh_gioi_dot') <= g('gio_mong_doi_chieu') },
+  { khoa: ['ktt_khung_gio_tu', 'ktt_khung_gio_den'], thong_bao: 'Giờ bắt đầu khung theo dõi dữ liệu KTT phải nhỏ hơn giờ kết thúc', ok: (g) => g('ktt_khung_gio_tu') < g('ktt_khung_gio_den') },
   { khoa: ['so_tuan_mau', 'toi_thieu_ngay_mau'], thong_bao: 'Số ngày mẫu tối thiểu không được lớn hơn số tuần mẫu', ok: (g) => g('toi_thieu_ngay_mau') <= g('so_tuan_mau') }
 ].map(Object.freeze));
 const rbCua = (khoa) => RANG_BUOC.filter((r) => r.khoa.includes(khoa)).map((r) => r.thong_bao);
@@ -215,6 +217,49 @@ const SUA_DUOC = [
     anh_huong: 'Chỉ đổi mức cảnh báo của các lần xem trước / thực hiện sau này. Mức cảnh báo của lần đã thực hiện được lưu trong nhật ký lúc thực hiện.',
     vi_du: 'Đặt 5%: mất 6% bưu gửi → cảnh báo đỏ. Đặt 10%: mất 6% chỉ ở mức «cần xác nhận».',
     nhin_thay_o: ['Nạp dữ liệu nguồn → Thay thế ngày: màn xem trước (vạch ngưỡng đỏ) và hộp xác nhận']
+  }),
+  // ---------------- Nạp dữ liệu Hàng tại KTT (KTT-6) ----------------
+  sua('ktt_chu_ky_quet_phut', {
+    nhom: 'nap_ktt', nhan: 'Chu kỳ quét thư mục SFTP của KTT', kieu: 'so_nguyen', min: 2, max: 1440, don_vi: 'phút',
+    mo_ta: 'Cứ chừng này phút hệ thống xem thư mục SFTP của KTT một lần, thấy đủ cặp file mới (túi + bưu gửi) thì nạp. Giờ xuất file (09:00, 15:00) lấy từ chính file, không đặt ở đây.',
+    anh_huong: 'Có hiệu lực từ lần hẹn giờ kế tiếp. Chu kỳ ngắn hơn thì dữ liệu về sớm hơn nhưng NAS bị gọi nhiều hơn.',
+    vi_du: 'Đặt 10 phút: file thả lúc 09:03 được nạp trước 09:15. Đặt 30 phút: có thể đến 09:35.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_cho_cap_phut', {
+    nhom: 'nap_ktt', nhan: 'Chờ đủ cặp file trước khi cảnh báo', kieu: 'so_nguyen', min: 5, max: 1440, don_vi: 'phút',
+    mo_ta: 'Mỗi lần xuất có 2 file. Nếu mới có một file và file kia chưa đến sau chừng này phút thì cảnh báo «thiếu file».',
+    anh_huong: 'Chỉ đổi lúc cảnh báo / quét tiếp theo; không đổi dữ liệu đã nạp.',
+    vi_du: 'Đặt 60: file túi có từ 09:00 mà file bưu gửi chưa có đến 10:00 → cảnh báo. Đặt 120: đến 11:00 mới cảnh báo.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_cu_gio', {
+    nhom: 'nap_ktt', nhan: 'Dữ liệu KTT coi là cũ sau', kieu: 'so_nguyen', min: 1, max: 48, don_vi: 'giờ',
+    mo_ta: 'Chỉ tính giờ nằm trong khung theo dõi (ban đêm không tính). Cặp nạp thành công gần nhất cách quá chừng này giờ thì cảnh báo «dữ liệu cũ».',
+    anh_huong: 'Lịch xuất 09:00 và 15:00 làm dữ liệu cách tối đa khoảng 9 giờ trong khung 07:00–22:00 (tính qua đêm); đặt thấp hơn 10 giờ sẽ có cảnh báo buổi sáng trước khi cặp 09:00 về.',
+    vi_du: 'Đặt 10: cặp 15:00 hôm qua, đến 08:30 sáng nay (đã tính 7 giờ trước 22:00 + 1,5 giờ) chưa cảnh báo. Đặt 8: cùng lúc đó đã cảnh báo.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_khung_gio_tu', {
+    nhom: 'nap_ktt', nhan: 'Khung theo dõi dữ liệu KTT: từ giờ', kieu: 'gio_nguyen', min: 0, max: 23, don_vi: 'giờ',
+    mo_ta: 'Cảnh báo «dữ liệu cũ» chỉ tính các giờ từ mốc này đến mốc kết thúc mỗi ngày.',
+    anh_huong: 'Chỉ đổi lúc cảnh báo / quét tiếp theo; không đổi dữ liệu đã nạp.', rang_buoc: rbCua('ktt_khung_gio_tu'),
+    vi_du: 'Đặt 7 giờ: lúc 06:00 sáng chưa tính. Đặt 5 giờ: tính từ 05:00.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_khung_gio_den', {
+    nhom: 'nap_ktt', nhan: 'Khung theo dõi dữ liệu KTT: đến giờ', kieu: 'gio_nguyen', min: 1, max: 23, don_vi: 'giờ',
+    mo_ta: 'Giờ kết thúc của khung theo dõi mỗi ngày (xem «từ giờ»).',
+    anh_huong: 'Chỉ đổi lúc cảnh báo / quét tiếp theo; không đổi dữ liệu đã nạp.', rang_buoc: rbCua('ktt_khung_gio_den'),
+    vi_du: 'Đặt 22: sau 22:00 thời gian không còn được tính. Đặt 23: tính đến 23:00.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
+  }),
+  sua('ktt_so_cap_toi_thieu_ngay', {
+    nhom: 'nap_ktt', nhan: 'Số cặp file tối thiểu mỗi ngày', kieu: 'so_nguyen', min: 1, max: 10, don_vi: 'cặp',
+    mo_ta: 'Một ngày đã qua có ít cặp (túi + bưu gửi) nạp thành công hơn mức này thì cảnh báo. Lịch hiện hành là 2 lần xuất mỗi ngày (09:00, 15:00).',
+    anh_huong: 'Chỉ đổi lúc cảnh báo / quét tiếp theo; không đổi dữ liệu đã nạp.',
+    vi_du: 'Đặt 2: hôm qua chỉ có cặp 09:00 → cảnh báo «thiếu cặp». Đặt 1: không cảnh báo.',
+    nhin_thay_o: ['Nạp dữ liệu nguồn → Hàng tại KTT (API trạng thái nạp, chỉ ADMIN)']
   })
 ];
 

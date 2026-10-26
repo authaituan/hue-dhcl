@@ -2,6 +2,18 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-26] - KTT-6: Tự động nạp «Hàng tại KTT» qua SFTP (2 lần/ngày × 2 file), ghép cặp, nhật ký, độ mới, cảnh báo ADMIN
+
+- **Mới** `server/lib/kttNapCap.js` (không mạng): `napCap` nạp CẶP (túi + bưu gửi) trong MỘT giao dịch (một file sai thì hoàn tác cả cặp), từ chối cùng TÊN khác nội dung (sha256), file rỗng hợp lệ; `docDoMoi`, `canhBao` (a thiếu file, b thiếu cặp theo ngày, c cặp từ chối/lỗi, d dữ liệu cũ — tính từ nhật ký, không lưu), `dsCap`. Giờ tự tách chuỗi (không `Date.parse`/`new Date(chuỗi)`).
+- **Mới** `server/lib/kttSftp.js`: bộ nạp RIÊNG (không sửa «Hàng đến»): quét thư mục KTT, ghép cặp theo `<yyyymmdd>_<hhmmss>`, ổn định qua ≥ 2 lượt (bảng riêng `ktt_nguon_file`), cũ trước ≤ 10 cặp/lượt, không tải lại, `SQLITE_BUSY` thử lại 3 lần rồi ghi `LOI`; hẹn giờ `startKttScheduler` (cùng cờ `SFTP_SYNC_ENABLED`, không chạy trong test, tắt/sai cấu hình chỉ một dòng log); tạm dừng khi xác thực/vân tay sai (và báo «Hàng đến» tạm dừng qua `tamDungHenGio` có sẵn).
+- **Mới** `server/routes/kttNap.js`: `GET /api/nap-nguon/ktt/trang-thai` (chỉ ADMIN). `server/index.js`: gắn route + khởi động/tắt gọn bộ hẹn giờ KTT cạnh «Hàng đến».
+- **Schema** `kttSchema.js` (chỉ THÊM): bảng `ktt_nap_cap` (nhật ký theo cặp) và `ktt_nguon_file`; cột SHBG chuẩn hóa HOA / `Ð`→`Đ`; `gioCot` theo loại file. `kttImport.js`: xuất `napFile`, `bamFile`, `demKhongCon`; tùy chọn `choPhepRong`; đếm khóa trùng trong file, giờ nhỏ nhất/lớn nhất, `Nguon_xuat_luc` lớn nhất; hành vi CLI `scripts/ktt-import.js` giữ nguyên.
+- **Tham số** (nhóm «Nạp dữ liệu Hàng tại KTT», `tham-so-mac-dinh.js` + `tham-so.js` + `config/ktt-nap.js`): `ktt_chu_ky_quet_phut` 10, `ktt_cho_cap_phut` 60, `ktt_cu_gio` 10, `ktt_khung_gio_tu` 7, `ktt_khung_gio_den` 22, `ktt_so_cap_toi_thieu_ngay` 2. Biến mới: `SFTP_KTT_DIR` (tùy chọn, mặc định `/CSV_Report_530100`); KTT không cần `SFTP_DIRS`. Không sửa compose / `.env.nas.example` / Dockerfile.
+- **Test** `tests/ktt-sftp.test.js` (31 ca; dữ liệu giả, SFTP giả, đồng hồ giả; ba `TZ`); thêm tên file vào `npm test`. Sửa `tests/tham-so.test.js` (số khóa 32→38; 25→31 sửa được; bảng getter) vì danh bạ có thêm 6 khóa. `npm test`: 1020 ca (trước KTT-6: 989).
+- **Không sửa:** `arrivalsImport.js`, `sftpSync.js`, `sftpScheduler.js`, `sftpFiles.js`, `sftpConnect.js`, `thayThe*`, `napNguon*`, `quyThoiGian*`, `dashboard*`, `src/`, `roles.js`, `tivi.js`.
+- **Sửa nhỏ (PO 26/10):** bộ đếm «không còn trong ảnh chụp mới» theo cửa sổ [giờ trong tên file − 7 ngày, giờ trong tên file]; túi nằm trong cửa sổ nếu MỘT trong bốn cột `gio_quet_tui_den`, `gio_quet_tui_di`, `bd10_di_gio_di`, `bd10_den_xnd` nằm trong cửa sổ; bưu gửi theo túi chứa nó; bỏ `ti_den_theo_tui_luc` khỏi điều kiện (`kttImport.demKhongCon`, tham số `cuaSoDen` truyền từ `kttNapCap.napCap`). Cập nhật test và `39_KTT_NAP_SFTP.md`.
+- **Chưa chắc / còn nợ:** cảnh báo (d): mặc định `ktt_cu_gio` = 10 giờ (PO chọn, thay cho 8 trong ticket để không báo sớm mỗi sáng với lịch 09:00/15:00); cặp 30 ngày chạy một giao dịch đồng bộ (chưa đo trên file thật); chưa thử với NAS / SFTP thật; chưa giao diện (KTT-9). Chi tiết: `39_KTT_NAP_SFTP.md`.
+
 ## [2026-10-23] - KTT-5: Truy vấn tổng hợp «Hàng tại KTT» (sản lượng, treo, chuyến, nằm lâu, F1.3, chi tiết) + khối «Đánh giá» + bảng địa bàn phát
 
 - **Schema** `server/lib/kttSchema.js`: thêm bảng `ktt_dia_ban_phat` (`ma_phuong_xa` UNIQUE, `ten_phuong_xa`, `ma_bcvh`, `ten_bcvh`) + 40 dòng mặc định (`DIA_BAN_PHAT_MAC_DINH`, 6 BCVH Huế) nạp bằng `INSERT OR IGNORE` (không nhân đôi, không ghi đè dòng PO đã sửa). Không thêm cột vào bảng KTT nào.

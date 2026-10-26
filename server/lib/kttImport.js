@@ -16,6 +16,7 @@ const { LOAI_FILE } = require('./kttSchema');
 
 const KICH_THUOC_LO = 1 << 20;
 const TOI_DA_LOI_MAU = 20;
+const CUA_SO_NGAY = 7; // mỗi lần xuất lùi 7 ngày đến lúc chạy (PO chốt 25/10/2026); dùng để đếm dòng «không còn trong ảnh chụp mới»
 
 class KttFileError extends Error {}
 class HoanTac extends Error {}
@@ -71,7 +72,7 @@ function chuyenDong(rec, index, cot) {
     }
     const v = CHUYEN_KIEU[c.kind](raw);
     if (v === undefined) return { loi: { cot: c.csv, ma: MA_LOI_KIEU[c.kind] } };
-    row[c.db] = v;
+    row[c.db] = c.hoa ? v.toUpperCase().replace(/Ð/g, 'Đ') : v; // khóa SHBG: CHỮ HOA, Ð (U+00D0) -> Đ (U+0110)
   }
   return { row };
 }
@@ -120,7 +121,7 @@ function chuanBiCau(db, cfg) {
   const dbCols = cfg.cot.map((c) => c.db);
   const tatCa = [...dbCols, 'nap_lan_id', 'cap_nhat_luc'];
   return {
-    tim: db.prepare(`SELECT id, nguon_xuat_luc FROM ${cfg.bang} WHERE ${cfg.khoa.map((k) => `${k} = ?`).join(' AND ')}`),
+    tim: db.prepare(`SELECT id, nguon_xuat_luc, nap_lan_id FROM ${cfg.bang} WHERE ${cfg.khoa.map((k) => `${k} = ?`).join(' AND ')}`),
     them: db.prepare(`INSERT INTO ${cfg.bang} (${tatCa.join(', ')}) VALUES (${tatCa.map((c) => `@${c}`).join(', ')})`),
     capNhat: db.prepare(`UPDATE ${cfg.bang} SET ${tatCa.map((c) => `${c} = @${c}`).join(', ')} WHERE id = @id`)
   };
@@ -148,8 +149,13 @@ function docFile(db, cfg, filePath, napLanId, ket) {
         continue;
       }
       const row = kq.row;
+      if (!ket.nguonXuat || row.nguon_xuat_luc > ket.nguonXuat) ket.nguonXuat = row.nguon_xuat_luc;
+      const gio = row[cfg.gioCot];
+      if (gio) { if (!ket.gioMin || gio < ket.gioMin) ket.gioMin = gio; if (!ket.gioMax || gio > ket.gioMax) ket.gioMax = gio; }
       const cu = cau.tim.get(...cfg.khoa.map((k) => row[k]));
-      if (!cu) { cau.them.run({ ...row, nap_lan_id: napLanId, cap_nhat_luc: capNhatLuc }); ket.them++; }
+      // Khóa trùng TRONG CÙNG file: dòng sau thay dòng trước (cùng Nguon_xuat_luc), chỉ đếm riêng ở `trung`.
+      if (cu && cu.nap_lan_id === napLanId) { cau.capNhat.run({ ...row, id: cu.id, nap_lan_id: napLanId, cap_nhat_luc: capNhatLuc }); ket.trung++; }
+      else if (!cu) { cau.them.run({ ...row, nap_lan_id: napLanId, cap_nhat_luc: capNhatLuc }); ket.them++; }
       else if (row.nguon_xuat_luc >= cu.nguon_xuat_luc) { cau.capNhat.run({ ...row, id: cu.id, nap_lan_id: napLanId, cap_nhat_luc: capNhatLuc }); ket.capNhat++; }
       else ket.boQua++;
     }
@@ -166,7 +172,10 @@ function docFile(db, cfg, filePath, napLanId, ket) {
   parser.end();
   xuLy();
   kiemLoi();
-  if (!tieuDe) throw new KttFileError('File rỗng, không có dòng tiêu đề');
+  if (!tieuDe) {
+    if (ket.choPhepRong) { ket.rong = true; return; } // KTT-6: file chỉ có BOM / 0 byte hợp lệ trên đường SFTP (ảnh chụp không có dòng nào)
+    throw new KttFileError('File rỗng, không có dòng tiêu đề');
+  }
 }
 
 /**
@@ -182,10 +191,26 @@ function chayThu(db, fn) {
   return kq;
 }
 
+// Túi nằm trong cửa sổ nếu MỘT trong bốn cột giờ nằm trong [cuaSoDen - CUA_SO_NGAY ngày, cuaSoDen] (điều kiện chọn túi của script KTT-1).
+const COT_CUA_SO_TUI = ['gio_quet_tui_den', 'gio_quet_tui_di', 'bd10_di_gio_di', 'bd10_den_xnd'];
+const KHOA_TUI_SQL = ['from_pos', 'to_pos', 'mail_trip_type', 'service_code', 'year', 'mail_trip_number', 'post_bag_index'];
+const trongCuaSo = (a) => `(${COT_CUA_SO_TUI.map((c) => `${a}.${c} BETWEEN datetime(@w, '-${CUA_SO_NGAY} days') AND @w`).join(' OR ')})`;
+
+/**
+ * Số dòng đã có trong DB, thuộc cửa sổ của ảnh chụp mới, mà ảnh chụp này KHÔNG còn chứa (nguồn cũ hơn `nguonXuat`, chưa được file này ghi). Chỉ đếm, không xóa.
+ * cuaSoDen: giờ trong TÊN file (cửa sổ = [cuaSoDen - 7 ngày, cuaSoDen]). Túi: nằm trong cửa sổ theo bốn cột giờ của túi; dòng bưu gửi: theo cửa sổ của TÚI chứa nó
+ * (bưu gửi chưa có túi trong DB thì không đếm).
+ */
+function demKhongCon(db, cfg, nguonXuat, cuaSoDen = nguonXuat) {
+  const p = { n: nguonXuat, w: cuaSoDen };
+  if (cfg.bang === 'ktt_tui') return db.prepare(`SELECT COUNT(*) AS n FROM ktt_tui t WHERE t.nguon_xuat_luc < @n AND ${trongCuaSo('t')}`).get(p).n;
+  return db.prepare(`SELECT COUNT(*) AS n FROM ${cfg.bang} b WHERE b.nguon_xuat_luc < @n AND EXISTS (SELECT 1 FROM ktt_tui t WHERE ${KHOA_TUI_SQL.map((k) => `t.${k} = b.${k}`).join(' AND ')} AND ${trongCuaSo('t')})`).get(p).n;
+}
+
 function napFile(db, loai, filePath, opts = {}) {
   const cfg = LOAI_FILE[loai];
   const fileName = path.basename(filePath);
-  const ket = { loai, fileName, status: 'OK', error: null, sha256: null, napLanId: null, dong: 0, them: 0, capNhat: 0, boQua: 0, loi: 0, loiMau: [], cotLa: [], cotTuyChonVang: [], dryRun: !!opts.dryRun };
+  const ket = { loai, fileName, status: 'OK', error: null, sha256: null, napLanId: null, dong: 0, them: 0, capNhat: 0, boQua: 0, loi: 0, trung: 0, khongCon: 0, loiMau: [], cotLa: [], cotTuyChonVang: [], dryRun: !!opts.dryRun, choPhepRong: !!opts.choPhepRong, rong: false, nguonXuat: null, gioMin: null, gioMax: null };
   if (!cfg.mauTen.test(fileName)) {
     return { ...ket, status: 'SAI_TEN', error: `Tên file không đúng mẫu ${cfg.mau}` };
   }
@@ -202,6 +227,7 @@ function napFile(db, loai, filePath, opts = {}) {
       them.run(loai, fileName, ket.sha256, nowUtc());
       ket.napLanId = db.prepare('SELECT id FROM ktt_nap_lan WHERE loai = ? AND sha256 = ?').get(loai, ket.sha256).id;
       docFile(db, cfg, filePath, ket.napLanId, ket);
+      if (ket.nguonXuat || opts.cuaSoDen) ket.khongCon = demKhongCon(db, cfg, ket.nguonXuat || opts.cuaSoDen, opts.cuaSoDen || ket.nguonXuat);
       db.prepare('UPDATE ktt_nap_lan SET so_dong_doc = ?, so_dong_them = ?, so_dong_cap_nhat = ?, so_dong_bo_qua = ?, so_dong_loi = ?, loi_mau = ? WHERE id = ?')
         .run(ket.dong, ket.them, ket.capNhat, ket.boQua, ket.loi, ket.loiMau.length ? JSON.stringify(ket.loiMau) : null, ket.napLanId);
     })();
@@ -210,7 +236,7 @@ function napFile(db, loai, filePath, opts = {}) {
     // Cả file đã hoàn tác. Ghi lại lần nạp bị từ chối (không chặn nạp lại bản đã sửa vì chỉ 'OK' mới chặn).
     db.prepare("INSERT INTO ktt_nap_lan (loai, ten_file, sha256, nap_luc, trang_thai, thong_bao) VALUES (?, ?, ?, ?, 'REJECTED', ?) ON CONFLICT(loai, sha256) DO UPDATE SET ten_file = excluded.ten_file, nap_luc = excluded.nap_luc, trang_thai = 'REJECTED', thong_bao = excluded.thong_bao")
       .run(loai, fileName, ket.sha256, nowUtc(), e.message);
-    return { ...ket, status: 'REJECTED', error: e.message, napLanId: null, dong: 0, them: 0, capNhat: 0, boQua: 0, loi: 0, loiMau: [] };
+    return { ...ket, status: 'REJECTED', error: e.message, napLanId: null, dong: 0, them: 0, capNhat: 0, boQua: 0, loi: 0, trung: 0, khongCon: 0, nguonXuat: null, gioMin: null, gioMax: null, loiMau: [] };
   }
   return ket;
 }
@@ -242,4 +268,4 @@ function importKttDuongDan(db, target, opts = {}) {
   return opts.dryRun ? kq.map((r) => ({ ...r, dryRun: true })) : kq;
 }
 
-module.exports = { importKttTui, importKttBuuGui, importKttDuongDan, chayThu, loaiTuTen, giaTriGio, giaTriSo, TOI_DA_LOI_MAU };
+module.exports = { napFile, bamFile, demKhongCon, CUA_SO_NGAY, KttFileError, importKttTui, importKttBuuGui, importKttDuongDan, chayThu, loaiTuTen, giaTriGio, giaTriSo, TOI_DA_LOI_MAU };
