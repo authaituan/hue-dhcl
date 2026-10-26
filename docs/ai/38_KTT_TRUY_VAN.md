@@ -1,5 +1,7 @@
 # 38 — «Hàng tại KTT»: truy vấn tổng hợp và khối «Đánh giá» (KTT-5)
 
+> **KTT-7b (26/10/2026): phần «chuyến» đã chuyển sang LỊCH CHÍNH THỨC** (`ktt_lich_chuyen` + `ktt_lich_cau_hinh`, `40_KTT_LICH_CHUYEN.md`) qua `server/lib/kttChuyen.js`; lịch V1 (`ktt_cau_hinh_chuyen`, mốc SÁNG / TRƯA / TỐI, chốt 30 phút) không còn được `kttQuery` dùng cho chuyến. Khác biệt: tên chuyến là **giờ xe rời KTT `'HH:MM'`** (không còn `SANG` / `TRUA` / `TOI`), hạn hàng đến = giờ rời − 60 phút (`chotTruocPhut` = `[60]`), «đến sát giờ» = quét đến trong (hạn, giờ rời], `soChuyenTre` đếm chuyến của BCVH trong [giờ rời dự kiến, giờ đi / bayGio). Hình dạng kết quả giữ nguyên. Câu «Đánh giá» nói «chuyến 12:30». Chi tiết: `41_KTT_LUU_THOAT.md` §7. Các đoạn dưới đây nói về mốc «sáng / trưa / tối» và «30 phút» là mô tả KTT-5 (lịch V1).
+
 > Phạm vi: LÕI (hàm nhận `db`, trả đối tượng). Chưa có API, route, cache, giao diện, quyền (các ticket sau). Chỉ ĐỌC DB (SELECT), không ghi, không thêm cột vào `ktt_tui` / `ktt_buu_gui`; nhãn «treo», «nằm lâu», «trễ chuyến» tính khi truy vấn.
 > Mã: `server/lib/kttQuery.js` (truy vấn), `server/lib/kttDanhGia.js` (nhận xét, hàm thuần), `ktt_dia_ban_phat` ở `server/lib/kttSchema.js`. Test: `tests/ktt-query.test.js`, `tests/ktt-danh-gia.test.js`.
 > Dùng: các hàm tính của KTT-4 (`kttTinh.js`, `kttCauHinh.js` — chỉ `require`, không sửa). Quy tắc nghiệp vụ: `37_KTT_QUY_TAC_TINH.md`; dữ liệu nguồn: `36_KTT_TU_DIEN_DU_LIEU.md`. Không dùng dữ liệu thật; fixture là dữ liệu giả.
@@ -64,9 +66,9 @@ Hàm thuần, trả `[{ ma, mucDo: 'THONG_TIN'|'LUU_Y'|'CANH_BAO', cau, soLieu, 
 | `ma` | Nội dung | Mức độ (ngưỡng ở đầu `kttDanhGia.js`) |
 |---|---|---|
 | `DUNG_CHUYEN_<nguon>` | Tỷ lệ đi đúng chuyến + BCVH thấp nhất (khi ≥ 2 BCVH) | ≥ 90% THONG_TIN; ≥ 75% LUU_Y; thấp hơn CANH_BAO |
-| `DUNG_CHUYEN_THEO_GIO_<nguon>` | «Quét đến 7 giờ: 623 túi vào chuyến trưa, chỉ 20 túi kịp chuyến sáng» — giờ quét đến có nhiều hàng nhất (ưu tiên giờ có ≥ 2 chuyến); «chỉ … kịp» khi chuyến đứng trước ít hơn chuyến đứng sau | THONG_TIN |
+| `DUNG_CHUYEN_THEO_GIO_<nguon>` | «Quét đến 7 giờ: 623 túi vào chuyến 12:30, chỉ 20 túi kịp chuyến 07:00» (KTT-7b: tên chuyến là giờ xe rời KTT; KTT-5 ghi «trưa / sáng») — giờ quét đến có nhiều hàng nhất (ưu tiên giờ có ≥ 2 chuyến); «chỉ … kịp» khi chuyến đứng trước ít hơn chuyến đứng sau | THONG_TIN |
 | `DI_TRE_<nguon>` | Số đi chuyến sau, số đi muộn từ 2 ngày, số lỡ chuyến | không trễ THONG_TIN; (trễ + lỡ)/đã chấm ≥ 10% CANH_BAO; còn lại LUU_Y |
-| `DEN_SAT_GIO_<nguon>` | Số đến sát giờ (30 phút cuối, lấy từ cấu hình), tỷ lệ kịp, tỷ lệ sang chuyến kế, số chưa đi | sang chuyến kế ≥ 50% LUU_Y, còn lại THONG_TIN |
+| `DEN_SAT_GIO_<nguon>` | Số đến sát giờ (phút cuối lấy từ `chotTruocPhut`: KTT-5 là 30 phút theo lịch V1, KTT-7b là 60 phút = `han_den_truoc_chuyen_phut`), tỷ lệ kịp, tỷ lệ sang chuyến kế, số chưa đi | sang chuyến kế ≥ 50% LUU_Y, còn lại THONG_TIN |
 | `TREO` | Tổng túi / SHBG, theo loại, số trên 3 ngày, BCVH đích nhiều nhất + «KTT cần kiểm tra và giải trình.» | có túi trên 3 ngày hoặc treo/xét ≥ 5% CANH_BAO; còn treo LUU_Y; không treo THONG_TIN |
 | `NAM_LAU_<nguon>` | Số và tỷ lệ nằm lâu (đích BCVH Huế), theo bậc, ban đêm / ban ngày + «KTT cần kiểm tra và giải trình.» | ≥ 20% CANH_BAO; ≥ 5% LUU_Y |
 | `BAT_THUONG_NGAY_TREO`, `BAT_THUONG_NGAY_TRE_CHUYEN` | Ngày có tỷ lệ treo / (đi trễ + lỡ chuyến) cao hơn hẳn các ngày khác (tối đa 3 ngày) | LUU_Y |

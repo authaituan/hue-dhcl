@@ -173,54 +173,55 @@ test('sản lượng: nhóm đích theo từng SHBG — BD10 đi nhận; chưa c
 // ==========================================
 test('chuyến (SHBG khai thác lại, như ví dụ KTT-4): đúng chuyến, trễ chuyến (2 chuyến), lỡ chuyến, chưa đến mốc; chỉ BCVH Huế', () => {
   const db = dbMoi();
-  khaiThac(db, 'S-TRE', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' }); // chuyến TỐI 22:30 → đi 07:45 hôm sau = trễ 2 mốc
-  khaiThac(db, 'S-DUNG', { quet: '2026-10-20 06:50:00', gioDi: '2026-10-20 07:20:00' }); // SÁNG 07:30 (chốt 07:00), đi 07:20
-  khaiThac(db, 'S-LO', { quet: '2026-10-20 13:10:00', nhan: null, xnd: '2026-10-20 13:10:00', phuong: '49122' }); // chưa đi, chuyến TRƯA 14:00
+  // KTT-7b: lịch chính thức của Thuận Hóa (533140): 07:00, 12:30, 12:55, 19:45, 22:00 (hạn đến = giờ rời − 60 phút)
+  khaiThac(db, 'S-TRE', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' }); // chuyến 19:45 → đi 07:45 hôm sau = trễ 3 chuyến (19:45, 22:00, 07:00)
+  khaiThac(db, 'S-DUNG', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00' }); // chuyến 07:00 (hạn 06:00), đi 06:50
+  khaiThac(db, 'S-LO', { quet: '2026-10-20 11:00:00', nhan: null, xnd: '2026-10-20 11:00:00', phuong: '49122' }); // chưa đi, chuyến 12:30 (hạn 11:30)
   const kq = Q.chuyenTheoBcvh(db, OPT);
   const tren = dong(kq.theoBcvhChuyen, { maBcvh: '533140', nguon: 'KHAI_THAC_LAI' });
   const so = (ten, tt) => tren.filter((x) => x.chuyen === ten).reduce((s, x) => s + x[tt], 0);
-  assert.equal(so('TOI', 'TRE_CHUYEN'), 1);
-  assert.equal(tren.find((x) => x.chuyen === 'TOI').soChuyenTre, 2);
-  assert.equal(so('SANG', 'DUNG_CHUYEN'), 1);
-  assert.equal(so('TRUA', 'LO_CHUYEN'), 1);
-  assert.equal(tren.find((x) => x.chuyen === 'TRUA').soChuyenTre, 9); // 14:00, 22:30 (20/10), 3 mốc 21/10, 3 mốc 22/10, 07:30 23/10
+  assert.equal(so('19:45', 'TRE_CHUYEN'), 1);
+  assert.equal(tren.find((x) => x.chuyen === '19:45').soChuyenTre, 3);
+  assert.equal(so('07:00', 'DUNG_CHUYEN'), 1);
+  assert.equal(so('12:30', 'LO_CHUYEN'), 1);
+  assert.equal(tren.find((x) => x.chuyen === '12:30').soChuyenTre, 15); // 4 chuyến 20/10 (12:30, 12:55, 19:45, 22:00) + 5 chuyến 21/10 + 5 chuyến 22/10 + 07:00 23/10
   assert.equal(tren.reduce((s, x) => s + x.tong, 0), 3);
   assert.ok(tren.every((x) => x.donVi === 'SHBG'));
   // bayGio sớm: chưa đến mốc
   const som = Q.chuyenTheoBcvh(db, { ...OPT, bayGio: '2026-10-20 12:00:00' });
-  assert.equal(dong(som.theoBcvhChuyen, { chuyen: 'TRUA' })[0].CHUA_DEN_MOC, 1);
-  assert.equal(dong(som.theoBcvhChuyen, { chuyen: 'TRUA' })[0].LO_CHUYEN, 0);
+  assert.equal(dong(som.theoBcvhChuyen, { chuyen: '12:30' })[0].CHUA_DEN_MOC, 1);
+  assert.equal(dong(som.theoBcvhChuyen, { chuyen: '12:30' })[0].LO_CHUYEN, 0);
   db.close();
 });
 
 test('chuyến (túi chuyển tiếp đi, mức túi): theo mốc từng BCVH; đích 530900 không chấm; đích KHAC không chấm chuyến', () => {
   const db = dbMoi();
-  tuiCtd(db, { quet: '2026-10-20 06:00:00', gioDi: '2026-10-20 07:00:00', nhan: '535470' }); // SÁNG 07:00 (chốt 06:30) → đúng
-  tuiCtd(db, { quet: '2026-10-20 06:45:00', gioDi: '2026-10-20 12:30:00', nhan: '535470' }); // lỡ SÁNG (sát giờ), đi 12:30 kịp TRƯA
+  tuiCtd(db, { quet: '2026-10-20 04:30:00', gioDi: '2026-10-20 06:00:00', nhan: '535470' }); // Hương Trà 06:00 (hạn đến 05:00) → đúng
+  tuiCtd(db, { quet: '2026-10-20 05:45:00', gioDi: '2026-10-20 11:30:00', nhan: '535470' }); // đến sát giờ chuyến 06:00 (hạn 05:00), đi 11:30 kịp chuyến 12:00
   tuiCtd(db, { quet: '2026-10-20 06:00:00', gioDi: '2026-10-20 07:00:00', nhan: '530900' }); // hệ 1: không chấm
   tuiCtd(db, { quet: '2026-10-20 06:00:00', gioDi: '2026-10-20 07:00:00', nhan: '700123' }); // KHAC: không chấm chuyến
   tuiCtd(db, { quet: '2026-10-20 06:00:00', gioDi: null, toPos: '530900' }); // hệ 1 chưa đi: không chấm, không treo
   const kq = Q.chuyenTheoBcvh(db, OPT);
   assert.deepEqual(kq.theoBcvhChuyen.map((x) => [x.maBcvh, x.nguon, x.donVi]), [['535470', 'CHUYEN_TIEP_DI', 'TUI'], ['535470', 'CHUYEN_TIEP_DI', 'TUI']]);
-  const sang = dong(kq.theoBcvhChuyen, { chuyen: 'SANG' })[0];
-  const trua = dong(kq.theoBcvhChuyen, { chuyen: 'TRUA' })[0];
+  const sang = dong(kq.theoBcvhChuyen, { chuyen: '06:00' })[0];
+  const trua = dong(kq.theoBcvhChuyen, { chuyen: '12:00' })[0];
   assert.deepEqual([sang.tong, sang.DUNG_CHUYEN], [1, 1]);
-  assert.deepEqual([trua.tong, trua.DUNG_CHUYEN], [1, 1]); // đi 12:30 ≤ mốc dự kiến 12:30 → đúng chuyến dự kiến (TRƯA)
-  assert.deepEqual(kq.denSatGio.map((x) => [x.maBcvh, x.chuyen, x.nguon, x.soDenSatGio, x.kipChuyenSat, x.sangChuyenKe]), [['535470', 'SANG', 'CHUYEN_TIEP_DI', 1, 0, 1]]);
+  assert.deepEqual([trua.tong, trua.DUNG_CHUYEN], [1, 1]); // đi 11:30 ≤ giờ rời dự kiến 12:00 → đúng chuyến dự kiến
+  assert.deepEqual(kq.denSatGio.map((x) => [x.maBcvh, x.chuyen, x.nguon, x.soDenSatGio, x.kipChuyenSat, x.sangChuyenKe]), [['535470', '06:00', 'CHUYEN_TIEP_DI', 1, 0, 1]]);
   db.close();
 });
 
 test('«đến sát giờ»: số đến sát giờ, bao nhiêu kipChuyenSat, bao nhiêu sang chuyến kế, bao nhiêu chưa đi', () => {
   const db = dbMoi();
-  khaiThac(db, 'S-KIP', { quet: '2026-10-20 07:10:00', gioDi: '2026-10-20 07:25:00' }); // sát giờ SÁNG 07:30, đi 07:25 → kịp
-  khaiThac(db, 'S-SANG', { quet: '2026-10-20 07:20:00', gioDi: '2026-10-20 08:00:00' }); // sát giờ, đi sau mốc → sang chuyến kế
-  khaiThac(db, 'S-CHUA', { quet: '2026-10-20 07:05:00', nhan: null, phuong: '49122' }); // sát giờ, chưa đi
-  khaiThac(db, 'S-XA', { quet: '2026-10-20 06:50:00', gioDi: '2026-10-20 07:20:00' }); // trước vùng sát giờ
+  khaiThac(db, 'S-KIP', { quet: '2026-10-20 06:10:00', gioDi: '2026-10-20 06:55:00' }); // sát giờ chuyến 07:00 (hạn 06:00), đi 06:55 → kịp
+  khaiThac(db, 'S-SANG', { quet: '2026-10-20 06:20:00', gioDi: '2026-10-20 07:30:00' }); // sát giờ, đi sau giờ rời → sang chuyến kế
+  khaiThac(db, 'S-CHUA', { quet: '2026-10-20 06:05:00', nhan: null, phuong: '49122' }); // sát giờ, chưa đi
+  khaiThac(db, 'S-XA', { quet: '2026-10-20 05:50:00', gioDi: '2026-10-20 06:50:00' }); // trước vùng sát giờ (kịp hạn 06:00)
   const kq = Q.chuyenTheoBcvh(db, OPT);
-  assert.deepEqual(kq.denSatGio.map((x) => [x.maBcvh, x.chuyen, x.soDenSatGio, x.kipChuyenSat, x.sangChuyenKe, x.chuaDi]), [['533140', 'SANG', 3, 1, 1, 1]]);
-  assert.deepEqual(kq.chotTruocPhut, [30]);
-  assert.deepEqual(dong(kq.theoGioQuetDen, { gio: 7, chuyen: 'TRUA' }).map((x) => x.tong), [3]);
-  assert.deepEqual(dong(kq.theoGioQuetDen, { gio: 6, chuyen: 'SANG' }).map((x) => [x.tong, x.dungChuyen]), [[1, 1]]);
+  assert.deepEqual(kq.denSatGio.map((x) => [x.maBcvh, x.chuyen, x.soDenSatGio, x.kipChuyenSat, x.sangChuyenKe, x.chuaDi]), [['533140', '07:00', 3, 1, 1, 1]]);
+  assert.deepEqual(kq.chotTruocPhut, [60]);
+  assert.deepEqual(dong(kq.theoGioQuetDen, { gio: 6, chuyen: '12:30' }).map((x) => x.tong), [3]);
+  assert.deepEqual(dong(kq.theoGioQuetDen, { gio: 5, chuyen: '07:00' }).map((x) => [x.tong, x.dungChuyen]), [[1, 1]]);
   db.close();
 });
 
@@ -229,7 +230,7 @@ test('hàng qua KTT hai lần: dùng lần đi cuối (ghép túi đến muộn 
   khaiThac(db, 'S-2LAN', { quet: '2026-10-10 06:50:00', gioDi: '2026-10-10 07:20:00' }); // lần 1: đúng chuyến
   khaiThac(db, 'S-2LAN', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' }); // lần 2 (cuối): trễ 2 chuyến
   const kq = Q.chuyenTheoBcvh(db, { tuNgay: '2026-10-10', denNgay: '2026-10-21', bayGio: BAY_GIO });
-  assert.deepEqual(kq.theoBcvhChuyen.map((x) => [x.ngay, x.chuyen, x.tong, x.TRE_CHUYEN]), [['2026-10-20', 'TOI', 1, 1]]);
+  assert.deepEqual(kq.theoBcvhChuyen.map((x) => [x.ngay, x.chuyen, x.tong, x.TRE_CHUYEN]), [['2026-10-20', '19:45', 1, 1]]);
   // sản lượng vẫn đếm cả hai lượt đến (đếm sự kiện), mỗi chiều mỗi ngày một lần
   const sl = Q.sanLuongTheoNgay(db, { tuNgay: '2026-10-10', denNgay: '2026-10-21', bayGio: BAY_GIO });
   assert.deepEqual(dong(sl.tong, { chieu: 'DEN' }).map((x) => [x.ngay, x.shbg]), [['2026-10-10', 1], ['2026-10-20', 1]]);
@@ -286,10 +287,10 @@ test('treo: CHUA_QUET_DI và CHUA_MO_TUI theo nhóm đích × bậc tuổi; kèm
 
 test('nằm lâu: phân bố bậc tách luồng và ngày/đêm của giờ quét đến; QUA_NGUONG không trễ chuyến; kèm số NAM_LAU', () => {
   const db = dbMoi();
-  // BCVH 535790 chỉ có chuyến SÁNG 08:30 (chốt 08:00): quét 08:01 → chuyến 21/10 08:30; đi đúng giờ đó = 24 giờ 29 phút nằm → QUA_NGUONG, đúng chuyến
-  khaiThac(db, 'S-LAU', { quet: '2026-10-20 08:01:00', gioDi: '2026-10-21 08:30:00', nhan: '535790' });
-  // quét 06:00 (ban ngày? 06:00 < 07:00 → ĐÊM), đi 07:20 đúng chuyến SÁNG 533140 07:30 → nằm 1h20 → bậc A, không nằm lâu
-  khaiThac(db, 'S-NHANH', { quet: '2026-10-20 06:00:00', gioDi: '2026-10-20 07:20:00' });
+  // BCVH 535790 chỉ có chuyến 08:00 (hạn đến 07:00): quét 07:30 → chuyến 21/10 08:00; đi đúng giờ đó = 24 giờ 30 phút nằm → QUA_NGUONG, đúng chuyến
+  khaiThac(db, 'S-LAU', { quet: '2026-10-20 07:30:00', gioDi: '2026-10-21 08:00:00', nhan: '535790' });
+  // quét 06:00 (06:00 < 07:00 → ĐÊM), đi 06:50 đúng chuyến 07:00 của 533140 (hạn 06:00) → nằm 50 phút → bậc A, không nằm lâu
+  khaiThac(db, 'S-NHANH', { quet: '2026-10-20 06:00:00', gioDi: '2026-10-20 06:50:00' });
   // trễ chuyến (TRE_CHUYEN) → NAM_LAU lý do TRE_CHUYEN, bậc D (16 giờ)
   khaiThac(db, 'S-TRE', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' });
   // đích KHAC: có giờ nằm, không đánh giá NAM_LAU
@@ -381,11 +382,11 @@ test('chiTiet: các loại tre_chuyen / lo_chuyen / den_sat_gio / nam_lau trả 
   const db = dbMoi();
   khaiThac(db, 'S-TRE', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' });
   khaiThac(db, 'S-LO', { quet: '2026-10-20 13:10:00', nhan: null });
-  khaiThac(db, 'S-SAT', { quet: '2026-10-20 07:10:00', gioDi: '2026-10-20 08:00:00' });
+  khaiThac(db, 'S-SAT', { quet: '2026-10-20 06:30:00', gioDi: '2026-10-20 07:30:00' }); // sát giờ chuyến 07:00 (hạn 06:00), đi 07:30 → không kịp chuyến sát
   const ct = (loai) => Q.chiTiet(db, { ...OPT, loai });
   const tre = ct('tre_chuyen');
-  assert.deepEqual(tre.dong.map((x) => [x.shbg, x.trangThaiChuyen, x.chuyenDuKien, x.soChuyenTre, x.maBcvh]), [['S-TRE', 'TRE_CHUYEN', 'TOI', 2, '533140']]);
-  assert.equal(tre.dong[0].mocDuKien, '2026-10-20 22:30:00');
+  assert.deepEqual(tre.dong.map((x) => [x.shbg, x.trangThaiChuyen, x.chuyenDuKien, x.soChuyenTre, x.maBcvh]), [['S-TRE', 'TRE_CHUYEN', '19:45', 3, '533140']]);
+  assert.equal(tre.dong[0].mocDuKien, '2026-10-20 19:45:00');
   assert.equal(tre.dong[0].bd10Den, 'BD10-DEN-1');
   assert.equal(tre.dong[0].bd10Di, 'BD10-DI-1');
   assert.deepEqual(ct('lo_chuyen').dong.map((x) => x.shbg), ['S-LO']);
@@ -452,7 +453,7 @@ test('tongHopKtt gộp đủ các mục, canhBao từ dữ liệu (đích không
   khaiThac(db, 'S-TRE', { quet: '2026-10-20 15:25:00', gioDi: '2026-10-21 07:45:14' });
   khaiThac(db, 'S-LA', { quet: '2026-10-20 08:00:00', nhan: null, phuong: '00000', xnd: '2026-10-20 08:00:00' });
   tuiCtd(db, { quet: '2026-10-20 06:00:00', nhan: '535470' });
-  db.exec("DELETE FROM ktt_cau_hinh_chuyen WHERE ma_bcvh = '535470'");
+  db.exec("DELETE FROM ktt_lich_chuyen WHERE ma_bcvh = '535470'"); // KTT-7b: lịch chính thức thay lịch V1
   db.exec("DELETE FROM ktt_cau_hinh WHERE khoa = 'treo_phut'");
   const th = Q.tongHopKtt(db, OPT);
   assert.deepEqual(Object.keys(th).sort(), ['canhBao', 'chatLuongDuLieu', 'chiTieuF13', 'chuyen', 'khoangNgay', 'namLau', 'sanLuong', 'tonTreo']);
@@ -552,7 +553,7 @@ test('mã nguồn: không new Date / Date.parse trên chuỗi giờ (Date.now ch
   }
   const q = fs.readFileSync(path.join(dir, 'kttQuery.js'), 'utf8');
   assert.equal((q.match(/Date\.now/g) || []).length, 1);
-  assert.deepEqual([...q.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map((m) => m[1]), ['./quyThoiGian', './kttTinh', './kttCauHinh']);
+  assert.deepEqual([...q.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map((m) => m[1]), ['./quyThoiGian', './kttTinh', './kttCauHinh', './kttLichChuyen', './kttChuyen']);
   assert.ok(!/\.run\(|\.exec\(|db\.transaction|\.pragma\(/.test(q), 'kttQuery.js không được ghi DB');
   const sqls = [...q.matchAll(/`(SELECT[\s\S]*?)`/g)].length;
   assert.ok(sqls >= 3);
