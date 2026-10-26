@@ -117,6 +117,23 @@ const NGUONG_MAC_DINH = [
   ['chi_tieu_f13_gio_thuan_hoa_phu_xuan', 12, 'Chỉ tiêu F1.3 cho tuyến Thuận Hóa / Phú Xuân, đơn vị giờ']
 ];
 
+// Lịch chuyến CHÍNH THỨC (KTT-7a, PO duyệt 26/10/2026): giờ xe RỜI KTT chở hàng cho BCVH. ngay_chay: CA_TUAN | NGHI_CN (nghỉ Chủ nhật).
+// Hương Trà: PO chưa rõ Chủ nhật, TẠM tính cả tuần. Không đưa vào: tuyến Sân bay, Hương Thủy 10:00 / 16:00 (xe điểm nhỏ lẻ), Phú Vang, Bình Điền, chuyến BĐTP C2 16:00.
+// [BCVH, giờ rời KTT 'HH:MM', ngày chạy, nhãn | null, ghi chú | null]
+const LICH_CHUYEN_MAC_DINH = [
+  ['535470', '06:00', 'CA_TUAN', null, 'PO chưa rõ Chủ nhật, tạm tính cả tuần'], ['535470', '12:00', 'CA_TUAN', null, 'PO chưa rõ Chủ nhật, tạm tính cả tuần'],
+  ['536250', '06:30', 'NGHI_CN', null, null], ['536250', '12:30', 'NGHI_CN', null, null],
+  ['535790', '08:00', 'CA_TUAN', null, 'một chuyến'],
+  ['537015', '07:30', 'CA_TUAN', null, null], ['537015', '13:30', 'NGHI_CN', null, null],
+  ['537220', '07:30', 'CA_TUAN', null, null], ['537220', '13:00', 'NGHI_CN', null, null],
+  ['533140', '07:00', 'CA_TUAN', null, null], ['533140', '12:30', 'CA_TUAN', null, null], ['533140', '19:45', 'CA_TUAN', null, null],
+  ['533140', '22:00', 'CA_TUAN', 'C4', 'C4, hạn đến 21:00'], ['533140', '12:55', 'NGHI_CN', null, 'sát 12:30, vẫn là hai mốc riêng']
+];
+// Tham số của lịch chuyến (bảng ktt_lich_cau_hinh, TÁCH khỏi ktt_cau_hinh của KTT-2): hạn hàng đến để kịp chuyến = giờ rời KTT − chừng này phút.
+const LICH_CAU_HINH_MAC_DINH = [
+  ['han_den_truoc_chuyen_phut', 60, 'Hàng quét đến chậm nhất (giờ rời KTT trừ chừng này phút) thì kịp chuyến đó']
+];
+
 // Địa bàn phát (KTT-5): phường/xã -> BCVH Huế phát. Danh mục hành chính công khai. Chính tả giữ nguyên theo ticket KTT-5 (kể cả «Phong Dinh»); PO sẽ chỉnh sau nếu cần.
 // [BCVH, tên BCVH, [[mã phường/xã, tên phường/xã], ...]]
 const DIA_BAN_PHAT_MAC_DINH = [
@@ -197,6 +214,25 @@ function ensureKttSchema(db) {
       cap_nhat_luc TEXT NOT NULL
     );
 
+    -- Lịch chuyến chính thức (KTT-7a): giờ xe rời KTT. dang_dung = 0: tắt chuyến mà không xóa. Lịch V1 (ktt_cau_hinh_chuyen) vẫn do kttQuery dùng đến KTT-7b.
+    CREATE TABLE IF NOT EXISTS ktt_lich_chuyen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ma_bcvh TEXT NOT NULL,
+      gio_xuat_phat TEXT NOT NULL CHECK (gio_xuat_phat GLOB '[0-2][0-9]:[0-5][0-9]'),
+      ngay_chay TEXT NOT NULL CHECK (ngay_chay IN ('CA_TUAN', 'NGHI_CN')),
+      nhan TEXT,
+      ghi_chu TEXT,
+      dang_dung INTEGER NOT NULL DEFAULT 1 CHECK (dang_dung IN (0, 1)),
+      cap_nhat_luc TEXT NOT NULL,
+      UNIQUE (ma_bcvh, gio_xuat_phat)
+    );
+    CREATE TABLE IF NOT EXISTS ktt_lich_cau_hinh (
+      khoa TEXT PRIMARY KEY,
+      gia_tri NUMERIC NOT NULL,
+      mo_ta TEXT,
+      cap_nhat_luc TEXT NOT NULL
+    );
+
     -- Địa bàn phát (KTT-5): phường/xã -> BCVH Huế phát. Dùng để tra đích của bưu gửi chưa vào BD10 đi.
     CREATE TABLE IF NOT EXISTS ktt_dia_ban_phat (
       ma_phuong_xa TEXT NOT NULL UNIQUE,
@@ -235,12 +271,16 @@ function ensureKttSchema(db) {
   const bayGio = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const themChuyen = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh_chuyen (ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, 30, ?, ?)');
   const themNguong = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?)');
+  const themLich = db.prepare('INSERT OR IGNORE INTO ktt_lich_chuyen (ma_bcvh, gio_xuat_phat, ngay_chay, nhan, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, ?, ?, ?)');
+  const themLichCh = db.prepare('INSERT OR IGNORE INTO ktt_lich_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?)');
   const themDiaBan = db.prepare('INSERT OR IGNORE INTO ktt_dia_ban_phat (ma_phuong_xa, ten_phuong_xa, ma_bcvh, ten_bcvh) VALUES (?, ?, ?, ?)');
   db.transaction(() => {
+    for (const [ma, gio, ngay, nhan, ghiChu] of LICH_CHUYEN_MAC_DINH) themLich.run(ma, gio, ngay, nhan, ghiChu, bayGio);
+    for (const [khoa, giaTri, moTa] of LICH_CAU_HINH_MAC_DINH) themLichCh.run(khoa, giaTri, moTa, bayGio);
     for (const [maBcvh, tenBcvh, phuongXa] of DIA_BAN_PHAT_MAC_DINH) for (const [maPx, tenPx] of phuongXa) themDiaBan.run(maPx, tenPx, maBcvh, tenBcvh);
     for (const [ma, chuyen, gio] of CHUYEN_MAC_DINH) themChuyen.run(ma, chuyen, gio, GHI_CHU_CHUYEN_V1, bayGio);
     for (const [khoa, giaTri, moTa] of NGUONG_MAC_DINH) themNguong.run(khoa, giaTri, moTa, bayGio);
   })();
 }
 
-module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH };
+module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH, LICH_CHUYEN_MAC_DINH, LICH_CAU_HINH_MAC_DINH };
