@@ -10,6 +10,7 @@ Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. M�
 - **Quy tắc chọn túi đến cho mốc B:** túi đến GHÉP (như xếp chuyến, KTT-5); đếm sẵn số SHBG nhiều túi đến / ghép khác gốc / kết quả khác nếu dùng túi gốc / không có túi đi. Xem `37` mục 6.
 - **Khác biệt đã được PO chốt (27/10):** ở khối mới, SHBG chưa đi LUÔN là «không đo được» (kể cả đã quá chỉ tiêu, ghi ở `chua_di_da_qua_chi_tieu`), còn `dat_khong_dat` cũ tính chúng là `khong_dat`.
 - **Chưa làm / ngoài phạm vi:** nối tham số mốc vào API / giao diện / xlsx; không chạy được bộ đối chiếu số thật KTT-10 (`doi-chieu-doc-lap.js`, PO giữ); không chạy script kiểm trên DB thật. Không commit (PO commit).
+- **Bổ sung 5.5:** `scripts/ktt-doi-chieu-chi-tieu.js` (CHỈ ĐỌC, `--db <bản chép> --tu [--den] [--json]`: in số tổng `chi_tieu_14h` hai mốc để PO so với số tham chiếu KTT-10; từ chối cờ ghi và DB thật, không in SHBG / BD10) + `tests/ktt-doi-chieu-chi-tieu.test.js` (3 ca, thêm vào `package.json`).
 - **Tài liệu:** `37` mục 6, `41` mục 12, `42` mục 12, `00_SNAPSHOT.md`, `PROJECT_SNAPSHOT.md`.
 
 ## [2026-10-27] - KTT-8c: kg, nhóm theo nguồn, chi-tiet đủ 17 cột, lọc `ma_bcvh` / `nguon`
