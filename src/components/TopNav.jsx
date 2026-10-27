@@ -64,6 +64,7 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
 
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin = authUser?.role === 'ADMIN';
+  const canKtt = ['ADMIN', 'TTVH'].includes(authUser?.role);
 
   const adminTabIds = ['network', 'useradmin', 'replace_day', 'nap_nguon', 'tham_so'];
   const isAdminTabActive = adminTabIds.includes(activeTab);
@@ -221,6 +222,35 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
               <path d="M12 7v5l3 3" />
             </svg>
             <span>Thời gian Khai thác-Vận chuyển</span>
+          </button>
+        )}
+
+        {/* Tab mới: Hàng tại KTT */}
+        {canKtt && (
+          <button
+            id="nav-ktt"
+            type="button"
+            onClick={() => setActiveTab('ktt')}
+            className={`whitespace-nowrap py-[10px] px-[13px] max-[1439px]:px-[10px] rounded-[10px] flex items-center justify-center gap-2 font-serif font-bold text-[15px] max-[1365px]:text-[14px] tracking-[0.01em] cursor-pointer transition-colors ${
+              activeTab === 'ktt'
+                ? 'bg-[#E0A82E] text-[#3B1450]'
+                : 'text-[#E6D6F2] hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <svg
+              className={`w-5 h-5 shrink-0 ${activeTab === 'ktt' ? 'text-[#3B1450]' : 'text-[#E0A82E]'}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+            <span>Hàng tại KTT</span>
           </button>
         )}
 

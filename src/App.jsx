@@ -12,6 +12,7 @@ import QuyThoiGianView from './components/quythoigian/QuyThoiGianView';
 import ReplaceDayView from './components/arrivals/ReplaceDayView';
 import SourceIngestView from './components/arrivals/SourceIngestView';
 import ThamSoView from './components/thamso/ThamSoView';
+import KttView from './components/ktt/KttView';
 import { BCVH_LIST } from './constants/bcvh';
 import { getToken, setToken, clearToken, decodeJwtPayload, isTokenExpired, AUTH_EXPIRED_EVENT, apiFetchJson } from './utils/api';
 
@@ -56,6 +57,7 @@ export default function App() {
 
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin  = authUser?.role === 'ADMIN';
+  const canKtt   = ['ADMIN', 'TTVH'].includes(authUser?.role);
   const isTiviRole = authUser?.role === 'TIVI';
   const canTv = TV_ROLES.includes(authUser?.role);
 
@@ -243,6 +245,10 @@ export default function App() {
 
           {activeTab === 'quy_thoi_gian' && isViewer && (
             <QuyThoiGianView authUser={authUser} />
+          )}
+
+          {activeTab === 'ktt' && canKtt && (
+            <KttView authUser={authUser} />
           )}
 
           {activeTab === 'useradmin' && isAdmin && (
