@@ -23,6 +23,7 @@ const thamSo = require('./thamSo');
 const CT = require('./quyThoiGianChiTieu');
 const { docCauHinhKtt } = require('./kttCauHinh');
 const { TAC_VU } = require('./kttWorker');
+const X = require('./kttXuat');
 const { MA_BCVH_HUE } = require('./kttTinh');
 
 const CUA_SO_NAP_NGAY = 8; // ngày nằm trong cửa sổ nạp = từ độ mới dữ liệu lùi chừng này ngày trở lại (mỗi lần xuất lùi 7 ngày + 1 ngày đệm)
@@ -266,6 +267,35 @@ async function chiTiet(db, query, { now = Date.now() } = {}) {
 }
 
 // ------------------------------------------
+// xuat/luu-thoat (KTT-8b)
+// ------------------------------------------
+/**
+ * GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=] — chuẩn bị nội dung file: { tenFile, thongTin, dong }. Chưa ghi gì ra response (route ghi sau khi mọi kiểm tra đã qua, nên lỗi vẫn là JSON 400).
+ * Cột «đã chốt» lấy từ luuThoat() (CÙNG cache theo ngày với /luu-thoat); các dòng SHBG tính ở worker bằng CÙNG lượt duyệt với /chi-tiet. `nguoiXuat`, `now`: tên đăng nhập và đồng hồ (test).
+ */
+async function xuatLuuThoat(db, query, { now = Date.now(), nguoiXuat = null } = {}) {
+  const k = docKhoang(query, ['trang_thai']);
+  const nhom = mot(query, 'trang_thai');
+  if (nhom !== undefined && nhom !== '' && !Object.prototype.hasOwnProperty.call(QL.NHOM_LUU_THOAT, nhom)) {
+    throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "trang_thai" phải thuộc: ${Object.keys(QL.NHOM_LUU_THOAT).join(', ')}.`);
+  }
+  const loc = nhom === undefined || nhom === '' ? null : nhom;
+  const doMoi = QL.docDoMoi(db);
+  const tran = X.tranDong();
+  const [luuThoatKq, r] = await Promise.all([
+    luuThoat(db, { tu: k.tuNgay, den: k.denNgay }, { now }),
+    doMoi ? chayNen(db, 'xuatLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom: loc, bayGio: doMoi.nguon_xuat_luc, tranDong: tran }) : { tong: 0, vuotTran: false, dong: [] }
+  ]);
+  if (r.vuotTran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${r.tong} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc thêm bộ lọc "trang_thai".`);
+  const lich = L.docLichChuyen(db);
+  const thongTin = X.dongThongTin({
+    tu: k.tuNgay, den: k.denNgay, nhom: loc, luuThoat: luuThoatKq, soDong: r.dong.length, nguoiXuat, xuatLuc: X.gioVietNam(now),
+    hanPhut: lich.hanDenTruocChuyenPhut, gioChot: QL.gioChot()
+  });
+  return { tenFile: X.tenFile(k.tuNgay, k.denNgay), thongTin, dong: r.dong, tong: r.dong.length, khoang: k, nhom: loc };
+}
+
+// ------------------------------------------
 // meta
 // ------------------------------------------
 const SNAKE_NGUONG = { treoPhut: 'treo_phut', namLauToiDaPhut: 'nam_lau_toi_da_phut', chiTieuF13Gio: 'chi_tieu_f13_gio', chiTieuF13GioThuanHoaPhuXuan: 'chi_tieu_f13_gio_thuan_hoa_phu_xuan' };
@@ -285,4 +315,4 @@ function meta(db) {
   };
 }
 
-module.exports = { docKhoang, luuThoat, tongHop, chiTiet, meta, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO };
+module.exports = { docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, meta, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO };

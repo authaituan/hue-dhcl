@@ -9,11 +9,13 @@ const { isMainThread, parentPort } = require('worker_threads');
 const Q = require('./kttQuery');
 const QL = require('./kttLuuThoatQuery');
 const { taoDanhGia } = require('./kttDanhGia');
+const X = require('./kttXuat');
 
 const TAC_VU = Object.freeze({
   tongHop: (db, a) => { const th = Q.tongHopKtt(db, a); return { ...th, danh_gia: taoDanhGia(th) }; },
   chiTietCu: (db, a) => Q.chiTiet(db, a),
-  chiTietLuuThoat: (db, a) => QL.danhSachLuuThoat(db, a)
+  chiTietLuuThoat: (db, a) => QL.danhSachLuuThoat(db, a),
+  xuatLuuThoat: (db, a) => X.xuatLuuThoat(db, a) // KTT-8b: toàn bộ SHBG (không phân trang) cho file xlsx
 });
 
 if (!isMainThread && parentPort) {

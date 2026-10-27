@@ -1,7 +1,7 @@
 # 42 · KTT-8 — API `/api/ktt/*`, cache theo ngày, tham số giờ chốt
 
 Đưa phần tính toán «Hàng tại KTT» (`tongHopKtt`, `luuThoatTheoNgay`, `chiTiet`, `taoDanhGia`) ra API **chỉ đọc**, cho **ADMIN và TTVH**, có cache theo ngày và không làm đứng máy chủ.
-Chưa có giao diện (KTT-9) và xuất xlsx sheet 7–8 (KTT-8b). Dữ liệu trong tài liệu này là dữ liệu giả.
+Chưa có giao diện (KTT-9). Xuất xlsx sheet 7 «Lưu thoát»: KTT-8b (mục 10); sheet 8 «Hôm sau / chưa đi trên 24 giờ»: KTT-8c (chưa làm). Dữ liệu trong tài liệu này là dữ liệu giả.
 
 ## 1. Quyền và mount
 - Router `server/routes/ktt.js`, mount **riêng** `app.use('/api/ktt', kttRoutes)` ở `server/index.js`; `router.use(requireRoles(ADMIN, TTVH))` đứng đầu router nên route thêm sau này cũng bị chặn mặc định. KHÔNG đặt dưới `/api/arrivals` (đường đó mở cả GDVH).
@@ -65,7 +65,50 @@ Theo mẫu `quyThoiGianCache.js` (`dauHieuDb` = `data_version` + `total_changes`
 ## 8. Điều chưa chắc
 - `tong-hop` / `chi-tiet` nguội 31 ngày vài giây (ở worker) — chấp nhận được vì không chặn; nếu giao diện hay gọi 31 ngày nên làm nóng cache.
 - Worker cần quyền ghi thư mục DB (WAL chỉ đọc cần tệp `-shm`); trên NAS thật chưa thử.
-- Chưa giao diện (KTT-9), chưa xuất xlsx (KTT-8b).
+- Chưa giao diện (KTT-9); xuất xlsx sheet 7 đã có (KTT-8b, mục 10), sheet 8 chưa (KTT-8c).
 
-## 9. Test
+## 9. Test (KTT-8; test xuất xlsx ở mục 10)
 `tests/ktt-api.test.js` (26 ca; 1 ca đo hiệu năng cần `KTT_PERF=1`): quyền cho mọi route (401 / 200 / 200 / 403 / 403, route lạ, chỉ GET), kiểm tĩnh router, tham số sai (19 tình huống), chống chèn SQL, khớp trực tiếp hàm gốc, chưa có dữ liệu, chỉ đọc, `meta`, cache (lần 2, mở rộng khoảng, độ mới đổi, ngày đã chốt trong cửa sổ nạp có BD10 đi cập nhật tại chỗ, chữ ký, tuổi, ghi DB không liên quan, `tong-hop` / `chi-tiet`), `KTT_WORKER=0`, tham số giờ chốt, nhường vòng lặp, dùng chung lần tính, chi tiết (phân trang, tổng khớp mọi nhóm, không rò cá nhân), đệm `xepChuyen` (so khớp bản không đệm). Sửa `tests/tham-so.test.js` (38→39 khóa; 31→32 sửa được; thêm `ktt_gio_chot_ngay` vào bảng getter).
+
+## 10. KTT-8b — Xuất xlsx sheet 7 «Hàng rớt lại / Lưu thoát»
+
+`GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]` (dưới `requireRoles(ADMIN, TTVH)` như mọi route KTT; không token 401, GDVH / TIVI 403). Trả file `.xlsx`, tên `KTT_LuuThoat_<tu>_<den>.xlsx` (ASCII), `Content-Disposition: attachment`, `Cache-Control: no-store`.
+Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xuất các sheet 1–6.
+
+**Tham số:** `tu`, `den` như mọi route KTT (YYYY-MM-DD, ngày có thật, ≤ 31 ngày, khóa lạ → 400). `trang_thai` tùy chọn, cùng danh sách giá trị với `chi-tiet` (nhóm lưu thoát: `t1`…`t5`, `dang_cho_chuyen`, `hang_hoan`, `dat`, `khong_dat`, `chua_di`, `chua_do_duoc`, `xnd_sau_gio_di`, `khong_ro_dich`, `ngoai_pham_vi`, `khong_co_gio_quet_den`, `khong_xep_duoc_chuyen`); bỏ trống = tất cả SHBG. Không nhận các `loai` cũ của `chi-tiet` (`treo`, `nam_lau`…).
+**Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header** → lỗi vẫn là JSON `400 { error, ma }`. Quá trần dòng: `400 KTT_QUA_NHIEU_DONG` «Có N dòng, vượt giới hạn 200000 dòng mỗi file: hãy thu hẹp khoảng ngày hoặc thêm bộ lọc "trang_thai".»
+
+**Nguồn dữ liệu (không tính lại quy tắc nào):**
+- Dòng SHBG: `kttLuuThoatQuery.duyetLuuThoat` — lượt duyệt DÙNG CHUNG với `danhSachLuuThoat` (`chi-tiet`; đã tách ra, hành vi `chi-tiet` không đổi) → `kttLuuThoat.phanLoaiShbg`. Một dòng = một SHBG khác nhau; không lọc thì số dòng = `tong_cong.tong_shbg_ngay` của `luu-thoat` (gồm cả đích không rõ, ngoài phạm vi, thiếu giờ quét đến, không xếp được chuyến, hàng hoàn). Sắp theo (ngày D, SHBG).
+- Cột «đã chốt» và «độ mới»: gọi `kttApi.luuThoat` ⇒ CÙNG cache theo ngày với `/luu-thoat` (ngày đã nóng không tính lại); đổi `ktt_gio_chot_ngay` hoặc lịch chuyến thì cache bị xóa như mọi route. Chuyến liền kề và hạn đến đọc từ `ktt_lich_chuyen` / `ktt_lich_cau_hinh` ở mỗi lần xuất (không cache riêng).
+- Thêm 2 trường vào lượt đọc SHBG của `kttQuery.js` (chỉ để xuất, không dùng để tính): `duongThuDenMa`, `duongThuDenTen` (`bd10_den_ma_duong_thu` / `bd10_den_ten_duong_thu` của túi đến ghép).
+
+**Không làm đứng máy chủ:** dựng danh sách SHBG chạy ở **worker_thread** (`kttWorker.js`, tác vụ `xuatLuuThoat`; DB file như các tác vụ nặng khác; DB trong bộ nhớ chạy thẳng sau khi nhường vòng lặp). Worker trả sẵn mỗi dòng là mảng ô (≤ trần). Ghi file ở luồng chính bằng ExcelJS `WorkbookWriter` (đã có trong `package.json`, cùng mẫu `arrivalsExport.js`: ghi luồng thẳng vào response), cứ 1.000 dòng nhường vòng lặp (`setImmediate`) và chờ khi bộ đệm ghi > 2 MB; client ngắt thì hủy file. Nhật ký bảo mật: sự kiện `ktt_export` (ai, khoảng ngày, bộ lọc, số dòng, trạng thái) — **không** có số hiệu bưu gửi.
+**Trần:** 200.000 dòng sheet 7 mỗi file (`kttXuat.TRAN_DONG_MAC_DINH`; biến môi trường `KTT_XUAT_TRAN_DONG` chỉ để test). Dữ liệu giả 31 ngày ở cỡ ≈ 7.100 SHBG / ngày (≈ 221.000 dòng) vượt trần: cần thu hẹp hoặc lọc.
+
+**File: đúng hai sheet theo thứ tự.**
+1. «Thông tin» (hai cột «Mục», «Nội dung ghi trong sheet»): Cửa sổ; Dữ liệu đến (`nguon_xuat_luc_moi_nhat`); Chốt số theo ngày («đã chốt» / «số tạm» từng ngày); Ngày xuất, người xuất (giờ VN, tên đăng nhập — không token, không email); Trạng thái số liệu; Định nghĩa năm trạng thái / đang chờ chuyến / hàng hoàn Tổ KHHH / cột đạt - không đạt (Không tính, Loại trừ) / mốc chuyến và hạn đến (đọc hạn từ cấu hình) / hai mốc giờ đến; Đơn vị; **Số dòng kiểm tra** (số, = số dòng sheet 7); Đối chiếu với màn hình Lưu thoát (số SHBG của `luu-thoat` cùng khoảng và bộ lọc, ghi «khớp» hoặc «KHÔNG khớp»).
+2. «7 Hàng rớt lại» — 17 cột:
+
+| # | Cột | Nguồn |
+|---|---|---|
+| 1 | SHBG (văn bản) | `u.shbg` |
+| 2–3 | Đường thư đến (tên, mã) | `bd10_den_ten_duong_thu`, `bd10_den_ma_duong_thu` của túi đến ghép (mới đưa vào lượt đọc) |
+| 4 | Giờ quét túi đến KTT | `u.quetDen` (`gio_quet_tui_den`; mốc xếp chuyến, lưu thoát) |
+| 5 | Giờ xác nhận BD10 đến (ConfirmDate) | `u.xndBd10` (`bd10_den_xnd`; mốc đạt / không đạt) |
+| 6 | KL (kg) | `khoi_luong_thuc_te_g / 1000`, định dạng `0.000`; trống nếu thiếu |
+| 7–8 | BCVH đích (mã, tên) | `u.maBcvh`; tên từ `DIA_BAN_PHAT_MAC_DINH` |
+| 9 | Chuyến liền kề | `kq.chuyen` của `xepChuyen`: «Thuận Hóa 07:00 (20/10/2026)» |
+| 10 | Giờ xuất phát | `chuyen.xuat_phat_luc` |
+| 11 | Hàng đến muộn nhất để kịp chuyến | `chuyen.han_den_luc` (= xuất phát − `han_den_truoc_chuyen_phut`) |
+| 12 | Giờ lập BD10 đi | `u.gioBd10Di` (lần đi cuối) |
+| 13 | Giờ chờ tính chỉ tiêu (giờ) | `datKhongDat.thucGiay / 3600` (bỏ 21:00–07:00 từ ConfirmDate; có thể âm khi xác nhận sau giờ đi) |
+| 14 | Đạt / không đạt chỉ tiêu 14 giờ | `datKhongDat.trangThai` → Đạt / Không đạt / Chưa đi / Chưa đo được / Xác nhận đến sau giờ lập BD10 đi; hàng hoàn Tổ KHHH → «Loại trừ»; hàng thiếu giờ quét đến / không xếp được chuyến (không vào tổng của `luu-thoat`) → «Không tính». Số «Đạt» + «Không đạt» trong file = `dat_khong_dat.dat` + `khong_dat` của `luu-thoat` cùng khoảng (có test) |
+| 15 | Phân loại | nhóm: «Đã phân loại 5 trạng thái», «Đang chờ chuyến», «Hàng hoàn Tổ KHHH», «Đích không rõ», «Ngoài phạm vi (loại đích)», «Thiếu giờ quét túi đến», «Không xếp được chuyến (lý do)» |
+| 16 | Trạng thái (1–5) | «1 – Đi trong ngày, đúng chuyến», «2 – Đi trong ngày, trượt chuyến», «3 – Đi hôm sau, đúng chuyến», «4 – Đi hôm sau, trượt chuyến», «5 – Từ 2 ngày hoặc chưa đi», «Đang chờ chuyến…»; trống nếu không phân loại được |
+| 17 | Ngày lưu thoát (ngày D) | `u.ngayDen` |
+
+**Kiểu ô:** SHBG và mọi cột chữ là văn bản (`numFmt '@'`, giá trị chuỗi nên không bao giờ là công thức, kể cả bắt đầu bằng `= + - @`; ký tự cấm của XML bị bỏ, cắt ở 32.767 ký tự). Cột giờ là ô ngày giờ thật định dạng `dd/mm/yyyy hh:mm:ss`: giá trị = `Date.UTC` của các số trong chuỗi giờ nguồn (không `new Date(chuỗi)`), nên Excel hiển thị đúng giờ Việt Nam của dữ liệu ở mọi múi giờ máy chủ. Cột khác (KL, giờ chờ) là số.
+**Hiệu năng** (dữ liệu giả 31 ngày: 33.201 túi / 332.010 dòng nguồn; máy dev; `KTT_PERF=1`; qua HTTP; trần nâng lên 400.000 cho ca 31 ngày): xuất 1 / 7 / 31 ngày = 0,81 / 3,5 / 16,4 s nguội (file 0,54 / 3,8 / 16,8 MB; ≈ 7.100 / 49.700 / 221.000 dòng); RSS tiến trình test tăng tối đa 120 / 191 / 326 MB. Ghi file ở luồng chính chiếm phần lớn thời gian (nhường vòng lặp mỗi 1.000 dòng; `/meta` vẫn trả lời trong lúc xuất — có test).
+**Test:** `tests/ktt-xuat.test.js` (18 ca + 1 ca đo hiệu năng cần `KTT_PERF=1`): quyền, tham số sai + chống chèn SQL, hai sheet đúng tên / thứ tự / tiêu đề, khớp `luu-thoat` và từng dòng của `chi-tiet`, bộ lọc `trang_thai` (mọi giá trị), hàng hoàn «Loại trừ», ngày trống, kiểu ô và múi giờ, ô trống khi thiếu dữ liệu, chống công thức, đổi giờ chốt / hạn đến / tắt chuyến, dùng chung cache, trần dòng, nhường vòng lặp (31 ngày), kiểm tĩnh.
+**Điều chưa chắc:** (1) cột 14 «Không tính» khác `datKhongDat` thô của `chi-tiet` ở các hàng không phân loại được (PO chốt 27/10/2026); (2) giữ cả hai cột giờ đến (4 và 5) là đề xuất của CTO, PO chưa duyệt riêng.

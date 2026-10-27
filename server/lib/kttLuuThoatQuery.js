@@ -238,33 +238,44 @@ function danhSachLuuThoat(db, opts = {}) {
   const bayGio = opts.bayGio !== undefined && opts.bayGio !== null ? opts.bayGio : (doMoi ? doMoi.nguon_xuat_luc : null);
   const ra = (tong, dong) => ({ tong, trang, kichThuocTrang, soTrang: Math.ceil(tong / kichThuocTrang), dong, bay_gio: bayGio, nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null });
   if (bayGio === null || !coBang(db, 'ktt_tui') || !coBang(db, 'ktt_buu_gui')) return ra(0, []);
-  const tenPhuongTheoMa = docTenPhuong(db);
   const batDau = (trang - 1) * kichThuocTrang;
   const dong = [];
   let tong = 0;
-  Q.chayBoDem(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, boQuaCham: true }, (c) => {
+  duyetLuuThoat(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, maBcvh, khop }, (u, kq, tenPhuong) => {
+    if (tong >= batDau && dong.length < kichThuocTrang) {
+      const d = kq.datKhongDat || null;
+      dong.push({
+        shbg: u.shbg, soHieuBd8: u.soHieuBd8 || null, bd10Den: u.bd10Den || null, bd10Di: u.bd10Di || null, ngayDen: u.ngayDen, quetDen: u.quetDen || null,
+        xndBd10: u.xndBd10 || null, gioLapBd10Di: u.gioBd10Di || null, maBcvh: u.maBcvh || null, nhomDich: u.nhom, nhom: kq.nhom, trangThai: kq.trangThai === undefined ? null : kq.trangThai,
+        gioXuatPhat: kq.chuyen ? kq.chuyen.gio_xuat_phat : null, ngayChuyen: kq.chuyen ? kq.chuyen.ngay : null, ketQuaChuyen: kq.chuyenKq || null, lyDo: kq.lyDo || null,
+        diTruocKhiDen: !!kq.diTruocKhiDen, datKhongDat: d ? d.trangThai : null, chiTieuGio: d ? d.chiTieuGio : null, thoiGianChoGiay: d ? d.thucGiay : null, tenPhuong
+      });
+    }
+    tong++;
+  });
+  return ra(tong, dong);
+}
+
+/**
+ * Lượt duyệt DÙNG CHUNG của danhSachLuuThoat (chi-tiet) và xuatLuuThoat (xlsx, KTT-8b): mỗi SHBG có ngày đến trong khoảng được phân loại bằng S.phanLoaiShbg (cùng quy tắc),
+ * lọc theo BCVH (`maBcvh`, null = tất cả) và nhóm (`khop(kq)`, null = tất cả SHBG kể cả không rõ đích / ngoài phạm vi) rồi gọi cb(u, kq, tenPhuong).
+ * opts: { tuNgay, denNgay, bayGio (bắt buộc), maBcvh?, khop? }. Chỉ đọc DB.
+ */
+function duyetLuuThoat(db, opts, cb) {
+  const tenPhuongTheoMa = docTenPhuong(db);
+  Q.chayBoDem(db, { tuNgay: opts.tuNgay, denNgay: opts.denNgay, bayGio: opts.bayGio, boQuaCham: true }, (c) => {
     const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio };
     return [{
       shbg(u) {
         if (!u.trongKhoangDen) return;
         const tenPhuong = u.tenPhuong || tenPhuongTheoMa.get(String(u.maPhuong || '').trim()) || null;
         const kq = S.phanLoaiShbg({ ...u, tenPhuong }, ngu);
-        if (maBcvh !== null && u.maBcvh !== maBcvh) return;
-        if (!khop(kq)) return;
-        if (tong >= batDau && dong.length < kichThuocTrang) {
-          const d = kq.datKhongDat || null;
-          dong.push({
-            shbg: u.shbg, soHieuBd8: u.soHieuBd8 || null, bd10Den: u.bd10Den || null, bd10Di: u.bd10Di || null, ngayDen: u.ngayDen, quetDen: u.quetDen || null,
-            xndBd10: u.xndBd10 || null, gioLapBd10Di: u.gioBd10Di || null, maBcvh: u.maBcvh || null, nhomDich: u.nhom, nhom: kq.nhom, trangThai: kq.trangThai === undefined ? null : kq.trangThai,
-            gioXuatPhat: kq.chuyen ? kq.chuyen.gio_xuat_phat : null, ngayChuyen: kq.chuyen ? kq.chuyen.ngay : null, ketQuaChuyen: kq.chuyenKq || null, lyDo: kq.lyDo || null,
-            diTruocKhiDen: !!kq.diTruocKhiDen, datKhongDat: d ? d.trangThai : null, chiTieuGio: d ? d.chiTieuGio : null, thoiGianChoGiay: d ? d.thucGiay : null, tenPhuong
-          });
-        }
-        tong++;
+        if (opts.maBcvh && u.maBcvh !== opts.maBcvh) return;
+        if (opts.khop && !opts.khop(kq)) return;
+        cb(u, kq, tenPhuong);
       }
     }];
   });
-  return ra(tong, dong);
 }
 
-module.exports = { luuThoatTheoNgay, chuanHoaNgay, ghepKhoang, congCacNgay, danhSachLuuThoat, NHOM_LUU_THOAT, TRANG_TOI_DA, docDoMoi, gioChot };
+module.exports = { luuThoatTheoNgay, chuanHoaNgay, ghepKhoang, congCacNgay, danhSachLuuThoat, duyetLuuThoat, NHOM_LUU_THOAT, TRANG_TOI_DA, docDoMoi, gioChot };
