@@ -283,6 +283,8 @@ function dungDonShbg(dong, ctx) {
     gioBd10Di: diCuoi ? diCuoi.gioBd10Di : null, gioQuetDi: diCuoi ? diCuoi.gioQuetDi : null, tenPhuong: (dong.find((x) => x.tenPhuong) || { tenPhuong: null }).tenPhuong,
     diemGuiDen: den ? den.diemGuiDen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
     tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
+    // KTT-10b: chất lượng túi đến cho mốc «giờ quét túi đến» (chỉ để đếm, không dùng để chọn túi): số túi đến có giờ quét, có túi đi không, id túi đến gốc.
+    soTuiDen: new Set(denCoQuet.map((x) => x.tuiId)).size, coTuiDi: diRows.length > 0, tuiDenGocId: denGoc ? denGoc.tuiId : null,
     ngayDen: den ? ngayCuaGio(den.quetDen || den.xndBd10) : null,
     chuyen: null, nam: null, bac: null, namLau: null, f13: null, canKiemTraLai: false, cells: []
   };

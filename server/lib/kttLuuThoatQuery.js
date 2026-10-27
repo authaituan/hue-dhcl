@@ -41,7 +41,14 @@ function docTenPhuong(db) {
   return m;
 }
 
-const khoiRong = () => NG.ganKg(S.taoKhoi().ketQua(), NG.kgRong());
+const khoiRong = (mocChiTieu) => NG.ganKg(S.taoKhoi({ mocChiTieu }).ketQua(), NG.kgRong());
+
+/** KTT-10b: tham số mốc chỉ tiêu 14 giờ (`xnd` mặc định | `quet_tui_den`); thiếu -> mặc định; giá trị lạ -> LoiKtt tiếng Việt. */
+function chuanHoaMocChiTieu(m) {
+  if (m === undefined || m === null || m === '') return S.MOC_CHI_TIEU_MAC_DINH;
+  if (!S.hopLeMocChiTieu(m)) throw new Q.LoiKtt('KTT_MOC_SAI', `mocChiTieu phải là một trong: ${Object.values(S.MOC_CHI_TIEU).join(', ')}.`);
+  return m;
+}
 
 /** Giờ chốt ngày ('HH:MM') từ tham số ktt_gio_chot_ngay (KTT-8); lỗi / sai dạng -> '09:00' (không ném lỗi). */
 function gioChot() {
@@ -57,12 +64,13 @@ function gioChot() {
  */
 function luuThoatTheoNgay(db, opts = {}) {
   const k = chuanHoaNgay(opts);
+  const mocChiTieu = chuanHoaMocChiTieu(opts.mocChiTieu);
   const doMoi = docDoMoi(db);
   const bayGio = opts.bayGio !== undefined && opts.bayGio !== null ? opts.bayGio : (doMoi ? doMoi.nguon_xuat_luc : null);
-  const moc = { ...S.MOC };
+  const moc = { ...S.MOC, chi_tieu: S.NHAN_MOC_CHI_TIEU[mocChiTieu], chi_tieu_14h: { ...S.NHAN_MOC_CHI_TIEU, moc_mac_dinh: mocChiTieu } };
   const rong = (lyDo) => ({
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: lyDo, moc,
-    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, khoiRong()])), hang_hoan: khoiRong(), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, theo_nguon: [] })),
+    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, khoiRong(mocChiTieu)])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, theo_nguon: [] })),
     tong_cong: null, meta: { nguon_xuat_luc_moi_nhat: null, moc }, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.']
   });
   if (bayGio === null) return rong('CHUA_CO_DU_LIEU');
@@ -71,14 +79,14 @@ function luuThoatTheoNgay(db, opts = {}) {
   const gio_chot = gioChot();
   const tenPhuongTheoMa = docTenPhuong(db);
   const theoNgay = new Map(k.ngays.map((ngay) => [ngay, {
-    ngay, tong: S.taoKhoi(), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi()])), hoan: S.taoKhoi(),
+    ngay, tong: S.taoKhoi({ mocChiTieu }), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), hoan: S.taoKhoi({ mocChiTieu }),
     khongRo: 0, ngoai: {}, tuiKhongBuuGui: 0, tongShbg: 0,
     kgTong: NG.taoKg(), kgBcvh: new Map(BCVH.map((m) => [m, NG.taoKg()])), kgHoan: NG.taoKg(), nguon: NG.taoNguon() // KTT-8c: kg và nhóm theo nguồn (chỉ cộng thêm, không đụng taoKhoi)
   }]));
   const meta = { hang_hoan_tu_531120_dich_khac_thuan_hoa: 0, ngoai_pham_vi: {}, khong_ro_dich: 0, khong_co_gio_quet_den: 0, khong_xep_duoc_chuyen: {}, di_truoc_khi_den: 0, co_quet_di_chua_lap_bd10: 0, tui_khong_co_buu_gui: 0, shbg_thieu_khoi_luong: 0 };
 
   const { ctx } = Q.chayBoDem(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, boQuaCham: true }, (c) => {
-    const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio };
+    const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio, mocChiTieu };
     return [{
       tui(u) {
         if (u.chieu !== Q.CHIEU.DEN || !u.trongKhoangDen || !(u.nShbg === 0)) return;
@@ -157,11 +165,12 @@ function congKhoi(ds) {
       di_tu_d2_dung_chuyen: t((x) => x.chi_tiet_trang_thai_5.di_tu_d2_dung_chuyen), di_tu_d2_truot_chuyen: t((x) => x.chi_tiet_trang_thai_5.di_tu_d2_truot_chuyen), chua_di_lo_chuyen: t((x) => x.chi_tiet_trang_thai_5.chua_di_lo_chuyen)
     },
     dat_khong_dat: {
-      moc: S.MOC.chi_tieu, dat, khong_dat: khongDat, chua_di: t((x) => x.dat_khong_dat.chua_di), chua_do_duoc: t((x) => x.dat_khong_dat.chua_do_duoc), xnd_sau_gio_di: t((x) => x.dat_khong_dat.xnd_sau_gio_di),
+      moc: ds[0].dat_khong_dat.moc, dat, khong_dat: khongDat, chua_di: t((x) => x.dat_khong_dat.chua_di), chua_do_duoc: t((x) => x.dat_khong_dat.chua_do_duoc), xnd_sau_gio_di: t((x) => x.dat_khong_dat.xnd_sau_gio_di),
       ty_le_dat: ty(dat, dat + khongDat)
     },
     khong_phan_loai: { khong_co_gio_quet_den: t((x) => x.khong_phan_loai.khong_co_gio_quet_den), khong_xep_duoc_chuyen: khongXep },
-    di_truoc_khi_den: t((x) => x.di_truoc_khi_den)
+    di_truoc_khi_den: t((x) => x.di_truoc_khi_den),
+    chi_tieu_14h: S.congChiTieu14h(ds.map((x) => x.chi_tieu_14h))
   };
 }
 
