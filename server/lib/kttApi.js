@@ -234,36 +234,51 @@ async function tongHop(db, query, { now = Date.now() } = {}) {
 }
 
 const LOAI_CU = new Set(Q.LOAI_CHI_TIET);
+const NG = require('./kttNguon');
+
+/** `ma_bcvh` tùy chọn: một trong 6 BCVH Huế. Trả mã hoặc null. */
+function docMaBcvh(query) {
+  const ma = mot(query, 'ma_bcvh');
+  if (ma !== undefined && ma !== '' && !MA_BCVH_HUE.includes(ma)) throw new Q.LoiKtt('KTT_BCVH_SAI', 'Tham số "ma_bcvh" phải là một trong 6 BCVH Huế.');
+  return ma === undefined || ma === '' ? null : ma;
+}
+/** `nguon` tùy chọn (KTT-8c): mã nhóm nguồn (NOI_TINH, KHONG_RO_NGUON hoặc mã đường thư đến); kiểm bằng biểu thức chính quy, chỉ dùng để so sánh chuỗi. Trả mã hoặc null. */
+function docNguon(query) {
+  const v = mot(query, 'nguon');
+  if (v === undefined || v === '') return null;
+  if (!NG.RE_MA_NGUON.test(v)) throw new Q.LoiKtt('KTT_NGUON_SAI', 'Tham số "nguon" chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự.');
+  return v;
+}
 /** GET /api/ktt/chi-tiet?tu=&den=&loai=&ma_bcvh=&page=&page_size= — loai: loại của kttQuery.chiTiet HOẶC nhóm lưu thoát (QL.NHOM_LUU_THOAT). Phân trang như /api/arrivals/items (page, page_size ≤ 200). */
 async function chiTiet(db, query, { now = Date.now() } = {}) {
-  const k = docKhoang(query, ['loai', 'ma_bcvh', 'page', 'page_size']);
+  const k = docKhoang(query, ['loai', 'ma_bcvh', 'page', 'page_size', 'nguon']);
   const loai = mot(query, 'loai');
   const nhom = Object.prototype.hasOwnProperty.call(QL.NHOM_LUU_THOAT, loai) ? loai : null;
   if (loai === undefined || (!LOAI_CU.has(loai) && nhom === null)) throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "loai" phải thuộc: ${[...Q.LOAI_CHI_TIET, ...Object.keys(QL.NHOM_LUU_THOAT)].join(', ')}.`);
-  const ma = mot(query, 'ma_bcvh');
   const page = mot(query, 'page');
   const size = mot(query, 'page_size');
   const trang = page === undefined || page === '' ? 1 : Number(page);
   const kichThuocTrang = size === undefined || size === '' ? 50 : Number(size);
   if (!Number.isInteger(trang) || trang < 1) throw new Q.LoiKtt('KTT_TRANG_SAI', 'Tham số "page" phải là số nguyên ≥ 1.');
   if (!Number.isInteger(kichThuocTrang) || kichThuocTrang < 1 || kichThuocTrang > QL.TRANG_TOI_DA) throw new Q.LoiKtt('KTT_TRANG_SAI', `Tham số "page_size" phải là số nguyên 1..${QL.TRANG_TOI_DA}.`);
-  if (ma !== undefined && ma !== '' && !MA_BCVH_HUE.includes(ma)) throw new Q.LoiKtt('KTT_BCVH_SAI', 'Tham số "ma_bcvh" phải là một trong 6 BCVH Huế.');
-  const maBcvh = ma === undefined || ma === '' ? null : ma;
+  const maBcvh = docMaBcvh(query);
+  const nguon = docNguon(query);
+  if (nguon !== null && nhom === null) throw new Q.LoiKtt('KTT_NGUON_SAI', 'Tham số "nguon" chỉ dùng với các nhóm lưu thoát (t1…t5, ro_lai, truot_chuyen…).');
   const doMoi = QL.docDoMoi(db);
   const bayGio = doMoi ? doMoi.nguon_xuat_luc : `${k.denNgay} 00:00:00`;
   const tinh = async () => {
     dem.chiTietTinh++;
     const r = nhom
-      ? await chayNen(db, 'chiTietLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom, maBcvh, trang, kichThuocTrang, bayGio })
+      ? await chayNen(db, 'chiTietLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom, maBcvh, nguon, trang, kichThuocTrang, bayGio })
       : await chayNen(db, 'chiTietCu', { tuNgay: k.tuNgay, denNgay: k.denNgay, loai, maBcvh, trang, kichThuocTrang, bayGio });
     return {
       items: r.dong,
       pagination: { total: r.tong, page: trang, page_size: r.kichThuocTrang, total_pages: r.soTrang },
-      meta: { loai, ma_bcvh: maBcvh, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio) }
+      meta: { loai, ma_bcvh: maBcvh, nguon, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio) }
     };
   };
   if (!doMoi) return tinh();
-  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `${loai}|${maBcvh || ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
+  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `${loai}|${maBcvh || ''}|${nguon || ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
 }
 
 // ------------------------------------------
@@ -274,8 +289,10 @@ async function chiTiet(db, query, { now = Date.now() } = {}) {
  * Cột «đã chốt» lấy từ luuThoat() (CÙNG cache theo ngày với /luu-thoat); các dòng SHBG tính ở worker bằng CÙNG lượt duyệt với /chi-tiet. `nguoiXuat`, `now`: tên đăng nhập và đồng hồ (test).
  */
 async function xuatLuuThoat(db, query, { now = Date.now(), nguoiXuat = null } = {}) {
-  const k = docKhoang(query, ['trang_thai']);
+  const k = docKhoang(query, ['trang_thai', 'ma_bcvh', 'nguon']);
   const nhom = mot(query, 'trang_thai');
+  const maBcvh = docMaBcvh(query);
+  const nguon = docNguon(query);
   if (nhom !== undefined && nhom !== '' && !Object.prototype.hasOwnProperty.call(QL.NHOM_LUU_THOAT, nhom)) {
     throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "trang_thai" phải thuộc: ${Object.keys(QL.NHOM_LUU_THOAT).join(', ')}.`);
   }
@@ -284,15 +301,15 @@ async function xuatLuuThoat(db, query, { now = Date.now(), nguoiXuat = null } = 
   const tran = X.tranDong();
   const [luuThoatKq, r] = await Promise.all([
     luuThoat(db, { tu: k.tuNgay, den: k.denNgay }, { now }),
-    doMoi ? chayNen(db, 'xuatLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom: loc, bayGio: doMoi.nguon_xuat_luc, tranDong: tran }) : { tong: 0, vuotTran: false, dong: [] }
+    doMoi ? chayNen(db, 'xuatLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom: loc, maBcvh, nguon, bayGio: doMoi.nguon_xuat_luc, tranDong: tran }) : { tong: 0, vuotTran: false, dong: [] }
   ]);
   if (r.vuotTran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${r.tong} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc thêm bộ lọc "trang_thai".`);
   const lich = L.docLichChuyen(db);
   const thongTin = X.dongThongTin({
-    tu: k.tuNgay, den: k.denNgay, nhom: loc, luuThoat: luuThoatKq, soDong: r.dong.length, nguoiXuat, xuatLuc: X.gioVietNam(now),
+    tu: k.tuNgay, den: k.denNgay, nhom: loc, maBcvh, nguon, luuThoat: luuThoatKq, soDong: r.dong.length, nguoiXuat, xuatLuc: X.gioVietNam(now),
     hanPhut: lich.hanDenTruocChuyenPhut, gioChot: QL.gioChot()
   });
-  return { tenFile: X.tenFile(k.tuNgay, k.denNgay), thongTin, dong: r.dong, tong: r.dong.length, khoang: k, nhom: loc };
+  return { tenFile: X.tenFile(k.tuNgay, k.denNgay), thongTin, dong: r.dong, tong: r.dong.length, khoang: k, nhom: loc, maBcvh, nguon };
 }
 
 // ------------------------------------------

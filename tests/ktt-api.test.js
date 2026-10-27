@@ -453,7 +453,9 @@ test('chi-tiet: mọi nhóm lưu thoát có tổng KHỚP số của luu-thoat (
 test('chi-tiet: không rò thông tin cá nhân — chỉ các trường nghiệp vụ (SHBG, số hiệu BD, giờ, BCVH, nhãn); không tên người / biển số / lái xe / tài khoản', async () => {
   duLieu();
   const c = (await goi(`/api/ktt/chi-tiet${Q20}&loai=t1`, 'admin')).body;
-  const cho = new Set(['shbg', 'soHieuBd8', 'bd10Den', 'bd10Di', 'ngayDen', 'quetDen', 'xndBd10', 'gioLapBd10Di', 'maBcvh', 'nhomDich', 'nhom', 'trangThai', 'gioXuatPhat', 'ngayChuyen', 'ketQuaChuyen', 'lyDo', 'diTruocKhiDen', 'datKhongDat', 'chiTieuGio', 'thoiGianChoGiay', 'tenPhuong']);
+  const cho = new Set(['shbg', 'soHieuBd8', 'bd10Den', 'bd10Di', 'ngayDen', 'quetDen', 'xndBd10', 'gioLapBd10Di', 'maBcvh', 'nhomDich', 'nhom', 'trangThai', 'gioXuatPhat', 'ngayChuyen', 'ketQuaChuyen', 'lyDo', 'diTruocKhiDen', 'datKhongDat', 'chiTieuGio', 'thoiGianChoGiay', 'tenPhuong',
+    // KTT-8c: 17 trường snake_case của sheet 7
+    'duong_thu_den_ma', 'duong_thu_den_ten', 'gio_quet_tui_den', 'gio_xac_nhan_bd10_den', 'kg', 'ma_bcvh', 'ten_bcvh', 'chuyen_lien_ke', 'gio_xuat_phat', 'han_den_muon_nhat', 'gio_lap_bd10_di', 'gio_cho_gio', 'dat_khong_dat', 'phan_loai', 'trang_thai', 'ngay_luu_thoat']);
   assert.ok(c.items.length > 0);
   for (const it of c.items) for (const k of Object.keys(it)) assert.ok(cho.has(k), `trường lạ: ${k}`);
   assert.ok(!/lai_xe|bien_so|nguoi|user|password|hrm/i.test(JSON.stringify(c)));

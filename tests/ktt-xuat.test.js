@@ -243,7 +243,7 @@ test('bộ lọc trang_thai: chỉ ra đúng nhóm đó, số dòng = tổng c�
     assert.deepEqual(dong.map((d) => d.shbg).sort(), ct.items.map((i) => i.shbg).sort(), nhom);
     assert.equal(X.soShbgTheoLuuThoat((await goi(`/api/ktt/luu-thoat${Q20}`, 'admin')).body, nhom), dong.length, `${nhom}: khớp luu-thoat`);
     assert.equal(thongTin(wb).get('Số dòng kiểm tra'), dong.length, nhom);
-    assert.match(thongTin(wb).get('Cửa sổ'), new RegExp(`Bộ lọc trạng thái: ${nhom}\\.`), nhom);
+    assert.match(thongTin(wb).get('Cửa sổ'), new RegExp(`Bộ lọc trạng thái: ${nhom};.`), nhom);
   }
   const t1 = dongSheet7(await docFile(await goi(`${U}${Q20}&trang_thai=t1`, 'admin')));
   assert.ok(t1.length >= 1 && t1.every((d) => /^1 –/.test(d.trang_thai)));

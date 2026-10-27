@@ -11,7 +11,6 @@
 const ExcelJS = require('exceljs');
 const QL = require('./kttLuuThoatQuery');
 const S = require('./kttLuuThoat');
-const { DIA_BAN_PHAT_MAC_DINH } = require('./kttSchema');
 
 const TEN_SHEET_THONG_TIN = 'Thông tin';
 const TEN_SHEET_7 = '7 Hàng rớt lại';
@@ -21,7 +20,6 @@ const CELL_MAX_CHARS = 32767;
 const STRIP_XML_CTRL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g;
 const RE_GIO = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/;
 const FMT_GIO = 'dd/mm/yyyy hh:mm:ss';
-const TEN_BCVH = new Map(DIA_BAN_PHAT_MAC_DINH.map(([ma, ten]) => [ma, ten]));
 
 /** Trần số dòng sheet 7; biến môi trường KTT_XUAT_TRAN_DONG chỉ để test. */
 function tranDong() {
@@ -32,7 +30,12 @@ function tranDong() {
 // ------------------------------------------
 // Cột sheet 7 (thứ tự cố định)
 // ------------------------------------------
-const COT_SHEET7 = Object.freeze([
+const API_KHOA = Object.freeze({
+  shbg: 'shbg', duong_thu_ten: 'duong_thu_den_ten', duong_thu_ma: 'duong_thu_den_ma', gio_quet_tui_den: 'gio_quet_tui_den', confirm_date: 'gio_xac_nhan_bd10_den', kl_kg: 'kg',
+  bcvh_ma: 'ma_bcvh', bcvh_ten: 'ten_bcvh', chuyen: 'chuyen_lien_ke', gio_xuat_phat: 'gio_xuat_phat', han_den: 'han_den_muon_nhat', gio_lap_bd10_di: 'gio_lap_bd10_di',
+  gio_cho: 'gio_cho_gio', dat: 'dat_khong_dat', nhom: 'phan_loai', trang_thai: 'trang_thai', ngay_d: 'ngay_luu_thoat'
+}); // khoa cột sheet -> tên trường của kttDong.dongChiTiet / chi-tiet
+const COT_GOC = ([
   { khoa: 'shbg', tieuDe: 'SHBG', rong: 22, loai: 'chu' },
   { khoa: 'duong_thu_ten', tieuDe: 'Đường thư đến (tên)', rong: 30, loai: 'chu' },
   { khoa: 'duong_thu_ma', tieuDe: 'Đường thư đến (mã)', rong: 16, loai: 'chu' },
@@ -51,61 +54,16 @@ const COT_SHEET7 = Object.freeze([
   { khoa: 'trang_thai', tieuDe: 'Trạng thái (1–5)', rong: 40, loai: 'chu' },
   { khoa: 'ngay_d', tieuDe: 'Ngày lưu thoát (ngày D)', rong: 16, loai: 'chu' }
 ]);
+const COT_SHEET7 = Object.freeze(COT_GOC.map((c) => Object.freeze({ ...c, api: API_KHOA[c.khoa] })));
 const VI_TRI = Object.freeze(Object.fromEntries(COT_SHEET7.map((c, i) => [c.khoa, i])));
 
-const NHAN_TRANG_THAI = Object.freeze({
-  T1: '1 – Đi trong ngày, đúng chuyến', T2: '2 – Đi trong ngày, trượt chuyến',
-  T3: '3 – Đi hôm sau, đúng chuyến', T4: '4 – Đi hôm sau, trượt chuyến',
-  T5: '5 – Từ 2 ngày hoặc chưa đi', DANG_CHO_CHUYEN: 'Đang chờ chuyến (chưa đến giờ xe rời KTT)'
-});
-const NHAN_LY_DO = Object.freeze({
-  KHONG_CO_LICH: 'không có chuyến trong lịch', THIEU_GIO_DEN: 'thiếu giờ quét đến', GIO_DEN_SAI: 'giờ quét đến sai', KHONG_PHAI_BCVH_HUE: 'không phải BCVH Huế',
-  GIO_BD10_SAI: 'giờ lập BD10 đi sai', CHUYEN_SAI: 'chuyến sai'
-});
-const NHAN_DAT = Object.freeze({
-  [S.DAT.DAT]: 'Đạt', [S.DAT.KHONG_DAT]: 'Không đạt', [S.DAT.CHUA_DI]: 'Chưa đi (chưa quá chỉ tiêu)',
-  [S.DAT.CHUA_DO_DUOC]: 'Chưa đo được (chưa có xác nhận đến)', [S.DAT.XND_SAU_GIO_DI]: 'Xác nhận đến sau giờ lập BD10 đi'
-});
-const LOAI_TRU = 'Loại trừ';
-const KHONG_TINH = 'Không tính';
+const D = require('./kttDong');
+const { LOAI_TRU, KHONG_TINH, dd } = D;
 
-function nhanNhom(kq, loaiDich) {
-  switch (kq.nhom) {
-    case S.NHOM.HANG_HOAN: return 'Hàng hoàn Tổ KHHH';
-    case S.NHOM.KHONG_RO_DICH: return 'Đích không rõ';
-    case S.NHOM.NGOAI_PHAM_VI: return `Ngoài phạm vi (${loaiDich || 'khác'})`;
-    case S.NHOM.KHONG_CO_GIO_QUET_DEN: return 'Thiếu giờ quét túi đến';
-    case S.NHOM.KHONG_XEP_DUOC_CHUYEN: return `Không xếp được chuyến (${NHAN_LY_DO[kq.lyDo] || kq.lyDo || 'không rõ lý do'})`;
-    default: return kq.trangThai === S.TRANG_THAI.DANG_CHO_CHUYEN ? 'Đang chờ chuyến' : 'Đã phân loại 5 trạng thái';
-  }
-}
-
-const dd = (ngay) => `${ngay.slice(8, 10)}/${ngay.slice(5, 7)}/${ngay.slice(0, 4)}`;
-
-/** Một SHBG (u của kttQuery, kq của phanLoaiShbg) -> mảng ô theo COT_SHEET7. Chuỗi giờ giữ nguyên (đổi sang ô ngày giờ ở ghiXlsx). Thiếu dữ liệu -> null (ô trống). */
+/** Một SHBG (u của kttQuery, kq của phanLoaiShbg) -> mảng ô theo COT_SHEET7 (cùng 17 trường với chi-tiet, kttDong.dongChiTiet). Chuỗi giờ giữ nguyên (đổi sang ô ngày giờ ở ghiXlsx). */
 function dongSheet7(u, kq) {
-  const d = kq.datKhongDat || null;
-  const ch = kq.chuyen || null;
-  const v = new Array(COT_SHEET7.length).fill(null);
-  v[VI_TRI.shbg] = u.shbg;
-  v[VI_TRI.duong_thu_ten] = u.duongThuDenTen || null;
-  v[VI_TRI.duong_thu_ma] = u.duongThuDenMa || null;
-  v[VI_TRI.gio_quet_tui_den] = u.quetDen || null;
-  v[VI_TRI.confirm_date] = u.xndBd10 || null;
-  v[VI_TRI.kl_kg] = typeof u.gam === 'number' && Number.isFinite(u.gam) ? u.gam / 1000 : null;
-  v[VI_TRI.bcvh_ma] = u.maBcvh || null;
-  v[VI_TRI.bcvh_ten] = u.maBcvh ? (TEN_BCVH.get(u.maBcvh) || null) : null;
-  v[VI_TRI.chuyen] = ch ? `${TEN_BCVH.get(ch.ma_bcvh) || ch.ma_bcvh} ${ch.gio_xuat_phat} (${dd(ch.ngay)})` : null;
-  v[VI_TRI.gio_xuat_phat] = ch ? ch.xuat_phat_luc : null;
-  v[VI_TRI.han_den] = ch ? ch.han_den_luc : null;
-  v[VI_TRI.gio_lap_bd10_di] = u.gioBd10Di || null;
-  v[VI_TRI.gio_cho] = d && typeof d.thucGiay === 'number' ? d.thucGiay / 3600 : null;
-  // Hàng hoàn: «Loại trừ». Không phân loại được (thiếu giờ quét đến / không xếp được chuyến): «Không tính» (không vào tổng đạt / không đạt của luu-thoat).
-  v[VI_TRI.dat] = kq.nhom === S.NHOM.HANG_HOAN ? LOAI_TRU : (d ? (kq.trangThai ? NHAN_DAT[d.trangThai] || d.trangThai : KHONG_TINH) : null);
-  v[VI_TRI.nhom] = nhanNhom(kq, u.nhom);
-  v[VI_TRI.trang_thai] = kq.trangThai ? NHAN_TRANG_THAI[kq.trangThai] : null;
-  v[VI_TRI.ngay_d] = u.ngayDen || null;
-  return v;
+  const o = D.dongChiTiet(u, kq);
+  return COT_SHEET7.map((c) => o[c.api]);
 }
 
 /**
@@ -117,7 +75,7 @@ function xuatLuuThoat(db, opts) {
   const tran = opts.tranDong || tranDong();
   const dong = [];
   let tong = 0;
-  QL.duyetLuuThoat(db, { tuNgay: opts.tuNgay, denNgay: opts.denNgay, bayGio: opts.bayGio, khop }, (u, kq) => {
+  QL.duyetLuuThoat(db, { tuNgay: opts.tuNgay, denNgay: opts.denNgay, bayGio: opts.bayGio, maBcvh: opts.maBcvh || null, nguon: opts.nguon || null, khop }, (u, kq) => {
     tong++;
     if (dong.length < tran) dong.push(dongSheet7(u, kq));
   });
@@ -126,31 +84,52 @@ function xuatLuuThoat(db, opts) {
   return { tong, vuotTran: tong > tran, dong };
 }
 
-/** Số SHBG của nhóm `nhom` (null = tất cả) theo kết quả luu-thoat (tong_cong) — con số mà màn hình Lưu thoát hiển thị, để đối chiếu với số dòng sheet 7. */
-function soShbgTheoLuuThoat(luuThoat, nhom) {
+/**
+ * Số SHBG mà màn hình Lưu thoát (kết quả /luu-thoat của cùng khoảng) cho ra ứng với bộ lọc { nhom, maBcvh, nguon } — để đối chiếu với số dòng sheet 7.
+ * Trả null khi màn hình KHÔNG có con số tương ứng (ví dụ lọc theo nguồn mà không chọn trạng thái: nhóm nguồn chỉ gồm SHBG đã phân loại; lọc theo BCVH + nhóm `khong_ro_dich`…).
+ */
+function soKhop(luuThoat, { nhom = null, maBcvh = null, nguon = null } = {}) {
   const tongCong = luuThoat && luuThoat.tong_cong;
   if (!tongCong) return 0;
-  // tong_cong.khong_phan_loai chỉ có «không rõ đích» và «ngoài phạm vi»; hai nhóm còn lại cộng từ khối tổng của từng ngày.
-  const tongNgay = (f) => luuThoat.theo_ngay.reduce((s, n) => s + f(n.tong.khong_phan_loai), 0);
-  const tt = tongCong.trang_thai;
-  const dk = tongCong.dat_khong_dat;
   const tongMap = (o) => Object.values(o || {}).reduce((a, x) => a + x, 0);
-  if (!nhom) return tongCong.tong_shbg_ngay;
+  const tongNgay = (f) => luuThoat.theo_ngay.reduce((s, n) => s + f(n.tong.khong_phan_loai), 0);
+  if (nguon) {
+    const g = (tongCong.theo_nguon || []).find((x) => x.ma === nguon);
+    const b = g && maBcvh ? (g.theo_bcvh[maBcvh] || { shbg: 0, ro_lai: 0, truot_chuyen: 0, khong_dat: 0 }) : null;
+    if (!g) return nhom && ['t1', 't2', 't3', 't4', 't5', 'dang_cho_chuyen', 'ro_lai', 'truot_chuyen', 'dat', 'khong_dat'].includes(nhom) ? 0 : null;
+    switch (nhom) {
+      case 't1': case 't2': case 't3': case 't4': case 't5': case 'dang_cho_chuyen': return maBcvh ? null : g.trang_thai[nhom].shbg;
+      case 'ro_lai': return maBcvh ? b.ro_lai : g.ro_lai;
+      case 'truot_chuyen': return maBcvh ? b.truot_chuyen : g.truot_chuyen;
+      case 'khong_dat': return maBcvh ? b.khong_dat : g.dat_khong_dat.khong_dat;
+      case 'dat': return maBcvh ? null : g.dat_khong_dat.dat;
+      default: return null;
+    }
+  }
+  const khoi = maBcvh ? tongCong.theo_bcvh[maBcvh] : tongCong;
+  const hoan = !maBcvh || maBcvh === S.MA_THUAN_HOA ? tongCong.hang_hoan.tong_shbg : 0;
+  const dk = khoi.dat_khong_dat;
+  const kpl = khoi.khong_phan_loai || {};
+  if (!nhom) return maBcvh ? khoi.tong_shbg + hoan : tongCong.tong_shbg_ngay;
   switch (nhom) {
-    case 't1': case 't2': case 't3': case 't4': case 't5': case 'dang_cho_chuyen': return tt[nhom].shbg;
-    case 'hang_hoan': return tongCong.hang_hoan.tong_shbg;
+    case 't1': case 't2': case 't3': case 't4': case 't5': case 'dang_cho_chuyen': return khoi.trang_thai[nhom].shbg;
+    case 'ro_lai': return khoi.trang_thai.t3.shbg + khoi.trang_thai.t4.shbg + khoi.trang_thai.t5.shbg;
+    case 'truot_chuyen': return khoi.dung_chuyen.truot_chuyen + khoi.dung_chuyen.lo_chuyen;
+    case 'hang_hoan': return hoan;
     case 'dat': return dk.dat;
     case 'khong_dat': return dk.khong_dat;
     case 'chua_di': return dk.chua_di;
     case 'chua_do_duoc': return dk.chua_do_duoc;
     case 'xnd_sau_gio_di': return dk.xnd_sau_gio_di;
-    case 'khong_ro_dich': return tongCong.khong_phan_loai.khong_ro_dich;
-    case 'ngoai_pham_vi': return tongMap(tongCong.khong_phan_loai.ngoai_pham_vi);
-    case 'khong_co_gio_quet_den': return tongNgay((k) => k.khong_co_gio_quet_den);
-    case 'khong_xep_duoc_chuyen': return tongNgay((k) => tongMap(k.khong_xep_duoc_chuyen));
+    case 'khong_ro_dich': return maBcvh ? null : tongCong.khong_phan_loai.khong_ro_dich;
+    case 'ngoai_pham_vi': return maBcvh ? null : tongMap(tongCong.khong_phan_loai.ngoai_pham_vi);
+    case 'khong_co_gio_quet_den': return maBcvh ? kpl.khong_co_gio_quet_den : tongNgay((k) => k.khong_co_gio_quet_den);
+    case 'khong_xep_duoc_chuyen': return maBcvh ? tongMap(kpl.khong_xep_duoc_chuyen) : tongNgay((k) => tongMap(k.khong_xep_duoc_chuyen));
     default: return 0;
   }
 }
+/** Tương thích KTT-8b: chỉ lọc theo nhóm. */
+const soShbgTheoLuuThoat = (luuThoat, nhom) => soKhop(luuThoat, { nhom: nhom || null }) ?? 0;
 
 // ------------------------------------------
 // Sheet «Thông tin»
@@ -166,10 +145,10 @@ function dongThongTin(ctx) {
   const nguon = lt.nguon_xuat_luc_moi_nhat;
   const ngay = lt.theo_ngay.map((x) => `${dd(x.ngay)}: ${x.da_chot ? 'đã chốt' : 'số tạm'}`);
   const tatCaChot = lt.theo_ngay.length > 0 && lt.theo_ngay.every((x) => x.da_chot);
-  const soManHinh = soShbgTheoLuuThoat(lt, ctx.nhom);
+  const soManHinh = soKhop(lt, { nhom: ctx.nhom, maBcvh: ctx.maBcvh, nguon: ctx.nguon });
   const han = ctx.hanPhut;
   return [
-    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (theo ngày D = ngày của giờ quét túi đến KTT). Bộ lọc trạng thái: ${ctx.nhom ? ctx.nhom : 'không (tất cả)'}.`],
+    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (theo ngày D = ngày của giờ quét túi đến KTT). Bộ lọc trạng thái: ${ctx.nhom ? ctx.nhom : 'không (tất cả)'}; BCVH: ${ctx.maBcvh ? ctx.maBcvh : 'không (tất cả)'}; nguồn: ${ctx.nguon ? ctx.nguon : 'không (tất cả)'}.`],
     ['Dữ liệu đến', nguon ? `Dữ liệu nguồn xuất lúc ${nguon} (giờ Việt Nam).` : 'Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào).'],
     ['Chốt số theo ngày', ngay.join('; ') || '(không có ngày)'],
     ['Ngày xuất, người xuất', `${ctx.xuatLuc} (giờ Việt Nam); tài khoản: ${ctx.nguoiXuat || '(không rõ)'}.`],
@@ -182,7 +161,7 @@ function dongThongTin(ctx) {
     ['Định nghĩa: hai mốc giờ đến', 'Giờ quét túi đến KTT dùng xếp chuyến và tính lưu thoát; giờ xác nhận BD10 đến (ConfirmDate) dùng tính đạt / không đạt chỉ tiêu (bỏ khung 21:00–07:00).'],
     ['Đơn vị', 'Mỗi dòng sheet «7 Hàng rớt lại» là một SHBG (số hiệu bưu gửi); khối lượng tính bằng kg.'],
     ['Số dòng kiểm tra', ctx.soDong],
-    ['Đối chiếu với màn hình Lưu thoát', `Màn hình Lưu thoát cùng khoảng ngày và bộ lọc có ${soManHinh} SHBG${ctx.soDong === soManHinh ? ': khớp số dòng sheet «7 Hàng rớt lại».' : ': KHÔNG khớp số dòng sheet «7 Hàng rớt lại» (số liệu đang được cập nhật, hãy xuất lại).'}`]
+    ['Đối chiếu với màn hình Lưu thoát', soManHinh === null ? 'Màn hình Lưu thoát không có số tương ứng với bộ lọc này (bộ lọc theo nguồn / BCVH kết hợp với trạng thái chưa có ô riêng): không đối chiếu được.' : `Màn hình Lưu thoát cùng khoảng ngày và bộ lọc có ${soManHinh} SHBG${ctx.soDong === soManHinh ? ': khớp số dòng sheet «7 Hàng rớt lại».' : ': KHÔNG khớp số dòng sheet «7 Hàng rớt lại» (số liệu đang được cập nhật, hãy xuất lại).'}`]
   ];
 }
 
@@ -277,5 +256,5 @@ const tenFile = (tu, den) => `KTT_LuuThoat_${tu}_${den}.xlsx`;
 
 module.exports = {
   TEN_SHEET_THONG_TIN, TEN_SHEET_7, COT_SHEET7, XLSX_MIME, TRAN_DONG_MAC_DINH, FMT_GIO,
-  tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, dongThongTin, gioVietNam, ghiXlsx, tenFile, vanBan, oGio
+  tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, soKhop, dongThongTin, gioVietNam, ghiXlsx, tenFile, vanBan, oGio
 };
