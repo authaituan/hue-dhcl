@@ -45,3 +45,39 @@ Trả `{ lich, nguong, canhBao }`; `lich[maBcvh]` = mảng `{ ten, gioMoc, chotT
 - `CHUA_MO_TUI` xét mọi túi chiều `DEN` theo chỉ đạo của PO (đã bỏ hằng `LUONG_CAN_MO_TUI`).
 - `phanNhomDich` chưa dùng `chieu` và `maNhanTui`; chưa có bảng địa bàn phát (phường/xã → BCVH), ticket sau.
 - Nhãn bổ sung ngoài ticket: `THIEU_BAY_GIO`, `lyDo`, `chuyenSatGio`, `gioDiTruocQuetDen`, `tuoiGiay`.
+
+## 6. KTT-10b — chỉ tiêu «đạt 14 giờ» đo SONG SONG hai mốc (`kttLuuThoat.js`)
+
+> Bối cảnh (PO chốt 27/10/2026, từ đối chiếu độc lập KTT-10): chỉ tiêu chỉ đo được trên MỘT PHẦN mẫu số, nên tỷ lệ tính trên phần đo được KHÔNG phải tỷ lệ chung. PO chưa chọn một mốc để công bố; hai mốc được đo song song. Tài liệu này không có số đo thật (số thật do PO giữ ngoài repo).
+
+**Hai mốc.** Cả hai đều KẾT THÚC ở giờ lập BD10 đi (`bd10_di_gio_di`), trừ khung đêm 21:00–07:00, chỉ tiêu 14 giờ (12 giờ cho phường «Thuận Hóa» / «Phú Xuân» của BCVH Thuận Hóa), cùng lõi `tinhTuMoc` (`danhGiaChiTieu` cũ chính là mốc A):
+
+| Tham số `mocChiTieu` | Mốc bắt đầu | Nhãn `moc` |
+|---|---|---|
+| `xnd` (MẶC ĐỊNH) — mốc A | `bd10_den_xnd` (ConfirmDate) | `bd10_den_xnd -> bd10_di_gio_di` |
+| `quet_tui_den` — mốc B | `gio_quet_tui_den` của túi đến ghép | `gio_quet_tui_den -> bd10_di_gio_di` |
+
+**Phân loại theo mốc** (`ketQuaTheoMoc`; thứ tự ưu tiên từ trên xuống):
+
+| Nhãn | Điều kiện | Đo được? |
+|---|---|---|
+| `THIEU_MOC` | mốc bắt đầu vắng / không đọc được (kể cả khi chưa đi) | không |
+| `MOC_SAU_GIO_DI` | đã có giờ lập BD10 đi mà mốc bắt đầu SAU giờ đi (kết quả âm, không làm tròn về 0) | không |
+| `CHUA_DI` | chưa có giờ lập BD10 đi. Kể cả khi tới `bayGio` đã quá chỉ tiêu (ghi riêng `chua_di_da_qua_chi_tieu`) | không |
+| `DAT` | đã đi, chờ ≤ chỉ tiêu (biên 14:00:00 đạt, 14:00:01 không đạt) | có |
+| `KHONG_DAT` | đã đi, chờ > chỉ tiêu | có |
+
+**Khác khối `dat_khong_dat` cũ:** khối cũ tính SHBG chưa đi mà đã quá chỉ tiêu là `khong_dat`; khối mới xếp chúng vào «không đo được — chưa đi» (đúng định nghĩa phần không đo được của KTT-10). Đối chiếu có test: `dat_khong_dat.khong_dat = chi_tieu_14h.xnd.khong_dat + chua_di_da_qua_chi_tieu`, `chua_do_duoc = thieu_moc`, `xnd_sau_gio_di = moc_sau_gio_di`, `dat` bằng nhau.
+
+**Mẫu số** = SHBG đã phân loại vào năm trạng thái (+ «đang chờ chuyến»), cùng phạm vi với `dat_khong_dat`: KHÔNG gồm hàng hoàn Tổ KHHH (khối `hang_hoan` có `chi_tieu_14h` riêng chỉ để xem), đích không rõ, ngoài phạm vi, thiếu giờ quét đến, không xếp được chuyến.
+
+**Quy tắc chọn túi đến cho mốc B (KTT-10b).** Dùng **túi đến GHÉP** = túi đến có giờ quét muộn nhất KHÔNG sau giờ lập BD10 đi cuối (không túi nào thỏa thì túi quét muộn nhất) — đúng quy tắc KTT-5/KTT-7b đang dùng để xếp chuyến và xác định ngày đến D (không đặt quy tắc mới; chi tiết ở `41_KTT_LUU_THOAT.md` mục 3). Hệ quả: SHBG có từ 2 túi đến trở lên đo từ lần đến dẫn tới lần đi cuối, KHÔNG đo từ lần đến đầu tiên (túi đến GỐC, dùng riêng để nhận diện hàng hoàn). Khi mọi túi đến đều quét SAU giờ đi thì mốc B là `MOC_SAU_GIO_DI` («đi trước khi đến»). Túi đến ghép khác gốc cũng đi qua cùng quy tắc; không dùng thêm quy tắc nào cho «túi đến ghép khác túi đến gốc».
+Số bị ảnh hưởng bởi quy tắc chọn được đếm sẵn ở `chi_tieu_14h.chat_luong_tui_den` (đếm trên SHBG đã phân loại): `nhieu_tui_den` (từ 2 túi đến có giờ quét trở lên), `tui_den_ghep_khac_goc` (túi ghép khác túi gốc theo id), `khac_ket_qua_neu_dung_tui_goc` (số SHBG có kết quả mốc B KHÁC nếu lấy túi gốc thay túi ghép — để PO biết chọn túi nào có ảnh hưởng thật), `khong_co_tui_di` (SHBG không có dòng túi đi nào → luôn «chưa đi»). Số liệu thật do PO đo.
+
+**Mốc là tham số.** `luuThoatTheoNgay(db, { …, mocChiTieu })` (`xnd` | `quet_tui_den`; thiếu → `xnd`; giá trị lạ → `LoiKtt` mã `KTT_MOC_SAI`): chọn mốc nuôi khối `dat_khong_dat` (và `meta.moc.chi_tieu`, `chi_tieu_14h.moc_mac_dinh`); đổi tham số KHÔNG đổi `chi_tieu_14h.theo_moc` (luôn đủ hai mốc, có test). Mặc định `xnd` ⇒ mọi số đang hiển thị (`dat_khong_dat`, năm trạng thái, đúng chuyến, hàng hoàn…) giữ nguyên. Hằng số mặc định: `MOC_CHI_TIEU_MAC_DINH` ở `kttLuuThoat.js`. **Chưa nối vào API / giao diện / xlsx** (cache theo ngày và chi-tiet vẫn dùng mặc định `xnd`); ticket đổi mốc mặc định cần nối tham số này vào `tham_so` hoặc query và xem lại nhãn chữ «Xác nhận đến sau giờ lập BD10 đi» của cột 14 xlsx cho mốc B.
+
+**Không công bố tỷ lệ chung.** Mỗi mốc trả `do_duoc` (x), `mau_so` (y), `dat`, `khong_dat`, `ty_le_dat_tren_do_duoc` (CHỈ trên phần đo được; `null` khi `do_duoc = 0`), và `khong_do_duoc { tong, thieu_moc, moc_sau_gio_di, chua_di }`; thêm `do_duoc_khong_do_duoc_o_moc_kia` (đo được ở mốc này mà không đo được ở mốc kia) và `do_duoc_ca_hai_moc`. Mọi nơi hiển thị phải ghi «đo được x/y» cạnh tỷ lệ.
+
+**Đã chốt (PO 27/10/2026):** đo được = «đã đi» — SHBG chưa đi LUÔN là không đo được ở cả hai mốc, kể cả khi đã quá chỉ tiêu (đúng định nghĩa KTT-10). Số mốc A có thể lệch khối `dat_khong_dat` cũ đúng bằng `chua_di_da_qua_chi_tieu`.
+
+**Điều chưa chắc (cần PO):** (1) xem mục «Đã chốt» ở trên (không còn mở). (2) Mốc A phải tái hiện số tham chiếu KTT-10 trên bộ đối chiếu của PO (script `doi-chieu-doc-lap.js` ở `D:\Dev\ktt-thu-tools`, không có trong repo) — Dev AI chưa chạy được.

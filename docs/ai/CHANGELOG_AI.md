@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-27] - KTT-10b: chỉ tiêu «đạt 14 giờ» đo SONG SONG hai mốc (XNĐ và giờ quét túi đến) + script kiểm đợt nạp 18/10, 20/10
+
+- **Khảo sát (5.1):** chỗ tính là `danhGiaChiTieu` (`server/lib/kttLuuThoat.js`), cộng ở `taoKhoi`, ghép ngày ở `congKhoi` (`kttLuuThoatQuery.js`); khớp mô tả (XNĐ → giờ lập BD10 đi; ba nhóm không đo được = `CHUA_DO_DUOC`, `XND_SAU_GIO_DI`, `CHUA_DI`). `kttQuery.chiTieuF13` là chỉ tiêu F1.3 khác (KTT-4), không đụng.
+- **Sửa (chỉ thêm):** `kttLuuThoat.js` (lõi `tinhTuMoc` dùng chung, `ketQuaTheoMoc`, `phanLoaiShbg` trả `chiTieu14h` + `chatLuongTuiDen`, `taoKhoi({ mocChiTieu })` thêm khối `chi_tieu_14h`, `congChiTieu14h`), `kttLuuThoatQuery.js` (tham số `mocChiTieu`, mặc định `xnd`; lỗi `KTT_MOC_SAI`; `congKhoi` cộng khối mới), `kttQuery.js` (đơn vị SHBG thêm `soTuiDen`, `coTuiDi`, `tuiDenGocId`). Khối `dat_khong_dat` cũ, năm trạng thái, đúng chuyến, hàng hoàn: không đổi.
+- **Mới:** `scripts/ktt-kiem-dot-nap.js` (5.4: CHỈ ĐỌC — mở DB `readonly`, từ chối cờ ghi và DB thật `data/hue-dhcl.db`, không in SHBG / số hiệu BD10; in nhật ký nạp cặp + từng file, số dòng theo ngày và theo giờ, giờ nguồn xuất, so với cùng thứ tuần trước / ngày trước / sau); `tests/ktt-chi-tieu-hai-moc.test.js` (15 ca, thêm vào `package.json`).
+- **Quy tắc chọn túi đến cho mốc B:** túi đến GHÉP (như xếp chuyến, KTT-5); đếm sẵn số SHBG nhiều túi đến / ghép khác gốc / kết quả khác nếu dùng túi gốc / không có túi đi. Xem `37` mục 6.
+- **Khác biệt đã được PO chốt (27/10):** ở khối mới, SHBG chưa đi LUÔN là «không đo được» (kể cả đã quá chỉ tiêu, ghi ở `chua_di_da_qua_chi_tieu`), còn `dat_khong_dat` cũ tính chúng là `khong_dat`.
+- **Chưa làm / ngoài phạm vi:** nối tham số mốc vào API / giao diện / xlsx; không chạy được bộ đối chiếu số thật KTT-10 (`doi-chieu-doc-lap.js`, PO giữ); không chạy script kiểm trên DB thật. Không commit (PO commit).
+- **Tài liệu:** `37` mục 6, `41` mục 12, `42` mục 12, `00_SNAPSHOT.md`, `PROJECT_SNAPSHOT.md`.
+
 ## [2026-10-27] - KTT-8c: kg, nhóm theo nguồn, chi-tiet đủ 17 cột, lọc `ma_bcvh` / `nguon`
 
 - **Mới** `server/lib/kttNguon.js` (kg, `nguonCua`, bộ cộng `theo_nguon`, cộng nhiều ngày) và `server/lib/kttDong.js` (17 trường một dòng Lưu thoát; tách từ `kttXuat.js`, dùng chung chi-tiet + xlsx).
