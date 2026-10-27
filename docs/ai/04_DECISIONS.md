@@ -837,5 +837,10 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 1. `ktt_cu_gio` = **10** giờ (không phải 8 như ticket KTT-6): với lịch xuất 09:00 / 15:00 và khung 07:00–22:00, khoảng cách tối đa là 9 giờ; ngưỡng 8 sẽ báo sớm mỗi sáng. Chỉnh được ở «Tham số hệ thống» (nhóm «Nạp dữ liệu Hàng tại KTT»).
 2. Giờ chốt số liệu một ngày (`ktt_gio_chot_ngay`, mặc định 09:00 ngày D+1, nhóm «Hàng tại KTT») là tham số, không còn hằng trong mã. «Bây giờ» của mọi tính toán KTT = độ mới dữ liệu, không phải đồng hồ máy.
 
+### 115. Xuất xlsx sheet 7 «Lưu thoát»: dùng chung lượt duyệt với chi-tiet, tính ở worker, trần 200.000 dòng (KTT-8b, 26/10/2026)
+1. Một route `GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]` (dưới `requireRoles(ADMIN, TTVH)`). Dòng SHBG đến từ `duyetLuuThoat` — lượt duyệt tách ra từ `danhSachLuuThoat` (chi-tiet) nên hai nơi KHÔNG thể lệch quy tắc; không đổi `kttLuuThoat` / `kttTinh` / `kttLichChuyen` / `kttDanhGia`. Thêm 2 trường đường thư đến vào lượt đọc SHBG (`kttQuery.js`), chỉ để xuất.
+2. Cột «đã chốt» lấy từ `kttApi.luuThoat` (cache theo ngày chung); không có cache riêng cho dòng SHBG vì mỗi file xuất là một lần đọc cả khoảng (không phân trang) — chọn đúng hơn nhanh hơn. Danh sách SHBG tính ở worker_thread (như `chi-tiet`) để máy chủ không đứng; ghi file ở luồng chính bằng ExcelJS `WorkbookWriter` (có sẵn trong `package.json`), nhường vòng lặp mỗi 1.000 dòng.
+3. Trần 200.000 dòng / file (đề xuất của ticket): vượt → 400 trước khi gửi header. Hai cột giờ đến (quét túi đến và ConfirmDate) đều có trong file (đề xuất CTO, chờ PO duyệt riêng). Giờ ghi thành ô ngày giờ thật bằng `Date.UTC` từ các số của chuỗi nguồn: hiển thị đúng giờ VN ở mọi múi giờ máy chủ.
+
 ## Drift phát hiện
 _(chưa có)_

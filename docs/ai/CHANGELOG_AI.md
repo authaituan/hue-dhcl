@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-26] - KTT-8b (sửa 27/10 trước nghiệm thu: cột 14 «Không tính», cột 16 chữ đủ nghĩa): xuất xlsx sheet 7 «Lưu thoát» (`GET /api/ktt/xuat/luu-thoat`)
+
+- **Mới** route `GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]` ở `server/routes/ktt.js` (ADMIN, TTVH; GDVH / TIVI 403; không token 401): file `KTT_LuuThoat_<tu>_<den>.xlsx` hai sheet «Thông tin» và «7 Hàng rớt lại» (17 cột, một dòng một SHBG). Lỗi tham số / quá trần 200.000 dòng → JSON 400 tiếng Việt trước khi gửi header.
+- **Mới** `server/lib/kttXuat.js` (cột, dòng sheet, sheet «Thông tin», ghi luồng ExcelJS); `kttApi.xuatLuuThoat` (kiểm tham số, dùng cache `luuThoat` cho cột «đã chốt», tác vụ nền); `kttWorker.js` thêm tác vụ `xuatLuuThoat`.
+- **Sửa (không đổi hành vi):** `kttLuuThoatQuery.js` tách `duyetLuuThoat` (lượt duyệt chung của chi-tiet và xuất); `kttQuery.js` đọc thêm `bd10_den_ma_duong_thu` / `bd10_den_ten_duong_thu` vào `duongThuDenMa` / `duongThuDenTen` của đơn vị SHBG (chỉ để xuất). Test cũ không phải sửa.
+- **Sửa 27/10 (PO):** cột 14 ghi «Không tính» cho hàng thiếu giờ quét đến / không xếp được chuyến (Đạt + Không đạt khớp `luu-thoat`; thêm ca test); cột 16: «Đi trong ngày / hôm sau, đúng / trượt chuyến», «Từ 2 ngày hoặc chưa đi»; sheet «Thông tin» thêm mục «Định nghĩa: cột đạt / không đạt».
+- **Test** `tests/ktt-xuat.test.js` (18 ca + 1 ca đo `KTT_PERF=1`; thêm vào chuỗi `test` của `package.json`). `npm test`: 1111 ca (1103 pass, 0 fail, 8 skip), giống nhau ở TZ=UTC, Asia/Ho_Chi_Minh, America/Los_Angeles.
+- **Hiệu năng** (dữ liệu giả, 332.010 dòng nguồn): xuất 1 / 7 / 31 ngày = 0,81 / 3,5 / 16,4 s, RSS test tăng tối đa 120 / 191 / 326 MB. 31 ngày ở cỡ này (≈ 221.000 dòng) vượt trần 200.000.
+- **Tài liệu:** `42_KTT_API.md` mục 10; `03_ARCHITECTURE_MAP.md` (route, ma trận quyền); `04_DECISIONS.md` #115; `00_SNAPSHOT.md`. Chưa giao diện (KTT-9), chưa sheet 8 (KTT-8c). Không commit (PO commit).
+
 ## [2026-10-26] - KTT-8: API `/api/ktt/*` (ADMIN, TTVH), cache theo ngày, chạy nền, tham số giờ chốt ngày
 
 - **Mới** `server/routes/ktt.js` (mount riêng `/api/ktt` ở `server/index.js`, `requireRoles(ADMIN, TTVH)` đầu router; GDVH / TIVI 403, không token 401; chỉ GET): `meta`, `luu-thoat`, `tong-hop` (+ `danh_gia`), `chi-tiet` (phân trang như `/api/arrivals/items`; loại cũ của `kttQuery.chiTiet` + nhóm lưu thoát). Tham số `tu`, `den` bắt buộc, ≤ 31 ngày, lỗi → 400 tiếng Việt.
