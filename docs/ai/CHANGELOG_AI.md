@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-27] - KTT-8c: kg, nhóm theo nguồn, chi-tiet đủ 17 cột, lọc `ma_bcvh` / `nguon`
+
+- **Mới** `server/lib/kttNguon.js` (kg, `nguonCua`, bộ cộng `theo_nguon`, cộng nhiều ngày) và `server/lib/kttDong.js` (17 trường một dòng Lưu thoát; tách từ `kttXuat.js`, dùng chung chi-tiet + xlsx).
+- **`/api/ktt/luu-thoat`** thêm: `kg` ở mọi khối và `trang_thai.<t>.kg`; `theo_nguon` (ngày + `tong_cong`); `meta.shbg_thieu_khoi_luong`. **`chi-tiet`**: 17 trường snake_case, `loai` mới `ro_lai` / `truot_chuyen`, tham số `nguon`. **`xuat/luu-thoat`**: `ma_bcvh`, `nguon`, `trang_thai` nhận `ro_lai` / `truot_chuyen`; sheet «Thông tin» ghi bộ lọc; dòng đối chiếu `kttXuat.soKhop`.
+- **Sửa (chỉ thêm):** `kttLuuThoatQuery.js` (nối kg + nguồn, `NHOM_LUU_THOAT`, `duyetLuuThoat` nhận `nguon`, `danhSachLuuThoat` thêm 17 trường), `kttQuery.js` (đơn vị SHBG thêm `diemGuiDen`), `kttApi.js`, `routes/ktt.js` (nhật ký thêm `ma_bcvh`, `nguon`).
+- **Test cũ sửa (so khớp CHÍNH XÁC hình dạng):** `tests/ktt-luu-thoat.test.js` ca «số túi…» (`trang_thai.t1` có thêm `kg`); `tests/ktt-api.test.js` ca «chi-tiet: không rò thông tin cá nhân» (danh sách trường cho phép + 17 trường mới); `tests/ktt-xuat.test.js` ca «bộ lọc trang_thai» (chuỗi «Bộ lọc trạng thái: X;» vì thêm BCVH / nguồn).
+- **Test mới** `tests/ktt-nguon.test.js` (11 ca + 1 ca đo `KTT_PERF=1`; thêm vào `package.json`). `npm test`: 1123 ca (1114 pass, 0 fail, 9 skip), giống nhau ở TZ=UTC, Asia/Ho_Chi_Minh, America/Los_Angeles.
+- **Hiệu năng** `luu-thoat` nguội 1 / 7 / 31 ngày: trước 94–108 / 611–820 / 3.014–3.461 ms; sau 95–237 / 621–788 / 2.826–3.385 ms (nhiễu đo).
+- **Tài liệu:** `41` mục 11, `42` mục 11, `03`, `04` #116, `00_SNAPSHOT.md`. Không commit (PO commit). Chưa giao diện (KTT-9b), chưa sheet 8 (KTT-8d).
+
 ## [2026-10-26] - KTT-8b (sửa 27/10 trước nghiệm thu: cột 14 «Không tính», cột 16 chữ đủ nghĩa): xuất xlsx sheet 7 «Lưu thoát» (`GET /api/ktt/xuat/luu-thoat`)
 
 - **Mới** route `GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]` ở `server/routes/ktt.js` (ADMIN, TTVH; GDVH / TIVI 403; không token 401): file `KTT_LuuThoat_<tu>_<den>.xlsx` hai sheet «Thông tin» và «7 Hàng rớt lại» (17 cột, một dòng một SHBG). Lỗi tham số / quá trần 200.000 dòng → JSON 400 tiếng Việt trước khi gửi header.

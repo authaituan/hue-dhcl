@@ -33,7 +33,7 @@ server/
   routes/thamSo.js      # API «Tham số hệ thống» (/api/tham-so*, chỉ ADMIN; THAMSO-1, #94; docs/ai/34_…) — lõi server/lib/thamSo.js, danh bạ server/config/tham-so.js, mặc định server/config/tham-so-mac-dinh.js
   routes/ktt.js         # API «Hàng tại KTT» (/api/ktt/*: meta, luu-thoat, tong-hop, chi-tiet, xuat/luu-thoat (xlsx); CHỈ ADMIN + TTVH; chỉ GET; KTT-8, KTT-8b; docs/ai/42)
   routes/kttNap.js      # API ĐỌC trạng thái nạp KTT (GET /api/nap-nguon/ktt/trang-thai, chỉ ADMIN; KTT-6; docs/ai/39)
-  lib/ktt*.js           # «Hàng tại KTT»: kttSchema (bảng), kttImport / kttNapCap / kttSftp (nạp, 39), kttTinh / kttCauHinh / kttQuery / kttDanhGia (tính, 37–38), kttLichChuyen / kttChuyen (lịch chuyến, 40), kttLuuThoat / kttLuuThoatQuery (lưu thoát, 41), kttApi / kttWorker (cache + chạy nền cho API, 42), kttXuat (xuất xlsx sheet 7, KTT-8b, 42 mục 10)
+  lib/ktt*.js           # «Hàng tại KTT»: kttSchema (bảng), kttImport / kttNapCap / kttSftp (nạp, 39), kttTinh / kttCauHinh / kttQuery / kttDanhGia (tính, 37–38), kttLichChuyen / kttChuyen (lịch chuyến, 40), kttLuuThoat / kttLuuThoatQuery (lưu thoát, 41), kttApi / kttWorker (cache + chạy nền cho API, 42), kttXuat (xuất xlsx sheet 7, KTT-8b, 42 mục 10), kttDong (17 trường một dòng Lưu thoát, dùng chung chi-tiet + xlsx), kttNguon (kg + nhóm theo nguồn, KTT-8c, 41 mục 11)
 src/
   App.jsx               # khung app: đăng nhập / Sidebar / Header / 3 màn hình
   utils/api.js          # apiFetch/apiFetchJson, lưu token, sự kiện hết phiên
@@ -173,10 +173,10 @@ Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `TIVI` (#74;
 | `GET /api/arrivals/dashboard/ket-qua-phat` (#79) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (#72; không theo `user_bcvh`) | 403 (PHAT-3d) |
 | `GET /api/arrivals/dashboard/ket-qua-phat-thang` (#91) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 |
 | `GET /api/arrivals/dashboard/vu-hoi`, `…/vu-hoi-thang` (#107) | ✔ mọi BCVH | ✔ mọi BCVH | ✔ mọi BCVH (không theo `user_bcvh`) | 403 |
-| `/api/ktt/*` (meta, luu-thoat, tong-hop, chi-tiet, xuat/luu-thoat; KTT-8, #110; KTT-8b, #115) | ✔ mọi dữ liệu KTT | ✔ mọi dữ liệu KTT (không lọc theo BCVH) | 403 | 403 |
+| `/api/ktt/*` (meta, luu-thoat, tong-hop, chi-tiet, xuat/luu-thoat; KTT-8, #110; KTT-8b, #115; KTT-8c, #116) | ✔ mọi dữ liệu KTT | ✔ mọi dữ liệu KTT (không lọc theo BCVH) | 403 | 403 |
 | `GET /api/nap-nguon/ktt/trang-thai` (KTT-6) | ✔ | 403 | 403 | 403 |
-| `GET /api/ktt/meta` · `/luu-thoat?tu=&den=` · `/tong-hop?tu=&den=` · `/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]` — «Hàng tại KTT»: độ mới + lịch chuyến + tham số; lưu thoát 5 trạng thái / đạt-không đạt / hàng hoàn theo ngày (≤ 31 ngày, `da_chot`); tổng hợp + khối «Đánh giá»; chi tiết SHBG phân trang (KTT-8, #109–#114) | ADMIN, TTVH (GDVH, TIVI 403) | `routes/ktt.js`, `lib/kttApi.js` — `42_KTT_API.md` |
-| `GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]` — file .xlsx hai sheet «Thông tin» + «7 Hàng rớt lại» (một dòng một SHBG, 17 cột; ≤ 31 ngày, ≤ 200.000 dòng; worker + ghi luồng; KTT-8b, #115) | ADMIN, TTVH (GDVH, TIVI 403) | `routes/ktt.js`, `lib/kttXuat.js`, `lib/kttApi.js` — `42_KTT_API.md` mục 10 |
+| `GET /api/ktt/meta` · `/luu-thoat?tu=&den=` · `/tong-hop?tu=&den=` · `/chi-tiet?tu=&den=&loai=[&ma_bcvh=&nguon=&page=&page_size=]` — «Hàng tại KTT»: độ mới + lịch chuyến + tham số; lưu thoát 5 trạng thái / đạt-không đạt / hàng hoàn theo ngày (≤ 31 ngày, `da_chot`); tổng hợp + khối «Đánh giá»; chi tiết SHBG phân trang (KTT-8, #109–#114) | ADMIN, TTVH (GDVH, TIVI 403) | `routes/ktt.js`, `lib/kttApi.js` — `42_KTT_API.md` |
+| `GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]` — file .xlsx hai sheet «Thông tin» + «7 Hàng rớt lại» (một dòng một SHBG, 17 cột; ≤ 31 ngày, ≤ 200.000 dòng; worker + ghi luồng; KTT-8b, #115; lọc `ma_bcvh` / `nguon`, KTT-8c, #116) | ADMIN, TTVH (GDVH, TIVI 403) | `routes/ktt.js`, `lib/kttXuat.js`, `lib/kttApi.js` — `42_KTT_API.md` mục 10 |
 | `GET /api/nap-nguon/ktt/trang-thai` — trạng thái đường nạp KTT: hẹn giờ, độ mới, 20 cặp gần nhất, cảnh báo (a)–(d), tham số (KTT-6) | ADMIN | `routes/kttNap.js` — `39_KTT_NAP_SFTP.md` |
 Không token → 401 ở mọi route trừ đăng nhập. Chặn ở `routes/users.js`: `role` ngoài danh sách → 400; tự đổi vai trò / tự khoá mình → 400; hạ / khoá ADMIN hoạt động cuối cùng → 400
 (`server/lib/adminGuard.js`). `GET /api/users` trả thêm `bcvh_codes`. và `tivi_scope` (bảng `user_tivi_scope`, #74). `getAssignedBcvh(userId)` (`server/lib/userBcvh.js`) dùng cho xuất file (`lib/arrivalsExport.js`, #57).

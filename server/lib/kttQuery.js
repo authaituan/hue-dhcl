@@ -281,7 +281,7 @@ function dungDonShbg(dong, ctx) {
     soHieuBd8: den ? den.soHieuBd8 : (diCuoi ? diCuoi.soHieuBd8 : null), bd10Den: den ? den.bd10Den : null, bd10Di: diCuoi ? diCuoi.bd10Di : null,
     luong: den ? den.luong : null, quetDen: den ? den.quetDen : null, gioDi: diCuoi ? diCuoi.gioDi : null, xndBd10: den ? den.xndBd10 : null, xnd: null,
     gioBd10Di: diCuoi ? diCuoi.gioBd10Di : null, gioQuetDi: diCuoi ? diCuoi.gioQuetDi : null, tenPhuong: (dong.find((x) => x.tenPhuong) || { tenPhuong: null }).tenPhuong,
-    duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
+    diemGuiDen: den ? den.diemGuiDen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
     tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
     ngayDen: den ? ngayCuaGio(den.quetDen || den.xndBd10) : null,
     chuyen: null, nam: null, bac: null, namLau: null, f13: null, canKiemTraLai: false, cells: []

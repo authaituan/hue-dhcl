@@ -842,5 +842,10 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. Cột «đã chốt» lấy từ `kttApi.luuThoat` (cache theo ngày chung); không có cache riêng cho dòng SHBG vì mỗi file xuất là một lần đọc cả khoảng (không phân trang) — chọn đúng hơn nhanh hơn. Danh sách SHBG tính ở worker_thread (như `chi-tiet`) để máy chủ không đứng; ghi file ở luồng chính bằng ExcelJS `WorkbookWriter` (có sẵn trong `package.json`), nhường vòng lặp mỗi 1.000 dòng.
 3. Trần 200.000 dòng / file (đề xuất của ticket): vượt → 400 trước khi gửi header. Hai cột giờ đến (quét túi đến và ConfirmDate) đều có trong file (đề xuất CTO, chờ PO duyệt riêng). Giờ ghi thành ô ngày giờ thật bằng `Date.UTC` từ các số của chuỗi nguồn: hiển thị đúng giờ VN ở mọi múi giờ máy chủ.
 
+### 116. kg, nhóm theo nguồn và dòng chi-tiet đủ 17 cột (KTT-8c, 27/10/2026)
+1. Chỉ THÊM trường vào `luu-thoat` / `chi-tiet` / `xuat`; bộ cộng nằm ở hàm thuần mới (`kttNguon.js`), `taoKhoi` và mọi quy tắc cũ không đổi. `kg` cộng theo SHBG (một lần), thiếu khối lượng tính 0 và đếm riêng.
+2. Nhóm nguồn lấy từ túi đến ghép: nơi gửi `53…` → `NOI_TINH`; không thì đường thư đến; thiếu → `KHONG_RO_NGUON`; hàng hoàn không vào. `shbg` / `kg` của nhóm là phần t1…t5; `dang_cho_chuyen` tách riêng; `dat_khong_dat` của nhóm cùng phạm vi với khối `dat_khong_dat` (gồm cả đang chờ chuyến) để cộng khớp. `truot_chuyen` = trượt + lỡ (đúng số hiện có), `ro_lai` = t3 + t4 + t5.
+3. `chi-tiet` và file xlsx dùng CHUNG `kttDong.dongChiTiet` (17 trường) và `duyetLuuThoat` (lọc `ma_bcvh`, `nguon`, nhóm) — hai nơi không thể lệch nhau. `nguon` kiểm bằng biểu thức chính quy (không có danh sách trắng cố định vì mã đường thư đến là dữ liệu); mã đúng định dạng nhưng không có hàng cho kết quả rỗng.
+
 ## Drift phát hiện
 _(chưa có)_

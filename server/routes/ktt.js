@@ -5,7 +5,7 @@
 //   GET /api/ktt/luu-thoat?tu=&den=      lưu thoát 5 trạng thái, đạt / không đạt, hàng hoàn (kttLuuThoatQuery.luuThoatTheoNgay), cache theo ngày
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
-//   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=]   KTT-8b: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
+//   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
 // ==========================================
@@ -54,7 +54,7 @@ router.get('/xuat/luu-thoat', async (req, res) => {
   // Nhật ký: ai, khoảng ngày, bộ lọc, số dòng. KHÔNG ghi số hiệu bưu gửi.
   const ghiNhatKy = (rows, status) => req.app.locals.security.log({
     event: 'ktt_export', kind: 'luu-thoat', ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
-    from: kq.khoang.tuNgay, to: kq.khoang.denNgay, trang_thai: kq.nhom, rows, status
+    from: kq.khoang.tuNgay, to: kq.khoang.denNgay, trang_thai: kq.nhom, ma_bcvh: kq.maBcvh, nguon: kq.nguon, rows, status
   });
   let khachDi = false;
   res.on('close', () => { if (!res.writableFinished) khachDi = true; });

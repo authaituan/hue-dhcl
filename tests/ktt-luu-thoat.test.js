@@ -232,7 +232,7 @@ test('số túi: nhiều SHBG cùng một túi đến đếm 1 túi; túi đến
   assert.ok(den);
   tuiDen(db, { quet: '2026-10-20 05:40:00', shbgs: [], bd10: 'BD10-DEN-2' });
   const n = ngayCua(QL.luuThoatTheoNgay(db, OPT), D);
-  assert.deepEqual(n.tong.trang_thai.t1, { shbg: 3, tui: 1 });
+  assert.deepEqual(n.tong.trang_thai.t1, { shbg: 3, tui: 1, kg: 0.3 }); // KTT-8c: thêm kg (3 SHBG × 100 g)
   assert.equal(n.tui_khong_co_buu_gui, 1);
   assert.equal(n.tong_shbg_ngay, 3);
   db.close();
