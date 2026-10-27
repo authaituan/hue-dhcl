@@ -12,7 +12,11 @@ import {
   formatDdMm,
   formatDateTime,
 } from '../quythoigian/quyThoiGianFormatters';
+import { formatKg } from './kttFormatters';
 import { fetchKttMeta, fetchKttLuuThoat, downloadKttLuuThoat } from './kttApi';
+import KttTheoNguon from './KttTheoNguon';
+import KttBanDoNhiet from './KttBanDoNhiet';
+import KttChiTiet from './KttChiTiet';
 
 // Thứ trong tuần tiếng Việt
 function getThuTiengViet(ymd) {
@@ -70,6 +74,14 @@ export default function KttLuuThoat({ authUser }) {
   const [selectedExportStatus, setSelectedExportStatus] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState(null);
+
+  // Ô bản đồ nhiệt đang chọn (lọc danh sách chi tiết + xuất)
+  const [selectedCell, setSelectedCell] = useState(null);
+
+  // Reset selectedCell khi đổi BCVH hoặc đổi khoảng ngày ở đầu trang
+  useEffect(() => {
+    setSelectedCell(null);
+  }, [selectedBcvh, dateRange]);
 
   // Ref chống stale response khi đổi khoảng ngày nhanh
   const reqIdRef = useRef(0);
@@ -154,11 +166,16 @@ export default function KttLuuThoat({ authUser }) {
     setExportLoading(true);
     setExportError(null);
 
+    const effBcvh = selectedCell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : undefined);
+    const effNguon = selectedCell?.nguon || undefined;
+
     try {
       const res = await downloadKttLuuThoat({
         tu: dateRange.from,
         den: dateRange.to,
         trang_thai: selectedExportStatus,
+        ma_bcvh: effBcvh,
+        nguon: effNguon,
       });
       if (!res.ok) {
         setExportError(res.error || 'Không tải được tệp Excel.');
@@ -186,12 +203,21 @@ export default function KttLuuThoat({ authUser }) {
     return data.tong_cong.hang_hoan;
   }, [data, selectedBcvh]);
 
-  // Số lượng cho từng chip xuất
+  // Số lượng cho từng chip xuất (phản ánh đúng bộ lọc BCVH đang chọn)
   const getExportCount = (key) => {
     if (!data?.tong_cong) return null;
-    if (key === '') return data.tong_cong.tong_shbg_ngay;
-    if (key === 'hang_hoan') return data.tong_cong.hang_hoan?.tong_shbg ?? 0;
-    return data.tong_cong.trang_thai?.[key]?.shbg ?? 0;
+    const targetBlock = selectedBcvh === 'all'
+      ? data.tong_cong
+      : data.tong_cong.theo_bcvh?.[selectedBcvh];
+    if (!targetBlock) return 0;
+    if (key === '') return targetBlock.tong_shbg_ngay ?? targetBlock.luu_thoat?.mau_so ?? 0;
+    if (key === 'hang_hoan') {
+      if (selectedBcvh !== 'all' && selectedBcvh !== '533140') return 0;
+      return (selectedBcvh === 'all'
+        ? data.tong_cong.hang_hoan?.tong_shbg
+        : (data.tong_cong.theo_bcvh?.['533140']?.hang_hoan?.tong_shbg ?? data.tong_cong.hang_hoan?.tong_shbg)) ?? 0;
+    }
+    return targetBlock.trang_thai?.[key]?.shbg ?? 0;
   };
 
   // Gom lịch chuyến theo từng BCVH
@@ -507,7 +533,23 @@ export default function KttLuuThoat({ authUser }) {
                     Một dòng là một bưu gửi, 17 cột, kèm sheet «Thông tin». Xuất theo khoảng ngày đang chọn (tối đa 31 ngày, tối đa 200.000 dòng) và trạng thái chọn bên cạnh. Chỉ ADMIN và TTVH.
                   </p>
                   <p className="text-xs text-[#A87A12] font-semibold mt-1">
-                    Ghi rõ: xuất cả 6 BCVH.
+                    {(() => {
+                      const effBcvh = selectedCell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : null);
+                      const effNguon = selectedCell?.nguon || null;
+                      const bcvhName = effBcvh ? (BCVH_LIST.find((b) => b.ma === effBcvh)?.ten || effBcvh) : null;
+                      const nguonName = selectedCell?.nguonTen || effNguon;
+
+                      if (bcvhName && nguonName) {
+                        return `Đang lọc theo: BCVH ${bcvhName} · Nguồn ${nguonName}`;
+                      }
+                      if (bcvhName) {
+                        return `Đang lọc theo: BCVH ${bcvhName}`;
+                      }
+                      if (nguonName) {
+                        return `Đang lọc theo: Nguồn ${nguonName}`;
+                      }
+                      return 'Ghi rõ: xuất cả 6 BCVH.';
+                    })()}
                   </p>
                 </div>
 
@@ -632,6 +674,19 @@ export default function KttLuuThoat({ authUser }) {
             const tyLeTruotChuyen = !hasNoData && mauSo > 0 ? truotChuyenShbg / mauSo : null;
             const hangHoanTong = activeHangHoan?.tong_shbg ?? 0;
 
+            // Quy ước kg: Σ t1..t5.kg cho phần hàng đến tính chỉ tiêu
+            const kgT1DenT5 = (activeBlockData.trang_thai?.t1?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t2?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t3?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t4?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t5?.kg ?? 0);
+            const kgDiTrongNgay = (activeBlockData.trang_thai?.t1?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t2?.kg ?? 0);
+            const kgRotLai = (activeBlockData.trang_thai?.t3?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t4?.kg ?? 0) +
+              (activeBlockData.trang_thai?.t5?.kg ?? 0);
+            const kgT3 = activeBlockData.trang_thai?.t3?.kg ?? 0;
+
             const todayVn = getTodayVnYmd();
             const isHomNay = dateRange.from === todayVn && dateRange.to === todayVn;
             const sectionTitle = isHomNay
@@ -645,7 +700,7 @@ export default function KttLuuThoat({ authUser }) {
                     {sectionTitle}
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
-                    Đến bao nhiêu, đi được bao nhiêu, rớt lại bao nhiêu (đúng lịch hay trượt chuyến), đi đâu tỷ lệ nào, rớt lại của BCVH nào.
+                    Đến bao nhiêu, đi được bao nhiêu, rớt lại bao nhiêu (đúng lịch hay trượt chuyến), đi đâu tỷ lệ nào, rớt lại của BCVH nào và nguồn nào.
                   </p>
                 </div>
 
@@ -664,8 +719,8 @@ export default function KttLuuThoat({ authUser }) {
                       {hasNoData
                         ? 'bưu gửi'
                         : (activeHangHoan
-                          ? `bưu gửi · chưa gồm ${formatInt(hangHoanTong)} hàng chuyển hoàn`
-                          : 'bưu gửi')}
+                          ? `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })} · chưa gồm ${formatInt(hangHoanTong)} hàng chuyển hoàn`
+                          : `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })}`)}
                     </div>
                   </div>
 
@@ -680,7 +735,7 @@ export default function KttLuuThoat({ authUser }) {
                       </div>
                     </div>
                     <div className="text-[11px] font-semibold text-[#1F7A5C] tabular-nums">
-                      {hasNoData ? '—' : formatPercent(activeBlockData.luu_thoat?.ty_le)}
+                      {hasNoData ? '—' : `${formatPercent(activeBlockData.luu_thoat?.ty_le)} · ${formatKg(kgDiTrongNgay, { withUnit: true })}`}
                     </div>
                   </div>
 
@@ -695,7 +750,7 @@ export default function KttLuuThoat({ authUser }) {
                       </div>
                     </div>
                     <div className="text-[11px] font-semibold text-[#A87A12] tabular-nums">
-                      {hasNoData ? '—' : formatPercent(tyLeRotLai)}
+                      {hasNoData ? '—' : `${formatPercent(tyLeRotLai)} · ${formatKg(kgRotLai, { withUnit: true })}`}
                     </div>
                   </div>
 
@@ -710,7 +765,7 @@ export default function KttLuuThoat({ authUser }) {
                       </div>
                     </div>
                     <div className="text-[11px] text-gray-500 tabular-nums">
-                      đến sau chuyến cuối cùng
+                      {hasNoData ? 'đến sau chuyến cuối cùng' : `đến sau chuyến cuối cùng · ${formatKg(kgT3, { withUnit: true })}`}
                     </div>
                   </div>
 
@@ -742,10 +797,17 @@ export default function KttLuuThoat({ authUser }) {
                     <div className="text-[11px] text-gray-500 tabular-nums">
                       {hasNoData
                         ? '—'
-                        : `${formatInt(activeBlockData.dat_khong_dat?.dat ?? 0)} đạt · ${formatInt(activeBlockData.dat_khong_dat?.khong_dat ?? 0)} không đạt`}
+                        : `${formatInt(activeBlockData.dat_khong_dat?.dat ?? 0)} đạt · ${formatInt(activeBlockData.dat_khong_dat?.khong_dat ?? 0)} không đạt · bỏ 21:00–07:00`}
                     </div>
                   </div>
                 </div>
+
+                {/* Dòng chú thích khi có bưu gửi thiếu khối lượng */}
+                {data.meta?.shbg_thieu_khoi_luong > 0 && (
+                  <div className="text-[11px] text-gray-500 italic pt-0.5">
+                    * {formatInt(data.meta.shbg_thieu_khoi_luong)} bưu gửi chưa có khối lượng, tổng kg là số tối thiểu
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -918,6 +980,15 @@ export default function KttLuuThoat({ authUser }) {
                   const hhT5 = activeHangHoan.trang_thai?.t5?.shbg ?? 0;
                   const hhDangCho = activeHangHoan.trang_thai?.dang_cho_chuyen?.shbg ?? 0;
 
+                  const hhKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
+                    (activeHangHoan.trang_thai?.t2?.kg ?? 0) +
+                    (activeHangHoan.trang_thai?.t3?.kg ?? 0) +
+                    (activeHangHoan.trang_thai?.t4?.kg ?? 0) +
+                    (activeHangHoan.trang_thai?.t5?.kg ?? 0);
+                  const hhDiTrongNgayKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
+                    (activeHangHoan.trang_thai?.t2?.kg ?? 0);
+                  const hhT3Kg = activeHangHoan.trang_thai?.t3?.kg ?? 0;
+
                   const hhLuuThoat = hhT1 + hhT2;
                   const hhRotLai = hhT3 + hhT4 + hhT5;
                   const hhTruot = (activeHangHoan.dung_chuyen?.truot_chuyen ?? 0) +
@@ -939,17 +1010,23 @@ export default function KttLuuThoat({ authUser }) {
                         <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
                           <div className="text-[11px] font-bold text-gray-600 uppercase">HÀNG HOÀN ĐẾN TRONG KHOẢNG</div>
                           <div className="text-xl font-bold text-gray-900 mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhTong)}</div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">bưu gửi · đều về Thuận Hóa</div>
+                          <div className="text-[11px] text-gray-500 mt-0.5">
+                            {hasNoData ? 'bưu gửi · đều về Thuận Hóa' : `bưu gửi · ${formatKg(hhKg, { withUnit: true })} · đều về Thuận Hóa`}
+                          </div>
                         </div>
                         <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
                           <div className="text-[11px] font-bold text-gray-600 uppercase">ĐI TRONG NGÀY</div>
                           <div className="text-xl font-bold text-[#1F7A5C] mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhLuuThoat)}</div>
-                          <div className="text-[11px] font-semibold text-[#1F7A5C] mt-0.5">{hasNoData ? '—' : formatPercent(hhTyLeLuu)}</div>
+                          <div className="text-[11px] font-semibold text-[#1F7A5C] mt-0.5">
+                            {hasNoData ? '—' : `${formatPercent(hhTyLeLuu)} · ${formatKg(hhDiTrongNgayKg, { withUnit: true })}`}
+                          </div>
                         </div>
                         <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
                           <div className="text-[11px] font-bold text-gray-600 uppercase">3 · ĐI HÔM SAU, ĐÚNG CHUYẾN</div>
                           <div className="text-xl font-bold text-[#4A1D6E] mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhT3)}</div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">đến sau chuyến cuối 22:00</div>
+                          <div className="text-[11px] text-gray-500 mt-0.5">
+                            {hasNoData ? 'đến sau mốc 21:00 của chuyến cuối 22:00' : `đến sau mốc 21:00 của chuyến cuối 22:00 · ${formatKg(hhT3Kg, { withUnit: true })}`}
+                          </div>
                         </div>
                         <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
                           <div className="text-[11px] font-bold text-gray-600 uppercase">TRƯỢT CHUYẾN, TỪ 2 NGÀY / CHƯA ĐI</div>
@@ -991,158 +1068,222 @@ export default function KttLuuThoat({ authUser }) {
             )
           )}
 
-          {/* ── 6. THEO BCVH ĐÍCH (6 THẺ + BẢNG TỶ TRỌNG) ──────────────────── */}
+          {/* ── 6. THEO BCVH ĐÍCH & THEO NGUỒN / ĐƯỜNG THƯ ĐẾN ─────────────── */}
           {data.tong_cong && (
-            <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
-              <div>
-                <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
-                <p className="text-xs text-gray-600 mt-1">
-                  Sản lượng, tỷ lệ lưu thoát và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
-                </p>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+              {/* Cột trái: Theo BCVH đích (6 thẻ + Bảng tỷ trọng) */}
+              <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
+                <div>
+                  <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Sản lượng, tỷ lệ lưu thoát và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
+                  </p>
+                </div>
+
+                {/* 6 thẻ BCVH */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {BCVH_LIST.map((b) => {
+                    const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
+                    const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
+                    const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
+                    const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
+                      (bBlock?.trang_thai?.t4?.shbg ?? 0) +
+                      (bBlock?.trang_thai?.t5?.shbg ?? 0);
+                    const bTruot = (bBlock?.dung_chuyen?.truot_chuyen ?? 0) +
+                      (bBlock?.dung_chuyen?.lo_chuyen ?? 0);
+                    const bTyLeRot = !hasNoData && bMauSo > 0 ? bRot / bMauSo : null;
+                    const bTyLeTruot = !hasNoData && bMauSo > 0 ? bTruot / bMauSo : null;
+                    const bTyLeLuu = !hasNoData ? bBlock?.luu_thoat?.ty_le : null;
+
+                    // kg của bcvh (Σ t1..t5.kg)
+                    const bKg = (bBlock?.trang_thai?.t1?.kg ?? 0) +
+                      (bBlock?.trang_thai?.t2?.kg ?? 0) +
+                      (bBlock?.trang_thai?.t3?.kg ?? 0) +
+                      (bBlock?.trang_thai?.t4?.kg ?? 0) +
+                      (bBlock?.trang_thai?.t5?.kg ?? 0);
+
+                    return (
+                      <div
+                        key={b.ma}
+                        className={`p-4 rounded-[12px] border transition-colors ${
+                          selectedBcvh === b.ma
+                            ? 'border-[#4A1D6E] bg-[#FAF5E8]'
+                            : 'border-gray-200 bg-white hover:bg-[#FFFBEF]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-gray-900">{b.ten}</span>
+                          <span className="text-xs font-bold text-gray-900 tabular-nums">
+                            {hasNoData ? '—' : `${formatInt(bMauSo)} bưu gửi`}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1.5 tabular-nums">
+                          <span className="font-semibold text-gray-900">{hasNoData ? '—' : formatInt(bMauSo)}</span>
+                          {' · '}
+                          <span>{hasNoData ? '—' : formatKg(bKg, { withUnit: true })}</span>
+                          {' · rớt '}
+                          <strong className="text-[#A87A12]">{hasNoData ? '—' : formatPercent(bTyLeRot)}</strong>
+                          {' · trượt '}
+                          <strong className="text-[#B3202A]">{hasNoData ? '—' : formatPercent(bTyLeTruot)}</strong>
+                        </div>
+                        {/* Thanh lưu thoát */}
+                        <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mt-3 flex">
+                          <div
+                            style={{ width: `${(bTyLeLuu ?? 0) * 100}%` }}
+                            className="bg-[#1F7A5C] h-full"
+                            title={`Lưu thoát: ${formatPercent(bTyLeLuu)}`}
+                          />
+                          <div
+                            style={{ width: `${(bTyLeRot ?? 0) * 100}%` }}
+                            className="bg-[#E0A82E] h-full"
+                            title={`Rớt lại: ${formatPercent(bTyLeRot)}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Bảng tỷ trọng từng BCVH */}
+                <div>
+                  <div className="mb-2">
+                    <div className="text-sm font-bold text-gray-800">Tỷ trọng từng BCVH</div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="table-soft w-full min-w-[500px] text-left">
+                      <thead>
+                        <tr>
+                          <th className="text-left">BCVH</th>
+                          <th className="text-right">
+                            TỶ TRỌNG HÀNG ĐI
+                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                              trong {formatInt(data.tong_cong.luu_thoat?.tu_so ?? 0)} hàng đi
+                            </div>
+                          </th>
+                          <th className="text-right">
+                            TỶ TRỌNG RỚT LẠI
+                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                              {(() => {
+                                const tRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
+                                  (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
+                                  (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
+                                return `trong ${formatInt(tRot)} hàng rớt`;
+                              })()}
+                            </div>
+                          </th>
+                          <th className="text-right">
+                            RỚT LẠI BCVH
+                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                              trong hàng đến
+                            </div>
+                          </th>
+                          <th className="text-right">
+                            ĐẠT 14 GIỜ
+                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                              trong hàng đến
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const tongDi = data.tong_cong.luu_thoat?.tu_so ?? 0;
+                          const tongRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
+                            (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
+                            (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
+
+                          return BCVH_LIST.map((b) => {
+                            const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
+                            const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
+                            const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
+                            const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
+                              (bBlock?.trang_thai?.t4?.shbg ?? 0) +
+                              (bBlock?.trang_thai?.t5?.shbg ?? 0);
+
+                            const tyTrongDi = tongDi > 0 ? bDi / tongDi : null;
+                            const tyTrongRot = tongRot > 0 ? bRot / tongRot : null;
+                            const tyLeRotChinh = bMauSo > 0 ? bRot / bMauSo : null;
+                            const tyLeDat14 = bBlock?.dat_khong_dat?.ty_le_dat;
+
+                            return (
+                              <tr key={b.ma} className="hover:bg-[#FFFBEF] transition-colors">
+                                <td className="font-semibold text-gray-900 whitespace-nowrap">
+                                  {b.ten}
+                                </td>
+                                <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                  {formatPercent(tyTrongDi)}
+                                </td>
+                                <td className="text-right tabular-nums font-semibold text-[#A87A12]">
+                                  {formatPercent(tyTrongRot)}
+                                </td>
+                                <td className="text-right tabular-nums font-medium text-gray-800">
+                                  {formatPercent(tyLeRotChinh)}
+                                </td>
+                                <td className="text-right tabular-nums font-medium text-[#4A1D6E]">
+                                  {formatPercent(tyLeDat14)}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="text-[11px] text-gray-500 mt-2">
+                    Hai cột «Tỷ trọng» cộng 100% theo cột. Hai cột «trong hàng đến của BCVH này» là tỷ lệ riêng của từng BCVH.
+                  </div>
+                </div>
               </div>
 
-              {/* 6 thẻ BCVH */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {BCVH_LIST.map((b) => {
-                  const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
-                  const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
-                  const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
-                  const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
-                    (bBlock?.trang_thai?.t4?.shbg ?? 0) +
-                    (bBlock?.trang_thai?.t5?.shbg ?? 0);
-                  const bTruot = (bBlock?.dung_chuyen?.truot_chuyen ?? 0) +
-                    (bBlock?.dung_chuyen?.lo_chuyen ?? 0);
-                  const bTyLeRot = !hasNoData && bMauSo > 0 ? bRot / bMauSo : null;
-                  const bTyLeTruot = !hasNoData && bMauSo > 0 ? bTruot / bMauSo : null;
-                  const bTyLeLuu = !hasNoData ? bBlock?.luu_thoat?.ty_le : null;
-
-                  return (
-                    <div
-                      key={b.ma}
-                      className={`p-4 rounded-[12px] border transition-colors ${
-                        selectedBcvh === b.ma
-                          ? 'border-[#4A1D6E] bg-[#FAF5E8]'
-                          : 'border-gray-200 bg-white hover:bg-[#FFFBEF]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-gray-900">{b.ten}</span>
-                        <span className="text-xs font-bold text-gray-900 tabular-nums">
-                          {hasNoData ? '—' : `${formatInt(bMauSo)} bưu gửi`}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1.5 tabular-nums">
-                        rớt <strong className="text-[#A87A12]">{formatPercent(bTyLeRot)}</strong> · trượt <strong className="text-[#B3202A]">{formatPercent(bTyLeTruot)}</strong>
-                      </div>
-                      {/* Thanh lưu thoát */}
-                      <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mt-3 flex">
-                        <div
-                          style={{ width: `${(bTyLeLuu ?? 0) * 100}%` }}
-                          className="bg-[#1F7A5C] h-full"
-                          title={`Lưu thoát: ${formatPercent(bTyLeLuu)}`}
-                        />
-                        <div
-                          style={{ width: `${(bTyLeRot ?? 0) * 100}%` }}
-                          className="bg-[#E0A82E] h-full"
-                          title={`Rớt lại: ${formatPercent(bTyLeRot)}`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Bảng tỷ trọng từng BCVH */}
-              <div>
-                <div className="mb-2">
-                  <div className="text-sm font-bold text-gray-800">Tỷ trọng từng BCVH</div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="table-soft w-full min-w-[700px] text-left">
-                    <thead>
-                      <tr>
-                        <th className="text-left">BCVH</th>
-                        <th className="text-right">
-                          TỶ TRỌNG HÀNG ĐI ĐƯỢC
-                          <div className="text-[10px] font-normal normal-case text-gray-500">
-                            trong tổng {formatInt(data.tong_cong.luu_thoat?.tu_so ?? 0)} hàng đi
-                          </div>
-                        </th>
-                        <th className="text-right">
-                          TỶ TRỌNG HÀNG RỚT LẠI
-                          <div className="text-[10px] font-normal normal-case text-gray-500">
-                            {(() => {
-                              const tRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
-                                (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
-                                (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
-                              return `trong tổng ${formatInt(tRot)} hàng rớt lại`;
-                            })()}
-                          </div>
-                        </th>
-                        <th className="text-right">
-                          RỚT LẠI CỦA CHÍNH BCVH
-                          <div className="text-[10px] font-normal normal-case text-gray-500">
-                            trong hàng đến của BCVH này
-                          </div>
-                        </th>
-                        <th className="text-right">
-                          ĐẠT 14 GIỜ
-                          <div className="text-[10px] font-normal normal-case text-gray-500">
-                            trong hàng đến của BCVH này
-                          </div>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const tongDi = data.tong_cong.luu_thoat?.tu_so ?? 0;
-                        const tongRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
-                          (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
-                          (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
-
-                        return BCVH_LIST.map((b) => {
-                          const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
-                          const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
-                          const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
-                          const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
-                            (bBlock?.trang_thai?.t4?.shbg ?? 0) +
-                            (bBlock?.trang_thai?.t5?.shbg ?? 0);
-
-                          const tyTrongDi = tongDi > 0 ? bDi / tongDi : null;
-                          const tyTrongRot = tongRot > 0 ? bRot / tongRot : null;
-                          const tyLeRotChinh = bMauSo > 0 ? bRot / bMauSo : null;
-                          const tyLeDat14 = bBlock?.dat_khong_dat?.ty_le_dat;
-
-                          return (
-                            <tr key={b.ma} className="hover:bg-[#FFFBEF] transition-colors">
-                              <td className="font-semibold text-gray-900 whitespace-nowrap">
-                                {b.ten}
-                              </td>
-                              <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
-                                {formatPercent(tyTrongDi)}
-                              </td>
-                              <td className="text-right tabular-nums font-semibold text-[#A87A12]">
-                                {formatPercent(tyTrongRot)}
-                              </td>
-                              <td className="text-right tabular-nums font-medium text-gray-800">
-                                {formatPercent(tyLeRotChinh)}
-                              </td>
-                              <td className="text-right tabular-nums font-medium text-[#4A1D6E]">
-                                {formatPercent(tyLeDat14)}
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="text-[11px] text-gray-500 mt-2">
-                  Hai cột «Tỷ trọng» cộng 100% theo cột: hàng đi được chia cho các BCVH thế nào, hàng rớt lại nằm ở KTT của BCVH nào. Hai cột «trong hàng đến của BCVH này» là tỷ lệ riêng của từng BCVH, không cộng 100%.
-                </div>
-              </div>
+              {/* Cột phải: Theo nguồn / đường thư đến (thẻ nguồn + Chuyển hoàn + Bảng tỷ trọng) */}
+              <KttTheoNguon
+                data={data}
+                selectedBcvh={selectedBcvh}
+                activeHangHoan={activeHangHoan}
+              />
             </div>
           )}
+
+          {/* ── 7. BẢN ĐỒ NHIỆT: NGUỒN / ĐƯỜNG THƯ × BCVH ĐÍCH ──────────────── */}
+          <KttBanDoNhiet
+            data={data}
+            selectedBcvh={selectedBcvh}
+            selectedCell={selectedCell}
+            onSelectCell={(cell) => {
+              if (
+                selectedCell?.nguon === cell.nguon &&
+                selectedCell?.ma_bcvh === cell.ma_bcvh &&
+                selectedCell?.loai === cell.loai
+              ) {
+                setSelectedCell(null);
+              } else {
+                setSelectedCell(cell);
+              }
+            }}
+            onExportCell={async (cell) => {
+              setExportLoading(true);
+              try {
+                await downloadKttLuuThoat({
+                  tu: dateRange.from,
+                  den: dateRange.to,
+                  trang_thai: cell?.loai || 'ro_lai',
+                  ma_bcvh: cell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : undefined),
+                  nguon: cell?.nguon || undefined,
+                });
+              } finally {
+                setExportLoading(false);
+              }
+            }}
+            exportLoading={exportLoading}
+          />
+
+          {/* ── 8. DANH SÁCH CHI TIẾT THEO TRẠNG THÁI ───────────────────────── */}
+          <KttChiTiet
+            dateRange={dateRange}
+            selectedBcvh={selectedBcvh}
+            filterCell={selectedCell}
+            onClearFilterCell={() => setSelectedCell(null)}
+          />
 
           {/* ── 7. BẢNG «MỐC CHUYẾN THEO BCVH» ─────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
