@@ -46,7 +46,7 @@ const laTpHue = (d) => MA_BCVH_HUE.includes(d) || d === DICH.HUE_CHUA_RO_BCVH;
  */
 function tinh(db, { tuNgay, denNgay }) {
   const bo = { tong: { shbg: 0, kg: 0 }, xe: new Map(), ngay: new Map(), gio: Array.from({ length: 24 }, () => ({ shbg: 0, kg: 0, dt: new Map() })), dt: new Map(), dich: new Map(), thieuKg: 0 };
-  const meta = { so_tui_thieu_gio_xe_den: 0, so_ngay: 0 };
+  const meta = { so_tui_thieu_gio_xe_den: 0 };
   if (!coBang(db, 'ktt_tui') || !coBang(db, 'ktt_buu_gui')) return ketQua(bo, meta, tuNgay, denNgay);
   const tu = `${tuNgay} 00:00:00`;
   const den = L.dinhDang(L.giayCua(`${denNgay} 00:00:00`) + GIAY_NGAY);

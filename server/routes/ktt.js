@@ -6,6 +6,7 @@
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
+//   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
 // ==========================================
@@ -40,6 +41,21 @@ router.get('/meta', xuLy('meta', (req) => {
 router.get('/luu-thoat', xuLy('luu-thoat', (req) => Api.luuThoat(db, req.query)));
 router.get('/tong-hop', xuLy('tong-hop', (req) => Api.tongHop(db, req.query)));
 router.get('/chi-tiet', xuLy('chi-tiet', (req) => Api.chiTiet(db, req.query)));
+
+// KTT-12: đi cùng ngày (B1–B3), hàng rớt lại, lịch xe (B4–B6), danh sách bấm ô, hàng đến (A), tổng quan. Mọi route cần `tu`, `den` (≤ 31 ngày).
+router.get('/dicungngay/tong-hop', xuLy('dicungngay/tong-hop', (req) => Api.diCungNgayTongHop(db, req.query)));
+router.get('/dicungngay/theo-ngay', xuLy('dicungngay/theo-ngay', (req) => Api.diCungNgayTheoNgay(db, req.query)));
+router.get('/dicungngay/theo-gio', xuLy('dicungngay/theo-gio', (req) => Api.diCungNgayTheoGio(db, req.query)));
+router.get('/rotlai/theo-duong-thu', xuLy('rotlai/theo-duong-thu', (req) => Api.rotLaiTheoDuongThu(db, req.query)));
+router.get('/lich-xe/gio-lap-bd10', xuLy('lich-xe/gio-lap-bd10', (req) => Api.lichXeGioLapBd10(db, req.query)));
+router.get('/lich-xe/theo-duong-thu', xuLy('lich-xe/theo-duong-thu', (req) => Api.lichXeTheoDuongThu(db, req.query)));
+router.get('/lich-xe/theo-bcvh', xuLy('lich-xe/theo-bcvh', (req) => Api.lichXeTheoBcvh(db, req.query)));
+router.get('/danh-sach', xuLy('danh-sach', (req) => Api.danhSachDiNgay(db, req.query)));
+router.get('/hang-den/tong-hop', xuLy('hang-den/tong-hop', (req) => Api.hangDenTongHop(db, req.query)));
+router.get('/hang-den/theo-gio', xuLy('hang-den/theo-gio', (req) => Api.hangDenTheoGio(db, req.query)));
+router.get('/hang-den/theo-duong-thu', xuLy('hang-den/theo-duong-thu', (req) => Api.hangDenTheoDuongThu(db, req.query)));
+router.get('/hang-den/xe', xuLy('hang-den/xe', (req) => Api.hangDenXe(db, req.query)));
+router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query)));
 
 // KTT-8b: xuất xlsx sheet 7 «Lưu thoát» (+ sheet «Thông tin»). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
 router.get('/xuat/luu-thoat', async (req, res) => {

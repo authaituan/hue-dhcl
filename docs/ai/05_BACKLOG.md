@@ -67,3 +67,6 @@
 18. Xem xét gỡ gói `cors` (không còn file nào dùng, đã vậy từ bản gốc).
 19. Bundle frontend ~1,6 MB (cảnh báo Vite > 500 kB) — cân nhắc tách chunk khi thêm màn hình mới.
 20. Theo dõi file "Hàng đến" bị từ chối vì khối lượng không phải số nguyên (`/api/arrivals/import-status`) — nếu nguồn có số lẻ thì cần quyết định cách lưu.
+
+## Hàng tại KTT
+21. **Ticket riêng (đề xuất từ KTT-12b, `43_KTT_DI_CUNG_NGAY_API.md` mục 8, đề xuất 1): làm nóng cache B + Lưu thoát.** Sau mỗi lần nạp cặp mới và khi khởi động, tính nền (nhường vòng lặp sự kiện, như `PHAT_WARM` của DASH-12b-4) bó ngày của `ngayB` (B1–B6, tổng quan) và `ngay` (`/luu-thoat`, cả hai mốc `moc_chi_tieu`) cho 8 ngày trong cửa sổ nạp; các ngày cũ hơn đã nằm trong cache 6 giờ. Mục tiêu: mở trang không còn gặp lần nguội 7–8 giây (B) / 13 giây (`luu-thoat`) ở cửa sổ 30 ngày. Cần: tắt được bằng biến môi trường, không chặn máy chủ, test cache nóng = kết quả nguội. Hai đề xuất sau (gộp lượt đọc B + Lưu thoát; tính ngày song song nhiều worker) để ticket khác. KHÔNG thêm bảng tổng hợp.

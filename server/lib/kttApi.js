@@ -428,13 +428,19 @@ async function rotLaiTheoDuongThu(db, query, { now = Date.now() } = {}) {
   return { ...dauB(k, b), ...D.rotLaiTheoDuongThu(b.m, top), dinh_nghia: DINH_NGHIA_B };
 }
 
-/** GET /api/ktt/lich-xe/gio-lap-bd10?tu=&den=[&min_bd10=] — B4. Không cần bó SHBG: đọc BD10 đi trực tiếp (nhẹ). */
-async function lichXeGioLapBd10(db, query) {
+/** B4 cho [tuNgay, denNgay]: không cần bó SHBG, đọc BD10 đi trực tiếp; chạy ở worker, đệm theo (khoảng, minBd10) như tong-hop / chi-tiet. */
+async function layGioLapBd10(db, k, minBd10, now) {
+  const doMoi = QL.docDoMoi(db);
+  const tinh = async () => chayNen(db, 'gioLapBd10', { tuNgay: k.tuNgay, denNgay: k.denNgay, minBd10 });
+  if (!doMoi) return { doMoi: null, r: await tinh() };
+  return { doMoi, r: await layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `b4|${minBd10}|${k.tuNgay}|${k.denNgay}`, now, doMoi.nguon_xuat_luc, tinh) };
+}
+
+/** GET /api/ktt/lich-xe/gio-lap-bd10?tu=&den=[&min_bd10=] — B4. */
+async function lichXeGioLapBd10(db, query, { now = Date.now() } = {}) {
   const k = docKhoang(query, ['min_bd10']);
   const minBd10 = docSoNguyen(query, 'min_bd10', 1, LX.MIN_BD10_TOI_DA, LX.MIN_BD10_MAC_DINH);
-  const doMoi = QL.docDoMoi(db);
-  await nhuong();
-  const r = LX.gioLapBd10(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, minBd10 });
+  const { doMoi, r } = await layGioLapBd10(db, k, minBd10, now);
   return { ...dauPhanHoi(k, doMoi, { tu_ngay: r.cua_so_thuc_te.tu_ngay, den_ngay: r.cua_so_thuc_te.den_ngay }), ...r };
 }
 
@@ -450,8 +456,7 @@ async function lichXeTheoDuongThu(db, query, { now = Date.now() } = {}) {
 /** GET /api/ktt/lich-xe/theo-bcvh?tu=&den= — B6: mỗi BCVH có cột hàng đến theo giờ, vạch lịch xe, giờ lập BD10 thực tế. */
 async function lichXeTheoBcvh(db, query, { now = Date.now() } = {}) {
   const k = docKhoang(query);
-  const b = await boDiNgay(db, k, now);
-  const b4 = LX.gioLapBd10(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, minBd10: 1 });
+  const [b, { r: b4 }] = await Promise.all([boDiNgay(db, k, now), layGioLapBd10(db, k, 1, now)]);
   return {
     ...dauB(k, b), bcvh: LX.theoBcvh(db, b.m, b4), quy_uoc: b4.quy_uoc,
     canh_bao: ['Số «hàng đến theo giờ» chỉ gồm bưu gửi khai thác lại (túi đến được mở); hàng đi thẳng bằng xe Cấp 1 nguyên túi (túi chuyển tiếp) không nằm trong số này.', ...b4.canh_bao]
