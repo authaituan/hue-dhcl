@@ -455,7 +455,9 @@ test('chi-tiet: không rò thông tin cá nhân — chỉ các trường nghiệ
   const c = (await goi(`/api/ktt/chi-tiet${Q20}&loai=t1`, 'admin')).body;
   const cho = new Set(['shbg', 'soHieuBd8', 'bd10Den', 'bd10Di', 'ngayDen', 'quetDen', 'xndBd10', 'gioLapBd10Di', 'maBcvh', 'nhomDich', 'nhom', 'trangThai', 'gioXuatPhat', 'ngayChuyen', 'ketQuaChuyen', 'lyDo', 'diTruocKhiDen', 'datKhongDat', 'chiTieuGio', 'thoiGianChoGiay', 'tenPhuong',
     // KTT-8c: 17 trường snake_case của sheet 7
-    'duong_thu_den_ma', 'duong_thu_den_ten', 'gio_quet_tui_den', 'gio_xac_nhan_bd10_den', 'kg', 'ma_bcvh', 'ten_bcvh', 'chuyen_lien_ke', 'gio_xuat_phat', 'han_den_muon_nhat', 'gio_lap_bd10_di', 'gio_cho_gio', 'dat_khong_dat', 'phan_loai', 'trang_thai', 'ngay_luu_thoat']);
+    'duong_thu_den_ma', 'duong_thu_den_ten', 'gio_quet_tui_den', 'gio_xac_nhan_bd10_den', 'kg', 'ma_bcvh', 'ten_bcvh', 'chuyen_lien_ke', 'gio_xuat_phat', 'han_den_muon_nhat', 'gio_lap_bd10_di', 'gio_cho_gio', 'dat_khong_dat', 'phan_loai', 'trang_thai', 'ngay_luu_thoat',
+    // KTT-10c: nhãn chỉ tiêu 14 giờ theo từng mốc
+    'chi_tieu_14h_xnd', 'chi_tieu_14h_quet_tui_den']);
   assert.ok(c.items.length > 0);
   for (const it of c.items) for (const k of Object.keys(it)) assert.ok(cho.has(k), `trường lạ: ${k}`);
   assert.ok(!/lai_xe|bien_so|nguoi|user|password|hrm/i.test(JSON.stringify(c)));
@@ -564,4 +566,104 @@ test('hiệu năng API (KTT_PERF=1): 31 ngày dữ liệu giả — lần gọi 
   dong.push(`# tong-hop 31 ngày nguội ${th31.ms.toFixed(0)} ms (worker), nóng ${th31n.ms.toFixed(0)} ms; chi-tiet t1 31 ngày ${ct.ms.toFixed(0)} ms; 10 request luu-thoat 7 ngày song song nguội ${song.ms.toFixed(0)} ms; /meta rảnh ${meta.ms.toFixed(0)} ms, /meta khi 6 request nặng đang chạy ${metaTrong.ms.toFixed(0)} ms`);
   console.log(dong.join('\n'));
   assert.ok(nong.ms < t31.ms);
+});
+
+// ---------- KTT-10c: tham số moc_chi_tieu ----------
+const LT = (q = '') => `/api/ktt/luu-thoat${Q20}${q}`;
+/** Mọi khối có chi_tieu_14h của một kết quả luu-thoat: [tên, khối]. */
+function cacKhoi(body) {
+  const ds = [['tong_cong', body.tong_cong], ['tong_cong.hang_hoan', body.tong_cong.hang_hoan], ...Object.entries(body.tong_cong.theo_bcvh).map(([m, k]) => [`tong_cong.${m}`, k])];
+  for (const n of body.theo_ngay) { ds.push([`${n.ngay}.tong`, n.tong], [`${n.ngay}.hang_hoan`, n.hang_hoan]); for (const [m, k] of Object.entries(n.theo_bcvh)) ds.push([`${n.ngay}.${m}`, k]); }
+  return ds;
+}
+const boMocMacDinh = (c) => { const { moc_mac_dinh: _bo, ...r } = c; return r; };
+
+test('KTT-10c moc_chi_tieu: bỏ qua / rỗng = xnd (như cũ); quet_tui_den chỉ đổi khối dat_khong_dat; meta.moc_chi_tieu; khối chi_tieu_14h đủ hai mốc và GIỐNG NHAU ở hai giá trị; khớp lõi', async () => {
+  duLieu();
+  const mac = (await goi(LT(), 'admin')).body;
+  const rong = (await goi(LT('&moc_chi_tieu='), 'admin')).body;
+  const a = (await goi(LT('&moc_chi_tieu=xnd'), 'admin'));
+  const b = (await goi(LT('&moc_chi_tieu=quet_tui_den'), 'ttvh'));
+  assert.deepEqual([a.status, b.status], [200, 200]);
+  assert.deepEqual(mac, a.body, 'bỏ qua = xnd');
+  assert.deepEqual(rong, a.body, 'rỗng = xnd');
+  assert.deepEqual(a.body, sang(QL.luuThoatTheoNgay(db, { tuNgay: '2026-10-20', denNgay: '2026-10-22' })), 'mặc định khớp lõi như trước');
+  assert.deepEqual(b.body, sang(QL.luuThoatTheoNgay(db, { tuNgay: '2026-10-20', denNgay: '2026-10-22', mocChiTieu: 'quet_tui_den' })), 'B khớp lõi');
+  assert.equal(a.body.meta.moc_chi_tieu, 'xnd'); assert.equal(b.body.meta.moc_chi_tieu, 'quet_tui_den');
+  assert.equal(a.body.meta.moc.chi_tieu, 'bd10_den_xnd -> bd10_di_gio_di'); assert.equal(b.body.meta.moc.chi_tieu, 'gio_quet_tui_den -> bd10_di_gio_di');
+  assert.equal(a.body.tong_cong.dat_khong_dat.moc, 'bd10_den_xnd -> bd10_di_gio_di'); assert.equal(b.body.tong_cong.dat_khong_dat.moc, 'gio_quet_tui_den -> bd10_di_gio_di');
+  const ka = cacKhoi(a.body); const kb = cacKhoi(b.body);
+  assert.equal(ka.length, kb.length);
+  for (let i = 0; i < ka.length; i++) {
+    const [ten, x] = ka[i]; const y = kb[i][1];
+    assert.deepEqual(Object.keys(x.chi_tieu_14h.theo_moc), ['xnd', 'quet_tui_den'], ten);
+    assert.equal(x.chi_tieu_14h.moc_mac_dinh, 'xnd', ten); assert.equal(y.chi_tieu_14h.moc_mac_dinh, 'quet_tui_den', ten);
+    assert.deepEqual(boMocMacDinh(y.chi_tieu_14h), boMocMacDinh(x.chi_tieu_14h), `${ten}: chi_tieu_14h không phụ thuộc tham số`);
+    // ngoài dat_khong_dat và nhãn mốc mặc định, các số khác của khối không đổi
+    const bo = (k) => { const { dat_khong_dat: _d, chi_tieu_14h: _c, theo_bcvh: _t, theo_nguon: _n, hang_hoan: _h, ...r } = k; return r; };
+    assert.deepEqual(bo(y), bo(x), `${ten}: số khác không đổi`);
+  }
+});
+
+test('KTT-10c: đo được + không đo được = mẫu số ở MỌI khối và cả hai mốc; mẫu số = SHBG có trạng thái; không có tỷ lệ «đạt» chung trên mẫu số', async () => {
+  duLieu();
+  for (const moc of ['xnd', 'quet_tui_den']) {
+    const body = (await goi(LT(`&moc_chi_tieu=${moc}`), 'admin')).body;
+    for (const [ten, k] of cacKhoi(body)) {
+      const c = k.chi_tieu_14h;
+      const coTrangThai = Object.values(k.trang_thai).reduce((s, x) => s + x.shbg, 0);
+      assert.equal(c.mau_so, coTrangThai, `${moc} ${ten}: mẫu số`);
+      for (const m of ['xnd', 'quet_tui_den']) {
+        const x = c.theo_moc[m];
+        assert.equal(x.mau_so, c.mau_so, `${moc} ${ten} ${m}`);
+        assert.equal(x.do_duoc, x.dat + x.khong_dat, `${moc} ${ten} ${m}: đo được`);
+        assert.equal(x.khong_do_duoc.tong, x.khong_do_duoc.thieu_moc + x.khong_do_duoc.moc_sau_gio_di + x.khong_do_duoc.chua_di, `${moc} ${ten} ${m}`);
+        assert.equal(x.do_duoc + x.khong_do_duoc.tong, x.mau_so, `${moc} ${ten} ${m}: đo được + không đo được = mẫu số`);
+        assert.ok(!('ty_le_dat' in x), 'không có tỷ lệ đạt chung');
+      }
+    }
+  }
+  const c = (await goi(LT(), 'admin')).body.tong_cong.chi_tieu_14h;
+  assert.ok(c.mau_so > 0 && c.theo_moc.xnd.khong_do_duoc.chua_di >= 1, 'dữ liệu giả có SHBG chưa đi (không đo được)');
+});
+
+test('KTT-10c moc_chi_tieu sai -> 400 tiếng Việt (KTT_MOC_SAI), không lộ nội bộ; lặp tham số -> 400; /tong-hop, /chi-tiet, /xuat/luu-thoat KHÔNG nhận moc_chi_tieu (400)', async () => {
+  duLieu();
+  const ghi = []; const goc = console.error; console.error = (...x) => ghi.push(x.join(' '));
+  try {
+    for (const v of ['abc', 'XND', 'quet-tui-den', 'xnd%20', "xnd'%20OR%201=1--", 'quet_tui_den;DROP%20TABLE%20ktt_tui']) {
+      const r = await goi(LT(`&moc_chi_tieu=${v}`), 'admin');
+      assert.equal(r.status, 400, v);
+      assert.equal(r.body.ma, 'KTT_MOC_SAI', v);
+      assert.match(r.body.error, /Tham số "moc_chi_tieu" phải là một trong: xnd, quet_tui_den \(mặc định xnd\)\./, v);
+    }
+    const lap = await goi(LT('&moc_chi_tieu=xnd&moc_chi_tieu=quet_tui_den'), 'admin');
+    assert.deepEqual([lap.status, lap.body.ma], [400, 'KTT_THAM_SO_SAI']); assert.match(lap.body.error, /"moc_chi_tieu" chỉ được truyền một lần/);
+    for (const url of [`/api/ktt/tong-hop${Q20}&moc_chi_tieu=xnd`, `/api/ktt/chi-tiet${Q20}&loai=t1&moc_chi_tieu=xnd`, `/api/ktt/xuat/luu-thoat${Q20}&moc_chi_tieu=quet_tui_den`]) {
+      const r = await goi(url, 'admin');
+      assert.equal(r.status, 400, url);
+      assert.deepEqual([r.body.ma, r.body.error], ['KTT_THAM_SO_LA', 'Tham số không hỗ trợ: "moc_chi_tieu"'], url);
+    }
+  } finally { console.error = goc; }
+  assert.deepEqual(ghi, [], 'lỗi tham số không ghi log');
+  assert.ok(db.prepare('SELECT COUNT(*) AS n FROM ktt_tui').get().n > 0, 'bảng còn nguyên');
+});
+
+test('KTT-10c cache: khóa theo (mốc, ngày) — mỗi mốc tính riêng một lần, không lẫn kết quả; chưa có dữ liệu vẫn trả meta.moc_chi_tieu', async () => {
+  duLieu();
+  const a1 = (await goi(LT(), 'admin')).body;
+  assert.equal(Api.thongKe().ngayTinh, 3);
+  const b1 = (await goi(LT('&moc_chi_tieu=quet_tui_den'), 'admin')).body;
+  assert.equal(Api.thongKe().ngayTinh, 6, 'mốc B: mục riêng, tính 3 ngày');
+  assert.equal(Api.thongKe().ngay, 6, 'sáu mục trong bộ nhớ');
+  const a2 = (await goi(LT('&moc_chi_tieu=xnd'), 'admin')).body;
+  const b2 = (await goi(LT('&moc_chi_tieu=quet_tui_den'), 'admin')).body;
+  assert.equal(Api.thongKe().ngayTinh, 6, 'lần 2 của mỗi mốc: trúng cache');
+  assert.deepEqual(a2, a1); assert.deepEqual(b2, b1);
+  assert.equal(a2.tong_cong.dat_khong_dat.moc, 'bd10_den_xnd -> bd10_di_gio_di', 'không lấy nhầm mục của mốc B');
+  assert.equal(b2.tong_cong.dat_khong_dat.moc, 'gio_quet_tui_den -> bd10_di_gio_di');
+  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;'); Api.xoaCache();
+  const r = (await goi(LT('&moc_chi_tieu=quet_tui_den'), 'admin')).body;
+  assert.deepEqual([r.ly_do, r.meta.moc_chi_tieu, r.meta.moc.chi_tieu], ['CHUA_CO_DU_LIEU', 'quet_tui_den', 'gio_quet_tui_den -> bd10_di_gio_di']);
+  assert.equal(r.theo_ngay[0].tong.dat_khong_dat.moc, 'gio_quet_tui_den -> bd10_di_gio_di');
 });

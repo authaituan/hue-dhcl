@@ -179,7 +179,13 @@ test('file mở được: đúng hai sheet theo thứ tự «Thông tin», «7 H
   assert.deepEqual(wb.worksheets.map((w) => w.name), ['Thông tin', '7 Hàng rớt lại']);
   assert.deepEqual(wb.getWorksheet('7 Hàng rớt lại').getRow(1).values.slice(1), X.COT_SHEET7.map((c) => c.tieuDe));
   assert.deepEqual(wb.getWorksheet('Thông tin').getRow(1).values.slice(1), ['Mục', 'Nội dung ghi trong sheet']);
-  assert.equal(X.COT_SHEET7.length, 17);
+  // KTT-10c: 18 cột — cột «Đạt / không đạt» một mốc thay bằng hai cột nêu rõ mốc đo
+  assert.equal(X.COT_SHEET7.length, 18);
+  const td = X.COT_SHEET7.map((c) => c.tieuDe);
+  assert.equal(td[13], 'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)');
+  assert.equal(td[14], 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)');
+  assert.ok(!td.includes('Đạt / không đạt chỉ tiêu 14 giờ'), 'bỏ cột một mốc cũ');
+  assert.ok(!X.COT_SHEET7.some((c) => c.api === 'dat_khong_dat'));
 });
 
 // ---------- khớp nguồn ----------
@@ -218,9 +224,11 @@ test('số dòng sheet 7 = tổng SHBG của luu-thoat cùng khoảng; ô «Số
       const xp = Date.parse(`${gioO(d.gio_xuat_phat).replace(' ', 'T')}Z`); const han = Date.parse(`${gioO(d.han_den).replace(' ', 'T')}Z`);
       assert.equal((xp - han) / 60000, 60, d.shbg);
     } else { assert.equal(d.chuyen, null, d.shbg); assert.equal(d.gio_xuat_phat, null, d.shbg); }
-    if (it.nhom === 'HANG_HOAN') assert.equal(d.dat, 'Loại trừ', d.shbg);
-    else if (it.datKhongDat && it.trangThai === null) assert.equal(d.dat, 'Không tính', d.shbg);
-    else assert.equal(d.dat, it.datKhongDat ? NHAN_DAT[it.datKhongDat] : null, d.shbg);
+    if (it.nhom === 'HANG_HOAN') { assert.equal(d.moc_a, 'Loại trừ', d.shbg); assert.equal(d.moc_b, 'Loại trừ', d.shbg); assert.equal(it.dat_khong_dat, 'Loại trừ', d.shbg); }
+    else if (it.datKhongDat && it.trangThai === null) { assert.equal(d.moc_a, 'Không tính', d.shbg); assert.equal(d.moc_b, 'Không tính', d.shbg); assert.equal(it.dat_khong_dat, 'Không tính', d.shbg); }
+    else assert.equal(it.dat_khong_dat, it.datKhongDat ? NHAN_DAT[it.datKhongDat] : null, d.shbg); // trường cũ vẫn có trong chi-tiet
+    assert.equal(d.moc_a, it.chi_tieu_14h_xnd, d.shbg);
+    assert.equal(d.moc_b, it.chi_tieu_14h_quet_tui_den, d.shbg);
     assert.equal(d.gio_cho, it.thoiGianChoGiay === null ? null : it.thoiGianChoGiay / 3600, d.shbg);
     const nhanTT = { T1: /^1 –/, T2: /^2 –/, T3: /^3 –/, T4: /^4 –/, T5: /^5 –/, DANG_CHO_CHUYEN: /^Đang chờ chuyến/ };
     if (it.trangThai) assert.match(d.trang_thai, nhanTT[it.trangThai], d.shbg); else assert.equal(d.trang_thai, null, d.shbg);
@@ -253,28 +261,42 @@ test('hàng hoàn Tổ KHHH có mặt, cột đạt / không đạt ghi «Loại
   duLieu();
   const dong = dongSheet7(await docFile(await goi(`${U}${Q20}&trang_thai=hang_hoan`, 'admin')));
   assert.deepEqual(dong.map((d) => d.shbg), ['KTT-DEMO-H1']);
-  assert.equal(dong[0].dat, 'Loại trừ');
+  assert.equal(dong[0].moc_a, 'Loại trừ'); assert.equal(dong[0].moc_b, 'Loại trừ');
   const lt = (await goi(`/api/ktt/luu-thoat${Q20}`, 'admin')).body.tong_cong;
   const tong = lt.dat_khong_dat.dat + lt.dat_khong_dat.khong_dat + lt.dat_khong_dat.chua_di + lt.dat_khong_dat.chua_do_duoc + lt.dat_khong_dat.xnd_sau_gio_di;
   const khac = dongSheet7(await docFile(await goi(`${U}${Q20}`, 'admin'))).filter((d) => d.nhom === 'Đã phân loại 5 trạng thái' || d.nhom === 'Đang chờ chuyến');
   assert.equal(tong, khac.length, 'tổng chỉ tiêu không gồm hàng hoàn');
-  assert.ok(khac.every((d) => d.dat !== 'Loại trừ'));
+  assert.ok(khac.every((d) => d.moc_a !== 'Loại trừ' && d.moc_b !== 'Loại trừ'));
 });
 
-test('cột 14: số «Đạt» + «Không đạt» trong file = đạt + không đạt của luu-thoat cùng khoảng; thiếu giờ quét đến «Không tính»; hàng hoàn «Loại trừ»', async () => {
+test('KTT-10c cột Mốc A / Mốc B: đếm nhãn trong file = khối chi_tieu_14h của luu-thoat cùng khoảng; đo được + không đo được = mẫu số; thiếu giờ quét đến «Không tính»; hàng hoàn «Loại trừ»', async () => {
   duLieu();
+  const KHONG_DO = ['Không đo được (thiếu mốc)', 'Không đo được (mốc sau giờ lập BD10 đi)', 'Không đo được (chưa đi)'];
   for (const q of [Q20, '?tu=2026-10-20&den=2026-10-20', '?tu=2026-10-21&den=2026-10-21']) {
-    const lt = (await goi(`/api/ktt/luu-thoat${q}`, 'admin')).body.tong_cong.dat_khong_dat;
+    const c14 = (await goi(`/api/ktt/luu-thoat${q}`, 'admin')).body.tong_cong.chi_tieu_14h;
     const dong = dongSheet7(await docFile(await goi(`${U}${q}`, 'admin')));
-    const dem = (nhan) => dong.filter((d) => d.dat === nhan).length;
-    assert.equal(dem('Đạt'), lt.dat, q);
-    assert.equal(dem('Không đạt'), lt.khong_dat, q);
+    for (const [cot, m] of [['moc_a', 'xnd'], ['moc_b', 'quet_tui_den']]) {
+      const k = c14.theo_moc[m];
+      const dem = (nhan) => dong.filter((d) => d[cot] === nhan).length;
+      assert.equal(dem('Đạt'), k.dat, `${q} ${cot} đạt`);
+      assert.equal(dem('Không đạt'), k.khong_dat, `${q} ${cot} không đạt`);
+      assert.equal(dem('Đạt') + dem('Không đạt'), k.do_duoc, `${q} ${cot} đo được`);
+      assert.equal(KHONG_DO.reduce((s, n) => s + dem(n), 0), k.khong_do_duoc.tong, `${q} ${cot} không đo được`);
+      assert.equal(dem(KHONG_DO[0]), k.khong_do_duoc.thieu_moc); assert.equal(dem(KHONG_DO[1]), k.khong_do_duoc.moc_sau_gio_di); assert.equal(dem(KHONG_DO[2]), k.khong_do_duoc.chua_di);
+      // mẫu số = mọi dòng không «Loại trừ» / «Không tính» / trống (ngoài phạm vi, không rõ đích)
+      const mau = dong.filter((d) => d[cot] !== null && d[cot] !== 'Loại trừ' && d[cot] !== 'Không tính').length;
+      assert.equal(mau, k.mau_so, `${q} ${cot} mẫu số`);
+      assert.equal(k.do_duoc + k.khong_do_duoc.tong, k.mau_so, `${q} ${cot}: đo được + không đo được = mẫu số`);
+    }
   }
   const dong = dongSheet7(await docFile(await goi(`${U}${Q20}`, 'admin')));
   const n0 = dong.find((d) => d.shbg === 'KTT-DEMO-N0');
   assert.equal(n0.nhom, 'Thiếu giờ quét túi đến');
-  assert.equal(n0.dat, 'Không tính');
-  assert.equal(dong.find((d) => d.shbg === 'KTT-DEMO-H1').dat, 'Loại trừ');
+  assert.equal(n0.moc_a, 'Không tính'); assert.equal(n0.moc_b, 'Không tính');
+  assert.equal(dong.find((d) => d.shbg === 'KTT-DEMO-H1').moc_a, 'Loại trừ');
+  assert.equal(dong.find((d) => d.shbg === 'KTT-DEMO-X1').moc_a, null, 'ngoài phạm vi: ô trống');
+  const a5 = dong.find((d) => d.shbg === 'KTT-DEMO-A5'); // chưa đi: không đo được ở cả hai mốc (khối dat_khong_dat cũ có thể tính là không đạt)
+  assert.equal(a5.moc_a, 'Không đo được (chưa đi)'); assert.equal(a5.moc_b, 'Không đo được (chưa đi)');
   const nhan = { T1: 'Đi trong ngày, đúng chuyến', T2: 'Đi trong ngày, trượt chuyến', T3: 'Đi hôm sau, đúng chuyến', T4: 'Đi hôm sau, trượt chuyến', T5: 'Từ 2 ngày hoặc chưa đi' };
   assert.equal(dong.find((d) => d.shbg === 'KTT-DEMO-A4').trang_thai, `5 – ${nhan.T5}`);
   assert.equal(dong.find((d) => d.shbg === 'KTT-DEMO-A3').trang_thai, `3 – ${nhan.T3}`);
@@ -322,12 +344,12 @@ test('kiểu ô: SHBG là văn bản; giờ là ô ngày giờ đúng số giờ
   assert.equal(a1.duong_thu_ma, 'TH-01');
   assert.equal(a1.bcvh_ma, TH);
   assert.equal(a1.bcvh_ten, 'Thuận Hóa');
-  assert.equal(a1.dat, 'Đạt');
+  assert.equal(a1.moc_a, 'Đạt'); assert.equal(a1.moc_b, 'Đạt');
   assert.equal(a1.ngay_d, '2026-10-20');
   assert.equal(a1.gio_cho, 0); // 05:30 -> 06:50 nằm trọn trong khung đêm 21:00–07:00: không tính
   const a2 = dongSheet7(await docFile(await goi(`${U}${Q20}&trang_thai=t2`, 'admin'))).find((d) => d.shbg === 'KTT-DEMO-A2');
   assert.equal(a2.gio_cho, 1); // 05:30 -> 08:00: chỉ tính 07:00–08:00
-  assert.equal(a2.dat, 'Đạt');
+  assert.equal(a2.moc_a, 'Đạt'); assert.equal(a2.moc_b, 'Đạt');
 });
 
 test('thiếu dữ liệu -> ô trống, không đoán: KL thiếu, không có đường thư, chưa có giờ lập BD10 đi', async () => {
@@ -364,7 +386,8 @@ test('sheet «Thông tin»: đủ mục; tên đăng nhập người xuất (kh�
   const r = await goi(`${U}${Q20}`, 'ttvh');
   const tt = thongTin(await docFile(r));
   assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Định nghĩa: năm trạng thái', 'Định nghĩa: đang chờ chuyến',
-    'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: cột đạt / không đạt', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình Lưu thoát']);
+    'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến',
+    'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Không đo được', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình Lưu thoát']);
   assert.match(tt.get('Cửa sổ'), /Từ ngày 20\/10\/2026 đến ngày 22\/10\/2026.*không \(tất cả\)/);
   assert.match(tt.get('Dữ liệu đến'), /2026-10-21 10:00:00/);
   assert.equal(tt.get('Chốt số theo ngày'), '20/10/2026: đã chốt; 21/10/2026: số tạm; 22/10/2026: số tạm');
@@ -528,4 +551,29 @@ test('hiệu năng xuất (KTT_PERF=1): 1 / 7 / 31 ngày dữ liệu giả — t
     dong.push(`# KTT-8b xuất ${ten}: ${ms.toFixed(0)} ms nguội, ${msNong.toFixed(0)} ms (lần 2), file ${(r.buf.length / 1048576).toFixed(2)} MB, RSS tiến trình test tăng tối đa ${((rssMax - rss0) / 1048576).toFixed(0)} MB (${nTui} túi / ${nBg} dòng nguồn)`);
   }
   console.log(dong.join('\n'));
+});
+
+test('KTT-10c sheet «Thông tin»: ba dòng tổng hợp chỉ tiêu 14 giờ (Mốc A, Mốc B, Không đo được) = khối chi_tieu_14h của luu-thoat; ghi «đo được x/y», không in tỷ lệ «đạt» chung; lọc BCVH dùng khối BCVH', async () => {
+  duLieu();
+  const kiem = async (q, chon) => {
+    const c = chon((await goi(`/api/ktt/luu-thoat${Q20}`, 'admin')).body.tong_cong).chi_tieu_14h;
+    const tt = thongTin(await docFile(await goi(`${U}${Q20}${q}`, 'admin')));
+    const a = c.theo_moc.xnd; const b = c.theo_moc.quet_tui_den;
+    assert.match(tt.get(X.NHAN_TONG_14H.a), new RegExp(`^Đo được ${a.do_duoc}/${c.mau_so}: đạt ${a.dat}, không đạt ${a.khong_dat} \\(`), q);
+    assert.match(tt.get(X.NHAN_TONG_14H.b), new RegExp(`^Đo được ${b.do_duoc}/${c.mau_so}: đạt ${b.dat}, không đạt ${b.khong_dat} \\(`), q);
+    const k = (m) => `${m.khong_do_duoc.tong} \\(thiếu mốc ${m.khong_do_duoc.thieu_moc}, mốc sau giờ lập BD10 đi ${m.khong_do_duoc.moc_sau_gio_di}, chưa đi ${m.khong_do_duoc.chua_di}\\)`;
+    assert.match(tt.get(X.NHAN_TONG_14H.k), new RegExp(`^Mốc A: ${k(a)}; Mốc B: ${k(b)}\\. Đo được \\+ không đo được = mẫu số ${c.mau_so} ở mỗi mốc\\.$`), q);
+    assert.equal(a.do_duoc + a.khong_do_duoc.tong, c.mau_so); assert.equal(b.do_duoc + b.khong_do_duoc.tong, c.mau_so);
+    for (const ten of Object.values(X.NHAN_TONG_14H)) assert.ok(!/%|tỷ lệ/i.test(tt.get(ten)), `${q} ${ten}: không có tỷ lệ`);
+    return tt;
+  };
+  const tt = await kiem('', (tc) => tc);
+  assert.match(tt.get(X.NHAN_TONG_14H.a), /6 BCVH, cả khoảng ngày, không theo bộ lọc trạng thái \/ nguồn/);
+  assert.match(tt.get('Định nghĩa: chỉ tiêu 14 giờ (hai mốc)'), /Không có tỷ lệ «đạt» chung/);
+  const tH = await kiem(`&ma_bcvh=${HT}`, (tc) => tc.theo_bcvh[HT]);
+  assert.match(tH.get(X.NHAN_TONG_14H.a), new RegExp(`BCVH ${HT}, cả khoảng ngày`));
+  await kiem('&trang_thai=t1', (tc) => tc); // bộ lọc trạng thái không đổi số tổng hợp (như màn hình)
+  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;'); Api.xoaCache();
+  const rong = thongTin(await docFile(await goi(`${U}${Q20}`, 'admin')));
+  for (const ten of Object.values(X.NHAN_TONG_14H)) assert.equal(rong.get(ten), 'Chưa có dữ liệu.');
 });

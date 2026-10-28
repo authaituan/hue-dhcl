@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-28] - KTT-10c: nối `moc_chi_tieu` vào `/api/ktt/luu-thoat`; xlsx sheet 7 hai cột nhãn Mốc A / Mốc B (backend only)
+
+- **Khảo sát 5.1:** CTO duyệt cả 4 đề xuất (28/10): xlsx 18 cột, bỏ cột `dat` cũ khỏi xlsx nhưng giữ trường `dat_khong_dat` ở API; thêm 2 trường vào `dongChiTiet`; `/xuat/luu-thoat`, `/tong-hop`, `/chi-tiet` không nhận `moc_chi_tieu` (400).
+- **API (5.2):** `server/lib/kttApi.js` — `docMocChiTieu` (sai → 400 `KTT_MOC_SAI` tiếng Việt), `luuThoat` nhận khóa `moc_chi_tieu` và truyền vào `layNgay(…, mocChiTieu)`; khóa mục ngày + khóa «dùng chung lần tính» = `<moc>|<ngày>`. `server/lib/kttLuuThoatQuery.js` — `meta.moc_chi_tieu` (cả khi chưa có dữ liệu). `server/routes/ktt.js` — chỉ sửa chú thích route. Quy tắc tính ở `kttLuuThoat.js`: không đổi.
+- **xlsx (5.3):** `server/lib/kttDong.js` — `NHAN_DO_MOC`, trường `chi_tieu_14h_xnd`, `chi_tieu_14h_quet_tui_den` (Loại trừ / Không tính như cũ). `server/lib/kttXuat.js` — sheet 7 18 cột (cột 14–15 nhãn mốc), sheet «Thông tin»: định nghĩa hai mốc + ba dòng tổng hợp «Mốc A», «Mốc B» («Đo được x/y: đạt a, không đạt b») và «Không đo được» (theo lý do); `dongChiTieu14h`, `NHAN_TONG_14H`. Không in tỷ lệ «đạt» chung.
+- **Test (5.4, dữ liệu giả):** `tests/ktt-api.test.js` +4 ca (mặc định / hai giá trị / `chi_tieu_14h` không phụ thuộc tham số / khớp lõi; đo được + không đo được = mẫu số ở mọi khối; tham số sai, lặp, ba route không nhận; cache theo mốc + chưa có dữ liệu), sửa danh sách trường `chi-tiet`; `tests/ktt-xuat.test.js` +1 ca (ba dòng «Thông tin»), sửa 5 ca dùng cột `dat` cũ sang `moc_a` / `moc_b`. `npm test` 1146 ca (1136 pass, 0 fail, 10 skip); `npm run build` OK.
+- **Tài liệu (5.5):** `42` mục 2, 4, 10, 11, 12, 13 (mới); `41` mục 12.1; `04_DECISIONS.md` #117; `00_SNAPSHOT.md`; `PROJECT_SNAPSHOT.md` (Last PO Status, Next Ticket).
+- **Chưa làm / ngoài phạm vi:** giao diện (`src/`) chưa đổi — chờ PO duyệt canvas; số tổng hợp ở «Thông tin» theo khoảng ngày / BCVH, không theo bộ lọc trạng thái / nguồn. Không commit (PO commit).
+
 ## [2026-10-27] - KTT-10b: chỉ tiêu «đạt 14 giờ» đo SONG SONG hai mốc (XNĐ và giờ quét túi đến) + script kiểm đợt nạp 18/10, 20/10
 
 - **Khảo sát (5.1):** chỗ tính là `danhGiaChiTieu` (`server/lib/kttLuuThoat.js`), cộng ở `taoKhoi`, ghép ngày ở `congKhoi` (`kttLuuThoatQuery.js`); khớp mô tả (XNĐ → giờ lập BD10 đi; ba nhóm không đo được = `CHUA_DO_DUOC`, `XND_SAU_GIO_DI`, `CHUA_DI`). `kttQuery.chiTieuF13` là chỉ tiêu F1.3 khác (KTT-4), không đụng.

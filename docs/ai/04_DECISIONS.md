@@ -847,5 +847,10 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. Nhóm nguồn lấy từ túi đến ghép: nơi gửi `53…` → `NOI_TINH`; không thì đường thư đến; thiếu → `KHONG_RO_NGUON`; hàng hoàn không vào. `shbg` / `kg` của nhóm là phần t1…t5; `dang_cho_chuyen` tách riêng; `dat_khong_dat` của nhóm cùng phạm vi với khối `dat_khong_dat` (gồm cả đang chờ chuyến) để cộng khớp. `truot_chuyen` = trượt + lỡ (đúng số hiện có), `ro_lai` = t3 + t4 + t5.
 3. `chi-tiet` và file xlsx dùng CHUNG `kttDong.dongChiTiet` (17 trường) và `duyetLuuThoat` (lọc `ma_bcvh`, `nguon`, nhóm) — hai nơi không thể lệch nhau. `nguon` kiểm bằng biểu thức chính quy (không có danh sách trắng cố định vì mã đường thư đến là dữ liệu); mã đúng định dạng nhưng không có hàng cho kết quả rỗng.
 
+### 117. `moc_chi_tieu` chỉ ở `/luu-thoat`; xlsx hai cột nhãn mốc, không tỷ lệ «đạt» chung (CTO duyệt 28/10/2026 — KTT-10c)
+1. Query `moc_chi_tieu` (`xnd` mặc định | `quet_tui_den`) chỉ ở `/api/ktt/luu-thoat`, đi qua `kttApi.layNgay` vào `mocChiTieu`; khóa cache theo ngày gồm mốc. Sai → 400 tiếng Việt `KTT_MOC_SAI`. `/tong-hop` (không dùng lõi lưu thoát), `/chi-tiet` và `/xuat/luu-thoat` KHÔNG nhận tham số này (400 «Tham số không hỗ trợ»): file xlsx luôn ghi cả hai mốc nên không cần chọn. Mốc mặc định không đổi.
+2. Sheet 7 xlsx 18 cột: bỏ cột «Đạt / không đạt» một mốc (nuôi bởi `dat_khong_dat`), thêm hai cột nhãn «Mốc A (xác nhận BD10 đến → lập BD10 đi)», «Mốc B (quét túi đến KTT → lập BD10 đi)». Trường `dat_khong_dat` vẫn ở API `chi-tiet` (không phá client cũ); `kttDong.dongChiTiet` thêm `chi_tieu_14h_xnd`, `chi_tieu_14h_quet_tui_den` dùng chung cho JSON và xlsx.
+3. Số tổng hợp ba nhóm (Mốc A, Mốc B, Không đo được) ở sheet «Thông tin», ghi «đo được x/y» và phần không đo được theo lý do; không in tỷ lệ «đạt» chung (theo `37_KTT_QUY_TAC_TINH.md` mục 6). Số lấy từ khối `chi_tieu_14h` của `/luu-thoat` cùng khoảng (tổng hoặc BCVH đang lọc), không theo bộ lọc trạng thái / nguồn.
+
 ## Drift phát hiện
 _(chưa có)_

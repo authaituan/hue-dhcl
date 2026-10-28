@@ -110,3 +110,6 @@ Hàm thuần ở `server/lib/kttNguon.js` (không đổi `kttLuuThoat.js`); nố
 
 ## 12. KTT-10b — chỉ tiêu 14 giờ đo song song hai mốc (chỉ THÊM)
 Khối `dat_khong_dat` (mục 4) giữ nguyên. Thêm khối `chi_tieu_14h` đo cả mốc A (`bd10_den_xnd` → giờ lập BD10 đi) và mốc B (`gio_quet_tui_den` → giờ lập BD10 đi), kèm «đo được x/y» và lý do không đo được; quy tắc chọn túi đến cho mốc B (túi ghép, như mục 3) và các điều chưa chắc ở `37_KTT_QUY_TAC_TINH.md` mục 6, đầu ra ở `42_KTT_API.md` mục 12. `phanLoaiShbg` trả thêm `chiTieu14h` và `chatLuongTuiDen`; `kttQuery` đơn vị SHBG thêm `soTuiDen`, `coTuiDi`, `tuiDenGocId` (chỉ để đếm). Script kiểm chỉ đọc đợt nạp: `scripts/ktt-kiem-dot-nap.js`.
+
+### 12.1. KTT-10c — tham số qua API, hai cột mốc trong xlsx
+`/api/ktt/luu-thoat` nhận query `moc_chi_tieu` (`xnd` mặc định | `quet_tui_den`) → `mocChiTieu`; chỉ đổi mốc nuôi `dat_khong_dat`, khối `chi_tieu_14h` không đổi theo tham số. `meta.moc_chi_tieu` ghi mốc đã dùng. Cache theo (mốc, ngày). File xlsx: sheet 7 có hai cột nhãn Mốc A / Mốc B thay cột đạt / không đạt một mốc; sheet «Thông tin» ghi «đo được x/y» từng mốc và phần không đo được theo lý do, không có tỷ lệ «đạt» chung. Chi tiết: `42_KTT_API.md` mục 10 và 13. Quy tắc tính không đổi.

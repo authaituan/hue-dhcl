@@ -33,7 +33,7 @@ function tranDong() {
 const API_KHOA = Object.freeze({
   shbg: 'shbg', duong_thu_ten: 'duong_thu_den_ten', duong_thu_ma: 'duong_thu_den_ma', gio_quet_tui_den: 'gio_quet_tui_den', confirm_date: 'gio_xac_nhan_bd10_den', kl_kg: 'kg',
   bcvh_ma: 'ma_bcvh', bcvh_ten: 'ten_bcvh', chuyen: 'chuyen_lien_ke', gio_xuat_phat: 'gio_xuat_phat', han_den: 'han_den_muon_nhat', gio_lap_bd10_di: 'gio_lap_bd10_di',
-  gio_cho: 'gio_cho_gio', dat: 'dat_khong_dat', nhom: 'phan_loai', trang_thai: 'trang_thai', ngay_d: 'ngay_luu_thoat'
+  gio_cho: 'gio_cho_gio', moc_a: 'chi_tieu_14h_xnd', moc_b: 'chi_tieu_14h_quet_tui_den', nhom: 'phan_loai', trang_thai: 'trang_thai', ngay_d: 'ngay_luu_thoat'
 }); // khoa cột sheet -> tên trường của kttDong.dongChiTiet / chi-tiet
 const COT_GOC = ([
   { khoa: 'shbg', tieuDe: 'SHBG', rong: 22, loai: 'chu' },
@@ -49,7 +49,9 @@ const COT_GOC = ([
   { khoa: 'han_den', tieuDe: 'Hàng đến muộn nhất để kịp chuyến', rong: 24, loai: 'gio' },
   { khoa: 'gio_lap_bd10_di', tieuDe: 'Giờ lập BD10 đi', rong: 21, loai: 'gio' },
   { khoa: 'gio_cho', tieuDe: 'Giờ chờ tính chỉ tiêu (giờ, bỏ 21:00–07:00)', rong: 20, loai: 'gio_so' },
-  { khoa: 'dat', tieuDe: 'Đạt / không đạt chỉ tiêu 14 giờ', rong: 26, loai: 'chu' },
+  // KTT-10c: cột «Đạt / không đạt» một mốc (dat_khong_dat) thay bằng HAI cột, mỗi cột một mốc đo (trường dat_khong_dat vẫn có trong chi-tiet)
+  { khoa: 'moc_a', tieuDe: 'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', rong: 30, loai: 'chu' },
+  { khoa: 'moc_b', tieuDe: 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', rong: 30, loai: 'chu' },
   { khoa: 'nhom', tieuDe: 'Phân loại', rong: 34, loai: 'chu' },
   { khoa: 'trang_thai', tieuDe: 'Trạng thái (1–5)', rong: 40, loai: 'chu' },
   { khoa: 'ngay_d', tieuDe: 'Ngày lưu thoát (ngày D)', rong: 16, loai: 'chu' }
@@ -60,7 +62,7 @@ const VI_TRI = Object.freeze(Object.fromEntries(COT_SHEET7.map((c, i) => [c.khoa
 const D = require('./kttDong');
 const { LOAI_TRU, KHONG_TINH, dd } = D;
 
-/** Một SHBG (u của kttQuery, kq của phanLoaiShbg) -> mảng ô theo COT_SHEET7 (cùng 17 trường với chi-tiet, kttDong.dongChiTiet). Chuỗi giờ giữ nguyên (đổi sang ô ngày giờ ở ghiXlsx). */
+/** Một SHBG (u của kttQuery, kq của phanLoaiShbg) -> mảng ô theo COT_SHEET7 (18 cột = các trường của kttDong.dongChiTiet trừ dat_khong_dat). Chuỗi giờ giữ nguyên (đổi sang ô ngày giờ ở ghiXlsx). */
 function dongSheet7(u, kq) {
   const o = D.dongChiTiet(u, kq);
   return COT_SHEET7.map((c) => o[c.api]);
@@ -156,14 +158,36 @@ function dongThongTin(ctx) {
     ['Định nghĩa: năm trạng thái', 'Mốc xếp chuyến = giờ quét túi đến KTT; «đã đi» = giờ lập BD10 đi; ngày D = ngày quét túi đến. 1 = Đi trong ngày (D), đúng chuyến; 2 = Đi trong ngày (D), trượt chuyến; 3 = Đi hôm sau (D+1), đúng chuyến; 4 = Đi hôm sau (D+1), trượt chuyến; 5 = Từ 2 ngày (đi từ D+2) hoặc chưa đi mà đã lỡ giờ xe rời KTT. Lưu thoát = trạng thái 1 + 2.'],
     ['Định nghĩa: đang chờ chuyến', 'Chưa lập BD10 đi và chưa đến giờ xe rời KTT của chuyến liền kề; không tính vào trạng thái 5 và không vào mẫu số.'],
     ['Định nghĩa: hàng hoàn Tổ KHHH', `Túi đến gốc có nơi gửi BD10 là ${S.MA_TO_KHHH} và đích là BCVH Thuận Hóa (${S.MA_THUAN_HOA}). Ghi «${LOAI_TRU}» ở cột đạt / không đạt, không vào tổng chỉ tiêu.`],
-    ['Định nghĩa: cột đạt / không đạt', `«Đạt» và «Không đạt» là số đạt và không đạt của màn hình Lưu thoát. «${KHONG_TINH}» = hàng thiếu giờ quét túi đến hoặc không xếp được chuyến (không vào tổng). «${LOAI_TRU}» = hàng hoàn Tổ KHHH. Còn lại: Chưa đi, Chưa đo được, Xác nhận đến sau giờ lập BD10 đi (không tính đạt / không đạt).`],
+    ['Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', `Đo song song hai mốc, cùng kết thúc ở giờ lập BD10 đi, bỏ khung 21:00–07:00. Mốc A = giờ xác nhận BD10 đến (ConfirmDate); Mốc B = giờ quét túi đến KTT. «Đo được» = đã lập BD10 đi và mốc không sau giờ đi (Đạt / Không đạt); «Không đo được» = thiếu mốc, mốc sau giờ lập BD10 đi, hoặc chưa đi. Mẫu số = SHBG đã phân loại (năm trạng thái + đang chờ chuyến). «${KHONG_TINH}» = hàng thiếu giờ quét túi đến hoặc không xếp được chuyến; «${LOAI_TRU}» = hàng hoàn Tổ KHHH (cả hai không vào mẫu số). Không có tỷ lệ «đạt» chung: chỉ ghi «đo được x/y» của từng mốc.`],
     ['Định nghĩa: mốc chuyến và hạn đến', `Mốc chuyến = giờ xe rời KTT. Hạn đến = giờ xe rời KTT − ${han} phút (lấy từ cấu hình lịch chuyến). Hàng quét túi đến không muộn hơn hạn thì được xếp vào chuyến đó.`],
-    ['Định nghĩa: hai mốc giờ đến', 'Giờ quét túi đến KTT dùng xếp chuyến và tính lưu thoát; giờ xác nhận BD10 đến (ConfirmDate) dùng tính đạt / không đạt chỉ tiêu (bỏ khung 21:00–07:00).'],
+    ['Định nghĩa: hai mốc giờ đến', 'Giờ quét túi đến KTT dùng xếp chuyến, tính lưu thoát và là mốc B của chỉ tiêu 14 giờ; giờ xác nhận BD10 đến (ConfirmDate) là mốc A của chỉ tiêu 14 giờ.'],
+    ...dongChiTieu14h(lt, ctx.maBcvh),
     ['Đơn vị', 'Mỗi dòng sheet «7 Hàng rớt lại» là một SHBG (số hiệu bưu gửi); khối lượng tính bằng kg.'],
     ['Số dòng kiểm tra', ctx.soDong],
     ['Đối chiếu với màn hình Lưu thoát', soManHinh === null ? 'Màn hình Lưu thoát không có số tương ứng với bộ lọc này (bộ lọc theo nguồn / BCVH kết hợp với trạng thái chưa có ô riêng): không đối chiếu được.' : `Màn hình Lưu thoát cùng khoảng ngày và bộ lọc có ${soManHinh} SHBG${ctx.soDong === soManHinh ? ': khớp số dòng sheet «7 Hàng rớt lại».' : ': KHÔNG khớp số dòng sheet «7 Hàng rớt lại» (số liệu đang được cập nhật, hãy xuất lại).'}`]
   ];
 }
+
+/**
+ * KTT-10c: ba dòng tổng hợp chỉ tiêu 14 giờ của sheet «Thông tin» (Mốc A, Mốc B, Không đo được) từ khối chi_tieu_14h của /luu-thoat cùng khoảng
+ * (tổng 6 BCVH, hoặc BCVH đang lọc). Ghi «đo được x/y», KHÔNG ghi tỷ lệ «đạt» chung. Không theo bộ lọc trạng thái / nguồn (như màn hình Lưu thoát).
+ */
+function dongChiTieu14h(lt, maBcvh) {
+  const tc = lt && lt.tong_cong;
+  const k = tc ? (maBcvh ? tc.theo_bcvh[maBcvh] : tc) : null;
+  const c = k && k.chi_tieu_14h;
+  const pham = `${maBcvh ? `BCVH ${maBcvh}` : '6 BCVH'}, cả khoảng ngày, không theo bộ lọc trạng thái / nguồn`;
+  if (!c) return [[NHAN_TONG_14H.a, 'Chưa có dữ liệu.'], [NHAN_TONG_14H.b, 'Chưa có dữ liệu.'], [NHAN_TONG_14H.k, 'Chưa có dữ liệu.']];
+  const doDuoc = (m) => `Đo được ${m.do_duoc}/${m.mau_so}: đạt ${m.dat}, không đạt ${m.khong_dat} (${pham}).`;
+  const khong = (m) => `${m.khong_do_duoc.tong} (thiếu mốc ${m.khong_do_duoc.thieu_moc}, mốc sau giờ lập BD10 đi ${m.khong_do_duoc.moc_sau_gio_di}, chưa đi ${m.khong_do_duoc.chua_di})`;
+  const a = c.theo_moc.xnd; const b = c.theo_moc.quet_tui_den;
+  return [
+    [NHAN_TONG_14H.a, doDuoc(a)],
+    [NHAN_TONG_14H.b, doDuoc(b)],
+    [NHAN_TONG_14H.k, `Mốc A: ${khong(a)}; Mốc B: ${khong(b)}. Đo được + không đo được = mẫu số ${c.mau_so} ở mỗi mốc.`]
+  ];
+}
+const NHAN_TONG_14H = Object.freeze({ a: 'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', b: 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', k: 'Chỉ tiêu 14 giờ – Không đo được' });
 
 // ------------------------------------------
 // Ghi file
@@ -256,5 +280,5 @@ const tenFile = (tu, den) => `KTT_LuuThoat_${tu}_${den}.xlsx`;
 
 module.exports = {
   TEN_SHEET_THONG_TIN, TEN_SHEET_7, COT_SHEET7, XLSX_MIME, TRAN_DONG_MAC_DINH, FMT_GIO,
-  tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, soKhop, dongThongTin, gioVietNam, ghiXlsx, tenFile, vanBan, oGio
+  NHAN_TONG_14H, tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, soKhop, dongThongTin, dongChiTieu14h, gioVietNam, ghiXlsx, tenFile, vanBan, oGio
 };

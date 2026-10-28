@@ -24,6 +24,7 @@ const CT = require('./quyThoiGianChiTieu');
 const { docCauHinhKtt } = require('./kttCauHinh');
 const { TAC_VU } = require('./kttWorker');
 const X = require('./kttXuat');
+const S = require('./kttLuuThoat');
 const { MA_BCVH_HUE } = require('./kttTinh');
 
 const CUA_SO_NAP_NGAY = 8; // ngày nằm trong cửa sổ nạp = từ độ mới dữ liệu lùi chừng này ngày trở lại (mỗi lần xuất lùi 7 ngày + 1 ngày đệm)
@@ -166,8 +167,17 @@ function datMuc(map, toiDa, khoa, muc) {
 // ------------------------------------------
 // luu-thoat
 // ------------------------------------------
-async function layNgay(db, ngay, doMoi, now) {
-  const e = boNho.ngay.get(ngay);
+/** KTT-10c: query `moc_chi_tieu` (`xnd` mặc định | `quet_tui_den`) — chỉ chọn mốc nuôi khối `dat_khong_dat`; khối `chi_tieu_14h` luôn đủ hai mốc. Giá trị lạ -> LoiKtt (400). */
+function docMocChiTieu(query) {
+  const v = mot(query, 'moc_chi_tieu');
+  if (v === undefined || v === '') return S.MOC_CHI_TIEU_MAC_DINH;
+  if (!S.hopLeMocChiTieu(v)) throw new Q.LoiKtt('KTT_MOC_SAI', `Tham số "moc_chi_tieu" phải là một trong: ${Object.values(S.MOC_CHI_TIEU).join(', ')} (mặc định ${S.MOC_CHI_TIEU_MAC_DINH}).`);
+  return v;
+}
+
+async function layNgay(db, ngay, doMoi, now, mocChiTieu = S.MOC_CHI_TIEU_MAC_DINH) {
+  const khoa = `${mocChiTieu}|${ngay}`; // KTT-10c: khóa gồm mốc — hai mốc là hai mục riêng (khối `dat_khong_dat` khác nhau)
+  const e = boNho.ngay.get(khoa);
   const token = PD.dauHieuDb(db);
   if (e) {
     const tuoi = now - e.luc;
@@ -177,27 +187,28 @@ async function layNgay(db, ngay, doMoi, now) {
       ? (tuoi < TUOI_DA_CHOT_MS && e.chuKy === chuKyNgay(db, ngay) && (!trongCuaSo || e.doMoi === doMoi))
       : (tuoi < TUOI_CHUA_CHOT_MS && e.doMoi === doMoi && e.token === token);
     if (conHan) return e.kq;
-    boNho.ngay.delete(ngay);
+    boNho.ngay.delete(khoa);
   }
-  return chiaSe(`n|${ngay}|${doMoi}`, async () => {
+  return chiaSe(`n|${khoa}|${doMoi}`, async () => {
     await nhuong(); // nhường vòng lặp sự kiện TRƯỚC mỗi ngày tính: request khác (vd /meta) được phục vụ giữa các ngày
     const tk = PD.dauHieuDb(db);
     const ck = chuKyNgay(db, ngay);
     dem.ngayTinh++;
-    const kq = QL.luuThoatTheoNgay(db, { tuNgay: ngay, denNgay: ngay, bayGio: doMoi });
-    datMuc(boNho.ngay, NGAY_TOI_DA_TRONG_NHO, ngay, { luc: now, kq, daChot: kq.theo_ngay[0].da_chot, doMoi, token: tk, chuKy: ck });
+    const kq = QL.luuThoatTheoNgay(db, { tuNgay: ngay, denNgay: ngay, bayGio: doMoi, mocChiTieu });
+    datMuc(boNho.ngay, NGAY_TOI_DA_TRONG_NHO, khoa, { luc: now, kq, daChot: kq.theo_ngay[0].da_chot, doMoi, token: tk, chuKy: ck });
     return kq;
   });
 }
 
-/** GET /api/ktt/luu-thoat?tu=&den= — cùng kết quả như kttLuuThoatQuery.luuThoatTheoNgay trên khoảng đó. `now`: chỉ để test. */
+/** GET /api/ktt/luu-thoat?tu=&den=[&moc_chi_tieu=] — cùng kết quả như kttLuuThoatQuery.luuThoatTheoNgay trên khoảng đó (cùng mocChiTieu); meta.moc_chi_tieu = mốc đã dùng (từ lõi). `now`: chỉ để test. */
 async function luuThoat(db, query, { now = Date.now() } = {}) {
-  const k = docKhoang(query);
+  const k = docKhoang(query, ['moc_chi_tieu']);
+  const mocChiTieu = docMocChiTieu(query);
   const doMoi = QL.docDoMoi(db);
-  if (!doMoi) return QL.luuThoatTheoNgay(db, { tuNgay: k.tuNgay, denNgay: k.denNgay }); // chưa có dữ liệu: kết quả rỗng có lý do (rẻ, không đệm)
+  if (!doMoi) return QL.luuThoatTheoNgay(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, mocChiTieu }); // chưa có dữ liệu: kết quả rỗng có lý do (rẻ, không đệm)
   dongBoPhienBan(db);
   const ds = [];
-  for (const ngay of k.ngays) ds.push(await layNgay(db, ngay, doMoi.nguon_xuat_luc, now));
+  for (const ngay of k.ngays) ds.push(await layNgay(db, ngay, doMoi.nguon_xuat_luc, now, mocChiTieu));
   const kq = QL.ghepKhoang(ds);
   // Ngày ĐÃ chốt có thể lấy từ lần tính trước (độ mới cũ hơn): độ mới / «bây giờ» của phản hồi luôn là độ mới HIỆN TẠI.
   kq.bay_gio = doMoi.nguon_xuat_luc; kq.nguon_xuat_luc_moi_nhat = doMoi.nguon_xuat_luc;
