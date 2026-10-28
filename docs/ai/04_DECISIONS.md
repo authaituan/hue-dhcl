@@ -852,5 +852,18 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. Sheet 7 xlsx 18 cột: bỏ cột «Đạt / không đạt» một mốc (nuôi bởi `dat_khong_dat`), thêm hai cột nhãn «Mốc A (xác nhận BD10 đến → lập BD10 đi)», «Mốc B (quét túi đến KTT → lập BD10 đi)». Trường `dat_khong_dat` vẫn ở API `chi-tiet` (không phá client cũ); `kttDong.dongChiTiet` thêm `chi_tieu_14h_xnd`, `chi_tieu_14h_quet_tui_den` dùng chung cho JSON và xlsx.
 3. Số tổng hợp ba nhóm (Mốc A, Mốc B, Không đo được) ở sheet «Thông tin», ghi «đo được x/y» và phần không đo được theo lý do; không in tỷ lệ «đạt» chung (theo `37_KTT_QUY_TAC_TINH.md` mục 6). Số lấy từ khối `chi_tieu_14h` của `/luu-thoat` cùng khoảng (tổng hoặc BCVH đang lọc), không theo bộ lọc trạng thái / nguồn.
 
+### 118. «Tất cả» là tổng MỌI SHBG; phân rã bốn nhóm; `tong_shbg_ngay` theo BCVH (KTT-11b, 28/10/2026)
+1. «Tất cả» ở khung Xuất xlsx (6 BCVH) = `tong_shbg_ngay`: mọi SHBG có ngày quét túi đến trong khoảng, kể cả không rõ đích, ngoài 6 BCVH, thiếu giờ quét túi đến, không xếp được chuyến. Con số đúng và khớp số dòng xlsx; nó KHÔNG phải tổng bảy chip.
+2. Thêm `ngoai_bay_chip` (mỗi ngày + `tong_cong`) để giao diện nêu được bốn nhóm đó; đẳng thức `t1…t5 + đang chờ + hàng hoàn + ngoai_bay_chip.tong = tong_shbg_ngay` có test. Không thay `khong_phan_loai`.
+3. Mỗi khối `theo_bcvh` có `tong_shbg_ngay` = SHBG của khối + hàng hoàn Thuận Hóa (= số dòng xlsx lọc BCVH), để chip «Tất cả» của giao diện không rơi về `mau_so`.
+4. Sheet 7 xlsx 18 cột; `chi-tiet` 19 trường. Chữ «17 cột» còn lại ở giao diện (`KttLuuThoat.jsx`) do Antigravity sửa (KTT-11c).
+
+### 119. Hàng «chuyển tiếp đi» (`CHUYEN_TIEP_DI`) thuộc tập Lưu thoát và chỉ tiêu 14 giờ (PO chốt, KTT-14, 28/10/2026)
+1. Căn cứ (PO): chiều «chuyển tiếp đi» = cả nơi gửi lẫn nơi nhận của túi đều không phải KTT; là hàng đi ngoài (BD8 trùng SHBG) hoặc túi đã chia sẵn (KTT không mở túi). Chỉ tiêu F1.3 chấm MỌI hàng có đích là 6 BCVH Huế, nên hàng chỉ có túi chuyển tiếp phải nằm trong mẫu số «đi trong ngày / rớt lại / 14 giờ». Trước KTT-14 Lưu thoát chỉ lấy SHBG có túi `DEN`, mẫu số thiếu khoảng một nửa (`43` mục 9 cũ).
+2. Tập mới (MỘT hàm dùng chung, `kttQuery.chayTapLuuThoat`): SHBG có túi `DEN` quét trong khoảng HỢP SHBG chỉ có túi `CHUYEN_TIEP_DI` quét/xác nhận đến trong khoảng. Mỗi SHBG tính MỘT lần. SHBG có cả hai loại túi tính theo túi ĐẾN, cách tính cũ (`nguon_hang = khai_thac`) — không đếm đôi.
+3. SHBG chỉ có túi chuyển tiếp: một dòng túi mang cả lần đến (quét túi đến, XNĐ BD10 đến, nơi gửi) lẫn lần đi (lập BD10 đi, nơi nhận); nhiều dòng thì lấy dòng có giờ lập BD10 đi muộn nhất; túi `DI` khác của cùng SHBG bị bỏ qua (đếm ở `meta.chuyen_tiep_co_tui_di_khac`). Đích theo cùng quy tắc: nơi nhận BD10 đi → phường/xã. Hàng hoàn Tổ KHHH vẫn tách riêng, không tính 14 giờ.
+4. Cờ nguồn `nguon_hang` (`khai_thac` | `chuyen_tiep`) ở từng dòng `chi-tiet` / `danh-sach` và khối `theo_nguon_hang` ở `/luu-thoat` (mỗi ngày + `tong_cong`); mặc định số hiển thị gộp cả hai. Xlsx sheet 7 vẫn 18 cột. Chưa làm giao diện tách.
+5. Chưa chốt (PO): chọn dòng khi một SHBG nằm trong nhiều túi chuyển tiếp (một tỷ lệ nhỏ SHBG chuyển tiếp trên bản sao); coi túi `DI` tái đóng của hàng chuyển tiếp (tỷ lệ rất nhỏ) là bỏ qua; mốc dự phòng cho chỉ tiêu 14 giờ của hàng chuyển tiếp (xác nhận BD10 đến thường SAU giờ lập BD10 đi — `43` mục 9).
+
 ## Drift phát hiện
 _(chưa có)_

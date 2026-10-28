@@ -121,6 +121,10 @@ Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xu�
 - `/xuat/luu-thoat`: thêm `ma_bcvh`, `nguon` (mục 10).
 - Hàng thiếu khối lượng: `kg` của dòng chi-tiet / ô xlsx là null / trống, còn ở tổng tính 0 và đếm vào `meta.shbg_thieu_khoi_luong`.
 
+## 11.1. KTT-11b — `tong_shbg_ngay` theo BCVH và `ngoai_bay_chip` ở `/luu-thoat` (chỉ THÊM)
+- Mỗi `theo_bcvh[mã]` (từng ngày và `tong_cong`) có `tong_shbg_ngay` = số dòng `/xuat/luu-thoat?ma_bcvh=<mã>` không lọc trạng thái (SHBG của khối + hàng hoàn nếu 533140). Mỗi ngày và `tong_cong` có `ngoai_bay_chip` (bốn nhóm không có chip trạng thái). Đẳng thức «Tất cả» và định nghĩa: `41_KTT_LUU_THOAT.md` mục 11.1. Nằm trong kết quả từng ngày của cache hiện có (không cache mới), không phụ thuộc `moc_chi_tieu`.
+- `/xuat/luu-thoat`: sheet 7 có **18 cột** (không đổi); ghi chú «17 cột» ở tài liệu cũ là của KTT-8c (trước khi KTT-10c đổi cột 14).
+
 ## 12. KTT-10b — khối `chi_tieu_14h` (chỉ THÊM, không đổi nghĩa trường cũ)
 - **Route không đổi, tham số không đổi.** `/luu-thoat` (và `tong_cong`, `theo_bcvh`, `hang_hoan`, từng ngày) thêm trường **`chi_tieu_14h`** ở MỌI khối, cạnh `dat_khong_dat` (giữ nguyên nhãn và số, mốc `xnd`). Định nghĩa đầy đủ: `37_KTT_QUY_TAC_TINH.md` mục 6.
 - Hình dạng: `{ moc_mac_dinh, mau_so, do_duoc_ca_hai_moc, theo_moc: { xnd, quet_tui_den }, chat_luong_tui_den }`. Mỗi mốc: `{ moc, do_duoc (x), mau_so (y), dat, khong_dat, ty_le_dat_tren_do_duoc, khong_do_duoc { tong, thieu_moc, moc_sau_gio_di, chua_di }, chua_di_da_qua_chi_tieu, do_duoc_khong_do_duoc_o_moc_kia }`. `chat_luong_tui_den`: `khong_co_tui_di`, `nhieu_tui_den`, `tui_den_ghep_khac_goc`, `khac_ket_qua_neu_dung_tui_goc`. `ty_le_dat_tren_do_duoc` chỉ tính trên phần đo được, `null` khi `do_duoc = 0`; không có tỷ lệ «đạt» chung.
@@ -136,3 +140,9 @@ Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xu�
 - **xlsx:** sheet 7 thành 18 cột (mục 10): bỏ cột «Đạt / không đạt» một mốc, thêm hai cột nhãn Mốc A / Mốc B; sheet «Thông tin» có ba dòng tổng hợp («đo được x/y», đạt, không đạt; không đo được theo lý do) và định nghĩa hai mốc. Không in tỷ lệ «đạt» chung (cũng không in `ty_le_dat_tren_do_duoc`).
 - Test: `tests/ktt-api.test.js` (+4 ca: mặc định / hai giá trị / khối `chi_tieu_14h` không phụ thuộc tham số; đo được + không đo được = mẫu số ở mọi khối; tham số sai, lặp, route không nhận; cache theo mốc), `tests/ktt-xuat.test.js` (+1 ca, sửa 5 ca dùng cột cũ).
 - Điều chưa chắc: số tổng hợp ở «Thông tin» lấy theo khoảng ngày (và BCVH nếu lọc), KHÔNG theo bộ lọc `trang_thai` / `nguon` — ghi rõ trong ô; nếu PO muốn số theo đúng dòng đang lọc thì phải đếm ở worker (ticket sau).
+
+## 14. KTT-14 — tập SHBG gồm hàng chuyển tiếp (chỉ THÊM trường; số hiển thị thay đổi)
+- Các route dựa trên lõi Lưu thoát (`/luu-thoat`, `/chi-tiet?loai=<nhóm lưu thoát>`, `/xuat/luu-thoat`) và các route KTT-12 dựa trên `chayShbg` (`dicungngay/*`, `rotlai/*`, `lich-xe/theo-duong-thu`, `lich-xe/theo-bcvh` phần SHBG, `danh-sach`, `tong-quan`) cùng dùng MỘT tập SHBG: khai thác lại + chỉ-chuyển-tiếp (`41` mục 13). Quyền, tham số, cache (khóa, hạn) không đổi; `/hang-den/*`, `lich-xe/gio-lap-bd10`, `/tong-hop` không đổi.
+- `/luu-thoat`: thêm `theo_nguon_hang { khai_thac, chuyen_tiep }` ở mỗi ngày và `tong_cong`, và bốn bộ đếm `meta` (`shbg_chuyen_tiep`, `co_ca_hai_loai_tui`, `chuyen_tiep_nhieu_tui`, `chuyen_tiep_co_tui_di_khac`). `chi-tiet` thêm `nguon_hang`, `luong_tui` (21 trường); `danh-sach` thêm `nguon_hang`. Mặc định số hiển thị gộp cả hai cờ; chưa có tham số lọc theo cờ (giao diện tách sau, dùng `theo_nguon_hang`).
+- Xlsx sheet 7: số dòng = `tong_shbg_ngay` mới (có test); vẫn 18 cột. Chip «Tất cả» và các chip: số lấy từ cùng `tong_shbg_ngay` / `trang_thai` nên tự khớp; KHÔNG sửa giao diện (KTT-11a/11c do bên giao diện).
+- Hiệu năng: cửa sổ 30 ngày lần nguội tăng vì số SHBG gấp hơn hai lần (xem `43` mục 12); lần cache không đổi đáng kể.

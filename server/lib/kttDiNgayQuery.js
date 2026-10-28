@@ -19,7 +19,7 @@ const TRANG_TOI_DA = 200;
 /** Lượt duyệt SHBG dùng chung: gọi cb(u, kq, pl) cho mỗi SHBG có ngày đến trong khoảng (kq = S.phanLoaiShbg, pl = D.phanLoaiDi). Không cần giờ chuyến để tính B nên bỏ chấm cũ của kttQuery. */
 function chayShbg(db, { tuNgay, denNgay, bayGio }, cb) {
   const bayGioGiay = L.giayCua(bayGio);
-  Q.chayBoDem(db, { tuNgay, denNgay, bayGio, boQuaCham: true }, (c) => {
+  Q.chayTapLuuThoat(db, { tuNgay, denNgay, bayGio }, (c) => { // KTT-14: tập SHBG chung (gồm hàng chuyển tiếp)
     const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio };
     return [{
       shbg(u) {
@@ -84,7 +84,7 @@ function danhSach(db, opts = {}) {
       dong.push({
         shbg: u.shbg, ngay_den: u.ngayDen, gio_den_ktt: u.quetDen || null, xnd_bd10_den: u.xndBd10 || null,
         kg: NG.thieuKhoiLuong(u) ? null : NG.r3(u.gam / 1000), ma_bcvh: u.maBcvh || null, ten_bcvh: u.maBcvh ? (TEN_BCVH[u.maBcvh] || null) : null,
-        huong: huongDong, hang_hoan: pl.hanHoan, nhom: pl.nhom, bd10_di_gio_lap: u.gioBd10Di || null,
+        huong: huongDong, hang_hoan: pl.hanHoan, nguon_hang: u.nguonHang, nhom: pl.nhom, bd10_di_gio_lap: u.gioBd10Di || null,
         cho_gio: moc && L.giayCua(moc) !== null && cuoi !== null ? Math.round(((cuoi - L.giayCua(moc)) / 3600) * 10) / 10 : null,
         duong_thu_ma: u.duongThuDenMa || null, duong_thu_ten: u.duongThuDenTen || null, noi_gui_ma: u.diemGuiDen || null, noi_gui_ten: u.diemGuiDenTen || null
       });
