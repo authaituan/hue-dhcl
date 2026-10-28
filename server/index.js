@@ -100,6 +100,18 @@ if (process.env.PHAT_WARM !== '0' && !process.env.NODE_TEST_CONTEXT && process.e
 }
 
 // ==========================================
+// Làm nóng cache «Hàng tại KTT» (KTT-15, docs/ai/43 mục 13): MỘT lần sau khi khởi động (trễ 8 giây, sau khởi động nóng của Phát; không chặn khởi động), nền, từng ngày một.
+// Tắt bằng KTT_WARM=0; không chạy trong test / harness (NODE_TEST_CONTEXT). Lỗi chỉ ghi một dòng log. Sau mỗi lần nạp cặp: xem hook `sauNap` bên dưới.
+// ==========================================
+let daDongKtt = false;
+server.on('close', () => { daDongKtt = true; });
+if (process.env.KTT_WARM !== '0' && !process.env.NODE_TEST_CONTEXT && process.env.NODE_ENV !== 'test') {
+  setTimeout(() => {
+    try { require('./lib/kttNong').batDauNong(require('./db'), { lyDo: 'KHOI_DONG', dung: () => daDongKtt }); } catch (err) { console.error('[ktt-nong] không khởi động được:', err && err.code ? err.code : 'LOI'); }
+  }, 8000).unref();
+}
+
+// ==========================================
 // Hẹn giờ tự động nạp file từ SFTP (SANLUONG-5e, docs/ai/15_SFTP_SCHEDULER.md). MẶC ĐỊNH TẮT: chỉ chạy khi SFTP_SYNC_ENABLED=1 và cấu hình đủ;
 // không chạy trong test / harness (NODE_TEST_CONTEXT). Sai cấu hình -> một dòng log, hẹn giờ không khởi động, máy chủ vẫn chạy. Không bao giờ ném lỗi.
 // ==========================================
@@ -108,7 +120,8 @@ try {
   sched.startSftpScheduler({ db: require('./db'), env: process.env });
   // KTT-6: bộ nạp «Hàng tại KTT» (cùng cờ SFTP_SYNC_ENABLED; mặc định TẮT, không chạy trong test, sai cấu hình chỉ ghi một dòng log).
   const ktt = require('./lib/kttSftp');
-  ktt.startKttScheduler({ db: require('./db'), env: process.env });
+  // KTT-15: sau mỗi lượt nạp cặp OK, làm nóng cache KTT nền (kttNong.js; KTT_WARM=0 để tắt).
+  ktt.startKttScheduler({ db: require('./db'), env: process.env, sauNap: () => require('./lib/kttNong').batDauNong(require('./db'), { lyDo: 'SAU_NAP', dung: () => daDongKtt }) });
   const hdBat = sched.docTrangThaiSftp().trangThai === sched.TT.CHO;
   const kttBat = ktt.docTrangThaiKtt().trangThai === ktt.TT.CHO;
   if (hdBat || kttBat) {

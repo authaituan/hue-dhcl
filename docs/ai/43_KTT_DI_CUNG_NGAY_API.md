@@ -142,7 +142,7 @@ Bản sao là một đợt nạp đầy đủ gần 40 ngày (cỡ dữ liệu t
 | `tong-quan` | 8.205 | 28 |
 
 Dùng thực tế (cache trống, mở trang): `dicungngay/tong-hop` nguội ≈ 7,8 giây, rồi theo-ngay + theo-gio + rớt lại + B5 + tổng quan song song ≈ 2,6 giây (chỉ còn phần A). **B1–B6, danh-sách và tổng quan lần đầu > 5 giây** (≈ 0,25 giây/ngày × 30 ngày; `luu-thoat` còn chậm hơn: ≈ 0,45 giây/ngày). Mỗi ngày được tính xen kẽ nên máy chủ không bị đứng (mỗi khúc ≤ ~0,3 giây).
-Đề xuất (KHÔNG tự thêm bảng tổng hợp), theo thứ tự nên làm:
+Đề xuất (KHÔNG tự thêm bảng tổng hợp), theo thứ tự nên làm — **đề xuất 1 đã làm ở KTT-15 (mục 13)**:
 1. **Làm nóng cache** sau mỗi lần nạp cặp mới và khi khởi động (như `PHAT_WARM` của DASH-12b-4): tính nền `ngayB` và `ngay` cho 8 ngày trong cửa sổ nạp; 22 ngày cũ còn lại đã nằm trong cache 6 giờ → người dùng mở trang gần như luôn gặp cache.
 2. **Một lượt đọc cho cả hai bó**: `luu-thoat` và B cùng gọi `chayBoDem` cho từng ngày; gộp thành một lượt tạo cả hai bó, cắt khoảng một nửa tổng công việc nguội khi người dùng mở cả hai trang.
 3. **Tính các ngày song song** ở 2–3 worker (hiện tính tuần tự từng ngày trên luồng chính, có nhường vòng lặp).
@@ -168,6 +168,62 @@ B3 (tổng 24 giờ = tổng B1); rớt lại; B5; B4 + `chuyenGanNhat` (hòa l�
 - **Đổi số so với bản trước:** tổng bưu gửi, mẫu số năm trạng thái, mẫu số 14 giờ và số «rớt lại» tăng (thêm hàng chuyển tiếp); tỷ lệ «cùng ngày» đổi theo; số của hàng khai thác không đổi (khối `theo_nguon_hang.khai_thac` bằng đúng số cũ). `canh_bao` của B6 đã đổi lời. Bảng B5 («nơi gửi, đường thư đến») nay gồm cả đường thư của túi chuyển tiếp.
 - **Đơn vị đếm:** một SHBG tính MỘT lần (ngày đến D của túi đến ghép / dòng chuyển tiếp chọn được). Số «SHBG × ngày đến» (một SHBG đến nhiều ngày trong khoảng được đếm ở mỗi ngày — cách của canvas / PO) lớn hơn số này; hai số KHÔNG cùng đơn vị. Lưu thoát chưa đếm «đến lại» ở từng ngày (hành vi từ KTT-5, không đổi).
 - **Không đổi:** trang A (`hang-den/*`) vốn đã gồm cả túi chuyển tiếp ở mức cặp (xe, bưu gửi); B4 (`gio-lap-bd10`) tính theo BD10 đi (gồm `CHUYEN_TIEP_DI`).
-- **Hiệu năng:** tập SHBG gấp hơn hai lần nên lần nguội 30 ngày của B1–B6, danh-sách, tổng quan tăng gần gấp đôi, `luu-thoat` tăng ≈ 1,5 lần (số đo ở báo cáo giao việc, không ghi số thật ở đây); lần cache không đổi đáng kể. Đề xuất làm nóng cache / gộp lượt đọc (mục 8) nay càng cần.
+- **Hiệu năng:** tập SHBG gấp hơn hai lần nên lần nguội 30 ngày của B1–B6, danh-sách, tổng quan tăng gần gấp đôi, `luu-thoat` tăng ≈ 1,5 lần (số đo ở báo cáo giao việc, không ghi số thật ở đây); lần cache không đổi đáng kể. Đề xuất làm nóng cache (mục 8) đã làm ở KTT-15 (mục 13); gộp lượt đọc chưa làm.
 - **Điều chưa chắc:** (1) chọn dòng khi SHBG nằm trong nhiều túi chuyển tiếp; (2) bỏ qua túi `DI` tái đóng của hàng chuyển tiếp; (3) mốc dự phòng cho chỉ tiêu 14 giờ của hàng chuyển tiếp (xác nhận BD10 đến thường sau giờ lập BD10 đi). Cả ba chờ PO (`04_DECISIONS.md` #119 mục 5).
 - Test: `tests/ktt-chuyen-tiep.test.js` (11 ca): chỉ-chuyển-tiếp đi cùng ngày / hôm sau / chưa đi, cả hai loại túi không đếm đôi, nhiều túi chuyển tiếp, hàng hoàn không vào 14 giờ, hai mốc 14 giờ, chi-tiet / xlsx / B1 / danh-sach / tổng quan cùng tập, ghép từng ngày = cả khoảng, GDVH 403.
+
+## 13. KTT-15 — làm nóng cache nền sau mỗi lần nạp và khi khởi động (đóng `05_BACKLOG.md` mục 21)
+Mục tiêu: người mở trang KTT không còn chờ lần nguội 16–21 giây (cửa sổ 30 ngày). Mọi số đo dưới đây là **máy dev, dữ liệu GIẢ cỡ gần dữ liệu thật** (30 ngày ≈ 424.500 SHBG, 14.150/ngày; lần nguội mỗi endpoint ≈ 18 giây, đúng cỡ số thật 16–21 giây của KTT-12b/14). **Chưa thử trên NAS DS920+** (chậm hơn máy dev, chưa biết bao nhiêu).
+
+### 13.1 Mới
+| File | Vai trò |
+|---|---|
+| `server/lib/kttNong.js` | `batDauNong(db, { lyDo, env, dung, log, nghiCuaSoMs, nghiThuaMs })`: lượt làm nóng nền, không bao giờ ném lỗi. |
+| `server/lib/kttApi.js` | Chỉ THÊM xuất `noiBoNong` (`layNgay`, `layNgayB`, `layHangDen`, `layGioLapBd10`, `dongBoPhienBan`, `ngayLui`, `CUA_SO_NAP_NGAY`) — không đổi hành vi. |
+| `server/lib/kttSftp.js` | Tùy chọn `sauNap` của `taoBoHenGioKtt`: gọi (không chờ, lỗi nuốt) sau lượt quét có ≥ 1 cặp nạp OK. Mặc định không có (test không bị ảnh hưởng). |
+| `server/index.js` | Truyền `sauNap` → `batDauNong('SAU_NAP')`; một lần `batDauNong('KHOI_DONG')` sau khi nghe 8 giây (timer `unref`, không chặn khởi động; không chạy khi `NODE_TEST_CONTEXT`). |
+| `docker-compose.yml`, `.env.nas.example`, `20_NAS_HUONG_DAN_CHAY.md` | Truyền / mô tả hai biến môi trường. |
+| `tests/ktt-nong.test.js` | 10 ca (+ 1 ca `sauNap` ở `tests/ktt-sftp.test.js`). |
+
+### 13.2 Cách chạy
+- **Không có đường tính riêng**: gọi đúng `layNgay` (hai mốc `xnd` và `quet_tui_den`), `layNgayB`, `layHangDen`, `layGioLapBd10` mà request dùng → kết quả nóng = kết quả nguội (test `deepEqual` 14 endpoint của trang), và request thật đến giữa chừng dùng chung lần tính đang chạy qua `chiaSe` (test: mỗi ngày × mốc tính đúng một lần).
+- **Thứ tự, tuần tự từng ngày, mới nhất trước**: (1) các ngày trong cửa sổ nạp (ngày của độ mới lùi 8 ngày = 9 ngày): bó B + `/luu-thoat` hai mốc; (2) mục theo khoảng cho hai cửa sổ chuẩn 7 và 30 ngày kết thúc ở ngày của độ mới: `hang-den` (A), `gio-lap-bd10` với `min_bd10` = 5 (B4) và 1 (B6); (3) lượt THƯA: các ngày cũ đến đủ `KTT_WARM_NGAY` (31), nghỉ 150 ms giữa các ngày (cửa sổ nạp: 25 ms). Ngày còn trong cache (6 giờ) thì không tính lại.
+- Giữa hai mục luôn `await` (`setImmediate` trong `layNgay`/`layNgayB` + nghỉ). Một lượt tại một thời điểm; lượt mới (nạp tiếp) hủy lượt đang chạy ở ranh giới ngày rồi chạy lại với độ mới mới (lượt đã xếp hàng mà bị lượt mới vượt mặt trả `DA_CO_LUOT_MOI`). `dung()` (máy chủ đóng) cũng hủy ở ranh giới ngày.
+- **Vô hiệu khi nạp mới**: không xóa chủ động — mục của ngày trong cửa sổ nạp tự vô hiệu khi độ mới đổi (quy tắc `conHanNgay` có sẵn); lượt làm nóng sau nạp tính lại đúng các mục đó (test). Nạp bằng `scripts/ktt-import.js` (tiến trình riêng) vẫn vô hiệu cache đúng nhưng KHÔNG kích hoạt làm nóng.
+- **Biến môi trường**: `KTT_WARM=0` tắt hẳn (mặc định BẬT; giá trị khác `0` hoặc trống = bật); `KTT_WARM_NGAY` 1..31 (mặc định 31; 9 = chỉ cửa sổ nạp; hai cửa sổ 7/30 ngày chỉ làm khi ≤ giá trị này). Tắt thì không tính ngày nào, không dùng worker (test).
+- **Log**: một dòng mỗi lượt, `[ktt-nong] <SAU_NAP|KHOI_DONG>: <ngày cửa sổ>+<ngày thưa> ngày, <n> mục khoảng trong <ms> ms` (+ `(bị hủy)` / `(lỗi: <mã>)`). Không có số liệu nghiệp vụ, mã bưu gửi, nội dung lỗi (test). Lỗi trong lúc làm nóng: Promise vẫn xong, máy chủ không sập, lượt sau chạy bình thường (test, DB giả lỗi).
+- **Chỉ đọc DB** (test: số dòng, tổng id, `total_changes()` không đổi).
+
+### 13.3 Đo (1) — lần nguội 30 ngày chia hai pha (máy dev, dữ liệu giả, giây)
+(a) = đọc DB + chọn tập SHBG (`chayTapLuuThoat` với bộ đếm rỗng); (b) = phân loại / tổng hợp (= tổng − (a)).
+| Endpoint | Tổng | (a) đọc + chọn tập | (b) phân loại / tổng hợp |
+|---|---|---|---|
+| `/luu-thoat` mốc `xnd` | 18,4 | 5,4 (29%) | 13,0 |
+| `/luu-thoat` mốc `quet_tui_den` | 17,6 | 5,4 | 12,2 |
+| B1–B6, danh-sách, tổng quan (bó ngày B) | 18,3 | 5,4 | 12,9 |
+
+**Có đọc trùng**: `/luu-thoat` (mỗi mốc một lần) và bó B đều gọi `chayTapLuuThoat` cho CÙNG ngày → tập SHBG đọc 3 lần (tổng 54,3 s, riêng (a) lặp 3 lần = 16,1 s ≈ 30%). Phần (b) cũng lặp 3 lần vì `phanLoaiShbg` chạy ở cả ba nơi.
+
+### 13.4 Quyết định (2) — KHÔNG giữ tập SHBG theo ngày để dùng chung
+Giữ các đơn vị SHBG của một ngày trong bộ nhớ: **+15,8 MB / ngày (14.150 đơn vị, ≈ 1,1 KB mỗi SHBG) → ≈ 490 MB cho 31 ngày** — quá lớn cho NAS RAM hạn chế, lại phải vô hiệu theo độ mới và dấu hiệu DB. Từ chối.
+Phương án thay (đọc một lượt cho cả ba bên, không giữ gì) chỉ bớt phần (a) lặp 2 lần (≈ 10,8 / 54,3 s ≈ 20%) và buộc tách `luuThoatTheoNgay` (≈ 90 dòng) thành bộ đếm dùng chung → rủi ro đổi kết quả cao hơn lợi ích khi đã có làm nóng nền; **để ticket khác**, cùng việc giảm chi phí `phanLoaiShbg` (≈ 70% lần nguội). `04_DECISIONS.md` không đổi (cách dùng chung cache không đổi).
+Bộ nhớ của chính cache nóng: heap 13 → 30 MB (31 ngày × 2 mốc + 31 bó B + 6 mục khoảng ≈ +17 MB).
+
+### 13.5 Đo sau — lần mở trang đầu (máy dev, giây)
+«Mở trang» = `luu-thoat` → `dicungngay/tong-hop` → song song (`theo-ngay`, `theo-gio`, `rotlai`, `lich-xe/theo-duong-thu`, `lich-xe/theo-bcvh`, `lich-xe/gio-lap-bd10`, `hang-den/tong-hop`, `tong-quan`), từ cache trống. «Vừa nạp xong» = cache đã nóng đủ 31 ngày rồi một cặp mới về (độ mới đổi); «vừa khởi động» = tiến trình mới, cache trống.
+| Tình huống | Cửa sổ | Không làm nóng | Sau khi làm nóng xong |
+|---|---|---|---|
+| Vừa khởi động lại | 7 ngày | 11,1 | 0,03 |
+| Vừa khởi động lại | 30 ngày | 44,9 | 0,10 |
+| Vừa nạp xong | 7 ngày | 8,9 | 0,03 |
+| Vừa nạp xong | 30 ngày | 15,2 | 0,09 |
+
+Thời gian hoàn tất lượt làm nóng: **sau khởi động 65–66 s** (31 ngày × 3 mục + 6 mục khoảng); **sau nạp 24,5–26 s** (9 ngày cửa sổ nạp + mục khoảng; ngày cũ đã nằm trong cache 6 giờ). Mở trang trong lúc đang làm nóng dùng chung lần tính đang chạy (không tính trùng); sau khi xong < 0,2 s. Lượt thưa (22 ngày cũ) chiếm phần lớn lượt khởi động (≈ 40 s).
+CPU luồng chính trong lúc làm nóng ≈ thời gian làm nóng (65 s / 22–23 s): ngày được tính TRÊN LUỒNG CHÍNH như request thường (chỉ `hang-den` / `gio-lap-bd10` chạy ở worker). Độ trễ vòng lặp lớn nhất 0,6–0,8 s (≈ một ngày tính; cũng thấy khi mở trang nguội không làm nóng: 0,6–1,4 s). RSS đỉnh 415–496 MB (mở trang nguội 30 ngày không làm nóng: 478 MB) — không tăng đáng kể.
+
+### 13.6 Điều chưa chắc / còn nợ
+1. **Chưa thử trên NAS DS920+.** Nếu NAS chậm gấp 2–4 lần máy dev: lượt khởi động 2–4,5 phút, lượt sau nạp 1–2 phút; mỗi ngày tính chặn luồng chính 1,5–3 giây (API khác chờ tối đa chừng đó). Giảm: `KTT_WARM_NGAY=9`, hoặc ticket chuyển tính ngày sang worker.
+2. **Ngày cũ hết hạn sau 6 giờ** (`TUOI_DA_CHOT_MS`) và chưa có làm nóng lại định kỳ: không có cặp mới / khởi động lại trong > 6 giờ thì 22 ngày cũ lại nguội ở lần mở kế tiếp. Làm nóng lại định kỳ hoặc tăng TTL đổi hành vi cache → ngoài phạm vi, chờ PO.
+3. Mục theo khoảng (`hang-den`, `gio-lap-bd10`) có TTL 10 phút: làm nóng chỉ có tác dụng 10 phút đầu và chỉ cho hai cửa sổ 7/30 ngày kết thúc ở ngày của độ mới; khoảng khác, `tong-hop`, `chi-tiet`, `danh-sach` (phụ thuộc tham số) không được làm nóng.
+4. Nạp bằng `scripts/ktt-import.js` (tiến trình khác) không kích hoạt làm nóng.
+5. Số đo là dữ liệu giả; chưa đo nhiều request đồng thời trong lúc làm nóng.
