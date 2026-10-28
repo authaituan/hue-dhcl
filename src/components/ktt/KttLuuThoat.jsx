@@ -339,7 +339,7 @@ export default function KttLuuThoat({ authUser }) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="ktt-h1">Lưu thoát trong ngày</h1>
+            <h1 className="hue-h1">Lưu thoát trong ngày</h1>
             {nguonXuatLuc && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A5C]" />
@@ -1066,9 +1066,9 @@ export default function KttLuuThoat({ authUser }) {
                   return (
                     <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none space-y-3 mt-3.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                        <h2 className="ktt-h2 text-[17px]">
                           Theo nguồn hàng
-                        </div>
+                        </h2>
                         {selectedBcvh !== 'all' && (
                           <span className="text-[11px] text-gray-500 italic">
                             Số liệu nguồn hàng tính trên toàn KTT
