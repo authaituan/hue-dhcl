@@ -57,7 +57,7 @@ function gioChot() {
 }
 
 /**
- * Lưu thoát theo ngày đến. opts: { tuNgay, denNgay ('YYYY-MM-DD', ≤ 31 ngày), bayGio? }.
+ * Lưu thoát theo ngày đến. opts: { tuNgay, denNgay ('YYYY-MM-DD', ≤ 31 ngày), bayGio?, mocChiTieu? }. meta.moc_chi_tieu = mốc nuôi dat_khong_dat (KTT-10c).
  * Trả { khoang_ngay, bay_gio, nguon_xuat_luc_moi_nhat, co_du_lieu, ly_do, moc, theo_ngay: [...], tong_cong, meta, canh_bao }.
  * Mỗi ngày: { ngay, da_chot, co_du_lieu, tong_shbg, tong (6 BCVH), theo_bcvh { mã: khối }, hang_hoan, khong_phan_loai, tong_shbg_ngay, tui_khong_co_buu_gui }.
  * Khối: { tong_shbg, trang_thai { t1..t5, dang_cho_chuyen: { shbg, tui } }, luu_thoat, dung_chuyen, chi_tiet_trang_thai_5, dat_khong_dat, khong_phan_loai, di_truoc_khi_den } — mỗi chỉ số có `moc`.
@@ -71,7 +71,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   const rong = (lyDo) => ({
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: lyDo, moc,
     theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, khoiRong(mocChiTieu)])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, theo_nguon: [] })),
-    tong_cong: null, meta: { nguon_xuat_luc_moi_nhat: null, moc }, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.']
+    tong_cong: null, meta: { nguon_xuat_luc_moi_nhat: null, moc, moc_chi_tieu: mocChiTieu }, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.']
   });
   if (bayGio === null) return rong('CHUA_CO_DU_LIEU');
   if (!coBang(db, 'ktt_tui') || !coBang(db, 'ktt_buu_gui')) return rong('THIEU_BANG_DU_LIEU');
@@ -140,7 +140,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   const nguonXuat = doMoi ? doMoi.nguon_xuat_luc : null;
   return {
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: bayGio, nguon_xuat_luc_moi_nhat: nguonXuat, co_du_lieu: theo_ngay.some((x) => x.co_du_lieu), ly_do: null, moc,
-    theo_ngay, tong_cong, meta: { nguon_xuat_luc_moi_nhat: nguonXuat, bay_gio: bayGio, moc, ...meta }, canh_bao
+    theo_ngay, tong_cong, meta: { nguon_xuat_luc_moi_nhat: nguonXuat, bay_gio: bayGio, moc, moc_chi_tieu: mocChiTieu, ...meta }, canh_bao
   };
 }
 

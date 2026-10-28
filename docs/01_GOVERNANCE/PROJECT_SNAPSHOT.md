@@ -21,8 +21,8 @@ It is designed to be the shortest safe entry point for a new AI session while pr
 | --- | --- |
 | Current Phase | `Module «Hàng tại KTT» (Trung tâm Khai thác, POS 530100): API và giao diện đã vào main (PR #136–#140); đang đối chiếu số liệu độc lập (KTT-10 xong, KTT-10b sắp làm).` |
 | Current Ticket | `KTT-10b — đo song song hai mốc «giờ đi» cho chỉ tiêu «đạt 14 giờ» (manifest đã có, chuẩn bị giao Claude Code (Sonnet)).` |
-| Next Ticket | `Chưa có — PO chọn. Việc đang mở: xem mục «Việc còn lại» trong HANDOVER-KTT-27-10-2026 (KTT-8d, các trang canvas chưa dựng, hàng hoàn 531120 → 5 BCVH khác).` |
-| Last PO Status | `27/10/2026: PO đã quyết Q1 (giữ hàng hoàn «chỉ đích Thuận Hóa»), Q2 (đo song song hai mốc), Q3 (gộp kiểm 18/10 và 20/10 vào KTT-10b). Nghiệm thu giao diện KTT-9a/9b: CHƯA RÕ — PO xác nhận.` |
+| Next Ticket | `Chưa có — PO chọn. Đề xuất: nối «Chỉ tiêu 14 giờ» hai mốc + chọn mốc vào giao diện Lưu thoát (sau khi PO duyệt canvas). Việc đang mở khác: mục «Việc còn lại» trong HANDOVER-KTT-27-10-2026 (KTT-8d, các trang canvas chưa dựng, hàng hoàn 531120 → 5 BCVH khác).` |
+| Last PO Status | `28/10/2026: KTT-10b đã merge (PR #141). KTT-10c (nối moc_chi_tieu vào /api/ktt/luu-thoat, xlsx hai cột mốc) — CTO duyệt khảo sát 5.1, Claude Code làm xong 5.2–5.5 trên nhánh feat/ktt-10c-api-xlsx, CHỜ CTO duyệt + PO commit. 27/10/2026: PO đã quyết Q1 (giữ hàng hoàn «chỉ đích Thuận Hóa»), Q2 (đo song song hai mốc), Q3 (gộp kiểm 18/10 và 20/10 vào KTT-10b). Nghiệm thu giao diện KTT-9a/9b: CHƯA RÕ — PO xác nhận.` |
 | Current Branch | `main` tại `be5a5f4` (merge PR #140). Nhánh làm KTT-10b: CHƯA ĐẶT — PO đặt khi giao việc.` |
 | Current Manifest | `docs/ai/tickets/KTT-10b.md` |
 | Current State | `Hệ thống: đăng nhập/tài khoản, Quản lý mạng lưới, Dashboard động, Hàng tại KTT (Lưu thoát trong ngày).` |
