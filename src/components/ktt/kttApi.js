@@ -46,3 +46,101 @@ export async function downloadKttLuuThoat({ tu, den, trang_thai, ma_bcvh, nguon 
   const defaultFilename = `KTT_LuuThoat_${tu}_${den}.xlsx`;
   return apiDownloadExcel(url, defaultFilename);
 }
+
+/**
+ * KTT-12 / KTT-13b: B1 Thẻ tổng hợp đi cùng ngày (3 hướng + nội tỉnh có/không kể hàng hoàn)
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttDiCungNgayTongHop({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/dicungngay/tong-hop?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: B2 Tỷ lệ đi cùng ngày từng ngày (cờ Chủ nhật, cờ đã chốt, so sánh CN)
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttDiCungNgayTheoNgay({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/dicungngay/theo-ngay?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: B3 Tỷ lệ đi cùng ngày theo giờ quét túi đến (24 giờ, trước/từ 12h)
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttDiCungNgayTheoGio({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/dicungngay/theo-gio?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: Hàng rớt lại theo đường thư Cấp 1
+ * @param {Object} params { tu, den, top }
+ */
+export async function fetchKttRotLaiTheoDuongThu({ tu, den, top = 8 }) {
+  const params = { tu, den };
+  if (top) params.top = String(top);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/rotlai/theo-duong-thu?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: B4 Giờ lập BD10 đi từng BCVH và xe rời KTT theo lịch C2
+ * @param {Object} params { tu, den, min_bd10 }
+ */
+export async function fetchKttLichXeGioLapBd10({ tu, den, min_bd10 = 5 }) {
+  const params = { tu, den };
+  if (min_bd10 !== undefined && min_bd10 !== null) params.min_bd10 = String(min_bd10);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/lich-xe/gio-lap-bd10?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: B5 Theo từng đường thư đến (3 nhóm)
+ * @param {Object} params { tu, den, top }
+ */
+export async function fetchKttLichXeTheoDuongThu({ tu, den, top = 8 }) {
+  const params = { tu, den };
+  if (top) params.top = String(top);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/lich-xe/theo-duong-thu?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: B6 Lưới thẻ 6 BCVH (hàng đến theo giờ, vạch lịch C2, tam giác vàng giờ lập TB)
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttLichXeTheoBcvh({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/lich-xe/theo-bcvh?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13b: Danh sách bưu gửi khi bấm ô (hôm sau / chưa đi trên 24 giờ)
+ * @param {Object} params { tu, den, loai, duong_thu, noi_gui, huong, hang_hoan, ma_bcvh, page, page_size }
+ */
+export async function fetchKttDanhSachDiNgay({
+  tu,
+  den,
+  loai,
+  duong_thu,
+  noi_gui,
+  huong,
+  hang_hoan,
+  ma_bcvh,
+  page = 1,
+  page_size = 50,
+}) {
+  const params = { tu, den, loai: String(loai || 'hom-sau') };
+  if (duong_thu) params.duong_thu = String(duong_thu);
+  if (noi_gui) params.noi_gui = String(noi_gui);
+  if (huong) params.huong = String(huong);
+  if (hang_hoan !== undefined && hang_hoan !== null) params.hang_hoan = hang_hoan ? '1' : '0';
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  if (page) params.page = String(page);
+  if (page_size) params.page_size = String(page_size);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/danh-sach?${query}`);
+}
+

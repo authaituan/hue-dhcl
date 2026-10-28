@@ -85,3 +85,50 @@ export function formatTrangThaiNhan(code) {
   return c;
 }
 
+/**
+ * Định dạng số thập phân kiểu Việt Nam với dấu phẩy, ví dụ: 73.2 -> '73,2', -0.1 -> '-0,1', null -> '—'
+ * Thống nhất dấu âm là ký tự '-' chuẩn ASCII.
+ * @param {number|null|undefined} n
+ * @param {number} [maxDecimals=1]
+ */
+export function formatDecimal(n, maxDecimals = 1) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const val = Number(n);
+  const isNegative = val < 0;
+  const absVal = Math.abs(val);
+  const str = absVal.toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+  });
+  return isNegative ? `-${str}` : str;
+}
+
+/**
+ * Lấy thứ trong tuần tiếng Việt từ chuỗi YYYY-MM-DD (dùng UTC để không lệch múi giờ)
+ * @param {string|null|undefined} ymd
+ */
+export function getThuTiengViet(ymd) {
+  if (!ymd) return '';
+  const parts = String(ymd).split('-');
+  if (parts.length < 3) return '';
+  const [y, m, d] = parts.map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const day = dt.getUTCDay();
+  const names = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  return names[day] || '';
+}
+
+/**
+ * Định dạng ngày giờ không giây: 'YYYY-MM-DD HH:mm:ss' -> 'DD/MM/YYYY HH:mm'
+ * @param {string|null|undefined} str
+ */
+export function formatDateTimeWithoutSeconds(str) {
+  if (!str) return '—';
+  const s = String(str).replace('T', ' ').trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+  if (!m) return s;
+  const [, yyyy, mm, dd, hh, min] = m;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+

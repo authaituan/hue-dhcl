@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import KttLuuThoat from './KttLuuThoat';
+import KttDiCungNgay from './KttDiCungNgay';
+import KttLichXe from './KttLichXe';
 import KttErrorBoundary from './KttErrorBoundary';
 
 export default function KttView({ authUser }) {
@@ -7,14 +9,16 @@ export default function KttView({ authUser }) {
 
   const tabs = [
     { id: 'luu_thoat', label: 'Lưu thoát trong ngày' },
+    { id: 'b_ty_le', label: 'B · Tỷ lệ đi cùng ngày' },
+    { id: 'b_lich_xe', label: 'B · Lịch xe, đường thư' },
   ];
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 max-w-full min-w-0">
       {/* Thanh tab gạch chân theo mẫu ArrivalsView.jsx:300-316 */}
-      <div className="px-6 pt-2">
-        <div className="border-b border-[#E4D5AE]">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs Hàng tại KTT">
+      <div className="px-6 pt-2 max-w-full overflow-hidden">
+        <div className="border-b border-[#E4D5AE] overflow-x-auto">
+          <nav className="-mb-px flex space-x-8 min-w-max" aria-label="Tabs Hàng tại KTT">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -38,6 +42,19 @@ export default function KttView({ authUser }) {
           <KttLuuThoat authUser={authUser} />
         </KttErrorBoundary>
       )}
+
+      {activeTab === 'b_ty_le' && (
+        <KttErrorBoundary>
+          <KttDiCungNgay authUser={authUser} />
+        </KttErrorBoundary>
+      )}
+
+      {activeTab === 'b_lich_xe' && (
+        <KttErrorBoundary>
+          <KttLichXe authUser={authUser} />
+        </KttErrorBoundary>
+      )}
     </div>
   );
 }
+
