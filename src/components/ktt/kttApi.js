@@ -9,10 +9,12 @@ export async function fetchKttMeta() {
 
 /**
  * Lấy dữ liệu lưu thoát theo khoảng ngày
- * @param {Object} params { tu, den } YYYY-MM-DD
+ * @param {Object} params { tu, den, moc_chi_tieu } YYYY-MM-DD
  */
-export async function fetchKttLuuThoat({ tu, den }) {
-  const query = new URLSearchParams({ tu, den }).toString();
+export async function fetchKttLuuThoat({ tu, den, moc_chi_tieu }) {
+  const params = { tu, den };
+  if (moc_chi_tieu) params.moc_chi_tieu = String(moc_chi_tieu);
+  const query = new URLSearchParams(params).toString();
   return apiFetchJson(`/api/ktt/luu-thoat?${query}`);
 }
 

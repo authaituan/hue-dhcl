@@ -17,6 +17,7 @@ import { fetchKttMeta, fetchKttLuuThoat, downloadKttLuuThoat } from './kttApi';
 import KttTheoNguon from './KttTheoNguon';
 import KttBanDoNhiet from './KttBanDoNhiet';
 import KttChiTiet from './KttChiTiet';
+import KttErrorBoundary from './KttErrorBoundary';
 
 // Thứ trong tuần tiếng Việt
 function getThuTiengViet(ymd) {
@@ -61,6 +62,7 @@ export default function KttLuuThoat({ authUser }) {
   });
 
   const [selectedBcvh, setSelectedBcvh] = useState('all');
+  const [mocChiTieu, setMocChiTieu] = useState('xnd');
   const [validationError, setValidationError] = useState(null);
 
   // Dữ liệu từ API
@@ -117,7 +119,7 @@ export default function KttLuuThoat({ authUser }) {
     return null;
   }, []);
 
-  // 3. Tải dữ liệu lưu thoát
+  // 3. Tải dữ liệu lưu thoát (hỗ trợ tham số moc_chi_tieu)
   const loadData = useCallback(async () => {
     const valErr = validateRange(dateRange);
     setValidationError(valErr);
@@ -131,7 +133,7 @@ export default function KttLuuThoat({ authUser }) {
     setError(null);
 
     try {
-      const res = await fetchKttLuuThoat({ tu: dateRange.from, den: dateRange.to });
+      const res = await fetchKttLuuThoat({ tu: dateRange.from, den: dateRange.to, moc_chi_tieu: mocChiTieu });
       if (currentReqId !== reqIdRef.current) return;
 
       if (res.ok) {
@@ -149,7 +151,7 @@ export default function KttLuuThoat({ authUser }) {
         setLoading(false);
       }
     }
-  }, [dateRange, validateRange]);
+  }, [dateRange, mocChiTieu, validateRange]);
 
   useEffect(() => {
     loadData();
@@ -288,7 +290,7 @@ export default function KttLuuThoat({ authUser }) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="hue-h1">Lưu thoát trong ngày</h1>
+            <h1 className="ktt-h1">Lưu thoát trong ngày</h1>
             {nguonXuatLuc && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A5C]" />
@@ -301,8 +303,39 @@ export default function KttLuuThoat({ authUser }) {
           </p>
         </div>
 
-        {/* Hàng bộ lọc: BCVH & Khoảng ngày */}
+        {/* Hàng bộ lọc: Mốc chỉ tiêu, BCVH & Khoảng ngày */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Bộ chọn mốc chỉ tiêu 14 giờ (A/B) */}
+          <div className="flex items-center bg-white px-2 py-1 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs gap-1">
+            <span className="font-semibold text-gray-600 pl-1 mr-1 whitespace-nowrap">Mốc 14 giờ:</span>
+            <button
+              type="button"
+              id="ktt-moc-xnd-btn"
+              onClick={() => setMocChiTieu('xnd')}
+              className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
+                mocChiTieu === 'xnd'
+                  ? 'bg-[#4A1D6E] text-white shadow-xs'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
+              }`}
+              title="Mốc A: Xác nhận BD10 đến (ConfirmDate) → Giờ lập BD10 đi"
+            >
+              Mốc A (XNĐ)
+            </button>
+            <button
+              type="button"
+              id="ktt-moc-quet-btn"
+              onClick={() => setMocChiTieu('quet_tui_den')}
+              className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
+                mocChiTieu === 'quet_tui_den'
+                  ? 'bg-[#4A1D6E] text-white shadow-xs'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
+              }`}
+              title="Mốc B: Quét túi đến KTT → Giờ lập BD10 đi"
+            >
+              Mốc B (Quét túi đến)
+            </button>
+          </div>
+
           {/* Dropdown BCVH */}
           <div className="flex items-center bg-white px-2.5 py-1.5 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs">
             <span className="font-semibold text-gray-600 mr-2 whitespace-nowrap">BCVH đích:</span>
@@ -399,7 +432,7 @@ export default function KttLuuThoat({ authUser }) {
           {/* ── 2. BẢNG «THEO NGÀY HÀNG ĐẾN» ───────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none">
             <div className="mb-3">
-              <h2 className="hue-h2 text-[17px]">Theo ngày hàng đến</h2>
+              <h2 className="ktt-h2 text-[17px]">Theo ngày hàng đến</h2>
               <p className="text-xs text-gray-600 mt-1">
                 Ngày chưa chốt hiện <span className="text-[#A87A12] font-semibold">«Số tạm»</span>; ngày chốt khi dữ liệu 09:00 của hôm sau về.
               </p>
@@ -414,7 +447,7 @@ export default function KttLuuThoat({ authUser }) {
                     <th className="text-right">HÀNG ĐẾN TÍNH CHỈ TIÊU</th>
                     <th className="text-right">ĐI TRONG NGÀY</th>
                     <th className="text-right">RỚT LẠI SANG HÔM SAU</th>
-                    <th className="text-right">ĐẠT 14 GIỜ</th>
+                    <th className="text-right">ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -499,9 +532,21 @@ export default function KttLuuThoat({ authUser }) {
                           <td className="text-right tabular-nums font-semibold text-[#A87A12]">
                             {formatPercent(tyLeRotLai)}
                           </td>
-                          <td className="text-right tabular-nums font-semibold text-[#4A1D6E]">
-                            {formatPercent(dayBlock.dat_khong_dat?.ty_le_dat)}
-                          </td>
+                          {(() => {
+                            const dayC14 = dayBlock.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                            const doDuoc = dayC14?.do_duoc ?? 0;
+                            const mauSo14 = dayC14?.mau_so ?? 0;
+                            const tyLe14 = doDuoc > 0 ? dayC14.ty_le_dat_tren_do_duoc : null;
+                            const tooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(dayC14?.dat ?? 0)} · không đạt ${formatInt(dayC14?.khong_dat ?? 0)}`;
+                            return (
+                              <td
+                                className="text-right tabular-nums font-semibold text-[#4A1D6E] cursor-help"
+                                title={tooltip}
+                              >
+                                {tyLe14 !== null ? formatPercent(tyLe14) : '—'}
+                              </td>
+                            );
+                          })()}
                         </tr>
                       );
                     })
@@ -526,7 +571,7 @@ export default function KttLuuThoat({ authUser }) {
               {/* Cột trái */}
               <div className="flex flex-col justify-between">
                 <div>
-                  <h2 className="hue-h2 text-[17px]">
+                  <h2 className="ktt-h2 text-[17px]">
                     Xuất xlsx · Sheet 7
                   </h2>
                   <p className="text-xs text-gray-600 leading-relaxed mt-1.5">
@@ -696,7 +741,7 @@ export default function KttLuuThoat({ authUser }) {
             return (
               <div className="space-y-3">
                 <div>
-                  <h2 className="hue-h2 text-[17px]">
+                  <h2 className="ktt-h2 text-[17px]">
                     {sectionTitle}
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
@@ -784,22 +829,82 @@ export default function KttLuuThoat({ authUser }) {
                     </div>
                   </div>
 
-                  {/* Thẻ 6: Đạt chỉ tiêu 14 giờ */}
-                  <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                    <div>
-                      <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                        ĐẠT CHỈ TIÊU 14 GIỜ
-                      </div>
-                      <div className="hue-num-lg my-1.5 text-[#1F7A5C]">
-                        {hasNoData ? '—' : formatPercent(activeBlockData.dat_khong_dat?.ty_le_dat)}
-                      </div>
-                    </div>
-                    <div className="text-[11px] text-gray-500 tabular-nums">
-                      {hasNoData
-                        ? '—'
-                        : `${formatInt(activeBlockData.dat_khong_dat?.dat ?? 0)} đạt · ${formatInt(activeBlockData.dat_khong_dat?.khong_dat ?? 0)} không đạt · bỏ 21:00–07:00`}
-                    </div>
-                  </div>
+                  {/* Thẻ 6: Đạt chỉ tiêu 14 giờ hai mốc */}
+                  <KttErrorBoundary>
+                    {(() => {
+                      const c14 = activeBlockData?.chi_tieu_14h;
+                      const mocA = c14?.theo_moc?.xnd;
+                      const mocB = c14?.theo_moc?.quet_tui_den;
+
+                      return (
+                        <div
+                          id="ktt-kpi-card-14h"
+                          className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                              ĐẠT CHỈ TIÊU 14 GIỜ
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-medium italic">trên số đo được</span>
+                          </div>
+
+                          {hasNoData || !c14 ? (
+                            <div className="py-4 text-gray-400 italic text-xs text-center">—</div>
+                          ) : (
+                            <div className="space-y-2 my-auto">
+                              {/* Dòng Mốc A */}
+                              <div
+                                className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
+                                  mocChiTieu === 'xnd'
+                                    ? 'bg-[#FAF5E8] border-[#E4D5AE]'
+                                    : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
+                                }`}
+                                title={`Mốc A: ${formatInt(mocA?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocA?.khong_do_duoc?.chua_di ?? 0)}, thiếu XNĐ: ${formatInt(mocA?.khong_do_duoc?.thieu_moc ?? 0)}, XNĐ sau giờ đi: ${formatInt(mocA?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight">
+                                  <span className="text-[11px] font-bold text-gray-900 truncate">
+                                    Mốc A (XNĐ → BD10 đi)
+                                  </span>
+                                  <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
+                                    {mocA?.do_duoc > 0 ? formatPercent(mocA.ty_le_dat_tren_do_duoc) : '—'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                  đo được <strong>{formatInt(mocA?.do_duoc ?? 0)}</strong>/{formatInt(mocA?.mau_so ?? 0)} · đạt {formatInt(mocA?.dat ?? 0)} · không đạt {formatInt(mocA?.khong_dat ?? 0)}
+                                </div>
+                              </div>
+
+                              {/* Dòng Mốc B */}
+                              <div
+                                className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
+                                  mocChiTieu === 'quet_tui_den'
+                                    ? 'bg-[#FAF5E8] border-[#E4D5AE]'
+                                    : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
+                                }`}
+                                title={`Mốc B: ${formatInt(mocB?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocB?.khong_do_duoc?.chua_di ?? 0)}, thiếu giờ quét đến: ${formatInt(mocB?.khong_do_duoc?.thieu_moc ?? 0)}, quét đến sau giờ đi: ${formatInt(mocB?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight">
+                                  <span className="text-[11px] font-bold text-gray-900 truncate">
+                                    Mốc B (quét túi đến → BD10 đi)
+                                  </span>
+                                  <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
+                                    {mocB?.do_duoc > 0 ? formatPercent(mocB.ty_le_dat_tren_do_duoc) : '—'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                  đo được <strong>{formatInt(mocB?.do_duoc ?? 0)}</strong>/{formatInt(mocB?.mau_so ?? 0)} · đạt {formatInt(mocB?.dat ?? 0)} · không đạt {formatInt(mocB?.khong_dat ?? 0)}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-[10px] text-gray-400 pt-1 leading-tight border-t border-gray-100">
+                            Di chuột vào mốc để xem chi tiết lý do không đo được
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </KttErrorBoundary>
                 </div>
 
                 {/* Dòng chú thích khi có bưu gửi thiếu khối lượng */}
@@ -836,7 +941,7 @@ export default function KttLuuThoat({ authUser }) {
             return (
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
                 <div>
-                  <h2 className="hue-h2 text-[17px]">Tổng quan trong ngày</h2>
+                  <h2 className="ktt-h2 text-[17px]">Tổng quan trong ngày</h2>
                   <div className="flex flex-wrap items-center justify-between text-xs text-gray-700 mt-2 font-medium">
                     <span>
                       Hàng đến tính chỉ tiêu: đi được bao nhiêu, rớt lại bao nhiêu
@@ -951,7 +1056,7 @@ export default function KttLuuThoat({ authUser }) {
           {/* ── 5. KHỐI HÀNG HOÀN TỔ KHHH (531120) ─────────────────────────── */}
           {selectedBcvh !== 'all' && selectedBcvh !== '533140' ? (
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none">
-              <h2 className="hue-h2 text-[17px] mb-1">
+              <h2 className="ktt-h2 text-[17px] mb-1">
                 Hàng chuyển hoàn của Tổ KHHH (531120)
               </h2>
               <p className="text-xs text-gray-500 italic">
@@ -962,7 +1067,7 @@ export default function KttLuuThoat({ authUser }) {
             activeHangHoan && (
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
                 <div>
-                  <h2 className="hue-h2 text-[17px]">
+                  <h2 className="ktt-h2 text-[17px]">
                     Hàng chuyển hoàn của Tổ KHHH (531120): hiện riêng, không tính chỉ tiêu 14 giờ
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
@@ -1074,7 +1179,7 @@ export default function KttLuuThoat({ authUser }) {
               {/* Cột trái: Theo BCVH đích (6 thẻ + Bảng tỷ trọng) */}
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
                 <div>
-                  <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
+                  <h2 className="ktt-h2 text-[17px]">Theo BCVH đích</h2>
                   <p className="text-xs text-gray-600 mt-1">
                     Sản lượng, tỷ lệ lưu thoát và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
                   </p>
@@ -1178,9 +1283,9 @@ export default function KttLuuThoat({ authUser }) {
                             </div>
                           </th>
                           <th className="text-right">
-                            ĐẠT 14 GIỜ
+                            ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)
                             <div className="text-[10px] font-normal normal-case text-gray-500">
-                              trong hàng đến
+                              trong hàng đến của BCVH này
                             </div>
                           </th>
                         </tr>
@@ -1203,7 +1308,11 @@ export default function KttLuuThoat({ authUser }) {
                             const tyTrongDi = tongDi > 0 ? bDi / tongDi : null;
                             const tyTrongRot = tongRot > 0 ? bRot / tongRot : null;
                             const tyLeRotChinh = bMauSo > 0 ? bRot / bMauSo : null;
-                            const tyLeDat14 = bBlock?.dat_khong_dat?.ty_le_dat;
+                            const bC14 = bBlock?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                            const doDuoc = bC14?.do_duoc ?? 0;
+                            const mauSo14 = bC14?.mau_so ?? 0;
+                            const tyLeDat14 = doDuoc > 0 ? bC14.ty_le_dat_tren_do_duoc : null;
+                            const bTooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(bC14?.dat ?? 0)} · không đạt ${formatInt(bC14?.khong_dat ?? 0)}`;
 
                             return (
                               <tr key={b.ma} className="hover:bg-[#FFFBEF] transition-colors">
@@ -1219,8 +1328,11 @@ export default function KttLuuThoat({ authUser }) {
                                 <td className="text-right tabular-nums font-medium text-gray-800">
                                   {formatPercent(tyLeRotChinh)}
                                 </td>
-                                <td className="text-right tabular-nums font-medium text-[#4A1D6E]">
-                                  {formatPercent(tyLeDat14)}
+                                <td
+                                  className="text-right tabular-nums font-medium text-[#4A1D6E] cursor-help"
+                                  title={bTooltip}
+                                >
+                                  {tyLeDat14 !== null ? formatPercent(tyLeDat14) : '—'}
                                 </td>
                               </tr>
                             );
@@ -1240,6 +1352,7 @@ export default function KttLuuThoat({ authUser }) {
                 data={data}
                 selectedBcvh={selectedBcvh}
                 activeHangHoan={activeHangHoan}
+                mocChiTieu={mocChiTieu}
               />
             </div>
           )}
@@ -1281,6 +1394,7 @@ export default function KttLuuThoat({ authUser }) {
           <KttChiTiet
             dateRange={dateRange}
             selectedBcvh={selectedBcvh}
+            mocChiTieu={mocChiTieu}
             filterCell={selectedCell}
             onClearFilterCell={() => setSelectedCell(null)}
           />
@@ -1289,7 +1403,7 @@ export default function KttLuuThoat({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="hue-h2 text-[17px]">Mốc chuyến theo BCVH</h2>
+                <h2 className="ktt-h2 text-[17px]">Mốc chuyến theo BCVH</h2>
                 {metaError && (
                   <span className="text-xs text-red-600 font-semibold italic">
                     (Không tải được lịch chuyến)

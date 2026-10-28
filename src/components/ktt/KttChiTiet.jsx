@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { formatInt } from '../quythoigian/quyThoiGianFormatters';
-import { formatKgDecimal, formatTimeShort, formatGioChiTiet } from './kttFormatters';
+import { formatKgDecimal, formatTimeShort, formatGioChiTiet, formatTrangThaiNhan } from './kttFormatters';
 import { fetchKttChiTiet, downloadKttLuuThoat } from './kttApi';
 
 const STATUS_CHIP_OPTIONS = [
@@ -21,6 +21,7 @@ const STATUS_CHIP_OPTIONS = [
 export default function KttChiTiet({
   dateRange,
   selectedBcvh,
+  mocChiTieu = 'xnd',
   filterCell,
   onClearFilterCell,
 }) {
@@ -114,7 +115,7 @@ export default function KttChiTiet({
       {/* ── TIÊU ĐỀ & MÔ TẢ ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="hue-h2 text-[17px]">
+          <h2 className="ktt-h2 text-[17px]">
             Danh sách hàng đến trong ngày theo trạng thái
           </h2>
           <p className="text-xs text-gray-600 mt-1">
@@ -146,7 +147,7 @@ export default function KttChiTiet({
           <div className="flex items-center gap-2">
             <span className="font-bold">Đang xem theo ô heatmap:</span>
             <span className="font-semibold bg-white px-2 py-0.5 rounded border border-[#D8BDEB]">
-              {filterCell.label}
+              {formatTrangThaiNhan(filterCell.label)}
             </span>
           </div>
           <button
@@ -227,7 +228,9 @@ export default function KttChiTiet({
               <th className="text-left">CHUYẾN LIỀN KỀ → MỐC HẠN</th>
               <th className="text-left">GIỜ LẬP BD10 ĐI</th>
               <th className="text-right">CHỜ TÍNH CHỈ TIÊU (GIỜ)</th>
-              <th className="text-center">CHỈ TIÊU 14 GIỜ</th>
+              <th className="text-center whitespace-nowrap">
+                CHỈ TIÊU 14 GIỜ ({mocChiTieu === 'quet_tui_den' ? 'MỐC B' : 'MỐC A'})
+              </th>
               <th className="text-left">PHÂN LOẠI</th>
             </tr>
           </thead>
@@ -257,31 +260,40 @@ export default function KttChiTiet({
                       })
                     : '—';
 
-                // Chỉ tiêu 14 giờ badge
-                const datLabel = r.dat_khong_dat;
-                let datBadge = <span className="text-gray-500">—</span>;
-                if (datLabel === 'Đạt') {
+                // Chỉ tiêu 14 giờ badge theo mốc đang chọn (KTT-10d: không fallback r.dat_khong_dat)
+                const mocVal = mocChiTieu === 'quet_tui_den' ? r.chi_tieu_14h_quet_tui_den : r.chi_tieu_14h_xnd;
+                let datBadge = <span className="text-gray-400 italic">—</span>;
+                if (mocVal === 'Đạt') {
                   datBadge = (
                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
                       Đạt
                     </span>
                   );
-                } else if (datLabel === 'Không đạt') {
+                } else if (mocVal === 'Không đạt') {
                   datBadge = (
                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#FBE4E5] text-[#B3202A]">
                       Không đạt
                     </span>
                   );
-                } else if (datLabel === 'Loại trừ' || datLabel === 'Không tính') {
+                } else if (typeof mocVal === 'string' && mocVal.startsWith('Không đo được')) {
                   datBadge = (
-                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-500">
-                      {datLabel}
+                    <span
+                      className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#FFF1CC] text-[#A87A12] inline-block"
+                      title={mocVal}
+                    >
+                      {mocVal}
                     </span>
                   );
-                } else if (datLabel) {
+                } else if (mocVal === 'Loại trừ' || mocVal === 'Không tính') {
+                  datBadge = (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-500">
+                      {mocVal}
+                    </span>
+                  );
+                } else if (mocVal) {
                   datBadge = (
                     <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
-                      {datLabel}
+                      {mocVal}
                     </span>
                   );
                 }
@@ -316,7 +328,7 @@ export default function KttChiTiet({
                       {datBadge}
                     </td>
                     <td className="text-gray-700 whitespace-nowrap">
-                      {r.trang_thai || r.phan_loai || '—'}
+                      {formatTrangThaiNhan(r.trang_thai) || r.phan_loai || '—'}
                     </td>
                   </tr>
                 );

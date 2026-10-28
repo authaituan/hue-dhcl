@@ -118,7 +118,7 @@ export default function KttBanDoNhiet({
       {/* ── TIÊU ĐỀ & CÔNG TẮC TÔ MÀU ───────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="hue-h2 text-[17px]">
+          <h2 className="ktt-h2 text-[17px]">
             Rớt lại nằm ở đâu: nguồn / đường thư × BCVH đích
           </h2>
           <p className="text-xs text-gray-600 mt-1">
@@ -236,7 +236,7 @@ export default function KttBanDoNhiet({
                               ma_bcvh: b.ma,
                               bcvhTen: b.ten,
                               loai: colorBy,
-                              label: `${g.ten} × ${b.ten}`,
+                              label: `${g.ten} × ${b.ten} · ${colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Trượt chuyến' : 'Không đạt 14 giờ'}`,
                             })
                           }
                           className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-200/80 flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -309,7 +309,7 @@ export default function KttBanDoNhiet({
                               ma_bcvh: null,
                               bcvhTen: 'Tất cả BCVH',
                               loai: colorBy,
-                              label: `${g.ten} · Tất cả BCVH`,
+                              label: `${g.ten} · Tất cả BCVH · ${colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Trượt chuyến' : 'Không đạt 14 giờ'}`,
                             })
                           }
                           className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -383,7 +383,7 @@ export default function KttBanDoNhiet({
                           ma_bcvh: b.ma,
                           bcvhTen: b.ten,
                           loai: colorBy,
-                          label: `Tất cả nguồn × ${b.ten}`,
+                          label: `Tất cả nguồn × ${b.ten} · ${colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Trượt chuyến' : 'Không đạt 14 giờ'}`,
                         })
                       }
                       className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -450,7 +450,7 @@ export default function KttBanDoNhiet({
                           ma_bcvh: null,
                           bcvhTen: 'Tất cả BCVH',
                           loai: colorBy,
-                          label: 'Toàn bộ KTT',
+                          label: `Toàn bộ KTT · ${colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Trượt chuyến' : 'Không đạt 14 giờ'}`,
                         })
                       }
                       className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border-2 border-gray-400 flex flex-col items-center justify-center transition-all cursor-pointer ${
