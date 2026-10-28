@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-28] - KTT-11b: số «Tất cả» ở khung Xuất xlsx — `tong_shbg_ngay` theo BCVH, khối phân rã `ngoai_bay_chip`, sửa chữ «17 cột» ở docs (backend + docs; không đổi `src/`)
+
+- **Lý do (khảo sát KTT-11a):** «Tất cả» = `tong_shbg_ngay` = mọi SHBG có ngày quét túi đến, gồm bốn nhóm không có chip (không rõ đích, ngoài 6 BCVH, thiếu giờ quét túi đến, không xếp được chuyến) — số đúng, khớp xlsx, nhưng không phải tổng bảy chip. Khi chọn một BCVH, khối `theo_bcvh[mã]` không có `tong_shbg_ngay` nên giao diện rơi về `luu_thoat.mau_so` (dữ liệu giả: Thuận Hóa chip 8, xlsx 12).
+- **Mới (chỉ THÊM, `server/lib/kttLuuThoatQuery.js`):** (1) `tong_shbg_ngay` ở mỗi `theo_bcvh[mã]` (từng ngày và `tong_cong`) = `tong_shbg` + hàng hoàn nếu 533140 = số dòng xlsx `?ma_bcvh=`; giao diện đã đọc trường này nên chip tự đúng. (2) Khối `ngoai_bay_chip` ở mỗi ngày và `tong_cong`: `{ khong_ro_dich, ngoai_pham_vi{…}, ngoai_pham_vi_tong, khong_co_gio_quet_den, khong_xep_duoc_chuyen{…}, khong_xep_duoc_chuyen_tong, tong }`. Đẳng thức: t1…t5 + đang chờ + hàng hoàn + `ngoai_bay_chip.tong` = `tong_shbg_ngay`. `khong_phan_loai` KHÔNG đổi.
+- **Test:** `tests/ktt-tat-ca.test.js` (5 ca, dữ liệu giả, server thật; thêm vào `package.json`): giá trị theo ngày, đẳng thức ở ngày / khoảng / `tong_cong`, hình dạng `khong_phan_loai` giữ nguyên, `ghepKhoang` = cả khoảng và không phụ thuộc `moc_chi_tieu`, `tong_shbg_ngay` 6 BCVH = số dòng xlsx (cả từng ngày) = `soKhop`, chưa có dữ liệu / ngày trống. Test cũ không sửa.
+- **Docs:** `41_KTT_LUU_THOAT.md` mục 11.1, `42_KTT_API.md` mục 11.1, `04_DECISIONS.md` #118, `03_ARCHITECTURE_MAP.md` (dòng 36, 179: 19 trường / 18 cột), `00_SNAPSHOT.md`. Mục lịch sử (#116, các mục CHANGELOG cũ) giữ nguyên.
+- **Còn nợ (ticket KTT-11c, Antigravity):** `KttLuuThoat.jsx:578` vẫn ghi «17 cột» (thật 18) và thẻ «Chỉ tiêu 14g»; dòng «Không vào bảy trạng thái» đọc `ngoai_bay_chip`; chip bỏ qua bộ lọc ô bản đồ nhiệt; khoảng ngày mặc định. Không commit (PO commit).
+
 ## [2026-10-28] - KTT-12b: hoàn tất KTT-12 — 13 route (đi cùng ngày B1–B3, rớt lại, lịch xe B4–B6, danh sách, hàng đến A, tổng quan), test, đo hiệu năng, tài liệu (backend only)
 
 - **Route (`server/routes/ktt.js`, cùng `requireRoles(ADMIN, TTVH)`):** `GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}`, `/rotlai/theo-duong-thu`, `/lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}`, `/danh-sach` (phân trang), `/hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}`, `/tong-quan`. Mọi route cần `tu`, `den` (≤ 31 ngày); phản hồi có `khoang_ngay`, `cua_so_thuc_te`, `nguon_xuat_luc_moi_nhat`.

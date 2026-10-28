@@ -852,5 +852,11 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. Sheet 7 xlsx 18 cột: bỏ cột «Đạt / không đạt» một mốc (nuôi bởi `dat_khong_dat`), thêm hai cột nhãn «Mốc A (xác nhận BD10 đến → lập BD10 đi)», «Mốc B (quét túi đến KTT → lập BD10 đi)». Trường `dat_khong_dat` vẫn ở API `chi-tiet` (không phá client cũ); `kttDong.dongChiTiet` thêm `chi_tieu_14h_xnd`, `chi_tieu_14h_quet_tui_den` dùng chung cho JSON và xlsx.
 3. Số tổng hợp ba nhóm (Mốc A, Mốc B, Không đo được) ở sheet «Thông tin», ghi «đo được x/y» và phần không đo được theo lý do; không in tỷ lệ «đạt» chung (theo `37_KTT_QUY_TAC_TINH.md` mục 6). Số lấy từ khối `chi_tieu_14h` của `/luu-thoat` cùng khoảng (tổng hoặc BCVH đang lọc), không theo bộ lọc trạng thái / nguồn.
 
+### 118. «Tất cả» là tổng MỌI SHBG; phân rã bốn nhóm; `tong_shbg_ngay` theo BCVH (KTT-11b, 28/10/2026)
+1. «Tất cả» ở khung Xuất xlsx (6 BCVH) = `tong_shbg_ngay`: mọi SHBG có ngày quét túi đến trong khoảng, kể cả không rõ đích, ngoài 6 BCVH, thiếu giờ quét túi đến, không xếp được chuyến. Con số đúng và khớp số dòng xlsx; nó KHÔNG phải tổng bảy chip.
+2. Thêm `ngoai_bay_chip` (mỗi ngày + `tong_cong`) để giao diện nêu được bốn nhóm đó; đẳng thức `t1…t5 + đang chờ + hàng hoàn + ngoai_bay_chip.tong = tong_shbg_ngay` có test. Không thay `khong_phan_loai`.
+3. Mỗi khối `theo_bcvh` có `tong_shbg_ngay` = SHBG của khối + hàng hoàn Thuận Hóa (= số dòng xlsx lọc BCVH), để chip «Tất cả» của giao diện không rơi về `mau_so`.
+4. Sheet 7 xlsx 18 cột; `chi-tiet` 19 trường. Chữ «17 cột» còn lại ở giao diện (`KttLuuThoat.jsx`) do Antigravity sửa (KTT-11c).
+
 ## Drift phát hiện
 _(chưa có)_
