@@ -1,6 +1,6 @@
 // ==========================================
 // «Hàng tại KTT» (KTT-8): TÁC VỤ NẶNG chạy NỀN trong một worker_thread riêng (kttApi.js) để máy chủ không bị đứng khi tính khoảng ngày lớn:
-//   tongHop (kttQuery.tongHopKtt + kttDanhGia.taoDanhGia), chiTietCu (kttQuery.chiTiet), chiTietLuuThoat (kttLuuThoatQuery.danhSachLuuThoat).
+//   tongHop (kttQuery.tongHopKtt + kttDanhGia.taoDanhGia), chiTietCu (kttQuery.chiTiet), chiTietLuuThoat (kttLuuThoatQuery.danhSachLuuThoat), danhSachDiNgay (KTT-12), hangDen (KTT-12).
 // Worker mở kết nối CHỈ ĐỌC riêng tới cùng file DB (WAL: đọc không chặn ghi). File này vừa là module (xuất TAC_VU để chạy thẳng trong tiến trình chính khi không dùng worker,
 // ví dụ DB trong bộ nhớ) vừa là điểm vào của worker. Không ghi DB, không in dữ liệu.
 // ==========================================
@@ -10,12 +10,16 @@ const Q = require('./kttQuery');
 const QL = require('./kttLuuThoatQuery');
 const { taoDanhGia } = require('./kttDanhGia');
 const X = require('./kttXuat');
+const DQ = require('./kttDiNgayQuery');
+const HD = require('./kttHangDen');
 
 const TAC_VU = Object.freeze({
   tongHop: (db, a) => { const th = Q.tongHopKtt(db, a); return { ...th, danh_gia: taoDanhGia(th) }; },
   chiTietCu: (db, a) => Q.chiTiet(db, a),
   chiTietLuuThoat: (db, a) => QL.danhSachLuuThoat(db, a),
-  xuatLuuThoat: (db, a) => X.xuatLuuThoat(db, a) // KTT-8b: toàn bộ SHBG (không phân trang) cho file xlsx
+  xuatLuuThoat: (db, a) => X.xuatLuuThoat(db, a), // KTT-8b: toàn bộ SHBG (không phân trang) cho file xlsx
+  danhSachDiNgay: (db, a) => DQ.danhSach(db, a), // KTT-12: danh sách bấm ô «hôm sau» / «chưa đi trên 24 giờ»
+  hangDen: (db, a) => HD.tinh(db, a) // KTT-12: trang A «Hàng đến từ xe Cấp 1»
 });
 
 if (!isMainThread && parentPort) {

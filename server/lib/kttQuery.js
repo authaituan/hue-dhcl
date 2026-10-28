@@ -242,6 +242,7 @@ function chuanHoaDongShbg(r, ctx) {
   t.tenPhuong = chuoi(r.ten_xa_phuong) || null;
   t.duongThuMa = chuoi(r.dt_ma) || null; // KTT-8b: đường thư của BD10 đến (chỉ để xuất file, không dùng để tính)
   t.duongThuTen = chuoi(r.dt_ten) || null;
+  t.diemGuiTen = chuoi(r.dg_ten) || null; // KTT-12: tên nơi gửi BD10 đến (chỉ để hiển thị bảng B5, không dùng để tính)
   t.xndSh = ctx.gio(r.xnd_sh);
   t.quetDenGiay = t.quetDen ? ctx.giay(t.quetDen) : null;
   t.gioDiGiay = t.gioDi ? ctx.giay(t.gioDi) : null;
@@ -281,7 +282,7 @@ function dungDonShbg(dong, ctx) {
     soHieuBd8: den ? den.soHieuBd8 : (diCuoi ? diCuoi.soHieuBd8 : null), bd10Den: den ? den.bd10Den : null, bd10Di: diCuoi ? diCuoi.bd10Di : null,
     luong: den ? den.luong : null, quetDen: den ? den.quetDen : null, gioDi: diCuoi ? diCuoi.gioDi : null, xndBd10: den ? den.xndBd10 : null, xnd: null,
     gioBd10Di: diCuoi ? diCuoi.gioBd10Di : null, gioQuetDi: diCuoi ? diCuoi.gioQuetDi : null, tenPhuong: (dong.find((x) => x.tenPhuong) || { tenPhuong: null }).tenPhuong,
-    diemGuiDen: den ? den.diemGuiDen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
+    diemGuiDen: den ? den.diemGuiDen : null, diemGuiDenTen: den ? den.diemGuiTen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
     tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
     // KTT-10b: chất lượng túi đến cho mốc «giờ quét túi đến» (chỉ để đếm, không dùng để chọn túi): số túi đến có giờ quét, có túi đi không, id túi đến gốc.
     soTuiDen: new Set(denCoQuet.map((x) => x.tuiId)).size, coTuiDi: diRows.length > 0, tuiDenGocId: denGoc ? denGoc.tuiId : null,
@@ -344,7 +345,7 @@ function duyetShbg(db, ctx, cb) {
     ? `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}
        UNION SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu IN ('DI', 'CHUYEN_TIEP_DI') AND ${dieuKienDi('t2')}`
     : `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}`;
-  const sql = `SELECT b.shbg, b.khoi_luong_thuc_te_g AS gam, b.ma_xa_phuong, b.ten_xa_phuong, b.ti_xac_nhan_den_luc AS xnd_sh, t.id AS tui_id, t.bd10_den_ma_duong_thu AS dt_ma, t.bd10_den_ten_duong_thu AS dt_ten, ${COT_TUI_SQL}
+  const sql = `SELECT b.shbg, b.khoi_luong_thuc_te_g AS gam, b.ma_xa_phuong, b.ten_xa_phuong, b.ti_xac_nhan_den_luc AS xnd_sh, t.id AS tui_id, t.bd10_den_ma_duong_thu AS dt_ma, t.bd10_den_ten_duong_thu AS dt_ten, t.bd10_den_ten_diem_gui AS dg_ten, ${COT_TUI_SQL}
     FROM (${ungVien}) u
     CROSS JOIN ktt_buu_gui b ON b.shbg = u.shbg
     CROSS JOIN ktt_tui t ON ${NOI_KHOA}
