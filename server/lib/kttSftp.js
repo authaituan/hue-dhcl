@@ -169,13 +169,13 @@ const dongHoThat = {
 };
 
 /**
- * Tạo bộ hẹn giờ KTT (chưa lên lịch; gọi .batDau()). opts: { db, env, clock, sleep, ketNoi (cfg -> client), log, tmpDir, troiDauMs, choPhepTrongTest, hangDen (() -> trạng thái hẹn giờ «Hàng đến»), tamDungHangDen }.
+ * Tạo bộ hẹn giờ KTT (chưa lên lịch; gọi .batDau()). opts: { db, env, clock, sleep, ketNoi (cfg -> client), log, tmpDir, troiDauMs, choPhepTrongTest, hangDen (() -> trạng thái hẹn giờ «Hàng đến»), tamDungHangDen, sauNap (() -> void, KTT-15: gọi KHÔNG chờ sau lượt có ≥ 1 cặp nạp OK; mặc định không có) }.
  Chu kỳ lấy từ tham số ktt_chu_ky_quet_phut MỖI lần hẹn lại. Trả { batDau, dung, chayNgay, trangThai }.
  Không chạy chồng: khoá trong tiến trình + bỏ qua khi `sftp_sync_runs` có lượt «Hàng đến» đang chạy (chỉ ĐỌC). Không kết nối khi hẹn giờ «Hàng đến» đang TẠM DỪNG vì xác thực / vân tay (tránh bị NAS chặn IP).
  Lỗi XÁC THỰC / VÂN TAY SAI: tạm dừng KTT (và «Hàng đến», qua tamDungHenGio có sẵn) đến khi khởi động lại.
  */
 function taoBoHenGioKtt({ db, env = process.env, clock = dongHoThat, sleep, ketNoi, log = (...a) => console.log(...a), tmpDir, troiDauMs = TROI_DAU_MS, choPhepTrongTest = false,
-  hangDen = Sch.docTrangThaiSftp, tamDungHangDen = Sch.tamDungHenGio } = {}) {
+  hangDen = Sch.docTrangThaiSftp, tamDungHangDen = Sch.tamDungHenGio, sauNap = null } = {}) {
   const nhatKy = (m) => { try { log(`[ktt-sftp] ${m}`); } catch (e) { /* log hỏng không được làm sập */ } };
   const st = { trangThai: TT.TAT, lyDo: null, batLuc: null, luotGanNhat: null, luotKeTiep: null, chuKyPhut: null, thuMuc: null, soLuot: 0 };
   let cauHinh = null; let hen = null; let dangChay = null; let daDung = false; let bimat = [];
@@ -262,6 +262,7 @@ function taoBoHenGioKtt({ db, env = process.env, clock = dongHoThat, sleep, ketN
       }
       const d = kq.dem;
       xong({ ketQua: d.capLoi || d.capTuChoi ? KET_QUA_LUOT.CO_LOI : KET_QUA_LUOT.XONG, dem: { ...d } });
+      if (d.capNap > 0 && typeof sauNap === 'function') { try { sauNap(); } catch (e) { /* KTT-15: làm nóng cache nền; lỗi không được làm hỏng lượt nạp */ } }
       nhatKy(`Quét xong: nạp ${d.capNap} cặp, đã có ${d.capDaCo}, chờ cặp ${d.capChoCap}, chưa ổn định ${d.capChuaOnDinh}, từ chối ${d.capTuChoi}, lỗi ${d.capLoi}${d.capVuotToiDa ? `, hoãn ${d.capVuotToiDa}` : ''}${d.fileLa ? `, file lạ ${d.fileLa}` : ''} — ${st.luotGanNhat.thoiGianMs} ms.`);
       const cb = K.canhBao(db, clock.now());
       if (cb.length) { const dm = {}; for (const x of cb) dm[x.ma] = (dm[x.ma] || 0) + 1; nhatKy(`Cảnh báo đang mở: ${Object.entries(dm).map(([k, v]) => `${k}=${v}`).join(', ')}.`); }

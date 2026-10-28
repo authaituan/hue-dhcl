@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-28] - KTT-15: làm nóng cache «Hàng tại KTT» nền sau mỗi lần nạp và khi khởi động (backend + test + docs; không đổi `src/`, không bảng DB mới)
+
+- **Lý do:** lần nguội 30 ngày ≈ 16–21 giây ở `/luu-thoat`, B1–B6, danh-sách, tổng quan (KTT-12b/14); đóng `05_BACKLOG.md` mục 21.
+- **Mới:** `server/lib/kttNong.js` (`batDauNong`): tuần tự từng ngày, nhường luồng chính, gọi ĐÚNG `layNgay` (hai mốc) / `layNgayB` / `layHangDen` / `layGioLapBd10` của `kttApi.js` (xuất thêm `noiBoNong`) nên kết quả nóng = nguội và request giữa chừng không tính trùng. Thứ tự: 9 ngày cửa sổ nạp → mục theo khoảng 7/30 ngày (A, B4, B6) → lượt thưa đến 31 ngày. Kích hoạt: `sauNap` của `kttSftp.taoBoHenGioKtt` (sau lượt có ≥ 1 cặp nạp OK) và một lần 8 giây sau khởi động (`server/index.js`). **Tắt: `KTT_WARM=0`** (mặc định bật); `KTT_WARM_NGAY` 1..31 (mặc định 31). Truyền biến ở `docker-compose.yml`, `.env.nas.example`; mô tả ở `20_NAS_HUONG_DAN_CHAY.md`. Log một dòng không số liệu.
+- **Đo (dữ liệu giả cỡ thật, máy dev):** lần nguội 30 ngày chia (a) đọc + chọn tập ≈ 29%, (b) phân loại ≈ 71%; tập SHBG bị đọc 3 lần (hai mốc `/luu-thoat` + bó B). **Không giữ tập SHBG dùng chung**: ≈ 15,8 MB/ngày → ≈ 490 MB/31 ngày. Lần mở trang đầu: sau khởi động 7 ngày 11,1 → 0,03 s, 30 ngày 44,9 → 0,10 s; sau nạp 7 ngày 8,9 → 0,03 s, 30 ngày 15,2 → 0,09 s. Làm nóng xong sau 65 s (khởi động) / 25 s (sau nạp); heap +17 MB. Chi tiết `43` mục 13.
+- **Test:** `tests/ktt-nong.test.js` (10 ca; thêm vào `package.json`) + 1 ca `sauNap` ở `tests/ktt-sftp.test.js`: nóng = nguội (`deepEqual` 14 endpoint), chỉ đọc DB, `KTT_WARM=0` không chạy, nạp mới → vô hiệu rồi nóng lại, không tính trùng, lượt mới nhường lượt cũ, hủy, lỗi không sập và log không lộ số liệu. `npm test` 1193 ca (1183 pass, 0 fail, 10 skip); ca mới giống nhau ở 3 TZ; `npm run build` xanh.
+- **Còn nợ / chờ PO:** chưa thử trên NAS (có thể chậm 2–4×; tính ngày vẫn trên luồng chính, trễ vòng lặp đo 0,6–0,8 s); ngày cũ hết hạn sau 6 giờ, chưa làm nóng lại định kỳ; mục theo khoảng TTL 10 phút, `tong-hop`/`chi-tiet`/`danh-sach` không được làm nóng; gộp lượt đọc + tối ưu `phanLoaiShbg` + tính song song để ticket khác. Không commit (PO commit).
+
 ## [2026-10-28] - KTT-14: hàng «chuyển tiếp đi» (`CHUYEN_TIEP_DI`) vào tập Lưu thoát và các bảng KTT-12 (backend + test + docs; không đổi `src/`)
 
 - **Lý do (PO chốt):** chỉ tiêu F1.3 chấm mọi hàng đích 6 BCVH Huế; hàng chỉ có túi chuyển tiếp (đi ngoài BD8 = SHBG, hoặc túi chia sẵn) trước đây nằm ngoài tập nên mẫu số «đi trong ngày / rớt lại / 14 giờ» thiếu một nửa. Quyết định: `04_DECISIONS.md` #119.

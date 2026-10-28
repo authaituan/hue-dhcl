@@ -15,8 +15,8 @@ không chép `node_modules`, `dist`, `data`, `.env`). Tạo thư mục rỗng `d
 Sao `.env.nas.example` thành `.env` **cạnh** `docker-compose.yml`, tự điền (soạn trên NAS, không qua chat). Tối thiểu:
 `JWT_SECRET` (chuỗi ngẫu nhiên dài, tạo bằng `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` trên máy dev),
 `CMS_ALLOWED_IPS` (có `127.0.0.1` và dải LAN dạng CIDR IPv4, thay hẳn giá trị mẫu; không dùng `*`), `HOST_PORT=18060`. Thiếu hai biến đầu (hoặc để trống) thì compose từ chối chạy;
-`JWT_SECRET` trong tệp mẫu để trống, KHÔNG dùng chuỗi mẫu. Biến tùy chọn: `PHAT_WARM` (đặt `0` để tắt khởi động nóng cache «kết quả phát từ đầu tháng», trống = bật) và
-`TAIVE_MAX_DONG` (chỉ hạ giới hạn dòng mỗi tệp tải về, trống = mặc định); để trống cả hai cho lần thử đầu.
+`JWT_SECRET` trong tệp mẫu để trống, KHÔNG dùng chuỗi mẫu. Biến tùy chọn: `PHAT_WARM` (đặt `0` để tắt khởi động nóng cache «kết quả phát từ đầu tháng», trống = bật), `KTT_WARM` (đặt `0` để tắt làm nóng cache «Hàng tại KTT» nền sau mỗi lần nạp cặp và sau khởi động, trống = bật; `KTT_WARM_NGAY` 1..31 giới hạn số ngày, KTT-15) và
+`TAIVE_MAX_DONG` (chỉ hạ giới hạn dòng mỗi tệp tải về, trống = mặc định); để trống tất cả cho lần thử đầu.
 
 **SFTP:** `SFTP_PORT=5454` (mặc định của mã là 22). Compose đang dùng `network_mode: host` nên `SFTP_HOST` là `127.0.0.1` hoặc `10.47.31.8`;
 nếu sau này đổi sang mạng cầu thì PHẢI là `10.47.31.8` (không `localhost`). `SFTP_HOSTKEY_SHA256`: `scripts/` KHÔNG nằm trong image nên không chạy được trong container. Lấy vân tay bằng `node scripts/sftp-probe.js --show-fingerprint` từ MÁY DEV

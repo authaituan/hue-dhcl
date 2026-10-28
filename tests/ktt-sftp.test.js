@@ -598,3 +598,21 @@ test('TZ: cùng một chuỗi thao tác cho CÙNG kết quả ở TZ = UTC, Asia
   assert.deepEqual(d.slice(0, 4), ['OK', '2026-10-20 09:00:00', '2026-10-19 23:30:00', 0]);
   assert.equal(d[10], 7 * 60 + 90); // 15:00 -> 22:00 (7 giờ) + 07:00 -> 08:30 (1 giờ 30)
 });
+
+test('KTT-15: sau lượt có cặp nạp OK gọi sauNap đúng một lần (không chờ); lượt không nạp thì không gọi; sauNap ném lỗi không làm hỏng lượt', async () => {
+  const k = '20261021_090000';
+  const files = { [tenT(k)]: { buf: csvBuf([tui()]), mtime: 10 }, [tenB(k)]: { buf: csvBuf([bg()]), mtime: 10 } };
+  const client = nguonGia(files);
+  let goi = 0;
+  const { b, clock } = dung({ client, sauNap: () => { goi++; throw new Error('sauNap hỏng'); } });
+  await clock.tien(46000); // lượt 1: file chưa ổn định
+  assert.equal(goi, 0);
+  await clock.tien(KN.CHU_KY_QUET_PHUT * MIN); // lượt 2: ổn định -> nạp
+  await clock.tien(KN.CHU_KY_QUET_PHUT * MIN);
+  assert.equal(hangCap(k).ket_qua, 'OK');
+  assert.equal(goi, 1, 'đúng một lần, ở lượt có cặp nạp OK');
+  assert.equal(b.trangThai().luotGanNhat.ketQua, 'XONG');
+  await clock.tien(KN.CHU_KY_QUET_PHUT * MIN); // lượt sau: cặp đã có -> không gọi nữa
+  assert.equal(goi, 1);
+  await b.dung();
+});

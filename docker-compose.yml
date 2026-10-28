@@ -48,6 +48,8 @@ services:
       SFTP_STABLE_SECONDS: ${SFTP_STABLE_SECONDS:-}
       # --- Tùy chọn khác (để trống = mặc định của app) ---
       PHAT_WARM: ${PHAT_WARM:-}              # đặt 0 để TẮT khởi động nóng cache «kết quả phát từ đầu tháng» (server/index.js:88); trống/giá trị khác = bật
+      KTT_WARM: ${KTT_WARM:-}                # đặt 0 để TẮT làm nóng cache «Hàng tại KTT» sau mỗi lần nạp cặp và sau khởi động (server/lib/kttNong.js, KTT-15); trống/giá trị khác = bật
+      KTT_WARM_NGAY: ${KTT_WARM_NGAY:-}      # số ngày làm nóng tối đa 1..31 (trống = 31; 9 = chỉ cửa sổ nạp)
       TAIVE_MAX_DONG: ${TAIVE_MAX_DONG:-}    # chỉ HẠ giới hạn dòng mỗi tệp «tải về» (server/lib/phatTaiVe.js:34); trống = giới hạn mặc định
     healthcheck:
       # GET / trả trang giao diện tĩnh (dist/index.html; server/index.js:59-73): không cần đăng nhập, không có dữ liệu.
