@@ -28,6 +28,7 @@ const TRANG_MAC_DINH = 50;
 const CHIEU = Object.freeze({ DEN: 'DEN', DI: 'DI', CHUYEN_TIEP_DI: 'CHUYEN_TIEP_DI' });
 const THU_TU_CHIEU = ['DEN', 'DI', 'CHUYEN_TIEP_DI'];
 const NGUON = Object.freeze({ CHUYEN_TIEP_DI: 'CHUYEN_TIEP_DI', KHAI_THAC_LAI: 'KHAI_THAC_LAI' }); // nguồn của hàng khi chấm chuyến / nằm lâu: túi chuyển tiếp | bưu gửi khai thác lại
+const NGUON_HANG = Object.freeze({ KHAI_THAC: 'khai_thac', CHUYEN_TIEP: 'chuyen_tiep' }); // KTT-14: cờ nguồn của một SHBG trong tập Lưu thoát
 const LOAI_CHI_TIET = Object.freeze(['treo', 'nam_lau', 'tre_chuyen', 'lo_chuyen', 'den_sat_gio', 'xnd_sau_gio_di', 'can_kiem_tra_lai', 'khong_ro_dich', 'quet_den_sau_gio_di']);
 const DAI_QUY = Object.freeze(['AM', 'T0_2H', 'T2_6H', 'TREN_6H']);
 const GIO_DEM_BAT_DAU = 21; // khớp khung loại trừ 21:00–07:00
@@ -82,6 +83,7 @@ function taoNguCanh(db, opts) {
   const canhBao = [...(cauHinh.canhBao || []), ...(lichChuyen.canhBao || [])];
   return {
     boQuaCham: !!(opts && opts.boQuaCham),
+    gomChuyenTiep: !!(opts && opts.gomChuyenTiep), // KTT-14: tập SHBG gồm cả hàng chỉ có túi CHUYEN_TIEP_DI (xem chayTapLuuThoat)
     lichChuyen,
     ...khoang,
     tuGio: `${khoang.tuNgay} 00:00:00`,
@@ -259,22 +261,31 @@ const chonCuoi = (ds, giayCua) => ds.reduce((tot, x) => (tot === null || giayCua
 function dungDonShbg(dong, ctx) {
   const denRows = dong.filter((x) => x.chieu === CHIEU.DEN);
   const diRows = dong.filter((x) => x.chieu === CHIEU.DI);
+  const ctdRows = dong.filter((x) => x.chieu === CHIEU.CHUYEN_TIEP_DI);
   const maPhuong = (dong.find((x) => x.maPhuong) || { maPhuong: '' }).maPhuong;
   const gam = (dong.find((x) => x.gam !== null) || { gam: null }).gam;
 
+  // KTT-14: SHBG KHÔNG có túi ĐẾN nào mà có túi CHUYEN_TIEP_DI («chuyển tiếp đi»: KTT không mở túi) -> một dòng túi chuyển tiếp mang CẢ lần đến (quét túi đến, XNĐ BD10 đến) LẪN lần đi
+  // (lập BD10 đi, nơi nhận). Lần cuối = dòng có giờ đi muộn nhất (cùng quy tắc «lần đi cuối» ở dưới). SHBG có túi ĐẾN (kể cả khi cũng có túi chuyển tiếp) giữ NGUYÊN cách tính cũ: tính MỘT lần,
+  // theo túi đến, nên không bị đếm đôi. Chỉ bật khi `ctx.gomChuyenTiep`.
+  const chuyenTiep = !!ctx.gomChuyenTiep && denRows.length === 0 && ctdRows.length > 0;
+  const ctdCoGio = ctdRows.filter((x) => x.gioDiGiay !== null);
+  const ctdCuoi = chuyenTiep ? (ctdCoGio.length ? chonCuoi(ctdCoGio, (x) => x.gioDiGiay) : chonCuoi(ctdRows, () => 0)) : null;
+  const denDong = chuyenTiep ? [ctdCuoi] : denRows;
+
   const diCoGio = diRows.filter((x) => x.gioDiGiay !== null);
-  const diCuoi = diCoGio.length ? chonCuoi(diCoGio, (x) => x.gioDiGiay) : (diRows.length ? chonCuoi(diRows, () => 0) : null);
+  const diCuoi = chuyenTiep ? ctdCuoi : (diCoGio.length ? chonCuoi(diCoGio, (x) => x.gioDiGiay) : (diRows.length ? chonCuoi(diRows, () => 0) : null));
   const gioDiGiay = diCuoi ? diCuoi.gioDiGiay : null;
 
   let den = null;
-  const denCoQuet = denRows.filter((x) => x.quetDenGiay !== null);
+  const denCoQuet = denDong.filter((x) => x.quetDenGiay !== null);
   // KTT-7b: túi đến GỐC = túi đến có giờ quét sớm nhất (cùng giờ: id nhỏ nhất); dùng nhận diện hàng hoàn Tổ KHHH (nơi gửi BD10 đến).
-  const denGoc = denCoQuet.length ? denCoQuet.reduce((tot, x) => (x.quetDenGiay < tot.quetDenGiay || (x.quetDenGiay === tot.quetDenGiay && x.id < tot.id) ? x : tot)) : (denRows.length ? denRows.reduce((tot, x) => (x.id < tot.id ? x : tot)) : null);
+  const denGoc = denCoQuet.length ? denCoQuet.reduce((tot, x) => (x.quetDenGiay < tot.quetDenGiay || (x.quetDenGiay === tot.quetDenGiay && x.id < tot.id) ? x : tot)) : (denDong.length ? denDong.reduce((tot, x) => (x.id < tot.id ? x : tot)) : null);
   if (denCoQuet.length) {
     let ung = gioDiGiay !== null ? denCoQuet.filter((x) => x.quetDenGiay <= gioDiGiay) : denCoQuet;
     if (!ung.length) ung = denCoQuet;
     den = chonCuoi(ung, (x) => x.quetDenGiay);
-  } else if (denRows.length) den = chonCuoi(denRows, () => 0);
+  } else if (denDong.length) den = chonCuoi(denDong, () => 0);
 
   const dich = T.phanNhomDich({ maNhanBd10Di: diCuoi ? diCuoi.nhan : null, maPhuongXa: maPhuong, bangPhuongXa: ctx.bangPhuongXa });
   const u = {
@@ -285,7 +296,10 @@ function dungDonShbg(dong, ctx) {
     diemGuiDen: den ? den.diemGuiDen : null, diemGuiDenTen: den ? den.diemGuiTen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
     tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
     // KTT-10b: chất lượng túi đến cho mốc «giờ quét túi đến» (chỉ để đếm, không dùng để chọn túi): số túi đến có giờ quét, có túi đi không, id túi đến gốc.
-    soTuiDen: new Set(denCoQuet.map((x) => x.tuiId)).size, coTuiDi: diRows.length > 0, tuiDenGocId: denGoc ? denGoc.tuiId : null,
+    soTuiDen: new Set(denCoQuet.map((x) => x.tuiId)).size, coTuiDi: chuyenTiep || diRows.length > 0, tuiDenGocId: denGoc ? denGoc.tuiId : null,
+    // KTT-14: cờ nguồn của hàng (khai_thac = có túi ĐẾN được mở; chuyen_tiep = chỉ có túi CHUYEN_TIEP_DI) và các cờ chất lượng để đếm (không dùng để tính).
+    nguonHang: chuyenTiep ? NGUON_HANG.CHUYEN_TIEP : NGUON_HANG.KHAI_THAC, soTuiChuyenTiep: ctdRows.length,
+    coCaHaiLoaiTui: !chuyenTiep && denRows.length > 0 && ctdRows.length > 0, chuyenTiepCoTuiDiKhac: chuyenTiep && diRows.length > 0,
     ngayDen: den ? ngayCuaGio(den.quetDen || den.xndBd10) : null,
     chuyen: null, nam: null, bac: null, namLau: null, f13: null, canKiemTraLai: false, cells: []
   };
@@ -341,10 +355,12 @@ function duyetShbg(db, ctx, cb) {
   // Tập SHBG ứng viên (túi ĐẾN quét đến trong khoảng; thêm túi ĐI / CHUYEN_TIEP_DI có giờ đi trong khoảng khi cần sản lượng ĐI), rồi lấy MỌI dòng của các SHBG đó.
   // Thứ tự nối cố định (CROSS JOIN: ứng viên -> ktt_buu_gui theo chỉ mục shbg -> ktt_tui theo khóa duy nhất) và `+t.chieu` để bộ lập kế hoạch không đảo ngược thành
   // «với mỗi túi dò toàn bộ danh sách SHBG» (độ phức tạp bình phương).
+  // KTT-14: `gomChuyenTiep` (chayTapLuuThoat) thêm túi CHUYEN_TIEP_DI quét/xác nhận đến trong khoảng vào tập ứng viên (cùng điều kiện ngày đến như túi ĐẾN).
+  const chieuDen = ctx.gomChuyenTiep ? "+t2.chieu IN ('DEN', 'CHUYEN_TIEP_DI')" : "+t2.chieu = 'DEN'";
   const ungVien = ctx.canNgayDi
-    ? `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}
+    ? `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE ${chieuDen} AND ${dieuKienDen('t2')}
        UNION SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu IN ('DI', 'CHUYEN_TIEP_DI') AND ${dieuKienDi('t2')}`
-    : `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE +t2.chieu = 'DEN' AND ${dieuKienDen('t2')}`;
+    : `SELECT b2.shbg FROM ktt_buu_gui b2 JOIN ktt_tui t2 ON ${noiKhoa('b2', 't2')} WHERE ${chieuDen} AND ${dieuKienDen('t2')}`;
   const sql = `SELECT b.shbg, b.khoi_luong_thuc_te_g AS gam, b.ma_xa_phuong, b.ten_xa_phuong, b.ti_xac_nhan_den_luc AS xnd_sh, t.id AS tui_id, t.bd10_den_ma_duong_thu AS dt_ma, t.bd10_den_ten_duong_thu AS dt_ten, t.bd10_den_ten_diem_gui AS dg_ten, ${COT_TUI_SQL}
     FROM (${ungVien}) u
     CROSS JOIN ktt_buu_gui b ON b.shbg = u.shbg
@@ -380,6 +396,13 @@ function chay(db, opts, taoBoDem) {
   if (coTui && coBuuGui && cbShbg.length) duyetShbg(db, ctx, (u) => { for (const b of cbShbg) b.shbg(u); });
   return { ctx, boDems };
 }
+
+/**
+ * KTT-14: NƠI DUY NHẤT chọn tập SHBG của «Lưu thoát» và mọi bảng dựa trên nó (/luu-thoat, /chi-tiet, xlsx sheet 7, dicungngay, rotlai, lich-xe, danh-sach, tong-quan).
+ * Tập = SHBG có túi ĐẾN quét trong khoảng (khai thác lại, như trước) HỢP SHBG chỉ có túi CHUYEN_TIEP_DI quét đến trong khoảng (đi ngoài BD8 = SHBG, hoặc túi đã chia sẵn).
+ * Mỗi SHBG tính đúng MỘT lần; SHBG có cả hai loại túi tính theo túi ĐẾN (nguonHang = 'khai_thac'). Chỉ khác `chayBoDem` ở hai cờ: gomChuyenTiep và boQuaCham (bên gọi tự xếp chuyến).
+ */
+const chayTapLuuThoat = (db, opts, taoBoDem) => chay(db, { ...(opts || {}), gomChuyenTiep: true, boQuaCham: true }, taoBoDem);
 
 const khoangRa = (ctx) => ({ tuNgay: ctx.tuNgay, denNgay: ctx.denNgay, bayGio: ctx.bayGio });
 const sapXep = (ds, ...khoa) => ds.sort((a, b) => {
@@ -765,7 +788,7 @@ function tongHopKtt(db, opts) {
 }
 
 module.exports = {
-  LoiKtt, CHIEU, NGUON, LOAI_CHI_TIET, DAI_QUY, TRANG_THAI_CHUYEN, TRANG_TOI_DA,
+  LoiKtt, CHIEU, NGUON, NGUON_HANG, chayTapLuuThoat, LOAI_CHI_TIET, DAI_QUY, TRANG_THAI_CHUYEN, TRANG_TOI_DA,
   bayGioMacDinh, chuanHoaKhoang, chayBoDem: chay, ngayHopLe, ngayKeTiep, // KTT-7b: kttLuuThoatQuery.js dùng lại lượt đọc SHBG
   sanLuongTheoNgay, tonTreo, chuyenTheoBcvh, namLauTheoBac, chiTieuF13, chiTiet, tongHopKtt
 };

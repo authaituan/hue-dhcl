@@ -459,7 +459,7 @@ async function lichXeTheoBcvh(db, query, { now = Date.now() } = {}) {
   const [b, { r: b4 }] = await Promise.all([boDiNgay(db, k, now), layGioLapBd10(db, k, 1, now)]);
   return {
     ...dauB(k, b), bcvh: LX.theoBcvh(db, b.m, b4), quy_uoc: b4.quy_uoc,
-    canh_bao: ['Số «hàng đến theo giờ» chỉ gồm bưu gửi khai thác lại (túi đến được mở); hàng đi thẳng bằng xe Cấp 1 nguyên túi (túi chuyển tiếp) không nằm trong số này.', ...b4.canh_bao]
+    canh_bao: ['Số «hàng đến theo giờ» gồm cả bưu gửi khai thác lại (túi đến được mở) lẫn bưu gửi chỉ có túi chuyển tiếp đi (KTT không mở túi) — KTT-14.', ...b4.canh_bao]
   };
 }
 

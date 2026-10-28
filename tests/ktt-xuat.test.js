@@ -385,7 +385,7 @@ test('sheet «Thông tin»: đủ mục; tên đăng nhập người xuất (kh�
   duLieu();
   const r = await goi(`${U}${Q20}`, 'ttvh');
   const tt = thongTin(await docFile(r));
-  assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Định nghĩa: năm trạng thái', 'Định nghĩa: đang chờ chuyến',
+  assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Phạm vi bưu gửi', 'Định nghĩa: năm trạng thái', 'Định nghĩa: đang chờ chuyến',
     'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến',
     'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Không đo được', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình Lưu thoát']);
   assert.match(tt.get('Cửa sổ'), /Từ ngày 20\/10\/2026 đến ngày 22\/10\/2026.*không \(tất cả\)/);

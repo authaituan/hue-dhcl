@@ -70,7 +70,9 @@ function dongChiTiet(u, kq) {
     chi_tieu_14h_quet_tui_den: moc(S.MOC_CHI_TIEU.QUET_TUI_DEN), // KTT-10c: mốc B (quét túi đến KTT -> lập BD10 đi)
     phan_loai: nhanNhom(kq, u.nhom),
     trang_thai: kq.trangThai ? NHAN_TRANG_THAI[kq.trangThai] : null,
-    ngay_luu_thoat: u.ngayDen || null
+    ngay_luu_thoat: u.ngayDen || null,
+    nguon_hang: u.nguonHang || 'khai_thac', // KTT-14: cờ nguồn (khai_thac | chuyen_tiep); chỉ có ở chi-tiet, KHÔNG thêm cột vào sheet 7
+    luong_tui: u.luong || null // KTT-14: luồng của túi (KHAI_THAC_DEN, DI_NGOAI, DA_CHIA_SAN) — để PO xem hai luồng của hàng chuyển tiếp
   };
 }
 

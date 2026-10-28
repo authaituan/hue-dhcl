@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-28] - KTT-14: hàng «chuyển tiếp đi» (`CHUYEN_TIEP_DI`) vào tập Lưu thoát và các bảng KTT-12 (backend + test + docs; không đổi `src/`)
+
+- **Lý do (PO chốt):** chỉ tiêu F1.3 chấm mọi hàng đích 6 BCVH Huế; hàng chỉ có túi chuyển tiếp (đi ngoài BD8 = SHBG, hoặc túi chia sẵn) trước đây nằm ngoài tập nên mẫu số «đi trong ngày / rớt lại / 14 giờ» thiếu một nửa. Quyết định: `04_DECISIONS.md` #119.
+- **Một nơi chọn tập:** `kttQuery.chayTapLuuThoat` (cờ `gomChuyenTiep` + `boQuaCham`; mở rộng tập ứng viên ở `duyetShbg` và dựng đơn vị SHBG chuyển tiếp ở `dungDonShbg`). `kttLuuThoatQuery.luuThoatTheoNgay`, `duyetLuuThoat` (chi-tiet, xlsx sheet 7) và `kttDiNgayQuery.chayShbg` (dicungngay, rotlai, lich-xe, danh-sach, tong-quan) đều gọi hàm này. SHBG có túi ĐẾN giữ cách tính cũ (không đếm đôi); SHBG chỉ có túi chuyển tiếp lấy một dòng túi làm cả lần đến lẫn lần đi (dòng có giờ lập BD10 đi muộn nhất). Hàng hoàn Tổ KHHH vẫn tách riêng, không tính 14 giờ. `/tong-hop`, `/hang-den/*`, `lich-xe/gio-lap-bd10` không đổi.
+- **Cờ nguồn (chỉ THÊM):** `nguon_hang` (`khai_thac` | `chuyen_tiep`) và `luong_tui` ở `chi-tiet`; `nguon_hang` ở `danh-sach`; `theo_nguon_hang { khai_thac, chuyen_tiep }` (khối + đẳng thức riêng) ở `/luu-thoat` từng ngày và `tong_cong`; bốn bộ đếm `meta`. Sheet 7 vẫn 18 cột; sheet «Thông tin» thêm «Phạm vi bưu gửi»; `canh_bao` của B6 đổi lời.
+- **Số liệu đổi:** tổng bưu gửi, mẫu số năm trạng thái và 14 giờ, số rớt lại tăng; khối `khai_thac` bằng đúng số cũ (có test). Cửa sổ 30 ngày lần nguội chậm hơn (SHBG gấp hơn hai lần): số đo ở báo cáo giao việc.
+- **Test:** `tests/ktt-chuyen-tiep.test.js` (11 ca, dữ liệu giả; thêm vào `package.json`). Sửa 3 kỳ vọng liệt kê trường (thêm `nguon_hang`, `luong_tui`; `theo_nguon_hang` ngoài so sánh theo mốc; mục «Phạm vi bưu gửi» ở `ktt-xuat`). `npm test` 1182 ca (1172 pass, 0 fail, 10 skip); ca KTT giống nhau ở 3 TZ.
+- **Docs:** `41_KTT_LUU_THOAT.md` mục 13, `42_KTT_API.md` mục 14, `43_KTT_DI_CUNG_NGAY_API.md` (mục 9 đánh dấu đã giải quyết, mục 12 mới), `04_DECISIONS.md` #119, `00_SNAPSHOT.md`.
+- **Còn nợ / chờ PO:** (1) nhiều túi chuyển tiếp cho một SHBG; (2) bỏ qua túi `DI` tái đóng; (3) mốc dự phòng 14 giờ cho hàng chuyển tiếp; (4) đơn vị «SHBG × ngày đến» của canvas khác đơn vị «SHBG một lần» của Lưu thoát; (5) làm nóng cache (lần nguội > 15 giây ở B1–B6); (6) giao diện tách hai cờ (KTT-11a/11c do bên giao diện). Không commit (PO commit).
+
 ## [2026-10-28] - KTT-11b: số «Tất cả» ở khung Xuất xlsx — `tong_shbg_ngay` theo BCVH, khối phân rã `ngoai_bay_chip`, sửa chữ «17 cột» ở docs (backend + docs; không đổi `src/`)
 
 - **Lý do (khảo sát KTT-11a):** «Tất cả» = `tong_shbg_ngay` = mọi SHBG có ngày quét túi đến, gồm bốn nhóm không có chip (không rõ đích, ngoài 6 BCVH, thiếu giờ quét túi đến, không xếp được chuyến) — số đúng, khớp xlsx, nhưng không phải tổng bảy chip. Khi chọn một BCVH, khối `theo_bcvh[mã]` không có `tong_shbg_ngay` nên giao diện rơi về `luu_thoat.mau_so` (dữ liệu giả: Thuận Hóa chip 8, xlsx 12).

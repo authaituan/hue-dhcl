@@ -457,7 +457,9 @@ test('chi-tiet: không rò thông tin cá nhân — chỉ các trường nghiệ
     // KTT-8c: 17 trường snake_case của sheet 7
     'duong_thu_den_ma', 'duong_thu_den_ten', 'gio_quet_tui_den', 'gio_xac_nhan_bd10_den', 'kg', 'ma_bcvh', 'ten_bcvh', 'chuyen_lien_ke', 'gio_xuat_phat', 'han_den_muon_nhat', 'gio_lap_bd10_di', 'gio_cho_gio', 'dat_khong_dat', 'phan_loai', 'trang_thai', 'ngay_luu_thoat',
     // KTT-10c: nhãn chỉ tiêu 14 giờ theo từng mốc
-    'chi_tieu_14h_xnd', 'chi_tieu_14h_quet_tui_den']);
+    'chi_tieu_14h_xnd', 'chi_tieu_14h_quet_tui_den',
+    // KTT-14: cờ nguồn và luồng túi
+    'nguon_hang', 'luong_tui']);
   assert.ok(c.items.length > 0);
   for (const it of c.items) for (const k of Object.keys(it)) assert.ok(cho.has(k), `trường lạ: ${k}`);
   assert.ok(!/lai_xe|bien_so|nguoi|user|password|hrm/i.test(JSON.stringify(c)));
@@ -600,7 +602,7 @@ test('KTT-10c moc_chi_tieu: bỏ qua / rỗng = xnd (như cũ); quet_tui_den ch�
     assert.equal(x.chi_tieu_14h.moc_mac_dinh, 'xnd', ten); assert.equal(y.chi_tieu_14h.moc_mac_dinh, 'quet_tui_den', ten);
     assert.deepEqual(boMocMacDinh(y.chi_tieu_14h), boMocMacDinh(x.chi_tieu_14h), `${ten}: chi_tieu_14h không phụ thuộc tham số`);
     // ngoài dat_khong_dat và nhãn mốc mặc định, các số khác của khối không đổi
-    const bo = (k) => { const { dat_khong_dat: _d, chi_tieu_14h: _c, theo_bcvh: _t, theo_nguon: _n, hang_hoan: _h, ...r } = k; return r; };
+    const bo = (k) => { const { dat_khong_dat: _d, chi_tieu_14h: _c, theo_bcvh: _t, theo_nguon: _n, hang_hoan: _h, theo_nguon_hang: _g, ...r } = k; return r; };
     assert.deepEqual(bo(y), bo(x), `${ten}: số khác không đổi`);
   }
 });

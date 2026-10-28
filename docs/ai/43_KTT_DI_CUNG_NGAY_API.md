@@ -1,7 +1,7 @@
 # 43 · KTT-12 — API «đi cùng ngày» (B1–B3), hàng rớt lại, lịch xe (B4–B6), danh sách bấm ô, hàng đến từ xe Cấp 1 (A), tổng quan
 
 Đưa các số của canvas «Hàng tại KTT» ra API **chỉ đọc**, cho **ADMIN và TTVH** (GDVH, TIVI 403; không token 401), cùng router và cùng middleware với `/api/ktt/luu-thoat` (xem `42_KTT_API.md` mục 1).
-Chưa có giao diện. Chưa làm: đối chiếu BCVH, tồn tại và gợi ý, xlsx 9 sheet. Mọi JSON trong tài liệu này là **dữ liệu giả**.
+**KTT-14 (28/10/2026): tập SHBG của mọi bảng dưới đây nay gồm cả hàng chuyển tiếp — mục 9 cũ đã được giải quyết, xem mục 12.** Chưa có giao diện. Chưa làm: đối chiếu BCVH, tồn tại và gợi ý, xlsx 9 sheet. Mọi JSON trong tài liệu này là **dữ liệu giả**.
 
 ## 1. File
 
@@ -148,10 +148,10 @@ Dùng thực tế (cache trống, mở trang): `dicungngay/tong-hop` nguội ≈
 3. **Tính các ngày song song** ở 2–3 worker (hiện tính tuần tự từng ngày trên luồng chính, có nhường vòng lặp).
 4. Chỉ nếu vẫn chưa đủ: bảng tổng hợp theo ngày (cần PO duyệt, không làm trong ticket này).
 
-## 9. Ghi nhận (không sửa, để PO quyết)
+## 9. Ghi nhận ban đầu của KTT-12b — ĐÃ GIẢI QUYẾT ở KTT-14 (mục 12; nội dung dưới đây là lịch sử)
 **Hàng chuyển tiếp nguyên túi (`CHUYEN_TIEP_DI`) không nằm trong tập SHBG của Lưu thoát.** Lưu thoát chỉ xét SHBG có ít nhất một túi `DEN` quét trong ngày; hàng đi thẳng bằng xe Cấp 1 nguyên túi (túi không mở, không có túi `DEN`) không vào `/luu-thoat` mà vào trang A (và B4, vì B4 tính BD10 đi).
-Hệ quả: `mau_so` của `/luu-thoat` chỉ là phần hàng KHAI THÁC LẠI; tỷ lệ «cùng ngày» của Lưu thoát không phải tỷ lệ của toàn bộ hàng đi qua KTT. Số liệu đo trên bản sao nằm ở báo cáo giao việc (không dán số thật vào tài liệu). Các số B1–B6 trong ticket này **cùng phạm vi với Lưu thoát** (chỉ hàng khai thác lại); B6 có ghi chú này trong `canh_bao`.
-Nếu PO muốn B/Lưu thoát gồm cả hàng chuyển tiếp: cần ticket riêng (xếp chuyến theo `bd10_den_xnd`/`gio_quet_tui_den` của túi chuyển tiếp, kiểm lại định nghĩa «ngày đến»).
+Hệ quả: `mau_so` của `/luu-thoat` chỉ là phần hàng KHAI THÁC LẠI; tỷ lệ «cùng ngày» của Lưu thoát không phải tỷ lệ của toàn bộ hàng đi qua KTT. Số liệu đo trên bản sao nằm ở báo cáo giao việc (không dán số thật vào tài liệu). Các số B1–B6 của KTT-12b **cùng phạm vi với Lưu thoát** (chỉ hàng khai thác lại) — KTT-14 đã mở rộng cả hai.
+Nếu PO muốn B/Lưu thoát gồm cả hàng chuyển tiếp: cần ticket riêng — chính là KTT-14.
 
 ## 10. Điều chưa chắc
 - Ngưỡng `NGUONG_CANH_BAO` của tổng quan, ngưỡng đợt xe (120 phút, 5%) là TẠM, chưa được PO chốt.
@@ -162,3 +162,12 @@ Nếu PO muốn B/Lưu thoát gồm cả hàng chuyển tiếp: cần ticket ri�
 Quyền (13 endpoint × 5 vai trò, chỉ GET); tham số sai (mọi route × 9 kiểu sai + các URL sai tham số riêng: top, min_bd10, loai, page, page_size, huong, hang_hoan, ma_bcvh, duong_thu, noi_gui); chưa có dữ liệu; B1 (tổng năm nhóm = mẫu số = tổng bưu gửi; hàng hoàn tách; nội tỉnh đi liên tỉnh); **khớp `/luu-thoat`** (tổng, từng nhóm, từng ngày, `da_chot`); B2 (Chủ nhật, mẫu số 0 → null, tổng ngày = tổng khoảng);
 B3 (tổng 24 giờ = tổng B1); rớt lại; B5; B4 + `chuyenGanNhat` (hòa lấy chuyến sau); B6; danh-sách (tổng = ô B1, phân trang không trùng, lọc khớp bảng rớt lại); A (tổng ngày = giờ = đường thư = xe, hướng hàng, túi chuyển tiếp, xe nội tỉnh không tính); `gomDot`/`dichCua`; tổng quan (= hàm con) và cảnh báo; cache dùng chung; chỉ đọc.
 Đã thêm vào script `test` của `package.json`.
+
+## 12. KTT-14 — hàng chuyển tiếp vào tập B1–B6, rớt lại, danh sách, tổng quan
+- **Quyết định PO** (`04_DECISIONS.md` #119): hàng «chuyển tiếp đi» thuộc chỉ tiêu F1.3 (đích 6 BCVH Huế) nên nằm trong mẫu số «đi trong ngày / rớt lại / 14 giờ». Lưu thoát và mọi bảng ở file này cùng dùng `kttQuery.chayTapLuuThoat` (một nơi duy nhất chọn tập); không còn tập riêng. Chi tiết quy tắc: `41` mục 13.
+- **Đổi số so với bản trước:** tổng bưu gửi, mẫu số năm trạng thái, mẫu số 14 giờ và số «rớt lại» tăng (thêm hàng chuyển tiếp); tỷ lệ «cùng ngày» đổi theo; số của hàng khai thác không đổi (khối `theo_nguon_hang.khai_thac` bằng đúng số cũ). `canh_bao` của B6 đã đổi lời. Bảng B5 («nơi gửi, đường thư đến») nay gồm cả đường thư của túi chuyển tiếp.
+- **Đơn vị đếm:** một SHBG tính MỘT lần (ngày đến D của túi đến ghép / dòng chuyển tiếp chọn được). Số «SHBG × ngày đến» (một SHBG đến nhiều ngày trong khoảng được đếm ở mỗi ngày — cách của canvas / PO) lớn hơn số này; hai số KHÔNG cùng đơn vị. Lưu thoát chưa đếm «đến lại» ở từng ngày (hành vi từ KTT-5, không đổi).
+- **Không đổi:** trang A (`hang-den/*`) vốn đã gồm cả túi chuyển tiếp ở mức cặp (xe, bưu gửi); B4 (`gio-lap-bd10`) tính theo BD10 đi (gồm `CHUYEN_TIEP_DI`).
+- **Hiệu năng:** tập SHBG gấp hơn hai lần nên lần nguội 30 ngày của B1–B6, danh-sách, tổng quan tăng gần gấp đôi, `luu-thoat` tăng ≈ 1,5 lần (số đo ở báo cáo giao việc, không ghi số thật ở đây); lần cache không đổi đáng kể. Đề xuất làm nóng cache / gộp lượt đọc (mục 8) nay càng cần.
+- **Điều chưa chắc:** (1) chọn dòng khi SHBG nằm trong nhiều túi chuyển tiếp; (2) bỏ qua túi `DI` tái đóng của hàng chuyển tiếp; (3) mốc dự phòng cho chỉ tiêu 14 giờ của hàng chuyển tiếp (xác nhận BD10 đến thường sau giờ lập BD10 đi). Cả ba chờ PO (`04_DECISIONS.md` #119 mục 5).
+- Test: `tests/ktt-chuyen-tiep.test.js` (11 ca): chỉ-chuyển-tiếp đi cùng ngày / hôm sau / chưa đi, cả hai loại túi không đếm đôi, nhiều túi chuyển tiếp, hàng hoàn không vào 14 giờ, hai mốc 14 giờ, chi-tiet / xlsx / B1 / danh-sach / tổng quan cùng tập, ghép từng ngày = cả khoảng, GDVH 403.
