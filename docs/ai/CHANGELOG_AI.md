@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-28] - KTT-12b: hoàn tất KTT-12 — 13 route (đi cùng ngày B1–B3, rớt lại, lịch xe B4–B6, danh sách, hàng đến A, tổng quan), test, đo hiệu năng, tài liệu (backend only)
+
+- **Route (`server/routes/ktt.js`, cùng `requireRoles(ADMIN, TTVH)`):** `GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}`, `/rotlai/theo-duong-thu`, `/lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}`, `/danh-sach` (phân trang), `/hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}`, `/tong-quan`. Mọi route cần `tu`, `den` (≤ 31 ngày); phản hồi có `khoang_ngay`, `cua_so_thuc_te`, `nguon_xuat_luc_moi_nhat`.
+- **Lỗi WIP đã sửa:** `hang-den` trả `meta.so_ngay` luôn = 0 (bỏ trường); B4 (`gioLapBd10`) chạy đồng bộ trên luồng chính và B6 tính lại mỗi lần → chuyển vào worker + cache (`layGioLapBd10`, tác vụ `gioLapBd10` ở `kttWorker.js`). Không đổi hành vi `/luu-thoat`.
+- **Test:** `tests/ktt-di-cung-ngay.test.js` (20 ca, dữ liệu giả; thêm vào `package.json`): quyền 13 endpoint, tham số sai, chưa có dữ liệu, tổng nhóm = mẫu số, **khớp `/luu-thoat`** (tổng, nhóm, từng ngày, `da_chot`), B2–B6, danh sách (tổng = ô B1, phân trang), A, tổng quan = hàm con, cache dùng chung, chỉ đọc.
+- **Hiệu năng:** `scripts/ktt-do-hieu-nang-di-ngay.js` (`KTT_PERF=1`, bản sao DB, từ chối `data/`). Cửa sổ 30 ngày, lần đầu ≈ 7–8 giây cho B1–B6 / danh sách / tổng quan (> 5 giây; `luu-thoat` ≈ 13,6 giây), A ≈ 2,5 giây, B4 ≈ 0,3 giây; lần cache < 30 ms. Đề xuất làm nóng cache, gộp lượt đọc với Lưu thoát, tính song song (`43` mục 8); không thêm bảng.
+- **Ghi nhận cho PO (không sửa):** hàng chuyển tiếp nguyên túi (`CHUYEN_TIEP_DI`) nằm ngoài tập SHBG của Lưu thoát và của B1–B6 (`43` mục 9). Lệch số với canvas: xem báo cáo giao việc.
+- **Tài liệu:** `docs/ai/43_KTT_DI_CUNG_NGAY_API.md` (mới), `00_SNAPSHOT.md`. Ticket gốc `claude/KTT-12-…md` không có trong thư mục dự án. Không commit (PO commit).
+
 ## [2026-10-28] - KTT-10c: nối `moc_chi_tieu` vào `/api/ktt/luu-thoat`; xlsx sheet 7 hai cột nhãn Mốc A / Mốc B (backend only)
 
 - **Khảo sát 5.1:** CTO duyệt cả 4 đề xuất (28/10): xlsx 18 cột, bỏ cột `dat` cũ khỏi xlsx nhưng giữ trường `dat_khong_dat` ở API; thêm 2 trường vào `dongChiTiet`; `/xuat/luu-thoat`, `/tong-hop`, `/chi-tiet` không nhận `moc_chi_tieu` (400).
