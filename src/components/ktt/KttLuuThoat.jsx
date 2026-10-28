@@ -41,7 +41,7 @@ function truPhut(hhmm, phut) {
 }
 
 const EXPORT_STATUS_OPTIONS = [
-  { key: '', label: 'Tất cả' },
+  { key: '', label: 'Tất cả bưu gửi đến KTT' },
   { key: 't1', label: '1 · Đi trong ngày, đúng chuyến' },
   { key: 't2', label: '2 · Đi trong ngày, trượt chuyến' },
   { key: 't3', label: '3 · Đi hôm sau, đúng chuyến' },
@@ -52,14 +52,8 @@ const EXPORT_STATUS_OPTIONS = [
 ];
 
 export default function KttLuuThoat({ authUser }) {
-  // Khoảng ngày mặc định: 7 ngày kết thúc hôm nay theo giờ VN
-  const [dateRange, setDateRange] = useState(() => {
-    const today = getTodayVnYmd();
-    return {
-      from: shiftDay(today, -6),
-      to: today,
-    };
-  });
+  // Khoảng ngày mặc định: chờ meta lấy ngày của độ mới dữ liệu (KTT-13a)
+  const [dateRange, setDateRange] = useState(null);
 
   const [selectedBcvh, setSelectedBcvh] = useState('all');
   const [mocChiTieu, setMocChiTieu] = useState('xnd');
@@ -67,6 +61,7 @@ export default function KttLuuThoat({ authUser }) {
 
   // Dữ liệu từ API
   const [meta, setMeta] = useState(null);
+  const [metaLoading, setMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +71,9 @@ export default function KttLuuThoat({ authUser }) {
   const [selectedExportStatus, setSelectedExportStatus] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState(null);
+
+  // Hộp giải thích nhóm ngoài 7 trạng thái
+  const [showNgoaiBayChipModal, setShowNgoaiBayChipModal] = useState(false);
 
   // Ô bản đồ nhiệt đang chọn (lọc danh sách chi tiết + xuất)
   const [selectedCell, setSelectedCell] = useState(null);
@@ -88,22 +86,46 @@ export default function KttLuuThoat({ authUser }) {
   // Ref chống stale response khi đổi khoảng ngày nhanh
   const reqIdRef = useRef(0);
 
-  // 1. Tải meta một lần khi vào trang
+  // 1. Tải meta một lần khi vào trang; xác định khoảng ngày mặc định theo độ mới dữ liệu
   useEffect(() => {
     let active = true;
+    setMetaLoading(true);
     fetchKttMeta()
       .then((res) => {
         if (!active) return;
-        if (res.ok) {
+        if (res.ok && res.data) {
           setMeta(res.data);
           setMetaError(null);
+          const rawLuc = res.data.nguon_xuat_luc_moi_nhat;
+          const latestDay = (rawLuc && typeof rawLuc === 'string' && rawLuc.length >= 10)
+            ? rawLuc.slice(0, 10)
+            : getTodayVnYmd();
+          setDateRange({
+            from: shiftDay(latestDay, -6),
+            to: latestDay,
+          });
         } else {
           setMetaError(res.error || 'Không tải được lịch chuyến');
+          const today = getTodayVnYmd();
+          setDateRange({
+            from: shiftDay(today, -6),
+            to: today,
+          });
         }
       })
       .catch(() => {
         if (!active) return;
         setMetaError('Không tải được lịch chuyến');
+        const today = getTodayVnYmd();
+        setDateRange({
+          from: shiftDay(today, -6),
+          to: today,
+        });
+      })
+      .finally(() => {
+        if (active) {
+          setMetaLoading(false);
+        }
       });
     return () => {
       active = false;
@@ -121,6 +143,9 @@ export default function KttLuuThoat({ authUser }) {
 
   // 3. Tải dữ liệu lưu thoát (hỗ trợ tham số moc_chi_tieu)
   const loadData = useCallback(async () => {
+    if (!dateRange?.from || !dateRange?.to) {
+      return;
+    }
     const valErr = validateRange(dateRange);
     setValidationError(valErr);
     if (valErr) {
@@ -154,8 +179,10 @@ export default function KttLuuThoat({ authUser }) {
   }, [dateRange, mocChiTieu, validateRange]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (dateRange?.from && dateRange?.to) {
+      loadData();
+    }
+  }, [dateRange, mocChiTieu, loadData]);
 
   // Xử lý đổi khoảng ngày
   const handleDateRangeChange = (newRange) => {
@@ -164,7 +191,7 @@ export default function KttLuuThoat({ authUser }) {
 
   // 4. Xử lý tải Excel Sheet 7
   const handleDownloadExcel = async () => {
-    if (validationError) return;
+    if (validationError || !dateRange) return;
     setExportLoading(true);
     setExportError(null);
 
@@ -208,11 +235,12 @@ export default function KttLuuThoat({ authUser }) {
   // Số lượng cho từng chip xuất (phản ánh đúng bộ lọc BCVH đang chọn)
   const getExportCount = (key) => {
     if (!data?.tong_cong) return null;
+    if (selectedCell) return null; // KTT-13a: Đang lọc theo ô heatmap thì chip hiện «–»
     const targetBlock = selectedBcvh === 'all'
       ? data.tong_cong
       : data.tong_cong.theo_bcvh?.[selectedBcvh];
     if (!targetBlock) return 0;
-    if (key === '') return targetBlock.tong_shbg_ngay ?? targetBlock.luu_thoat?.mau_so ?? 0;
+    if (key === '') return targetBlock.tong_shbg_ngay ?? 0;
     if (key === 'hang_hoan') {
       if (selectedBcvh !== 'all' && selectedBcvh !== '533140') return 0;
       return (selectedBcvh === 'all'
@@ -221,6 +249,27 @@ export default function KttLuuThoat({ authUser }) {
     }
     return targetBlock.trang_thai?.[key]?.shbg ?? 0;
   };
+
+  // Khối phân rã ngoài bảy trạng thái theo BCVH đang chọn (KTT-13a)
+  const currentNgoaiBayChip = useMemo(() => {
+    if (!data?.tong_cong) return null;
+    if (selectedBcvh === 'all') {
+      return data.tong_cong.ngoai_bay_chip || null;
+    }
+    const bBlock = data.tong_cong.theo_bcvh?.[selectedBcvh];
+    if (!bBlock) return null;
+    if (bBlock.ngoai_bay_chip) return bBlock.ngoai_bay_chip;
+    const kpl = bBlock.khong_phan_loai || {};
+    const khongCoGio = kpl.khong_co_gio_quet_den ?? 0;
+    const khongXepTong = Object.values(kpl.khong_xep_duoc_chuyen || {}).reduce((s, x) => s + x, 0);
+    return {
+      khong_ro_dich: 0,
+      ngoai_pham_vi_tong: 0,
+      khong_co_gio_quet_den: khongCoGio,
+      khong_xep_duoc_chuyen_tong: khongXepTong,
+      tong: khongCoGio + khongXepTong,
+    };
+  }, [data, selectedBcvh]);
 
   // Gom lịch chuyến theo từng BCVH
   const groupedLichChuyen = useMemo(() => {
@@ -357,7 +406,7 @@ export default function KttLuuThoat({ authUser }) {
 
           {/* Bộ chọn khoảng ngày tái dùng */}
           <QuyThoiGianDateRangePicker
-            dateRange={dateRange}
+            dateRange={dateRange || { from: '', to: '' }}
             onChangeDateRange={handleDateRangeChange}
             idPrefix="ktt-luu-thoat"
           />
@@ -414,7 +463,7 @@ export default function KttLuuThoat({ authUser }) {
       )}
 
       {/* Trạng thái khung xương đang tải */}
-      {loading && !data && (
+      {(!dateRange || metaLoading || (loading && !data)) && (
         <div className="space-y-4 animate-pulse">
           <div className="h-44 bg-white rounded-[14px] border border-gray-200 p-6" />
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3.5">
@@ -465,7 +514,7 @@ export default function KttLuuThoat({ authUser }) {
                             </td>
                             <td className="text-center">
                               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500">
-                                Chưa có dữ liệu
+                                Chưa có hàng đến
                               </span>
                             </td>
                             <td className="text-right italic text-gray-400">—</td>
@@ -575,7 +624,7 @@ export default function KttLuuThoat({ authUser }) {
                     Xuất xlsx · Sheet 7
                   </h2>
                   <p className="text-xs text-gray-600 leading-relaxed mt-1.5">
-                    Một dòng là một bưu gửi, 17 cột, kèm sheet «Thông tin». Xuất theo khoảng ngày đang chọn (tối đa 31 ngày, tối đa 200.000 dòng) và trạng thái chọn bên cạnh. Chỉ ADMIN và TTVH.
+                    Một dòng là một bưu gửi, 18 cột, kèm sheet «Thông tin». Xuất theo khoảng ngày đang chọn (tối đa 31 ngày, tối đa 200.000 dòng) và trạng thái chọn bên cạnh. Chỉ ADMIN và TTVH.
                   </p>
                   <p className="text-xs text-[#A87A12] font-semibold mt-1">
                     {(() => {
@@ -610,7 +659,8 @@ export default function KttLuuThoat({ authUser }) {
                     <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">BCVH đích</span>
                     <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Chuyến liền kề</span>
                     <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Giờ BD10 đi</span>
-                    <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Chỉ tiêu 14g</span>
+                    <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line" title="Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)">Mốc A</span>
+                    <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line" title="Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)">Mốc B</span>
                     <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Trạng thái (1–5)</span>
                   </div>
                 </div>
@@ -623,7 +673,7 @@ export default function KttLuuThoat({ authUser }) {
                 </div>
 
                 {/* 8 chip chọn */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
                   {EXPORT_STATUS_OPTIONS.map((opt) => {
                     const isSelected = selectedExportStatus === opt.key;
                     const count = getExportCount(opt.key);
@@ -646,11 +696,88 @@ export default function KttLuuThoat({ authUser }) {
                   })}
                 </div>
 
+                {/* Khi đang lọc theo ô heatmap (KTT-13a) */}
+                {selectedCell && (
+                  <div className="mb-3 text-xs text-[#A87A12] bg-[#FFFBEF] border border-[#E4D5AE] rounded-[8px] px-3 py-2 flex items-center justify-between">
+                    <span>
+                      Đang lọc theo ô {selectedCell.label || 'bản đồ nhiệt'} : bỏ lọc để xem số các nhóm
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCell(null)}
+                      className="font-bold underline text-[#4A1D6E] ml-2 cursor-pointer shrink-0"
+                    >
+                      Bỏ lọc
+                    </button>
+                  </div>
+                )}
+
+                {/* Dòng «Không vào bảy trạng thái» (KTT-13a) */}
+                {!selectedCell && currentNgoaiBayChip && currentNgoaiBayChip.tong > 0 && (
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowNgoaiBayChipModal((prev) => !prev)}
+                      aria-expanded={showNgoaiBayChipModal ? 'true' : 'false'}
+                      className="text-xs text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-[#FAF5E8] border border-gray-200 hover:border-[#D9CBA8] rounded-[8px] px-3 py-1.5 transition-colors cursor-pointer text-left w-full"
+                    >
+                      <span className="font-semibold text-gray-900">
+                        Không vào bảy trạng thái: {formatInt(currentNgoaiBayChip.tong)}
+                      </span>
+                      {' ('}
+                      <span>không rõ đích {formatInt(currentNgoaiBayChip.khong_ro_dich ?? 0)}</span>
+                      {' · '}
+                      <span>ngoài 6 BCVH {formatInt(currentNgoaiBayChip.ngoai_pham_vi_tong ?? 0)}</span>
+                      {' · '}
+                      <span>thiếu giờ quét {formatInt(currentNgoaiBayChip.khong_co_gio_quet_den ?? 0)}</span>
+                      {' · '}
+                      <span>không xếp được chuyến {formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong ?? 0)}</span>
+                      {') '}
+                      <span className="text-[11px] text-[#4A1D6E] font-medium underline ml-1">
+                        {showNgoaiBayChipModal ? 'Thu gọn' : 'Xem giải thích'}
+                      </span>
+                    </button>
+
+                    {/* Hộp giải thích chi tiết khi bấm vào dòng */}
+                    {showNgoaiBayChipModal && (
+                      <div className="mt-2 p-3.5 bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] text-xs text-[#5A4A62] space-y-2">
+                        <div className="flex items-center justify-between font-bold text-gray-800">
+                          <span>Giải thích các nhóm bưu gửi không vào bảy trạng thái:</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowNgoaiBayChipModal(false)}
+                            className="text-gray-500 hover:text-gray-800 underline font-normal cursor-pointer"
+                          >
+                            Đóng
+                          </button>
+                        </div>
+                        <ul className="list-disc pl-4 space-y-1 text-gray-700">
+                          <li>
+                            <strong>Không rõ đích ({formatInt(currentNgoaiBayChip.khong_ro_dich ?? 0)}):</strong> Bưu gửi không xác định được bưu cục đến (mã xã phường không hợp lệ hoặc thiếu thông tin nơi nhận).
+                          </li>
+                          <li>
+                            <strong>Ngoài 6 BCVH Huế ({formatInt(currentNgoaiBayChip.ngoai_pham_vi_tong ?? 0)}):</strong> Bưu gửi đi các tỉnh khác hoặc các điểm ngoài 6 BCVH nội tỉnh (Hệ 1 / 530900, bưu cục ngoài tỉnh, hoặc bưu cục KTT 530100).
+                          </li>
+                          <li>
+                            <strong>Thiếu giờ quét túi đến ({formatInt(currentNgoaiBayChip.khong_co_gio_quet_den ?? 0)}):</strong> Bưu gửi chỉ có giờ xác nhận BD10 đến hoặc các mốc khác mà thiếu giờ quét túi đến tại KTT.
+                          </li>
+                          <li>
+                            <strong>Không xếp được chuyến ({formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong ?? 0)}):</strong> Bưu gửi đến nhưng không khớp với lịch chuyến xe nào đã cấu hình (ví dụ không có lịch xe cho tuyến đường thư đó).
+                          </li>
+                        </ul>
+                        <div className="text-[11px] text-gray-500 italic pt-1 border-t border-[#E4D5AE]">
+                          Đẳng thức: 7 trạng thái + hàng hoàn + số ở dòng này = Tất cả bưu gửi đến KTT.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Trạng thái tải */}
                 {exportLoading && (
                   <div className="mb-3 space-y-2">
                     <div className="text-xs text-gray-700">
-                      Đang tạo tệp Excel cho khoảng ngày {formatDdMmYyyy(dateRange.from)} – {formatDdMmYyyy(dateRange.to)}…
+                      Đang tạo tệp Excel cho khoảng ngày {dateRange ? `${formatDdMmYyyy(dateRange.from)} – ${formatDdMmYyyy(dateRange.to)}` : ''}…
                     </div>
                     <div className="progress-soft w-full overflow-hidden">
                       <div className="progress-bar-soft w-full animate-pulse" />
@@ -695,11 +822,15 @@ export default function KttLuuThoat({ authUser }) {
                   >
                     <Download className="w-4 h-4" />
                     <span>
-                      {exportLoading ? 'Đang tạo…' : `Tải xlsx · ${formatInt(getExportCount(selectedExportStatus) ?? 0)} bưu gửi`}
+                      {exportLoading
+                        ? 'Đang tạo…'
+                        : (selectedCell
+                          ? 'Tải xlsx'
+                          : `Tải xlsx · ${formatInt(getExportCount(selectedExportStatus) ?? 0)} bưu gửi`)}
                     </span>
                   </button>
                   <div className="text-[11px] text-gray-500 mt-2">
-                    Tên file: KTT_LuuThoat_{dateRange.from}_{dateRange.to}.xlsx. Quá 200.000 dòng thì hãy thu hẹp khoảng ngày hoặc chọn trạng thái.
+                    Tên file: KTT_LuuThoat_{dateRange?.from}_{dateRange?.to}.xlsx. Quá 200.000 dòng thì hãy thu hẹp khoảng ngày hoặc chọn trạng thái.
                   </div>
                 </div>
               </div>
@@ -913,6 +1044,87 @@ export default function KttLuuThoat({ authUser }) {
                     * {formatInt(data.meta.shbg_thieu_khoi_luong)} bưu gửi chưa có khối lượng, tổng kg là số tối thiểu
                   </div>
                 )}
+
+                {/* Khối «Theo nguồn hàng» (KTT-13a, KTT-14) */}
+                {data.tong_cong?.theo_nguon_hang && (() => {
+                  const tnh = data.tong_cong.theo_nguon_hang;
+                  const kt = tnh.khai_thac;
+                  const ct = tnh.chuyen_tiep;
+
+                  const ktMauSo = kt?.tong?.luu_thoat?.mau_so ?? 0;
+                  const ktTyLeLuu = !hasNoData && ktMauSo > 0 ? (kt?.tong?.luu_thoat?.ty_le ?? null) : null;
+                  const ktC14 = kt?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                  const ktDoDuoc = ktC14?.do_duoc ?? 0;
+                  const ktTyLe14 = !hasNoData && ktDoDuoc > 0 ? (ktC14?.ty_le_dat_tren_do_duoc ?? null) : null;
+
+                  const ctMauSo = ct?.tong?.luu_thoat?.mau_so ?? 0;
+                  const ctTyLeLuu = !hasNoData && ctMauSo > 0 ? (ct?.tong?.luu_thoat?.ty_le ?? null) : null;
+                  const ctC14 = ct?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                  const ctDoDuoc = ctC14?.do_duoc ?? 0;
+                  const ctTyLe14 = !hasNoData && ctDoDuoc > 0 ? (ctC14?.ty_le_dat_tren_do_duoc ?? null) : null;
+
+                  return (
+                    <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none space-y-3 mt-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                          Theo nguồn hàng
+                        </div>
+                        {selectedBcvh !== 'all' && (
+                          <span className="text-[11px] text-gray-500 italic">
+                            Số liệu nguồn hàng tính trên toàn KTT
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="table-soft w-full min-w-[550px] text-xs text-left">
+                          <thead>
+                            <tr>
+                              <th className="text-left font-semibold text-gray-600">NGUỒN HÀNG</th>
+                              <th className="text-right font-semibold text-gray-600">BƯU GỬI TÍNH CHỈ TIÊU</th>
+                              <th className="text-right font-semibold text-gray-600">ĐI TRONG NGÀY</th>
+                              <th className="text-right font-semibold text-gray-600">ĐẠT 14 GIỜ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="hover:bg-[#FFFBEF] transition-colors">
+                              <td className="font-medium text-gray-900">
+                                Hàng khai thác (KTT mở túi, chia lại)
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-gray-900">
+                                {hasNoData ? '—' : formatInt(ktMauSo)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                {hasNoData || ktTyLeLuu === null ? '—' : formatPercent(ktTyLeLuu)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#4A1D6E]">
+                                {hasNoData || ktTyLe14 === null ? '—' : formatPercent(ktTyLe14)}
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-[#FFFBEF] transition-colors">
+                              <td className="font-medium text-gray-900">
+                                Hàng chuyển tiếp (đi nguyên túi)
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-gray-900">
+                                {hasNoData ? '—' : formatInt(ctMauSo)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                {hasNoData || ctTyLeLuu === null ? '—' : formatPercent(ctTyLeLuu)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#4A1D6E]">
+                                {hasNoData || ctTyLe14 === null ? '—' : formatPercent(ctTyLe14)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="text-[11px] text-gray-500 leading-relaxed pt-0.5">
+                        * Hàng chuyển tiếp: túi đến KTT rồi đi tiếp nguyên túi (hàng đi ngoài, túi chia sẵn), KTT không mở túi; vẫn tính chỉ tiêu nếu đích là 6 BCVH Huế.
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -1374,6 +1586,7 @@ export default function KttLuuThoat({ authUser }) {
               }
             }}
             onExportCell={async (cell) => {
+              if (!dateRange) return;
               setExportLoading(true);
               try {
                 await downloadKttLuuThoat({
