@@ -68,3 +68,20 @@ export function formatGioChiTiet(timeStr, ngayDen) {
   }
   return formatTimeShort(s);
 }
+
+/**
+ * Định dạng nhãn trạng thái thân thiện, không bao giờ để lộ mã kỹ thuật như 'ro_lai'
+ * @param {string|null|undefined} code 
+ */
+export function formatTrangThaiNhan(code) {
+  if (!code) return '—';
+  const c = String(code).trim();
+  if (c === 'ro_lai') return 'Rớt lại';
+  if (c === 'truot_chuyen') return 'Trượt chuyến';
+  if (c === 'khong_dat') return 'Không đạt 14 giờ';
+  if (c === 'dat') return 'Đạt 14 giờ';
+  if (c === 'dang_cho_chuyen') return 'Đang chờ chuyến';
+  if (c === 'hang_hoan') return 'Hàng hoàn Tổ KHHH';
+  return c;
+}
+

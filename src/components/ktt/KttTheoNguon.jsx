@@ -60,7 +60,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
     <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
       {/* ── 1. THẺ THEO NGUỒN / ĐƯỜNG THƯ ĐẾN ───────────────────────────── */}
       <div>
-        <h2 className="hue-h2 text-[17px]">Theo nguồn / đường thư đến</h2>
+        <h2 className="ktt-h2 text-[17px]">Theo nguồn / đường thư đến</h2>
         <p className="text-xs text-gray-600 mt-1">
           Sản lượng, khối lượng kg, tỷ lệ rớt lại và trượt chuyến theo từng luồng nguồn bưu gửi đến KTT.
         </p>
@@ -196,7 +196,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
                   </div>
                 </th>
                 <th className="text-right">
-                  ĐẠT 14 GIỜ
+                  ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)
                   <div className="text-[10px] font-normal normal-case text-gray-500">
                     trong hàng đến của nguồn này
                   </div>
@@ -207,12 +207,10 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
               {sortedNguon.map((g) => {
                 let shbg = g.shbg;
                 let roLai = g.ro_lai;
-                let tyLeDat = g.dat_khong_dat?.ty_le_dat;
                 if (selectedBcvh !== 'all') {
                   const bCell = g.theo_bcvh?.[selectedBcvh];
                   shbg = bCell?.shbg ?? 0;
                   roLai = bCell?.ro_lai ?? 0;
-                  tyLeDat = null; // API theo_bcvh không có dat riêng theo BCVH cho từng nguồn
                 }
 
                 const tyTrongDen = !hasNoData && tongDen > 0 ? shbg / tongDen : null;
@@ -233,8 +231,11 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
                     <td className="text-right tabular-nums font-medium text-gray-800">
                       {formatPercent(rotChinh)}
                     </td>
-                    <td className="text-right tabular-nums font-medium text-[#4A1D6E]">
-                      {formatPercent(tyLeDat)}
+                    <td
+                      className="text-right tabular-nums font-medium text-gray-400 italic cursor-help"
+                      title="Chưa có số liệu chỉ tiêu 14 giờ theo nguồn"
+                    >
+                      —
                     </td>
                   </tr>
                 );

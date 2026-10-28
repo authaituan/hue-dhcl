@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import KttLuuThoat from './KttLuuThoat';
+import KttErrorBoundary from './KttErrorBoundary';
 
 export default function KttView({ authUser }) {
   const [activeTab, setActiveTab] = useState('luu_thoat');
@@ -32,7 +33,11 @@ export default function KttView({ authUser }) {
         </div>
       </div>
 
-      {activeTab === 'luu_thoat' && <KttLuuThoat authUser={authUser} />}
+      {activeTab === 'luu_thoat' && (
+        <KttErrorBoundary>
+          <KttLuuThoat authUser={authUser} />
+        </KttErrorBoundary>
+      )}
     </div>
   );
 }
