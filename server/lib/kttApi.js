@@ -29,6 +29,8 @@ const { MA_BCVH_HUE } = require('./kttTinh');
 const D = require('./kttDiNgay');
 const DQ = require('./kttDiNgayQuery');
 const LX = require('./kttLichXe');
+const DP = require('./kttDoPhuBcvh');
+const { bcvhNames } = require('./dashboardQuery');
 
 const CUA_SO_NAP_NGAY = 8; // ngày nằm trong cửa sổ nạp = từ độ mới dữ liệu lùi chừng này ngày trở lại (mỗi lần xuất lùi 7 ngày + 1 ngày đệm)
 const TUOI_CHUA_CHOT_MS = 10 * 60 * 1000;
@@ -38,14 +40,14 @@ const MUC_KHAC_TOI_DA = 200;
 
 const ngayLui = (ngay, n) => L.dinhDang(L.giayCua(`${ngay} 00:00:00`) - n * 86400).slice(0, 10);
 const nhuong = () => new Promise((r) => setImmediate(r));
-const boNho = { ngay: new Map(), ngayB: new Map(), tongHop: new Map(), chiTiet: new Map(), dangTinh: new Map(), phienBan: null };
-const dem = { ngayTinh: 0, ngayBTinh: 0, tongHopTinh: 0, chiTietTinh: 0, hangDenTinh: 0, workerLan: 0, noiTuyenLan: 0 };
+const boNho = { ngay: new Map(), ngayB: new Map(), tongHop: new Map(), chiTiet: new Map(), doPhu: new Map(), dangTinh: new Map(), phienBan: null };
+const dem = { ngayTinh: 0, ngayBTinh: 0, tongHopTinh: 0, chiTietTinh: 0, hangDenTinh: 0, doPhuTinh: 0, workerLan: 0, noiTuyenLan: 0 };
 
 function xoaCache() {
-  boNho.ngay.clear(); boNho.ngayB.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.dangTinh.clear(); boNho.phienBan = null;
-  dem.ngayTinh = 0; dem.ngayBTinh = 0; dem.tongHopTinh = 0; dem.chiTietTinh = 0; dem.hangDenTinh = 0; dem.workerLan = 0; dem.noiTuyenLan = 0;
+  boNho.ngay.clear(); boNho.ngayB.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.doPhu.clear(); boNho.dangTinh.clear(); boNho.phienBan = null;
+  dem.ngayTinh = 0; dem.ngayBTinh = 0; dem.tongHopTinh = 0; dem.chiTietTinh = 0; dem.hangDenTinh = 0; dem.doPhuTinh = 0; dem.workerLan = 0; dem.noiTuyenLan = 0;
 }
-const thongKe = () => ({ ngay: boNho.ngay.size, ngay_b: boNho.ngayB.size, tong_hop: boNho.tongHop.size, chi_tiet: boNho.chiTiet.size, ...dem });
+const thongKe = () => ({ ngay: boNho.ngay.size, ngay_b: boNho.ngayB.size, tong_hop: boNho.tongHop.size, chi_tiet: boNho.chiTiet.size, do_phu: boNho.doPhu.size, ...dem });
 
 // ------------------------------------------
 // Tham số
@@ -591,8 +593,32 @@ function meta(db) {
   };
 }
 
+// ------------------------------------------
+// KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu (chỉ đọc arrival_*, KHÔNG chạm bảng ktt_*)
+// ------------------------------------------
+/**
+ * GET /api/ktt/doi-chieu/do-phu?tu=&den= — kttDoPhuBcvh.docDoPhu. Dữ liệu chỉ đổi khi arrival_* đổi, nên cache theo (tu, den) + dấu hiệu DB (data_version + total_changes), ≤ 10 phút;
+ * KHÔNG qua dongBoPhienBan / độ mới KTT (không phụ thuộc lịch chuyến, tham số hay bảng ktt_*). Tính trực tiếp (ba truy vấn có chỉ mục), nhường vòng lặp trước khi tính.
+ */
+async function doPhuBcvh(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query);
+  const token = PD.dauHieuDb(db);
+  const khoa = `${k.tuNgay}|${k.denNgay}`;
+  const e = boNho.doPhu.get(khoa);
+  if (e && now - e.luc < TUOI_CHUA_CHOT_MS && e.token === token) return e.kq;
+  if (e) boNho.doPhu.delete(khoa);
+  return chiaSe(`dp|${khoa}`, async () => {
+    await nhuong();
+    const tk = PD.dauHieuDb(db);
+    dem.doPhuTinh++;
+    const kq = DP.docDoPhu(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, tenBcvh: bcvhNames(db) });
+    datMuc(boNho.doPhu, MUC_KHAC_TOI_DA, khoa, { luc: now, kq, token: tk });
+    return kq;
+  });
+}
+
 module.exports = {
-  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, meta,
+  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).
