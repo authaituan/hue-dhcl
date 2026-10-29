@@ -21,8 +21,18 @@ const KHOA_TT = ['t1', 't2', 't3', 't4', 't5', 'dang_cho_chuyen'];
 /** Mã nguồn hợp lệ trong tham số `nguon` (chữ, số, _ . - / và khoảng trắng, ≤ 40 ký tự); giá trị chỉ đi vào so sánh chuỗi, không vào SQL. */
 const RE_MA_NGUON = /^[\p{L}\p{N}_.\-/ ]{1,40}$/u;
 
+/** KTT-8d2: giá trị đặc biệt của `duong_thu` / `noi_gui` ở /danh-sach và /xuat/hom-sau-chua-di = «mã null hoặc rỗng» (dòng không có mã). Khớp RE_MA_NGUON; không trùng mã thật (mã thật không có dấu gạch dưới kép). */
+const MA_LOC_RONG = '__RONG__';
+
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const chuoi = (x) => (x === null || x === undefined ? '' : String(x).trim());
+
+/** KTT-8d2: giá trị mã của một SHBG (đường thư đến / nơi gửi BD10 đến) có khớp tham số lọc `loc` không. loc null = không lọc; MA_LOC_RONG = mã null / rỗng / toàn khoảng trắng; còn lại so chuỗi (đã trim) đúng từng ký tự. */
+function khopMaLoc(loc, giaTri) {
+  if (loc === null || loc === undefined) return true;
+  const v = chuoi(giaTri);
+  return loc === MA_LOC_RONG ? v === '' : v === loc;
+}
 
 /** kg của một SHBG (đơn vị u của kttQuery): gam / 1000; thiếu -> 0. */
 const kgCua = (u) => (typeof u.gam === 'number' && Number.isFinite(u.gam) ? u.gam / 1000 : 0);
@@ -144,4 +154,4 @@ function congNguon(dsNgay) {
   return kq.sort(soSanhNhom);
 }
 
-module.exports = { MA_NOI_TINH, MA_KHONG_RO, TEN_NOI_TINH, TEN_KHONG_RO, RE_MA_NGUON, KHOA_TT, r3, kgCua, thieuKhoiLuong, nguonCua, taoKg, kgRong, ganKg, taoNguon, congNguon };
+module.exports = { MA_LOC_RONG, khopMaLoc, MA_NOI_TINH, MA_KHONG_RO, TEN_NOI_TINH, TEN_KHONG_RO, RE_MA_NGUON, KHOA_TT, r3, kgCua, thieuKhoiLuong, nguonCua, taoKg, kgRong, ganKg, taoNguon, congNguon };

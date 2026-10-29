@@ -299,7 +299,23 @@ function theoDuongThu(m, tops = {}) {
   };
 }
 
+/**
+ * KTT-8d: số SHBG mà MÀN HÌNH B (B5, bảng rớt lại, B1) hiện cho một ô — cộng nhóm \`loc.nhomCan\` của mọi mục đường thư trong bó khoảng \`m\` khớp bộ lọc
+ * (huong, hangHoan, noiGui, duongThu; null = không lọc). Cùng khóa với kttDiNgayQuery.duyetDanhSach nên bằng số dòng danh sách. Lọc theo BCVH: màn hình không có ô -> null.
+ */
+function soOManHinh(m, loc) {
+  if (loc.maBcvh !== null && loc.maBcvh !== undefined) return null;
+  let n = 0;
+  for (const e of Object.values(m.duong_thu)) {
+    if (loc.huong !== null && e.huong !== loc.huong) continue;
+    if (loc.hangHoan !== null && e.hang_hoan !== loc.hangHoan) continue;
+    if (!NG.khopMaLoc(loc.noiGui, e.noi_gui_ma) || !NG.khopMaLoc(loc.duongThu, e.duong_thu_ma)) continue; // KTT-8d2: NG.MA_LOC_RONG = mã null / rỗng
+    n += e.khoi[loc.nhomCan] || 0;
+  }
+  return n;
+}
+
 module.exports = {
   HUONG, KHOA_HUONG, CAC_NHOM, KHOA_PHU, phanLoaiDi, nhomTheoNgayDi, nhomChuaDi, khoiMoi, themKhoi, ketQuaKhoi, taoNgay, themShbg, congCacNgay,
-  tongHop, theoNgay, soSanhChuNhat, theoGio, chia12h, rotLaiTheoDuongThu, theoDuongThu, dichChinh, nhanDuongThu, hhmm, laChuNhat, r3, ty
+  tongHop, theoNgay, soSanhChuNhat, soOManHinh, theoGio, chia12h, rotLaiTheoDuongThu, theoDuongThu, dichChinh, nhanDuongThu, hhmm, laChuNhat, r3, ty
 };

@@ -387,8 +387,13 @@ test('sheet «Thông tin»: đủ mục; tên đăng nhập người xuất (kh�
   const tt = thongTin(await docFile(r));
   assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Phạm vi bưu gửi', 'Định nghĩa: năm trạng thái', 'Định nghĩa: đang chờ chuyến',
     'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến',
-    'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Không đo được', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình Lưu thoát']);
+    'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Không đo được',
+    // KTT-8d: định nghĩa nhóm dùng chung mọi file xuất
+    'Định nghĩa: rớt lại', 'Định nghĩa: hôm sau', 'Định nghĩa: chưa đi trên 24 giờ', 'Định nghĩa: xe Cấp 1', 'Định nghĩa: chuyến liền kề',
+    'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình Lưu thoát']);
   assert.match(tt.get('Cửa sổ'), /Từ ngày 20\/10\/2026 đến ngày 22\/10\/2026.*không \(tất cả\)/);
+  assert.match(tt.get('Cửa sổ'), /sheet «7 Hàng rớt lại».*Ngày có dữ liệu thực tế: 20\/10\/2026 – 2\d\/10\/2026/); // KTT-8d: cửa sổ thực tế
+  assert.match(tt.get('Đơn vị'), /Sheet «Thông tin».*Sheet «7 Hàng rớt lại»: mỗi dòng là một SHBG/);
   assert.match(tt.get('Dữ liệu đến'), /2026-10-21 10:00:00/);
   assert.equal(tt.get('Chốt số theo ngày'), '20/10/2026: đã chốt; 21/10/2026: số tạm; 22/10/2026: số tạm');
   assert.match(tt.get('Ngày xuất, người xuất'), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(giờ Việt Nam\); tài khoản: KT8B_TTVH\.$/);

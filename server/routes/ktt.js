@@ -6,6 +6,7 @@
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
+//   GET /api/ktt/xuat/hom-sau-chua-di?tu=&den=&loai=[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=]   KTT-8d: file .xlsx («Thông tin» + «8 Hôm sau-chưa đi»), cùng tham số /danh-sach
 //   GET /api/ktt/doi-chieu/do-phu?tu=&den=   KTT-16-1: độ phủ «Hàng đến BCVH» theo (BCVH, ngày), cửa sổ đối chiếu được, cờ «có thể dương tính giả» (lib/kttDoPhuBcvh.js, doc 44)
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
@@ -61,20 +62,21 @@ router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query))
 // KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu — chỉ đọc arrival_*, không chạm bảng ktt_* (docs/ai/44_KTT_DO_PHU_BCVH.md).
 router.get('/doi-chieu/do-phu', xuLy('doi-chieu/do-phu', (req) => Api.doPhuBcvh(db, req.query)));
 
-// KTT-8b: xuất xlsx sheet 7 «Lưu thoát» (+ sheet «Thông tin»). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
-router.get('/xuat/luu-thoat', async (req, res) => {
+// KTT-8b / KTT-8d: xuất xlsx (sheet «Thông tin» + một sheet dữ liệu). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
+// chuanBi(req) -> nội dung file (kttApi); boLoc(kq) -> các trường bộ lọc ghi nhật ký (không số hiệu bưu gửi).
+const xuatFile = (kind, chuanBi, boLoc) => async (req, res) => {
   let kq;
   try {
-    kq = await Api.xuatLuuThoat(db, req.query, { nguoiXuat: req.user.hrm_code || null });
+    kq = await chuanBi(req);
   } catch (err) {
     if (err instanceof Q.LoiKtt) return res.status(400).json({ error: err.message, ma: err.code });
-    console.error('Ktt xuat luu-thoat error:', err && err.code ? err.code : (err && err.name));
+    console.error(`Ktt xuat ${kind} error:`, err && err.code ? err.code : (err && err.name));
     return res.status(500).json({ error: 'Lỗi hệ thống khi xuất dữ liệu Hàng tại KTT', ma: 'LOI_HE_THONG' });
   }
   // Nhật ký: ai, khoảng ngày, bộ lọc, số dòng. KHÔNG ghi số hiệu bưu gửi.
   const ghiNhatKy = (rows, status) => req.app.locals.security.log({
-    event: 'ktt_export', kind: 'luu-thoat', ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
-    from: kq.khoang.tuNgay, to: kq.khoang.denNgay, trang_thai: kq.nhom, ma_bcvh: kq.maBcvh, nguon: kq.nguon, rows, status
+    event: 'ktt_export', kind, ip: req.clientIp, user_id: req.user.id, hrm_code: req.user.hrm_code, role: req.user.role,
+    from: kq.khoang.tuNgay, to: kq.khoang.denNgay, ...boLoc(kq), rows, status
   });
   let khachDi = false;
   res.on('close', () => { if (!res.writableFinished) khachDi = true; });
@@ -86,10 +88,16 @@ router.get('/xuat/luu-thoat', async (req, res) => {
     const r = await Xuat.ghiXlsx(res, kq, () => khachDi);
     ghiNhatKy(r.rows, r.aborted ? 'aborted' : 'ok');
   } catch (err) {
-    console.error('Ktt xuat luu-thoat error:', err && err.code ? err.code : (err && err.name));
+    console.error(`Ktt xuat ${kind} error:`, err && err.code ? err.code : (err && err.name));
     ghiNhatKy(null, 'error');
     res.destroy(); // đã gửi header: cắt kết nối để file dở không bị coi là hợp lệ
   }
-});
+};
+const nguoiXuat = (req) => ({ nguoiXuat: req.user.hrm_code || null });
+router.get('/xuat/luu-thoat', xuatFile('luu-thoat', (req) => Api.xuatLuuThoat(db, req.query, nguoiXuat(req)),
+  (kq) => ({ trang_thai: kq.nhom, ma_bcvh: kq.maBcvh, nguon: kq.nguon })));
+// KTT-8d: sheet 8 «Hôm sau / chưa đi trên 24 giờ» — cùng tham số với /danh-sach (trừ page, page_size).
+router.get('/xuat/hom-sau-chua-di', xuatFile('hom-sau-chua-di', (req) => Api.xuatHomSauChuaDi(db, req.query, nguoiXuat(req)),
+  (kq) => ({ loai: kq.loai, duong_thu: kq.loc.duongThu, noi_gui: kq.loc.noiGui, huong: kq.loc.huong, hang_hoan: kq.loc.hangHoan, ma_bcvh: kq.loc.maBcvh })));
 
 module.exports = router;
