@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { formatInt, formatPercent } from '../quythoigian/quyThoiGianFormatters';
 import { formatKg } from './kttFormatters';
+import KttTooltip from './KttTooltip';
 
 export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
   const hasNoData = !data?.co_du_lieu;
@@ -47,11 +48,12 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
     const roLai = (hh.trang_thai?.t3?.shbg ?? 0) +
       (hh.trang_thai?.t4?.shbg ?? 0) +
       (hh.trang_thai?.t5?.shbg ?? 0);
+    const luuThoat = Math.max(0, shbg - roLai);
     const truot = (hh.dung_chuyen?.truot_chuyen ?? 0) + (hh.dung_chuyen?.lo_chuyen ?? 0);
     const tyLeRot = !hasNoData && shbg > 0 ? roLai / shbg : null;
     const tyLeTruot = !hasNoData && shbg > 0 ? truot / shbg : null;
     const tyLeLuu = !hasNoData && shbg > 0 ? (shbg - roLai) / shbg : null;
-    return { shbg, kg, roLai, truot, tyLeRot, tyLeTruot, tyLeLuu };
+    return { shbg, kg, luuThoat, roLai, truot, tyLeRot, tyLeTruot, tyLeLuu };
   }, [data, selectedBcvh, activeHangHoan, hasNoData]);
 
   if (!data?.tong_cong) return null;
@@ -84,6 +86,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
           const tyLeRot = !hasNoData && shbg > 0 ? roLai / shbg : null;
           const tyLeTruot = !hasNoData && shbg > 0 ? truot / shbg : null;
           const tyLeLuu = !hasNoData && shbg > 0 ? (shbg - roLai) / shbg : null;
+          const luuThoat = Math.max(0, shbg - roLai);
 
           return (
             <div
@@ -107,19 +110,46 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
                 </div>
               </div>
 
-              {/* Thanh lưu thoát nguồn */}
-              <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mt-3 flex">
-                <div
-                  style={{ width: `${(tyLeLuu ?? 0) * 100}%` }}
-                  className="bg-[#1F7A5C] h-full"
-                  title={`Lưu thoát: ${formatPercent(tyLeLuu)}`}
-                />
-                <div
-                  style={{ width: `${(tyLeRot ?? 0) * 100}%` }}
-                  className="bg-[#E0A82E] h-full"
-                  title={`Rớt lại: ${formatPercent(tyLeRot)}`}
-                />
-              </div>
+              {/* Thanh lưu thoát nguồn chuẩn KttTooltip */}
+              <KttTooltip
+                ariaLabel={`${g.ten} · Mẫu số: ${formatInt(shbg)} bưu gửi · Lưu thoát: ${formatInt(luuThoat)} (${formatPercent(tyLeLuu)}) · Rớt lại: ${formatInt(roLai)} (${formatPercent(tyLeRot)}) · Trượt chuyến: ${formatInt(truot)} (${formatPercent(tyLeTruot)})`}
+                content={
+                  <div className="space-y-1 min-w-[200px]">
+                    <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
+                      <span>{g.ten}</span>
+                      <span className="text-gray-300 font-normal">
+                        Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(shbg)}</strong> bưu gửi
+                      </span>
+                    </div>
+                    <div className="space-y-0.5 text-[11px] pt-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-emerald-300">Lưu thoát:</span>
+                        <span className="tabular-nums font-bold text-white">{formatInt(luuThoat)} bưu gửi ({formatPercent(tyLeLuu)})</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-amber-300">Rớt lại:</span>
+                        <span className="tabular-nums font-bold text-white">{formatInt(roLai)} bưu gửi ({formatPercent(tyLeRot)})</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-red-300">Trượt chuyến:</span>
+                        <span className="tabular-nums font-bold text-white">{formatInt(truot)} bưu gửi ({formatPercent(tyLeTruot)})</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+                className="w-full mt-3 cursor-pointer py-1 focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-full"
+              >
+                <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 flex">
+                  <div
+                    style={{ width: `${(tyLeLuu ?? 0) * 100}%` }}
+                    className="bg-[#1F7A5C] h-full"
+                  />
+                  <div
+                    style={{ width: `${(tyLeRot ?? 0) * 100}%` }}
+                    className="bg-[#E0A82E] h-full"
+                  />
+                </div>
+              </KttTooltip>
             </div>
           );
         })}
@@ -151,18 +181,46 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
               {' · trượt '}
               <strong className="text-[#B3202A]">{formatPercent(hhStats.tyLeTruot)}</strong>
             </div>
-            <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mt-3 flex">
-              <div
-                style={{ width: `${(hhStats.tyLeLuu ?? 0) * 100}%` }}
-                className="bg-[#1F7A5C] h-full"
-                title={`Lưu thoát: ${formatPercent(hhStats.tyLeLuu)}`}
-              />
-              <div
-                style={{ width: `${(hhStats.tyLeRot ?? 0) * 100}%` }}
-                className="bg-[#E0A82E] h-full"
-                title={`Rớt lại: ${formatPercent(hhStats.tyLeRot)}`}
-              />
-            </div>
+            {/* Thanh chuyển hoàn chuẩn KttTooltip */}
+            <KttTooltip
+              ariaLabel={`Chuyển hoàn Tổ KHHH · Mẫu số: ${formatInt(hhStats.shbg)} bưu gửi · Lưu thoát: ${formatInt(hhStats.luuThoat)} (${formatPercent(hhStats.tyLeLuu)}) · Rớt lại: ${formatInt(hhStats.roLai)} (${formatPercent(hhStats.tyLeRot)}) · Trượt chuyến: ${formatInt(hhStats.truot)} (${formatPercent(hhStats.tyLeTruot)})`}
+              content={
+                <div className="space-y-1 min-w-[210px]">
+                  <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
+                    <span>Chuyển hoàn · Tổ KHHH 531120</span>
+                    <span className="text-gray-300 font-normal">
+                      Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(hhStats.shbg)}</strong> bưu gửi
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 text-[11px] pt-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-emerald-300">Lưu thoát:</span>
+                      <span className="tabular-nums font-bold text-white">{formatInt(hhStats.luuThoat)} bưu gửi ({formatPercent(hhStats.tyLeLuu)})</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-amber-300">Rớt lại:</span>
+                      <span className="tabular-nums font-bold text-white">{formatInt(hhStats.roLai)} bưu gửi ({formatPercent(hhStats.tyLeRot)})</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-red-300">Trượt chuyến:</span>
+                      <span className="tabular-nums font-bold text-white">{formatInt(hhStats.truot)} bưu gửi ({formatPercent(hhStats.tyLeTruot)})</span>
+                    </div>
+                  </div>
+                </div>
+              }
+              className="w-full mt-3 cursor-pointer py-1 focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-full"
+            >
+              <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 flex">
+                <div
+                  style={{ width: `${(hhStats.tyLeLuu ?? 0) * 100}%` }}
+                  className="bg-[#1F7A5C] h-full"
+                />
+                <div
+                  style={{ width: `${(hhStats.tyLeRot ?? 0) * 100}%` }}
+                  className="bg-[#E0A82E] h-full"
+                />
+              </div>
+            </KttTooltip>
           </div>
         </div>
       )}

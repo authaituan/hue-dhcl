@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import KttTongQuan from './KttTongQuan';
 import KttLuuThoat from './KttLuuThoat';
+import KttHangDen from './KttHangDen';
 import KttDiCungNgay from './KttDiCungNgay';
 import KttLichXe from './KttLichXe';
 import KttErrorBoundary from './KttErrorBoundary';
@@ -8,7 +10,9 @@ export default function KttView({ authUser }) {
   const [activeTab, setActiveTab] = useState('luu_thoat');
 
   const tabs = [
+    { id: 'tong_quan', label: 'Tổng quan' },
     { id: 'luu_thoat', label: 'Lưu thoát trong ngày' },
+    { id: 'a_hang_den', label: 'A · Hàng đến' },
     { id: 'b_ty_le', label: 'B · Tỷ lệ đi cùng ngày' },
     { id: 'b_lich_xe', label: 'B · Lịch xe, đường thư' },
   ];
@@ -37,9 +41,21 @@ export default function KttView({ authUser }) {
         </div>
       </div>
 
+      {activeTab === 'tong_quan' && (
+        <KttErrorBoundary>
+          <KttTongQuan authUser={authUser} onNavigateTab={setActiveTab} />
+        </KttErrorBoundary>
+      )}
+
       {activeTab === 'luu_thoat' && (
         <KttErrorBoundary>
           <KttLuuThoat authUser={authUser} />
+        </KttErrorBoundary>
+      )}
+
+      {activeTab === 'a_hang_den' && (
+        <KttErrorBoundary>
+          <KttHangDen authUser={authUser} />
         </KttErrorBoundary>
       )}
 
@@ -57,4 +73,5 @@ export default function KttView({ authUser }) {
     </div>
   );
 }
+
 

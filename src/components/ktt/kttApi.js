@@ -144,3 +144,51 @@ export async function fetchKttDanhSachDiNgay({
   return apiFetchJson(`/api/ktt/danh-sach?${query}`);
 }
 
+/**
+ * KTT-12 / KTT-13c: A Thẻ tổng hợp hàng đến từ xe Cấp 1 + A1 theo ngày
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttHangDenTongHop({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/hang-den/tong-hop?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13c: A3 Bưu gửi đến theo giờ xe đến, chia theo đường thư lớn nhất
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttHangDenTheoGio({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/hang-den/theo-gio?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13c: A4 Các đường thư đến + A5 Bản đồ nhiệt hướng hàng + đợt xe
+ * @param {Object} params { tu, den, top }
+ */
+export async function fetchKttHangDenTheoDuongThu({ tu, den, top = 200 }) {
+  const params = { tu, den };
+  if (top) params.top = String(top);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/hang-den/theo-duong-thu?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13c: A2 Mỗi xe Cấp 1 (BD10 đến) một dòng theo giờ xác nhận
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttHangDenXe({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/hang-den/xe?${query}`);
+}
+
+/**
+ * KTT-12 / KTT-13c: Trang Tổng quan (gom số từ cùng các hàm B và A, không tính lại riêng)
+ * @param {Object} params { tu, den }
+ */
+export async function fetchKttTongQuan({ tu, den }) {
+  const query = new URLSearchParams({ tu, den }).toString();
+  return apiFetchJson(`/api/ktt/tong-quan?${query}`);
+}
+
+
