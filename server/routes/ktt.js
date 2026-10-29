@@ -6,6 +6,7 @@
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
+//   GET /api/ktt/doi-chieu/do-phu?tu=&den=   KTT-16-1: độ phủ «Hàng đến BCVH» theo (BCVH, ngày), cửa sổ đối chiếu được, cờ «có thể dương tính giả» (lib/kttDoPhuBcvh.js, doc 44)
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
@@ -56,6 +57,9 @@ router.get('/hang-den/theo-gio', xuLy('hang-den/theo-gio', (req) => Api.hangDenT
 router.get('/hang-den/theo-duong-thu', xuLy('hang-den/theo-duong-thu', (req) => Api.hangDenTheoDuongThu(db, req.query)));
 router.get('/hang-den/xe', xuLy('hang-den/xe', (req) => Api.hangDenXe(db, req.query)));
 router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query)));
+
+// KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu — chỉ đọc arrival_*, không chạm bảng ktt_* (docs/ai/44_KTT_DO_PHU_BCVH.md).
+router.get('/doi-chieu/do-phu', xuLy('doi-chieu/do-phu', (req) => Api.doPhuBcvh(db, req.query)));
 
 // KTT-8b: xuất xlsx sheet 7 «Lưu thoát» (+ sheet «Thông tin»). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
 router.get('/xuat/luu-thoat', async (req, res) => {

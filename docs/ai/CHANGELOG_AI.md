@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-29] - KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu (backend + test + docs; không đổi `src/`, importer, bảng DB; không chạm `ktt_*`)
+
+- **Lý do:** các ticket đối chiếu KTT↔BCVH (KTT-16-2…4) phải biết BCVH có file hay không ở từng ngày để không coi «BCVH chưa có file» là «chưa thấy hàng». Ticket này CHƯA ghép KTT↔BCVH.
+- **Mới:** `server/lib/kttDoPhuBcvh.js` (`tinhDoPhu` hàm thuần + `docDoPhu` đọc `arrival_import_files` / `arrival_items`), `Api.doPhuBcvh` trong `server/lib/kttApi.js` (cache riêng theo `(tu, den)` + dấu hiệu DB, ≤ 10 phút), route `GET /api/ktt/doi-chieu/do-phu?tu=&den=` ở `server/routes/ktt.js` (ADMIN + TTVH; ≤ 31 ngày). Mỗi (BCVH, ngày): `trang_thai` (`CO_DU_LIEU` | `CHI_FILE_RONG` | `KHONG_CO_FILE`), số file OK / EMPTY, số dòng, số đợt, giờ file mới nhất, tỷ lệ dòng thiếu giờ nhận. Theo BCVH: ngày đầu, độ mới, `cua_so` (D ≥ ngày đầu và D + 48 giờ ≤ độ mới), danh sách ngày thiếu; `cua_so_chung` (giao sáu BCVH), `cua_so_thuc_te` (giao với khoảng yêu cầu); cờ `co_the_duong_tinh_gia` (D, D+1, D+2 có ngày không `CO_DU_LIEU`).
+- **Quy ước:** «ngày» = `file_date`; chỉ file OK / EMPTY được chấp nhận; ngày đầu và độ mới chỉ tính file OK (cửa sổ hẹp hơn là phía an toàn). Importer và hành vi `EMPTY` không đổi.
+- **Test:** `tests/ktt-do-phu-bcvh.test.js` (14 ca, dữ liệu giả, thêm vào `package.json`): ngày không file ở cả sáu BCVH, file EMPTY (một mình / cùng file OK), BCVH bắt đầu muộn, độ mới cắt 48 giờ (ranh giới theo giây), không có cửa sổ chung, 31 / 32 ngày và tham số sai, quyền (GDVH, TIVI 403), chỉ đọc + không câu SQL nhắc `ktt_`, cache, hàm thuần. `npm test` 1207 ca (1197 pass, 0 fail, 10 skip); ca mới giống nhau ở ba múi giờ.
+- **Docs:** `44_KTT_DO_PHU_BCVH.md` (mới), `42_KTT_API.md` mục 15, `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`.
+- **Còn nợ / chờ PO:** (1) PO chốt 29/10: giữ quy tắc ngày (ngày có file OK vẫn `CO_DU_LIEU`, EMPTY chỉ hiện ở `so_file_empty`; trên bản sao local không ngày nào `CHI_FILE_RONG` vì mọi EMPTY cùng ngày với file OK); (2) mốc D 00:00 + 48 giờ chưa xét giờ lập BD10 từng dòng; (3) không `git add` / commit: PO làm git (nhánh `feat/ktt-16-1-do-phu-bcvh` đã tạo từ `main` `626cb81`).
+
 ## [2026-10-28] - KTT-15: làm nóng cache «Hàng tại KTT» nền sau mỗi lần nạp và khi khởi động (backend + test + docs; không đổi `src/`, không bảng DB mới)
 
 - **Lý do:** lần nguội 30 ngày ≈ 16–21 giây ở `/luu-thoat`, B1–B6, danh-sách, tổng quan (KTT-12b/14); đóng `05_BACKLOG.md` mục 21.

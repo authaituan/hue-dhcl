@@ -146,3 +146,7 @@ Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xu�
 - `/luu-thoat`: thêm `theo_nguon_hang { khai_thac, chuyen_tiep }` ở mỗi ngày và `tong_cong`, và bốn bộ đếm `meta` (`shbg_chuyen_tiep`, `co_ca_hai_loai_tui`, `chuyen_tiep_nhieu_tui`, `chuyen_tiep_co_tui_di_khac`). `chi-tiet` thêm `nguon_hang`, `luong_tui` (21 trường); `danh-sach` thêm `nguon_hang`. Mặc định số hiển thị gộp cả hai cờ; chưa có tham số lọc theo cờ (giao diện tách sau, dùng `theo_nguon_hang`).
 - Xlsx sheet 7: số dòng = `tong_shbg_ngay` mới (có test); vẫn 18 cột. Chip «Tất cả» và các chip: số lấy từ cùng `tong_shbg_ngay` / `trang_thai` nên tự khớp; KHÔNG sửa giao diện (KTT-11a/11c do bên giao diện).
 - Hiệu năng: cửa sổ 30 ngày lần nguội tăng vì số SHBG gấp hơn hai lần (xem `43` mục 12); lần cache không đổi đáng kể.
+
+## 15. KTT-16-1 — `GET /api/ktt/doi-chieu/do-phu` (độ phủ «Hàng đến BCVH»; route mới, không đổi route cũ)
+- Cùng quyền (ADMIN + TTVH), cùng quy tắc tham số (`tu`, `den` bắt buộc, ≤ 31 ngày, khóa lạ → 400) và hình thức lỗi như các route khác. Chỉ đọc `arrival_import_files` / `arrival_items`; KHÔNG chạm bảng `ktt_*`, nên cache riêng (theo `(tu, den)` + dấu hiệu DB, ≤ 10 phút) và KHÔNG qua `dongBoPhienBan` / độ mới KTT / worker.
+- Schema, quy tắc cửa sổ đối chiếu và cờ «có thể dương tính giả»: `44_KTT_DO_PHU_BCVH.md`.
