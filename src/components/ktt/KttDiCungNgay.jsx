@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AlertCircle, RefreshCw, Clock, ListFilter } from 'lucide-react';
+import { AlertCircle, RefreshCw, Clock, ListFilter, Download } from 'lucide-react';
 import QuyThoiGianDateRangePicker from '../quythoigian/QuyThoiGianDateRangePicker';
 import {
   getTodayVnYmd,
@@ -22,7 +22,9 @@ import {
   fetchKttDiCungNgayTheoNgay,
   fetchKttDiCungNgayTheoGio,
   fetchKttRotLaiTheoDuongThu,
+  downloadKttLuuThoat,
 } from './kttApi';
+import { getToken, decodeJwtPayload } from '../../utils/api';
 import KttDanhSachDiNgay from './KttDanhSachDiNgay';
 
 /**
@@ -76,8 +78,61 @@ export default function KttDiCungNgay({ authUser }) {
   // Trạng thái bấm ô xem danh sách bưu gửi
   const [selectedCellFilter, setSelectedCellFilter] = useState(null);
 
-  // Ref chống stale response
+  // Xuất Sheet 7 hàng rớt lại theo đường thư
+  const [exportingNguon, setExportingNguon] = useState(null);
+  const [rowExportError, setRowExportError] = useState(null);
+
   const reqIdRef = useRef(0);
+
+  const userRole = authUser?.role || (() => {
+    try {
+      const t = getToken();
+      return t ? decodeJwtPayload(t)?.role : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  const canExport = userRole === 'ADMIN' || userRole === 'TTVH';
+
+  const handleExportRowSheet7 = async (maNguon) => {
+    if (exportingNguon !== null || !dateRange || !maNguon || maNguon === '__RONG__') return;
+    setExportingNguon(maNguon);
+    setRowExportError(null);
+
+    try {
+      const res = await downloadKttLuuThoat({
+        tu: dateRange.from,
+        den: dateRange.to,
+        trang_thai: 'ro_lai',
+        nguon: maNguon,
+      });
+
+      if (!res.ok) {
+        const isTran = res.error && (res.error.includes('KTT_QUA_NHIEU_DONG') || res.error.includes('vượt giới hạn'));
+        if (isTran) {
+          setRowExportError({
+            nguon: maNguon,
+            message: 'Quá nhiều dòng (trần 200.000). Thu hẹp khoảng ngày.',
+            canRetry: false,
+          });
+        } else {
+          setRowExportError({
+            nguon: maNguon,
+            message: res.error || 'Có lỗi xảy ra khi tạo file.',
+            canRetry: true,
+          });
+        }
+      }
+    } catch (e) {
+      setRowExportError({
+        nguon: maNguon,
+        message: 'Lỗi kết nối khi tải file.',
+        canRetry: true,
+      });
+    } finally {
+      setExportingNguon(null);
+    }
+  };
 
   // 1. Tải meta lúc khởi tạo để tính khoảng 30 ngày mặc định
   useEffect(() => {
@@ -841,25 +896,54 @@ export default function KttDiCungNgay({ authUser }) {
                 Không có dữ liệu đường thư rớt lại trong khoảng đã chọn.
               </div>
             ) : (
+              <>
+                {/* Lỗi xuất Sheet 7 theo dòng */}
+                {rowExportError && (
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex items-center justify-between gap-2 mt-3 mb-2">
+                  <div>
+                    <strong>Lỗi xuất đường thư {rowExportError.nguon}:</strong> {rowExportError.message}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {rowExportError.canRetry && (
+                      <button
+                        type="button"
+                        onClick={() => handleExportRowSheet7(rowExportError.nguon)}
+                        className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold cursor-pointer shrink-0"
+                      >
+                        Thử lại
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setRowExportError(null)}
+                      className="px-2 py-0.5 bg-white hover:bg-gray-100 border border-red-300 rounded text-red-700 text-xs font-semibold cursor-pointer shrink-0"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto max-w-full mt-3">
-                <table className="table-soft w-full min-w-[900px] text-left text-xs">
+                <table className="table-soft w-full min-w-[960px] text-left text-xs">
                   <thead>
                     <tr>
                       <th>ĐƯỜNG THƯ ĐẾN</th>
                       <th className="text-right">BƯU GỬI</th>
                       <th className="text-right">RỚT LẠI</th>
                       <th className="text-right">% RỚT LẠI</th>
-                      <th className="text-right bg-purple-50/50">HÔM SAU</th>
-                      <th className="text-right">TỪ 2 NGÀY</th>
-                      <th className="text-right bg-red-50/50">CHƯA ĐI &gt; 24H</th>
+                      <th className="text-right bg-purple-50/50 min-w-[125px] whitespace-nowrap">HÔM SAU</th>
+                      <th className="text-right min-w-[100px] whitespace-nowrap">TỪ 2 NGÀY</th>
+                      <th className="text-right bg-red-50/50 min-w-[145px] whitespace-nowrap">CHƯA ĐI &gt; 24H</th>
                       <th className="text-right">KHỐI LƯỢNG</th>
                       <th>ĐÍCH CHÍNH</th>
                       <th className="text-center w-20">DANH SÁCH</th>
+                      {canExport && <th className="text-center w-36">XUẤT SHEET 7</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {rotLaiDong.map((r) => {
-                      const dtMa = r.duong_thu_ma;
+                      const dtMa = r.duong_thu_ma ? r.duong_thu_ma : '__RONG__';
                       const dtTen = r.duong_thu_ten;
                       const roLaiPct = r.ty_le?.ro_lai || 0;
                       const isSelected = selectedCellFilter?.duongThu === dtMa;
@@ -872,7 +956,7 @@ export default function KttDiCungNgay({ authUser }) {
                         >
                           <td className="font-medium text-gray-800">
                             <div>{dtTen || '(chưa có tên)'}</div>
-                            {dtMa && <div className="text-[10px] text-gray-400 font-mono">{dtMa}</div>}
+                            {r.duong_thu_ma && <div className="text-[10px] text-gray-400 font-mono">{r.duong_thu_ma}</div>}
                           </td>
                           <td className="text-right tabular-nums font-semibold text-gray-800">
                             {formatInt(r.tong_shbg)}
@@ -901,7 +985,7 @@ export default function KttDiCungNgay({ authUser }) {
                           </td>
 
                           {/* Ô Hôm sau - BẤM ĐƯỢC */}
-                          <td className="text-right tabular-nums bg-purple-50/40">
+                          <td className="text-right tabular-nums bg-purple-50/40 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => setSelectedCellFilter({
@@ -909,22 +993,35 @@ export default function KttDiCungNgay({ authUser }) {
                                 duongThuTen: dtTen,
                                 initialLoai: 'hom-sau',
                                 huong: 'lien_tinh_den_bcvh',
-                                title: `Đường thư ${dtTen || dtMa} · Hôm sau`,
+                                title: `Đường thư ${dtTen || dtMa || '(không có mã)'} · Hôm sau`,
                               })}
-                              className="font-bold text-[#4A1D6E] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-purple-100"
+                              className="font-bold text-[#4A1D6E] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-purple-100 whitespace-nowrap"
                               title="Bấm xem danh sách bưu gửi hôm sau"
                             >
-                              <span>{formatInt(r.hom_sau)}</span>
-                              <span className="text-[10px] text-purple-600 font-normal">({formatPercent(r.ty_le?.hom_sau)})</span>
+                              {r.ty_le?.hom_sau === null || r.ty_le?.hom_sau === undefined ? (
+                                <span>—</span>
+                              ) : (
+                                <>
+                                  <span>{formatInt(r.hom_sau)}</span>
+                                  <span className="text-[10px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
+                                </>
+                              )}
                             </button>
                           </td>
 
-                          <td className="text-right tabular-nums text-gray-700">
-                            {formatInt(r.tu_2_ngay)} <span className="text-[10px] text-gray-400 font-normal">({formatPercent(r.ty_le?.tu_2_ngay)})</span>
+                          <td className="text-right tabular-nums text-gray-700 whitespace-nowrap">
+                            {r.ty_le?.tu_2_ngay === null || r.ty_le?.tu_2_ngay === undefined ? (
+                              <span>—</span>
+                            ) : (
+                              <>
+                                <span>{formatInt(r.tu_2_ngay)}</span>
+                                <span className="text-[10px] text-gray-400 font-normal">({formatPercent(r.ty_le.tu_2_ngay)})</span>
+                              </>
+                            )}
                           </td>
 
                           {/* Ô Chưa đi > 24h - BẤM ĐƯỢC */}
-                          <td className="text-right tabular-nums bg-red-50/40">
+                          <td className="text-right tabular-nums bg-red-50/40 whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => setSelectedCellFilter({
@@ -932,13 +1029,19 @@ export default function KttDiCungNgay({ authUser }) {
                                 duongThuTen: dtTen,
                                 initialLoai: 'chua-di-24h',
                                 huong: 'lien_tinh_den_bcvh',
-                                title: `Đường thư ${dtTen || dtMa} · Chưa đi > 24h`,
+                                title: `Đường thư ${dtTen || dtMa || '(không có mã)'} · Chưa đi > 24h`,
                               })}
-                              className="font-bold text-[#B3202A] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-red-100"
+                              className="font-bold text-[#B3202A] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-red-100 whitespace-nowrap"
                               title="Bấm xem danh sách bưu gửi chưa đi > 24 giờ"
                             >
-                              <span>{formatInt(r.chua_di_tren_24h)}</span>
-                              <span className="text-[10px] text-red-600 font-normal">({formatPercent(r.ty_le?.chua_di_tren_24h)})</span>
+                              {r.ty_le?.chua_di_tren_24h === null || r.ty_le?.chua_di_tren_24h === undefined ? (
+                                <span>—</span>
+                              ) : (
+                                <>
+                                  <span>{formatInt(r.chua_di_tren_24h)}</span>
+                                  <span className="text-[10px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
+                                </>
+                              )}
                             </button>
                           </td>
 
@@ -969,7 +1072,7 @@ export default function KttDiCungNgay({ authUser }) {
                                 duongThuTen: dtTen,
                                 initialLoai: 'hom-sau',
                                 huong: 'lien_tinh_den_bcvh',
-                                title: `Đường thư ${dtTen || dtMa}`,
+                                title: `Đường thư ${dtTen || dtMa || '(không có mã)'}`,
                               })}
                               className="px-2 py-1 rounded text-[11px] font-bold bg-[#FAF5E8] border border-[#E4D5AE] text-[#5A4A62] hover:bg-amber-100 cursor-pointer flex items-center justify-center gap-1 mx-auto"
                               title="Xem danh sách chi tiết"
@@ -978,18 +1081,47 @@ export default function KttDiCungNgay({ authUser }) {
                               <span>Xem</span>
                             </button>
                           </td>
+
+                          {/* Cột xuất Sheet 7 cho dòng rớt lại */}
+                          {canExport && (
+                            <td className="text-center">
+                              {(!r.duong_thu_ma || r.duong_thu_ma === '__RONG__') ? (
+                                <span className="text-[10px] text-gray-400 italic">
+                                  Không xuất theo đường thư cho nhóm không có mã
+                                </span>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleExportRowSheet7(r.duong_thu_ma)}
+                                    disabled={exportingNguon !== null}
+                                    className="btn-primary px-2.5 py-1 rounded text-[11px] font-bold transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={`Xuất file Excel Sheet 7 (Hàng rớt lại) cho đường thư ${r.duong_thu_ma}`}
+                                  >
+                                    <Download className="w-3 h-3" />
+                                    <span>{exportingNguon === r.duong_thu_ma ? 'Đang tạo file…' : 'Xuất xlsx · Sheet 7'}</span>
+                                  </button>
+                                  <span className="text-[10px] text-gray-500 font-medium tabular-nums">
+                                    {formatInt(r.ro_lai)} dòng
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-            )}
+            </>
+          )}
           </div>
 
           {/* ── 6. DANH SÁCH BẤM Ô NẰM NGAY DƯỚI ───────────────────────────── */}
           {selectedCellFilter && (
             <KttDanhSachDiNgay
+              authUser={authUser}
               tu={dateRange.from}
               den={dateRange.to}
               initialLoai={selectedCellFilter.initialLoai || 'hom-sau'}

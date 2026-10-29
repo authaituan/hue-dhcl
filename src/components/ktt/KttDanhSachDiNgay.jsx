@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, FileText, Download } from 'lucide-react';
 import { formatInt, formatDdMmYyyy, formatDateTime } from '../quythoigian/quyThoiGianFormatters';
 import { formatKg, formatTimeShort, formatDecimal } from './kttFormatters';
-import { fetchKttDanhSachDiNgay } from './kttApi';
+import { fetchKttDanhSachDiNgay, downloadKttHomSauChuaDi } from './kttApi';
+import { getToken, decodeJwtPayload } from '../../utils/api';
 
 /**
  * Bảng danh sách bưu gửi khi bấm ô (Hôm sau / Chưa đi trên 24 giờ).
@@ -21,6 +22,7 @@ export default function KttDanhSachDiNgay({
   maBcvh = null,
   onClose,
   title = null,
+  authUser = null,
 }) {
   const [loai, setLoai] = useState(initialLoai);
   const [page, setPage] = useState(1);
@@ -29,13 +31,64 @@ export default function KttDanhSachDiNgay({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Xuất Sheet 8
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const [exportErrorCanRetry, setExportErrorCanRetry] = useState(false);
+
   const reqIdRef = useRef(0);
+
+  const userRole = authUser?.role || (() => {
+    try {
+      const t = getToken();
+      return t ? decodeJwtPayload(t)?.role : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  const canExport = userRole === 'ADMIN' || userRole === 'TTVH';
 
   // Khi bấm tab khác, reset về trang 1
   const handleTabChange = (nextLoai) => {
     if (nextLoai === loai) return;
     setLoai(nextLoai);
     setPage(1);
+  };
+
+  const handleExportSheet8 = async () => {
+    if (exportLoading || !tu || !den) return;
+    setExportLoading(true);
+    setExportError(null);
+    setExportErrorCanRetry(false);
+
+    try {
+      const res = await downloadKttHomSauChuaDi({
+        tu,
+        den,
+        loai,
+        duong_thu: duongThu,
+        noi_gui: noiGui,
+        huong,
+        hang_hoan: hangHoan,
+        ma_bcvh: maBcvh,
+      });
+
+      if (!res.ok) {
+        const isTran = res.error && (res.error.includes('KTT_QUA_NHIEU_DONG') || res.error.includes('vượt giới hạn'));
+        if (isTran) {
+          setExportError('Quá nhiều dòng (trần 200.000). Thu hẹp khoảng ngày.');
+          setExportErrorCanRetry(false);
+        } else {
+          setExportError(res.error || 'Có lỗi xảy ra khi tạo file.');
+          setExportErrorCanRetry(true);
+        }
+      }
+    } catch (e) {
+      setExportError('Lỗi kết nối khi tải file.');
+      setExportErrorCanRetry(true);
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const loadData = async () => {
@@ -86,10 +139,12 @@ export default function KttDanhSachDiNgay({
   const totalPages = pagination.total_pages || 1;
 
   // Tiêu đề gợi ý ngữ cảnh
+  const displayDuongThu = duongThu === '__RONG__' ? '(không có mã đường thư)' : duongThu;
+  const displayNoiGui = noiGui === '__RONG__' ? '(không có mã nơi gửi)' : noiGui;
   const contextLabel = title || (
     duongThu
-      ? `Đường thư: ${duongThu}${duongThuTen ? ` · ${duongThuTen}` : ''}`
-      : (noiGui ? `Nơi gửi: ${noiGui}${noiGuiTen ? ` · ${noiGuiTen}` : ''}` : 'Tất cả bưu gửi')
+      ? `Đường thư: ${displayDuongThu}${duongThuTen ? ` · ${duongThuTen}` : ''}`
+      : (noiGui ? `Nơi gửi: ${displayNoiGui}${noiGuiTen ? ` · ${noiGuiTen}` : ''}` : 'Tất cả bưu gửi')
   );
 
   return (
@@ -97,7 +152,7 @@ export default function KttDanhSachDiNgay({
       {/* Tiêu đề & Đóng */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3 mb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <FileText className="w-4 h-4 text-[#4A1D6E]" />
             <h3 className="font-bold text-gray-800 text-sm md:text-base">
               Danh sách bưu gửi chi tiết
@@ -105,6 +160,25 @@ export default function KttDanhSachDiNgay({
             <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
               {contextLabel}
             </span>
+
+            {/* Nút Xuất xlsx · Sheet 8 đặt cạnh tiêu đề */}
+            {canExport && (
+              <div className="inline-flex items-center gap-2 ml-1">
+                <button
+                  type="button"
+                  onClick={handleExportSheet8}
+                  disabled={exportLoading}
+                  className="btn-primary px-3 py-1.5 rounded-[8px] text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Xuất file Excel Sheet 8 Hôm sau - chưa đi"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{exportLoading ? 'Đang tạo file…' : 'Xuất xlsx · Sheet 8'}</span>
+                </button>
+                <span className="text-xs text-gray-600 font-medium tabular-nums">
+                  {formatInt(total)} dòng
+                </span>
+              </div>
+            )}
           </div>
           <p className="text-xs text-gray-500 mt-1">
             Tổng số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(total)}</strong> bưu gửi
@@ -153,7 +227,35 @@ export default function KttDanhSachDiNgay({
         </div>
       </div>
 
-      {/* Lỗi */}
+      {/* Lỗi xuất Excel */}
+      {exportError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex items-center justify-between gap-2 mb-4" role="alert">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+            <span>{exportError}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {exportErrorCanRetry && (
+              <button
+                type="button"
+                onClick={handleExportSheet8}
+                className="font-bold underline hover:no-underline cursor-pointer flex items-center gap-1"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Thử lại
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setExportError(null)}
+              className="px-2 py-0.5 bg-white hover:bg-gray-100 border border-red-300 rounded text-red-700 text-xs font-semibold cursor-pointer shrink-0"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lỗi tải dữ liệu */}
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex items-center justify-between gap-2 mb-4" role="alert">
           <div className="flex items-center gap-2">

@@ -136,12 +136,42 @@ export async function fetchKttDanhSachDiNgay({
   if (duong_thu) params.duong_thu = String(duong_thu);
   if (noi_gui) params.noi_gui = String(noi_gui);
   if (huong) params.huong = String(huong);
-  if (hang_hoan !== undefined && hang_hoan !== null) params.hang_hoan = hang_hoan ? '1' : '0';
+  if (hang_hoan !== undefined && hang_hoan !== null && hang_hoan !== '') {
+    params.hang_hoan = (hang_hoan === 1 || hang_hoan === '1' || hang_hoan === true) ? '1' : '0';
+  }
   if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
   if (page) params.page = String(page);
   if (page_size) params.page_size = String(page_size);
   const query = new URLSearchParams(params).toString();
   return apiFetchJson(`/api/ktt/danh-sach?${query}`);
+}
+
+/**
+ * Tải file Excel Sheet 8 Hôm sau - chưa đi trên 24 giờ (KTT-8d)
+ * @param {Object} params { tu, den, loai, duong_thu, noi_gui, huong, hang_hoan, ma_bcvh }
+ */
+export async function downloadKttHomSauChuaDi({
+  tu,
+  den,
+  loai,
+  duong_thu,
+  noi_gui,
+  huong,
+  hang_hoan,
+  ma_bcvh,
+}) {
+  const params = { tu, den, loai: String(loai || 'hom-sau') };
+  if (duong_thu) params.duong_thu = String(duong_thu);
+  if (noi_gui) params.noi_gui = String(noi_gui);
+  if (huong) params.huong = String(huong);
+  if (hang_hoan !== undefined && hang_hoan !== null && hang_hoan !== '') {
+    params.hang_hoan = (hang_hoan === 1 || hang_hoan === '1' || hang_hoan === true) ? '1' : '0';
+  }
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  const query = new URLSearchParams(params).toString();
+  const url = `/api/ktt/xuat/hom-sau-chua-di?${query}`;
+  const defaultFilename = `KTT_HomSauChuaDi_${params.loai}_${tu}_${den}.xlsx`;
+  return apiDownloadExcel(url, defaultFilename);
 }
 
 /**
