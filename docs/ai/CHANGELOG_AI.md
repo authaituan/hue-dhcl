@@ -2,6 +2,27 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-29] - KTT-8d2: sửa bộ lọc `/danh-sach` và sheet 8 — mã rỗng `__RONG__`, `hang_hoan`, bộ kiểm mã, bỏ định nghĩa C3 (backend + test + docs; không đổi `src/`, importer, `.env`, `data/`)
+
+- **Mã rỗng:** `duong_thu` / `noi_gui` nhận `__RONG__` (`kttNguon.MA_LOC_RONG`) = «mã null / rỗng / toàn khoảng trắng»; hàm khớp chung `kttNguon.khopMaLoc` dùng ở `kttDiNgayQuery.duyetDanhSach` (cả `/danh-sach` lẫn `/xuat/hom-sau-chua-di`) và `kttDiNgay.soOManHinh`; «Thông tin» ghi «(không có mã)». Tham số mã được bỏ khoảng trắng đầu / cuối.
+- **`hang_hoan`:** 0 / `false` = loại hàng hoàn; 1 / `true` = chỉ hàng hoàn; vắng / rỗng = cả hai (`kttApi.docHangHoan`, khóa cache theo giá trị đã chuẩn hóa). Backend đã đúng từ KTT-8d; giao diện dòng B5 thường phải gửi `0` (KTT-13d).
+- **`RE_MA_NGUON` không đổi:** khảo sát bản sao DB — không có MÃ thật nào bị từ chối (mã 6–10 ký tự); bị từ chối là TÊN / nhãn hiển thị (ngoặc, dài > 40). Thông báo lỗi nay nói «phải là MÃ (không phải tên hiển thị)». Lý do và dạng: `42` mục 17, `04` #120.
+- **Sheet «Thông tin»:** bỏ định nghĩa «Cấp 1 và C1 / C2 / C3» (đổi thành «xe Cấp 1», chỉ phần có căn cứ ở `41` / `43`) và chữ «C2» ở «chuyến liền kề». Cần PO chốt câu C1 / C2 / C3 khi làm sheet 5.
+- **Test:** `tests/ktt-xuat-sheet8.test.js` +5 ca (bộ kiểm mã dạng giả, `khopMaLoc`, `__RONG__` mọi dòng B5 không mã + bảng rớt lại, «Thông tin», `hang_hoan` 0 / 1 / false / true / vắng); sửa ca B5 dùng quy ước mới (`hang_hoan=0`, `__RONG__`) và thông báo lỗi; `tests/ktt-xuat.test.js` đổi tên mục. `npm test` 1223 ca (1213 pass, 0 fail, 10 skip), giống nhau ở `TZ=UTC`, `Asia/Ho_Chi_Minh`, `America/Los_Angeles`.
+- **Bản sao DB dev** (đọc, đã xóa; 27–29/10): ô «không có mã đường thư» ở bảng rớt lại: 146 = danh sách `__RONG__` + hướng (trước đây bỏ tham số: 2.049); mọi 208 ô B5 (104 dòng × 2 nhóm) và 26 ô bảng rớt lại (13 dòng × 2): danh sách = số trong ô 234/234; 0 lỗi `RE_MA_NGUON`.
+- **Docs:** `42` mục 17 (hợp đồng tham số), `04_DECISIONS.md` #120, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`.
+- **Còn nợ:** giao diện KTT-13d gửi `hang_hoan=0` + `__RONG__` và mã (không phải tên); không `git add` / commit.
+
+## [2026-10-29] - KTT-8d: xuất xlsx sheet 8 «Hôm sau / chưa đi trên 24 giờ», bổ sung sheet «Thông tin» (backend + test + docs; không đổi `src/`, importer, bảng DB)
+
+- **Mới:** route `GET /api/ktt/xuat/hom-sau-chua-di?tu=&den=&loai=hom-sau|chua-di-24h[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=]` (cùng tham số `/danh-sach`, trừ `page`, `page_size`; ADMIN + TTVH; GDVH / TIVI 403) → file «Thông tin» + «8 Hôm sau-chưa đi» (15 cột). `kttXuat.js`: `COT_SHEET8`, `xuatHomSauChuaDi` (worker), `dongThongTin8`, `dinhNghiaChung`, `tenFile8`; `ghiXlsx` nhận `sheet: 8`. `kttApi.xuatHomSauChuaDi`; `kttWorker` thêm tác vụ; `kttDiNgay.soOManHinh` (số ô màn hình B từ bó cùng khoảng).
+- **Tách dùng chung:** `kttDiNgayQuery.danhSach` tách thành `boLocDanhSach` + `duyetDanhSach` + `dongDanhSach` (hành vi `/danh-sach` không đổi, test KTT-12b vẫn xanh); `kttApi.docOBam` đọc tham số ô cho cả hai route. Route xuất ở `routes/ktt.js` thành hàm chung `xuatFile` (sheet 7 hành vi không đổi).
+- **«Thông tin» (cả sheet 7):** thêm 5 dòng định nghĩa (rớt lại, hôm sau, chưa đi trên 24 giờ, Cấp 1 và C1 / C2 / C3, chuyến liền kề); «Cửa sổ» ghi tên sheet + ngày có dữ liệu thực tế; «Đơn vị» ghi từng sheet. Sheet 7 không thêm tham số: `nguon=<mã đường thư>` + `tu = den` đã đủ (có test khớp cột «rớt lại»).
+- **Test:** `tests/ktt-xuat-sheet8.test.js` (11 ca, dữ liệu giả, thêm vào `package.json`); `tests/ktt-xuat.test.js` sửa ca danh sách mục «Thông tin» (+2 khẳng định). `npm test` 1218 ca (1208 pass, 0 fail, 10 skip), giống nhau ở `TZ=UTC`, `Asia/Ho_Chi_Minh`, `America/Los_Angeles`.
+- **Bản sao DB dev** (sao lưu chỉ đọc vào thư mục tạm, đã xóa; không in SHBG): 14 ô (9 ô B5, 5 ô bảng rớt lại; 27–29/10): sheet 8 = `/danh-sach` 14/14; = số trong ô 12/14 — 2 ô lệch do tham số giao diện gửi (xem «Còn nợ»). Sheet 7 `nguon` + `ro_lai` = cột rớt lại 5/5. Cửa sổ 30 ngày: ô `hom-sau` toàn bộ 55.973 dòng 22,6 s nguội / 21,5 s nóng + ghi 11,7 s; `chua-di-24h` 2.428 dòng 28,1 / 17,6 s + 0,6 s. ExcelJS mở lại được, số dòng đúng.
+- **Docs:** `42_KTT_API.md` mục 16 + bảng route; `04_DECISIONS.md` #116 sửa câu «17 cột» (giao diện đã ghi 18); `00_SNAPSHOT.md`.
+- **Còn nợ / chờ:** (1) Giao diện (ngoài phạm vi): dòng B5 KHÔNG phải «Hoàn» gửi `hang_hoan` rỗng nên danh sách / file gồm cả hàng hoàn cùng (nơi gửi, đường thư) — cần gửi `hang_hoan=0` (đã thử: khớp); dòng không có mã đường thư / nơi gửi bỏ tham số nên ra cả hướng — API chưa có giá trị «mã rỗng» (cần ticket); (2) «nóng» ≈ «nguội» (~20 s / 30 ngày) vì lượt duyệt SHBG không cache; (3) định nghĩa C3 chỉ ghi «không có trong dữ liệu KTT» — chờ PO câu chữ; (4) nút xuất trên giao diện chưa nối (Antigravity); (5) không `git add` / commit: PO làm git (nhánh `feat/ktt-8d-xuat-sheet-8` từ `main` `a402f16`).
+
 ## [2026-10-29] - KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu (backend + test + docs; không đổi `src/`, importer, bảng DB; không chạm `ktt_*`)
 
 - **Lý do:** các ticket đối chiếu KTT↔BCVH (KTT-16-2…4) phải biết BCVH có file hay không ở từng ngày để không coi «BCVH chưa có file» là «chưa thấy hàng». Ticket này CHƯA ghép KTT↔BCVH.

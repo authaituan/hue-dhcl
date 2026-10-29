@@ -392,12 +392,25 @@ function docSoNguyen(query, ten, min, max, macDinh) {
   if (!/^\d+$/.test(v) || !Number.isInteger(n) || n < min || n > max) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "${ten}" phải là số nguyên ${min}..${max}.`);
   return n;
 }
-/** Tham số mã (đường thư, nơi gửi): cùng biểu thức chính quy như `nguon`, chỉ để so sánh chuỗi. */
+/**
+ * Tham số mã (đường thư, nơi gửi): cùng biểu thức chính quy như `nguon`, chỉ để so sánh chuỗi (không vào SQL). Bỏ khoảng trắng đầu / cuối (dữ liệu so sánh cũng đã trim).
+ * KTT-8d2: `__RONG__` (NG.MA_LOC_RONG) = «mã null hoặc rỗng». Phải là MÃ, không phải tên hiển thị (tên có thể có ngoặc, dài hơn 40 ký tự nên bị từ chối).
+ */
 function docMa(query, ten) {
-  const v = mot(query, ten);
+  const v0 = mot(query, ten);
+  const v = typeof v0 === 'string' ? v0.trim() : v0;
   if (v === undefined || v === '') return null;
-  if (!NG.RE_MA_NGUON.test(v)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "${ten}" chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự.`);
+  if (!NG.RE_MA_NGUON.test(v)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "${ten}" phải là MÃ (không phải tên hiển thị): chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự; ${NG.MA_LOC_RONG} = mã rỗng.`);
   return v;
+}
+/** KTT-8d2: `hang_hoan` — 0 / false = LOẠI hàng hoàn Tổ KHHH; 1 / true = CHỈ hàng hoàn; vắng hoặc rỗng = cả hai (không lọc). Trả false | true | null; giá trị khác -> 400. */
+function docHangHoan(query) {
+  const v = mot(query, 'hang_hoan');
+  if (v === undefined || v === '') return null;
+  const t = String(v).trim().toLowerCase();
+  if (t === '0' || t === 'false') return false;
+  if (t === '1' || t === 'true') return true;
+  throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "hang_hoan" phải là 0 / false (loại hàng hoàn), 1 / true (chỉ hàng hoàn) hoặc để trống (cả hai).');
 }
 
 /** GET /api/ktt/dicungngay/tong-hop?tu=&den= — thẻ B1: ba hướng, % cùng ngày / hôm sau / từ 2 ngày / chưa đi (dưới, trên 24 giờ). */
@@ -465,9 +478,9 @@ async function lichXeTheoBcvh(db, query, { now = Date.now() } = {}) {
   };
 }
 
-/** GET /api/ktt/danh-sach?loai=hom-sau|chua-di-24h&tu=&den=[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=&page=&page_size=] — danh sách bấm ô (phân trang như /chi-tiet). */
-async function danhSachDiNgay(db, query, { now = Date.now() } = {}) {
-  const k = docKhoang(query, ['loai', 'duong_thu', 'noi_gui', 'huong', 'hang_hoan', 'ma_bcvh', 'page', 'page_size']);
+const THAM_SO_O_BAM = ['loai', 'duong_thu', 'noi_gui', 'huong', 'hang_hoan', 'ma_bcvh'];
+/** Tham số của một ô bấm (dùng chung /danh-sach và /xuat/hom-sau-chua-di — KTT-8d): kiểm tra như nhau, lỗi -> LoiKtt (400). */
+function docOBam(query) {
   const loai = mot(query, 'loai');
   if (loai === undefined || !Object.prototype.hasOwnProperty.call(DQ.LOAI_DANH_SACH, loai)) throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "loai" phải thuộc: ${Object.keys(DQ.LOAI_DANH_SACH).join(', ')}.`);
   const duongThu = docMa(query, 'duong_thu');
@@ -475,10 +488,15 @@ async function danhSachDiNgay(db, query, { now = Date.now() } = {}) {
   const huong = mot(query, 'huong');
   const HUONG_DS = [D.HUONG.LIEN_TINH_DEN_BCVH, D.HUONG.NOI_TINH_DEN_BCVH, D.HUONG.NOI_TINH_DI_LIEN_TINH];
   if (huong !== undefined && huong !== '' && !HUONG_DS.includes(huong)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "huong" phải thuộc: ${HUONG_DS.join(', ')}.`);
-  const hh = mot(query, 'hang_hoan');
-  if (hh !== undefined && hh !== '' && hh !== '0' && hh !== '1') throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "hang_hoan" phải là 0 hoặc 1.');
-  const hangHoan = hh === undefined || hh === '' ? null : hh === '1';
+  const hangHoan = docHangHoan(query);
   const maBcvh = docMaBcvh(query);
+  return { loai, duongThu, noiGui, huong: huong || null, hangHoan, maBcvh };
+}
+
+/** GET /api/ktt/danh-sach?loai=hom-sau|chua-di-24h&tu=&den=[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=&page=&page_size=] — danh sách bấm ô (phân trang như /chi-tiet). */
+async function danhSachDiNgay(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query, [...THAM_SO_O_BAM, 'page', 'page_size']);
+  const { loai, duongThu, noiGui, huong, hangHoan, maBcvh } = docOBam(query);
   const trang = docSoNguyen(query, 'page', 1, 1000000, 1);
   const kichThuocTrang = docSoNguyen(query, 'page_size', 1, DQ.TRANG_TOI_DA, 50);
   const doMoi = QL.docDoMoi(db);
@@ -492,7 +510,32 @@ async function danhSachDiNgay(db, query, { now = Date.now() } = {}) {
     };
   };
   if (!doMoi) return tinh();
-  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `ds|${loai}|${duongThu || ''}|${noiGui || ''}|${huong || ''}|${hh || ''}|${maBcvh || ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
+  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `ds|${loai}|${duongThu || ''}|${noiGui || ''}|${huong || ''}|${hangHoan === null ? '' : hangHoan ? 1 : 0}|${maBcvh || ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
+}
+
+/**
+ * KTT-8d: GET /api/ktt/xuat/hom-sau-chua-di?tu=&den=&loai=hom-sau|chua-di-24h[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=] — CÙNG tham số với /danh-sach (trừ page, page_size).
+ * Chuẩn bị nội dung file sheet 8 { tenFile, thongTin, dong, sheet: 8 }; route ghi sau khi mọi kiểm tra đã qua (lỗi vẫn là JSON 400). Các dòng tính ở worker bằng CÙNG lượt duyệt
+ * với /danh-sach (cùng «bây giờ»); «đã chốt», cửa sổ thực tế và số ô màn hình lấy từ bó B theo ngày (CÙNG cache với B1–B6).
+ */
+async function xuatHomSauChuaDi(db, query, { now = Date.now(), nguoiXuat = null } = {}) {
+  const k = docKhoang(query, THAM_SO_O_BAM);
+  const o = docOBam(query);
+  const loc = DQ.boLocDanhSach(o);
+  const doMoi = QL.docDoMoi(db);
+  const bayGio = doMoi ? doMoi.nguon_xuat_luc : `${k.denNgay} 00:00:00`; // như /danh-sach
+  const tran = X.tranDong();
+  const [b, r] = await Promise.all([
+    boDiNgay(db, k, now),
+    chayNen(db, 'xuatHomSauChuaDi', { tuNgay: k.tuNgay, denNgay: k.denNgay, loai: o.loai, duongThu: o.duongThu, noiGui: o.noiGui, huong: o.huong, hangHoan: o.hangHoan, maBcvh: o.maBcvh, bayGio, tranDong: tran })
+  ]);
+  if (r.vuotTran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${r.tong} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc chọn ô cụ thể hơn (đường thư, nơi gửi).`);
+  const lich = L.docLichChuyen(db);
+  const thongTin = X.dongThongTin8({
+    tu: k.tuNgay, den: k.denNgay, loai: o.loai, loc, b, soDong: r.dong.length, soManHinh: D.soOManHinh(b.m, loc), nguoiXuat, xuatLuc: X.gioVietNam(now),
+    hanPhut: lich.hanDenTruocChuyenPhut, gioChot: QL.gioChot()
+  });
+  return { tenFile: X.tenFile8(k.tuNgay, k.denNgay, o.loai), thongTin, dong: r.dong, sheet: 8, tong: r.dong.length, khoang: k, loai: o.loai, loc };
 }
 
 // ---- A: hàng đến
@@ -618,7 +661,7 @@ async function doPhuBcvh(db, query, { now = Date.now() } = {}) {
 }
 
 module.exports = {
-  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, meta, doPhuBcvh,
+  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).

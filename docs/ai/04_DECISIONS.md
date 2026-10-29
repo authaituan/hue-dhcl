@@ -856,7 +856,7 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 1. «Tất cả» ở khung Xuất xlsx (6 BCVH) = `tong_shbg_ngay`: mọi SHBG có ngày quét túi đến trong khoảng, kể cả không rõ đích, ngoài 6 BCVH, thiếu giờ quét túi đến, không xếp được chuyến. Con số đúng và khớp số dòng xlsx; nó KHÔNG phải tổng bảy chip.
 2. Thêm `ngoai_bay_chip` (mỗi ngày + `tong_cong`) để giao diện nêu được bốn nhóm đó; đẳng thức `t1…t5 + đang chờ + hàng hoàn + ngoai_bay_chip.tong = tong_shbg_ngay` có test. Không thay `khong_phan_loai`.
 3. Mỗi khối `theo_bcvh` có `tong_shbg_ngay` = SHBG của khối + hàng hoàn Thuận Hóa (= số dòng xlsx lọc BCVH), để chip «Tất cả» của giao diện không rơi về `mau_so`.
-4. Sheet 7 xlsx 18 cột; `chi-tiet` 19 trường. Chữ «17 cột» còn lại ở giao diện (`KttLuuThoat.jsx`) do Antigravity sửa (KTT-11c).
+4. Sheet 7 xlsx 18 cột; `chi-tiet` 19 trường. Giao diện đã ghi «18 cột» (`KttLuuThoat.jsx:628`, KTT-11c); tài liệu sửa ở KTT-8d.
 
 ### 119. Hàng «chuyển tiếp đi» (`CHUYEN_TIEP_DI`) thuộc tập Lưu thoát và chỉ tiêu 14 giờ (PO chốt, KTT-14, 28/10/2026)
 1. Căn cứ (PO): chiều «chuyển tiếp đi» = cả nơi gửi lẫn nơi nhận của túi đều không phải KTT; là hàng đi ngoài (BD8 trùng SHBG) hoặc túi đã chia sẵn (KTT không mở túi). Chỉ tiêu F1.3 chấm MỌI hàng có đích là 6 BCVH Huế, nên hàng chỉ có túi chuyển tiếp phải nằm trong mẫu số «đi trong ngày / rớt lại / 14 giờ». Trước KTT-14 Lưu thoát chỉ lấy SHBG có túi `DEN`, mẫu số thiếu khoảng một nửa (`43` mục 9 cũ).
@@ -864,6 +864,12 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 3. SHBG chỉ có túi chuyển tiếp: một dòng túi mang cả lần đến (quét túi đến, XNĐ BD10 đến, nơi gửi) lẫn lần đi (lập BD10 đi, nơi nhận); nhiều dòng thì lấy dòng có giờ lập BD10 đi muộn nhất; túi `DI` khác của cùng SHBG bị bỏ qua (đếm ở `meta.chuyen_tiep_co_tui_di_khac`). Đích theo cùng quy tắc: nơi nhận BD10 đi → phường/xã. Hàng hoàn Tổ KHHH vẫn tách riêng, không tính 14 giờ.
 4. Cờ nguồn `nguon_hang` (`khai_thac` | `chuyen_tiep`) ở từng dòng `chi-tiet` / `danh-sach` và khối `theo_nguon_hang` ở `/luu-thoat` (mỗi ngày + `tong_cong`); mặc định số hiển thị gộp cả hai. Xlsx sheet 7 vẫn 18 cột. Chưa làm giao diện tách.
 5. Chưa chốt (PO): chọn dòng khi một SHBG nằm trong nhiều túi chuyển tiếp (một tỷ lệ nhỏ SHBG chuyển tiếp trên bản sao); coi túi `DI` tái đóng của hàng chuyển tiếp (tỷ lệ rất nhỏ) là bỏ qua; mốc dự phòng cho chỉ tiêu 14 giờ của hàng chuyển tiếp (xác nhận BD10 đến thường SAU giờ lập BD10 đi — `43` mục 9).
+
+### 120. Hợp đồng tham số ô bấm: `__RONG__`, `hang_hoan` 0 / 1 / vắng; không nới `RE_MA_NGUON` (KTT-8d2, 29/10/2026 — PO giao, Claude Code chọn tên)
+1. `duong_thu` / `noi_gui` = `__RONG__` nghĩa là «mã null / rỗng / toàn khoảng trắng» (bỏ tham số = không lọc, nên không thay thế được). Chọn `__RONG__` vì khớp `RE_MA_NGUON` (không cần đổi bộ kiểm), không trùng mã thật, đọc được trong URL. Hàm khớp dùng chung `kttNguon.khopMaLoc` cho `/danh-sach`, `/xuat/hom-sau-chua-di` và số ô màn hình (`kttDiNgay.soOManHinh`).
+2. `hang_hoan`: 0 / false = loại hàng hoàn; 1 / true = chỉ hàng hoàn; vắng / rỗng = cả hai (backend đã đúng từ KTT-8d, nay thêm `true` / `false`). Giao diện dòng B5 thường phải gửi `0`.
+3. `RE_MA_NGUON` giữ nguyên: trên bản sao DB không có mã thật nào bị từ chối; thứ bị từ chối là tên / nhãn hiển thị (ngoặc, dài hơn 40). Nới để nhận chúng chỉ cho danh sách 0 dòng. Tham số được bỏ khoảng trắng đầu / cuối. Chi tiết: `42` mục 17.
+4. Bỏ định nghĩa «C1 / C2 / C3» khỏi «Thông tin» (chỉ «xe Cấp 1» có căn cứ ở `41` / `43`); câu C1 / C2 / C3 chờ PO chốt khi làm sheet 5.
 
 ## Drift phát hiện
 _(chưa có)_

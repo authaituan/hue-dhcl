@@ -1,8 +1,9 @@
 // ==========================================
-// «Hàng tại KTT» (KTT-8b): XUẤT xlsx sheet 7 «Hàng rớt lại / Lưu thoát» kèm sheet «Thông tin». CHỈ ĐỌC DB.
-// Nguồn số liệu = CÙNG lượt duyệt với /api/ktt/chi-tiet (kttLuuThoatQuery.duyetLuuThoat → kttLuuThoat.phanLoaiShbg), KHÔNG tự tính quy tắc nào.
+// «Hàng tại KTT» (KTT-8b, KTT-8d): XUẤT xlsx — sheet 7 «Hàng rớt lại / Lưu thoát» hoặc sheet 8 «Hôm sau / chưa đi trên 24 giờ», mỗi file kèm sheet «Thông tin». CHỈ ĐỌC DB.
+// Sheet 7 = CÙNG lượt duyệt với /api/ktt/chi-tiet (kttLuuThoatQuery.duyetLuuThoat → kttLuuThoat.phanLoaiShbg); sheet 8 = CÙNG lượt duyệt và cùng dòng với /api/ktt/danh-sach
+// (kttDiNgayQuery.duyetDanhSach → dongDanhSach), nên số dòng = số trong ô B5 / bảng rớt lại đã bấm. KHÔNG tự tính quy tắc nào.
 // Hai phần:
-//   - xuatLuuThoat(db, opts): chạy ở worker (kttWorker.js) — liệt kê TOÀN BỘ SHBG, trả mỗi dòng là mảng ô (chuỗi / số / null) theo đúng thứ tự COT_SHEET7;
+//   - xuatLuuThoat / xuatHomSauChuaDi(db, opts): chạy ở worker (kttWorker.js) — liệt kê TOÀN BỘ SHBG, trả mỗi dòng là mảng ô (chuỗi / số / null) theo đúng thứ tự COT_SHEET7 / COT_SHEET8;
 //   - ghiXlsx(out, ...): ghi luồng (ExcelJS WorkbookWriter) hai sheet, có nhường vòng lặp và chờ khi bộ đệm đầy.
 // Giờ nghiệp vụ là chuỗi 'YYYY-MM-DD HH:MM:SS' giờ VN; khi ghi ô ngày giờ tách số bằng biểu thức chính quy rồi Date.UTC(số) (KHÔNG new Date(chuỗi) / Date.parse), ô hiển thị
 // đúng số giờ nguồn ở mọi múi giờ của máy chủ. Tài liệu: docs/ai/42_KTT_API.md mục 10.
@@ -11,9 +12,13 @@
 const ExcelJS = require('exceljs');
 const QL = require('./kttLuuThoatQuery');
 const S = require('./kttLuuThoat');
+const L = require('./kttLichChuyen');
+const DQ = require('./kttDiNgayQuery');
+const NG = require('./kttNguon');
 
 const TEN_SHEET_THONG_TIN = 'Thông tin';
 const TEN_SHEET_7 = '7 Hàng rớt lại';
+const TEN_SHEET_8 = '8 Hôm sau-chưa đi';
 const TRAN_DONG_MAC_DINH = 200000;
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CELL_MAX_CHARS = 32767;
@@ -66,6 +71,60 @@ const { LOAI_TRU, KHONG_TINH, dd } = D;
 function dongSheet7(u, kq) {
   const o = D.dongChiTiet(u, kq);
   return COT_SHEET7.map((c) => o[c.api]);
+}
+
+// ------------------------------------------
+// Sheet 8 «Hôm sau / chưa đi trên 24 giờ» (KTT-8d): cột lấy từ dòng của /danh-sach (kttDiNgayQuery.dongDanhSach), thứ tự cố định
+// ------------------------------------------
+const NHAN_NHOM_8 = Object.freeze({ hom_sau: 'Hôm sau', chua_di_tren_24h: 'Chưa đi trên 24 giờ' });
+const NHAN_HUONG_8 = Object.freeze({ lien_tinh_den_bcvh: 'Liên tỉnh (xe Cấp 1) → 6 BCVH Huế', noi_tinh_den_bcvh: 'Nội tỉnh → 6 BCVH Huế', noi_tinh_di_lien_tinh: 'Nội tỉnh → đi liên tỉnh (xe Cấp 1)' });
+const COT_SHEET8 = Object.freeze([
+  { api: 'shbg', tieuDe: 'SHBG', rong: 22, loai: 'chu' },
+  { api: 'duong_thu_ten', tieuDe: 'Đường thư đến (tên)', rong: 30, loai: 'chu' },
+  { api: 'duong_thu_ma', tieuDe: 'Đường thư đến (mã)', rong: 16, loai: 'chu' },
+  { api: 'noi_gui_ma', tieuDe: 'Nơi gửi BD10 đến (mã)', rong: 14, loai: 'chu' },
+  { api: 'noi_gui_ten', tieuDe: 'Nơi gửi BD10 đến (tên)', rong: 24, loai: 'chu' },
+  { api: 'gio_den_ktt', tieuDe: 'Giờ đến KTT (quét túi đến)', rong: 21, loai: 'gio' },
+  { api: 'kg', tieuDe: 'KL (kg)', rong: 11, loai: 'kg' },
+  { api: 'ma_bcvh', tieuDe: 'BCVH đích (mã)', rong: 14, loai: 'chu' },
+  { api: 'ten_bcvh', tieuDe: 'BCVH đích (tên)', rong: 18, loai: 'chu' },
+  { api: 'bd10_di_gio_lap', tieuDe: 'Giờ lập BD10 đi', rong: 21, loai: 'gio' },
+  { api: 'cho_gio', tieuDe: 'Số giờ chờ (giờ đồng hồ, đến lúc lập BD10 đi hoặc đến độ mới dữ liệu)', rong: 24, loai: 'gio_so', fmt: '0.0' },
+  { api: 'nhom', tieuDe: 'Nhóm', rong: 20, loai: 'chu' },
+  { api: 'huong', tieuDe: 'Hướng', rong: 32, loai: 'chu' },
+  { api: 'hang_hoan', tieuDe: 'Hàng hoàn Tổ KHHH', rong: 12, loai: 'chu' },
+  { api: 'ngay_den', tieuDe: 'Ngày đến KTT (ngày D)', rong: 14, loai: 'chu' }
+].map((c) => Object.freeze(c)));
+const VI_TRI_8 = Object.freeze(Object.fromEntries(COT_SHEET8.map((c, i) => [c.api, i])));
+
+/** Một dòng của /danh-sach -> mảng ô theo COT_SHEET8 (nhóm, hướng, hàng hoàn ra chữ; còn lại giữ nguyên). */
+function dongSheet8(o) {
+  return COT_SHEET8.map((c) => {
+    const x = o[c.api];
+    if (c.api === 'nhom') return NHAN_NHOM_8[x] || x;
+    if (c.api === 'huong') return NHAN_HUONG_8[x] || x;
+    if (c.api === 'hang_hoan') return x ? 'Có' : 'Không';
+    return x === undefined ? null : x;
+  });
+}
+
+/**
+ * Tác vụ worker sheet 8: TOÀN BỘ SHBG của một ô (không phân trang). opts: { tuNgay, denNgay, loai, duongThu?, noiGui?, huong?, hangHoan?, maBcvh?, bayGio, tranDong }.
+ * Trả { tong, vuotTran, dong } — `tong` = pagination.total của /danh-sach cùng tham số; `dong` giữ tối đa `tranDong` dòng, sắp theo (ngày D, SHBG).
+ */
+function xuatHomSauChuaDi(db, opts) {
+  const loc = DQ.boLocDanhSach(opts);
+  const tran = opts.tranDong || tranDong();
+  const bayGioGiay = L.giayCua(opts.bayGio);
+  const dong = [];
+  let tong = 0;
+  DQ.duyetDanhSach(db, { tuNgay: opts.tuNgay, denNgay: opts.denNgay, bayGio: opts.bayGio }, loc, (u, pl) => {
+    tong++;
+    if (dong.length < tran) dong.push(dongSheet8(DQ.dongDanhSach(u, pl, bayGioGiay)));
+  });
+  const a = VI_TRI_8.ngay_den; const b = VI_TRI_8.shbg;
+  dong.sort((x, y) => (x[a] < y[a] ? -1 : x[a] > y[a] ? 1 : x[b] < y[b] ? -1 : x[b] > y[b] ? 1 : 0));
+  return { tong, vuotTran: tong > tran, dong };
 }
 
 /**
@@ -149,8 +208,9 @@ function dongThongTin(ctx) {
   const tatCaChot = lt.theo_ngay.length > 0 && lt.theo_ngay.every((x) => x.da_chot);
   const soManHinh = soKhop(lt, { nhom: ctx.nhom, maBcvh: ctx.maBcvh, nguon: ctx.nguon });
   const han = ctx.hanPhut;
+  const coDl = lt.theo_ngay.filter((x) => x.co_du_lieu).map((x) => x.ngay);
   return [
-    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (theo ngày D = ngày của giờ quét túi đến KTT). Bộ lọc trạng thái: ${ctx.nhom ? ctx.nhom : 'không (tất cả)'}; BCVH: ${ctx.maBcvh ? ctx.maBcvh : 'không (tất cả)'}; nguồn: ${ctx.nguon ? ctx.nguon : 'không (tất cả)'}.`],
+    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (sheet «${TEN_SHEET_7}», theo ngày D = ngày của giờ quét túi đến KTT). ${cuaSoThucTe(coDl[0], coDl[coDl.length - 1], coDl.length)} Bộ lọc trạng thái: ${ctx.nhom ? ctx.nhom : 'không (tất cả)'}; BCVH: ${ctx.maBcvh ? ctx.maBcvh : 'không (tất cả)'}; nguồn: ${ctx.nguon ? ctx.nguon : 'không (tất cả)'}.`],
     ['Dữ liệu đến', nguon ? `Dữ liệu nguồn xuất lúc ${nguon} (giờ Việt Nam).` : 'Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào).'],
     ['Chốt số theo ngày', ngay.join('; ') || '(không có ngày)'],
     ['Ngày xuất, người xuất', `${ctx.xuatLuc} (giờ Việt Nam); tài khoản: ${ctx.nguoiXuat || '(không rõ)'}.`],
@@ -163,9 +223,54 @@ function dongThongTin(ctx) {
     ['Định nghĩa: mốc chuyến và hạn đến', `Mốc chuyến = giờ xe rời KTT. Hạn đến = giờ xe rời KTT − ${han} phút (lấy từ cấu hình lịch chuyến). Hàng quét túi đến không muộn hơn hạn thì được xếp vào chuyến đó.`],
     ['Định nghĩa: hai mốc giờ đến', 'Giờ quét túi đến KTT dùng xếp chuyến, tính lưu thoát và là mốc B của chỉ tiêu 14 giờ; giờ xác nhận BD10 đến (ConfirmDate) là mốc A của chỉ tiêu 14 giờ.'],
     ...dongChiTieu14h(lt, ctx.maBcvh),
-    ['Đơn vị', 'Mỗi dòng sheet «7 Hàng rớt lại» là một SHBG (số hiệu bưu gửi); khối lượng tính bằng kg.'],
+    ...dinhNghiaChung(han),
+    ['Đơn vị', `Sheet «${TEN_SHEET_THONG_TIN}»: mỗi dòng một mục mô tả. Sheet «${TEN_SHEET_7}»: mỗi dòng là một SHBG (số hiệu bưu gửi); khối lượng tính bằng kg.`],
     ['Số dòng kiểm tra', ctx.soDong],
     ['Đối chiếu với màn hình Lưu thoát', soManHinh === null ? 'Màn hình Lưu thoát không có số tương ứng với bộ lọc này (bộ lọc theo nguồn / BCVH kết hợp với trạng thái chưa có ô riêng): không đối chiếu được.' : `Màn hình Lưu thoát cùng khoảng ngày và bộ lọc có ${soManHinh} SHBG${ctx.soDong === soManHinh ? ': khớp số dòng sheet «7 Hàng rớt lại».' : ': KHÔNG khớp số dòng sheet «7 Hàng rớt lại» (số liệu đang được cập nhật, hãy xuất lại).'}`]
+  ];
+}
+
+/** Câu «cửa sổ thực tế» (ngày đầu / cuối có dữ liệu trong khoảng yêu cầu). */
+const cuaSoThucTe = (dau, cuoi, n) => (dau ? `Ngày có dữ liệu thực tế: ${dd(dau)} – ${dd(cuoi)} (${n} ngày).` : 'Không có ngày nào có dữ liệu trong khoảng này.');
+
+/** KTT-8d: định nghĩa nhóm dùng chung cho sheet «Thông tin» của mọi file xuất (cùng câu chữ với DINH_NGHIA_B của API B và docs/ai/43). */
+function dinhNghiaChung(hanPhut) {
+  return [
+    ['Định nghĩa: rớt lại', 'Rớt lại = không đi cùng ngày đến KTT = hôm sau + từ 2 ngày + chưa đi (= trạng thái 3 + 4 + 5); không tính hàng «đang chờ chuyến». «Cùng ngày» = BD10 đi lập trước 24:00 ngày D.'],
+    ['Định nghĩa: hôm sau', 'BD10 đi lập trong ngày D+1 (đích 6 BCVH Huế: = trạng thái 3 + 4; hướng nội tỉnh đi liên tỉnh: so ngày lập BD10 đi với ngày D).'],
+    ['Định nghĩa: chưa đi trên 24 giờ', 'Chưa có BD10 đi VÀ (độ mới dữ liệu − giờ quét túi đến KTT) > 24 giờ đồng hồ liên tục (không bỏ khung 21:00–07:00). Hướng nội tỉnh đi liên tỉnh thiếu giờ quét túi đến thì tính từ giờ xác nhận BD10 đến. Chưa đi ≤ 24 giờ là nhóm «chưa đi dưới 24 giờ».'],
+    ['Định nghĩa: xe Cấp 1', 'Xe Cấp 1 = BD10 đến có nơi gửi KHÔNG bắt đầu bằng 53 (hàng tỉnh khác về KTT), và xe đưa hàng nội tỉnh đi tỉnh khác.'],
+    ['Định nghĩa: chuyến liền kề', `Chuyến đầu tiên của BCVH đích (theo lịch chuyến) có hạn đến = giờ xe rời KTT − ${hanPhut} phút không sớm hơn giờ quét túi đến KTT. Lập BD10 đi không muộn hơn giờ xe rời KTT của chuyến này = đúng chuyến, muộn hơn = trượt chuyến.`]
+  ];
+}
+
+/**
+ * KTT-8d: sheet «Thông tin» của file sheet 8. ctx: { tu, den, loai ('hom-sau' | 'chua-di-24h'), loc (DQ.boLocDanhSach), b ({ doMoi, ds, m } bó B cùng khoảng), soDong, soManHinh (D.soOManHinh, null = không có ô),
+ * nguoiXuat, xuatLuc, hanPhut, gioChot }. Trả [[mục, nội dung], …].
+ */
+function dongThongTin8(ctx) {
+  const { b, loc } = ctx;
+  const nguon = b.doMoi ? b.doMoi.nguon_xuat_luc : null;
+  const ngay = b.ds.map((x) => `${dd(x.ngay)}: ${x.da_chot ? 'đã chốt' : 'số tạm'}`);
+  const tatCaChot = b.ds.length > 0 && b.ds.every((x) => x.da_chot);
+  const nhan = (v, f = (x) => x) => (v === null ? 'không (tất cả)' : f(v));
+  const nhanMa = (v) => nhan(v, (x) => (x === NG.MA_LOC_RONG ? '(không có mã)' : x));
+  const o = `nhóm «${NHAN_NHOM_8[loc.nhomCan]}»; đường thư đến: ${nhanMa(loc.duongThu)}; nơi gửi BD10 đến: ${nhanMa(loc.noiGui)}; hướng: ${nhan(loc.huong, (h) => NHAN_HUONG_8[h] || h)}; hàng hoàn Tổ KHHH: ${nhan(loc.hangHoan, (h) => (h ? 'chỉ hàng hoàn' : 'không kể hàng hoàn'))}; BCVH: ${nhan(loc.maBcvh)}`;
+  const sm = ctx.soManHinh;
+  return [
+    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (sheet «${TEN_SHEET_8}», theo ngày D = ngày của giờ quét túi đến KTT). ${cuaSoThucTe(b.m.ngay_dau, b.m.ngay_cuoi, b.m.so_ngay_co_du_lieu || 0)} Ô đã bấm: ${o}.`],
+    ['Dữ liệu đến', nguon ? `Dữ liệu nguồn xuất lúc ${nguon} (giờ Việt Nam). «Chưa đi» và số giờ chờ tính đến mốc này.` : 'Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào).'],
+    ['Chốt số theo ngày', ngay.join('; ') || '(không có ngày)'],
+    ['Ngày xuất, người xuất', `${ctx.xuatLuc} (giờ Việt Nam); tài khoản: ${ctx.nguoiXuat || '(không rõ)'}.`],
+    ['Trạng thái số liệu', tatCaChot ? 'Đã chốt: mọi ngày trong khoảng đã qua giờ chốt.' : `Số tạm: có ngày chưa chốt (ngày D chốt khi dữ liệu đến sau ${ctx.gioChot} ngày D+1). Nhóm «chưa đi trên 24 giờ» còn đổi khi có dữ liệu mới.`],
+    ['Phạm vi bưu gửi', 'Mỗi SHBG tính MỘT lần. Gồm bưu gửi khai thác lại (có túi đến được mở) và bưu gửi chỉ có túi chuyển tiếp đi. Ba hướng của trang B: liên tỉnh (xe Cấp 1) → 6 BCVH Huế, nội tỉnh → 6 BCVH Huế (hàng hoàn Tổ KHHH tách riêng), nội tỉnh → đi liên tỉnh (xe Cấp 1).'],
+    ['Định nghĩa: năm nhóm đi', 'Cùng ngày · hôm sau · từ 2 ngày (đã đi từ D+2) · chưa đi dưới 24 giờ · chưa đi trên 24 giờ. Mẫu số tỷ lệ = tổng năm nhóm; «đang chờ chuyến» và «không phân loại» (thiếu giờ quét túi đến / không xếp được chuyến) ngoài mẫu số.'],
+    ...dinhNghiaChung(ctx.hanPhut),
+    ['Định nghĩa: hàng hoàn Tổ KHHH', `Túi đến gốc có nơi gửi BD10 là ${S.MA_TO_KHHH} và đích là BCVH Thuận Hóa (${S.MA_THUAN_HOA}); dòng «Hoàn» riêng ở B5, không cộng vào tổng và tỷ lệ.`],
+    ['Định nghĩa: số giờ chờ', 'Giờ đồng hồ (1 chữ số thập phân) từ giờ quét túi đến KTT (thiếu thì giờ xác nhận BD10 đến) tới giờ lập BD10 đi; chưa đi thì tới độ mới dữ liệu. KHÔNG phải giờ chờ tính chỉ tiêu 14 giờ (không bỏ khung đêm).'],
+    ['Đơn vị', `Sheet «${TEN_SHEET_THONG_TIN}»: mỗi dòng một mục mô tả. Sheet «${TEN_SHEET_8}»: mỗi dòng là một SHBG (số hiệu bưu gửi) của ô đã bấm; khối lượng tính bằng kg.`],
+    ['Số dòng kiểm tra', ctx.soDong],
+    ['Đối chiếu với màn hình B', sm === null ? 'Màn hình B không có ô tương ứng với bộ lọc này (lọc theo BCVH): không đối chiếu được.' : `Ô tương ứng trên màn hình B (B5 / bảng rớt lại / B1) cùng khoảng ngày có ${sm} SHBG${ctx.soDong === sm ? `: khớp số dòng sheet «${TEN_SHEET_8}».` : `: KHÔNG khớp số dòng sheet «${TEN_SHEET_8}» (số liệu đang được cập nhật, hãy xuất lại).`}`]
   ];
 }
 
@@ -229,7 +334,9 @@ function oGio(s) {
  * Ghi file hai sheet vào `out` (response). thongTin: [[mục, nội dung]]; dong: mảng ô của sheet 7 (từ worker). dungChua(): true khi client đã ngắt -> huỷ file.
  * Trả { rows, aborted }.
  */
-async function ghiXlsx(out, { thongTin, dong }, dungChua = () => false) {
+async function ghiXlsx(out, { thongTin, dong, sheet = 7 }, dungChua = () => false) {
+  const COT = sheet === 8 ? COT_SHEET8 : COT_SHEET7; // KTT-8d: sheet 8 cùng cách ghi, khác cột / tên sheet
+  const TEN = sheet === 8 ? TEN_SHEET_8 : TEN_SHEET_7;
   const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
   const dam = { bold: true };
 
@@ -246,27 +353,27 @@ async function ghiXlsx(out, { thongTin, dong }, dungChua = () => false) {
   }
   ws1.commit();
 
-  const ws = wb.addWorksheet(TEN_SHEET_7, { views: [{ state: 'frozen', ySplit: 1, xSplit: 1 }] });
-  ws.columns = COT_SHEET7.map((c) => ({ key: c.khoa, width: c.rong }));
-  const h = ws.addRow(COT_SHEET7.map((c) => c.tieuDe));
+  const ws = wb.addWorksheet(TEN, { views: [{ state: 'frozen', ySplit: 1, xSplit: 1 }] });
+  ws.columns = COT.map((c) => ({ key: c.khoa || c.api, width: c.rong }));
+  const h = ws.addRow(COT.map((c) => c.tieuDe));
   h.eachCell((c) => { c.font = dam; c.numFmt = '@'; c.alignment = { wrapText: true, vertical: 'middle' }; });
   h.commit();
 
   let rows = 0;
   for (const v of dong) {
     if (rows % 1000 === 0 && dungChua()) { try { wb.zip.abort(); } catch (e) { /* đang đóng */ } return { rows, aborted: true }; }
-    const gt = new Array(COT_SHEET7.length);
-    for (let i = 0; i < COT_SHEET7.length; i++) {
+    const gt = new Array(COT.length);
+    for (let i = 0; i < COT.length; i++) {
       const x = v[i];
-      const loai = COT_SHEET7[i].loai;
+      const loai = COT[i].loai;
       gt[i] = x === null || x === undefined ? null : loai === 'gio' ? oGio(x) : (loai === 'kg' || loai === 'gio_so') ? x : vanBan(x);
     }
     const r = ws.addRow(gt);
-    for (let i = 0; i < COT_SHEET7.length; i++) {
+    for (let i = 0; i < COT.length; i++) {
       if (gt[i] === null) continue;
-      const loai = COT_SHEET7[i].loai;
+      const loai = COT[i].loai;
       const c = r.getCell(i + 1);
-      c.numFmt = loai === 'gio' ? FMT_GIO : loai === 'kg' ? '0.000' : loai === 'gio_so' ? '0.00' : '@';
+      c.numFmt = COT[i].fmt || (loai === 'gio' ? FMT_GIO : loai === 'kg' ? '0.000' : loai === 'gio_so' ? '0.00' : '@');
     }
     r.commit();
     rows++;
@@ -278,8 +385,11 @@ async function ghiXlsx(out, { thongTin, dong }, dungChua = () => false) {
 }
 
 const tenFile = (tu, den) => `KTT_LuuThoat_${tu}_${den}.xlsx`;
+/** KTT-8d: tên file sheet 8 — loai ở dạng tham số (hom-sau | chua-di-24h). */
+const tenFile8 = (tu, den, loai) => `KTT_HomSauChuaDi_${loai}_${tu}_${den}.xlsx`;
 
 module.exports = {
-  TEN_SHEET_THONG_TIN, TEN_SHEET_7, COT_SHEET7, XLSX_MIME, TRAN_DONG_MAC_DINH, FMT_GIO,
-  NHAN_TONG_14H, tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, soKhop, dongThongTin, dongChiTieu14h, gioVietNam, ghiXlsx, tenFile, vanBan, oGio
+  TEN_SHEET_THONG_TIN, TEN_SHEET_7, TEN_SHEET_8, COT_SHEET7, COT_SHEET8, NHAN_NHOM_8, NHAN_HUONG_8, XLSX_MIME, TRAN_DONG_MAC_DINH, FMT_GIO,
+  NHAN_TONG_14H, tranDong, dongSheet7, xuatLuuThoat, soShbgTheoLuuThoat, soKhop, dongThongTin, dongChiTieu14h, gioVietNam, ghiXlsx, tenFile, vanBan, oGio,
+  dongSheet8, xuatHomSauChuaDi, dongThongTin8, dinhNghiaChung, tenFile8
 };

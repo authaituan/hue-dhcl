@@ -19,6 +19,7 @@ const TAC_VU = Object.freeze({
   chiTietCu: (db, a) => Q.chiTiet(db, a),
   chiTietLuuThoat: (db, a) => QL.danhSachLuuThoat(db, a),
   xuatLuuThoat: (db, a) => X.xuatLuuThoat(db, a), // KTT-8b: toàn bộ SHBG (không phân trang) cho file xlsx
+  xuatHomSauChuaDi: (db, a) => X.xuatHomSauChuaDi(db, a), // KTT-8d: sheet 8, toàn bộ SHBG của một ô (cùng lượt duyệt với danhSachDiNgay)
   danhSachDiNgay: (db, a) => DQ.danhSach(db, a), // KTT-12: danh sách bấm ô «hôm sau» / «chưa đi trên 24 giờ»
   hangDen: (db, a) => HD.tinh(db, a), // KTT-12: trang A «Hàng đến từ xe Cấp 1»
   gioLapBd10: (db, a) => LX.gioLapBd10(db, a) // KTT-12: B4 (nhẹ nhưng đọc nhiều BD10 đi), cũng dùng cho B6
