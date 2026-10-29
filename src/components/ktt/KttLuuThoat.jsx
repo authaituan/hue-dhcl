@@ -18,6 +18,7 @@ import KttTheoNguon from './KttTheoNguon';
 import KttBanDoNhiet from './KttBanDoNhiet';
 import KttChiTiet from './KttChiTiet';
 import KttErrorBoundary from './KttErrorBoundary';
+import KttTooltip from './KttTooltip';
 
 // Thứ trong tuần tiếng Việt
 function getThuTiengViet(ymd) {
@@ -1164,54 +1165,122 @@ export default function KttLuuThoat({ authUser }) {
                   </div>
                 </div>
 
-                {/* Thanh 5 trạng thái xếp chồng */}
-                <div className="w-full h-7 rounded-lg overflow-hidden flex bg-gray-100">
-                  {p1 > 0 && (
-                    <div
-                      style={{ width: `${p1}%` }}
-                      className="bg-[#1F7A5C] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                      title={`1 · Đi trong ngày, đúng chuyến: ${formatInt(t1)} (${p1.toFixed(1)}%)`}
-                    >
-                      {p1 >= 4 ? `${Math.round(p1)}%` : ''}
+                {/* Thanh 5 trạng thái xếp chồng chuẩn KttTooltip */}
+                <KttTooltip
+                  ariaLabel={`Năm trạng thái lưu thoát · Mẫu số: ${formatInt(mauSo)} bưu gửi · Lưu thoát: ${formatInt(luuThoatShbg)} (${formatPercent(tyLeLuuThoat)}) · Rớt lại: ${formatInt(rotLaiShbg)} (${formatPercent(tyLeRotLai)})`}
+                  content={
+                    <div className="space-y-1.5 min-w-[240px]">
+                      <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
+                        <span>Năm trạng thái lưu thoát</span>
+                        <span className="text-gray-300 font-normal">
+                          Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(mauSo)}</strong> bưu gửi
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-[11px]">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#1F7A5C] shrink-0" />
+                            <span>1 · Đi trong ngày, đúng chuyến</span>
+                          </span>
+                          <span className="tabular-nums font-semibold text-emerald-300">
+                            {formatInt(t1)} bưu gửi ({formatPercent(mauSo > 0 ? t1 / mauSo : 0)})
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#7FBFA6] shrink-0" />
+                            <span>2 · Đi trong ngày, trượt chuyến</span>
+                          </span>
+                          <span className="tabular-nums font-semibold text-teal-200">
+                            {formatInt(t2)} bưu gửi ({formatPercent(mauSo > 0 ? t2 / mauSo : 0)})
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#B79BCB] shrink-0" />
+                            <span>3 · Đi hôm sau, đúng chuyến</span>
+                          </span>
+                          <span className="tabular-nums font-semibold text-purple-200">
+                            {formatInt(t3)} bưu gửi ({formatPercent(mauSo > 0 ? t3 / mauSo : 0)})
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#E0A82E] shrink-0" />
+                            <span>4 · Đi hôm sau, trượt chuyến</span>
+                          </span>
+                          <span className="tabular-nums font-semibold text-amber-300">
+                            {formatInt(t4)} bưu gửi ({formatPercent(mauSo > 0 ? t4 / mauSo : 0)})
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-xs bg-[#B3202A] shrink-0" />
+                            <span>5 · Từ 2 ngày hoặc chưa đi</span>
+                          </span>
+                          <span className="tabular-nums font-semibold text-red-300">
+                            {formatInt(t5)} bưu gửi ({formatPercent(mauSo > 0 ? t5 / mauSo : 0)})
+                          </span>
+                        </div>
+                        {dangChoChuyen > 0 && (
+                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-800">
+                            <span className="flex items-center gap-1.5 text-purple-300">
+                              <span className="w-2.5 h-2.5 rounded-xs bg-[#4A1D6E] shrink-0" />
+                              <span>Đang chờ chuyến</span>
+                            </span>
+                            <span className="tabular-nums font-semibold text-purple-200">
+                              {formatInt(dangChoChuyen)} bưu gửi
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {p2 > 0 && (
-                    <div
-                      style={{ width: `${p2}%` }}
-                      className="bg-[#7FBFA6] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                      title={`2 · Đi trong ngày, trượt chuyến: ${formatInt(t2)} (${p2.toFixed(1)}%)`}
-                    >
-                      {p2 >= 4 ? `${Math.round(p2)}%` : ''}
-                    </div>
-                  )}
-                  {p3 > 0 && (
-                    <div
-                      style={{ width: `${p3}%` }}
-                      className="bg-[#B79BCB] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                      title={`3 · Đi hôm sau, đúng chuyến: ${formatInt(t3)} (${p3.toFixed(1)}%)`}
-                    >
-                      {p3 >= 4 ? `${Math.round(p3)}%` : ''}
-                    </div>
-                  )}
-                  {p4 > 0 && (
-                    <div
-                      style={{ width: `${p4}%` }}
-                      className="bg-[#E0A82E] h-full flex items-center justify-center text-[11px] font-bold text-[#3B1450] tabular-nums px-1 overflow-hidden transition-all"
-                      title={`4 · Đi hôm sau, trượt chuyến: ${formatInt(t4)} (${p4.toFixed(1)}%)`}
-                    >
-                      {p4 >= 4 ? `${Math.round(p4)}%` : ''}
-                    </div>
-                  )}
-                  {p5 > 0 && (
-                    <div
-                      style={{ width: `${p5}%` }}
-                      className="bg-[#B3202A] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                      title={`5 · Từ 2 ngày hoặc chưa đi: ${formatInt(t5)} (${p5.toFixed(1)}%)`}
-                    >
-                      {p5 >= 4 ? `${Math.round(p5)}%` : ''}
-                    </div>
-                  )}
-                </div>
+                  }
+                  className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-lg"
+                >
+                  <div className="w-full h-7 rounded-lg overflow-hidden flex bg-gray-100">
+                    {p1 > 0 && (
+                      <div
+                        style={{ width: `${p1}%` }}
+                        className="bg-[#1F7A5C] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
+                      >
+                        {p1 >= 4 ? `${Math.round(p1)}%` : ''}
+                      </div>
+                    )}
+                    {p2 > 0 && (
+                      <div
+                        style={{ width: `${p2}%` }}
+                        className="bg-[#7FBFA6] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
+                      >
+                        {p2 >= 4 ? `${Math.round(p2)}%` : ''}
+                      </div>
+                    )}
+                    {p3 > 0 && (
+                      <div
+                        style={{ width: `${p3}%` }}
+                        className="bg-[#B79BCB] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
+                      >
+                        {p3 >= 4 ? `${Math.round(p3)}%` : ''}
+                      </div>
+                    )}
+                    {p4 > 0 && (
+                      <div
+                        style={{ width: `${p4}%` }}
+                        className="bg-[#E0A82E] h-full flex items-center justify-center text-[11px] font-bold text-[#3B1450] tabular-nums px-1 overflow-hidden transition-all"
+                      >
+                        {p4 >= 4 ? `${Math.round(p4)}%` : ''}
+                      </div>
+                    )}
+                    {p5 > 0 && (
+                      <div
+                        style={{ width: `${p5}%` }}
+                        className="bg-[#B3202A] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
+                      >
+                        {p5 >= 4 ? `${Math.round(p5)}%` : ''}
+                      </div>
+                    )}
+                  </div>
+                </KttTooltip>
 
                 {/* 5 thẻ t1..t5 dưới thanh */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1358,13 +1427,87 @@ export default function KttLuuThoat({ authUser }) {
                           <span>Lưu thoát: đi trong ngày · <strong>{hasNoData ? '—' : formatInt(hhLuuThoat)}</strong> ({hasNoData ? '—' : formatPercent(hhTyLeLuu)})</span>
                           <span>Rớt lại · <strong>{hasNoData ? '—' : formatInt(hhRotLai)}</strong> ({hasNoData ? '—' : formatPercent(hhTyLeRot)})</span>
                         </div>
-                        <div className="w-full h-5 rounded-md overflow-hidden flex bg-gray-100">
-                          {hp1 > 0 && <div style={{ width: `${hp1}%` }} className="bg-[#1F7A5C] h-full" title={`1 · Đúng chuyến: ${hhT1}`} />}
-                          {hp2 > 0 && <div style={{ width: `${hp2}%` }} className="bg-[#7FBFA6] h-full" title={`2 · Trượt chuyến: ${hhT2}`} />}
-                          {hp3 > 0 && <div style={{ width: `${hp3}%` }} className="bg-[#B79BCB] h-full" title={`3 · Đi hôm sau đúng: ${hhT3}`} />}
-                          {hp4 > 0 && <div style={{ width: `${hp4}%` }} className="bg-[#E0A82E] h-full" title={`4 · Đi hôm sau trượt: ${hhT4}`} />}
-                          {hp5 > 0 && <div style={{ width: `${hp5}%` }} className="bg-[#B3202A] h-full" title={`5 · Từ 2 ngày: ${hhT5}`} />}
-                        </div>
+                        {/* Thanh tỷ lệ hàng hoàn chuẩn KttTooltip */}
+                        <KttTooltip
+                          ariaLabel={`Hàng hoàn Tổ KHHH · Mẫu số: ${formatInt(hhLuuThoat + hhRotLai)} bưu gửi · Lưu thoát: ${formatInt(hhLuuThoat)} (${formatPercent(hhTyLeLuu)}) · Rớt lại: ${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}
+                          content={
+                            <div className="space-y-1.5 min-w-[240px]">
+                              <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
+                                <span>Hàng hoàn Tổ KHHH (về Thuận Hóa)</span>
+                                <span className="text-gray-300 font-normal">
+                                  Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(hhLuuThoat + hhRotLai)}</strong> bưu gửi
+                                </span>
+                              </div>
+                              <div className="space-y-1 text-[11px]">
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-gray-200">
+                                    <span className="w-2.5 h-2.5 rounded-xs bg-[#1F7A5C] shrink-0" />
+                                    <span>1 · Đi trong ngày, đúng chuyến</span>
+                                  </span>
+                                  <span className="tabular-nums font-semibold text-emerald-300">
+                                    {formatInt(hhT1)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT1 / (hhLuuThoat + hhRotLai) : 0)})
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-gray-200">
+                                    <span className="w-2.5 h-2.5 rounded-xs bg-[#7FBFA6] shrink-0" />
+                                    <span>2 · Đi trong ngày, trượt chuyến</span>
+                                  </span>
+                                  <span className="tabular-nums font-semibold text-teal-200">
+                                    {formatInt(hhT2)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT2 / (hhLuuThoat + hhRotLai) : 0)})
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-gray-200">
+                                    <span className="w-2.5 h-2.5 rounded-xs bg-[#B79BCB] shrink-0" />
+                                    <span>3 · Đi hôm sau, đúng chuyến</span>
+                                  </span>
+                                  <span className="tabular-nums font-semibold text-purple-200">
+                                    {formatInt(hhT3)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT3 / (hhLuuThoat + hhRotLai) : 0)})
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-gray-200">
+                                    <span className="w-2.5 h-2.5 rounded-xs bg-[#E0A82E] shrink-0" />
+                                    <span>4 · Đi hôm sau, trượt chuyến</span>
+                                  </span>
+                                  <span className="tabular-nums font-semibold text-amber-300">
+                                    {formatInt(hhT4)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT4 / (hhLuuThoat + hhRotLai) : 0)})
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-gray-200">
+                                    <span className="w-2.5 h-2.5 rounded-xs bg-[#B3202A] shrink-0" />
+                                    <span>5 · Từ 2 ngày hoặc chưa đi</span>
+                                  </span>
+                                  <span className="tabular-nums font-semibold text-red-300">
+                                    {formatInt(hhT5)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT5 / (hhLuuThoat + hhRotLai) : 0)})
+                                  </span>
+                                </div>
+                                {hhDangCho > 0 && (
+                                  <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-800">
+                                    <span className="flex items-center gap-1.5 text-purple-300">
+                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#4A1D6E] shrink-0" />
+                                      <span>Đang chờ chuyến</span>
+                                    </span>
+                                    <span className="tabular-nums font-semibold text-purple-200">
+                                      {formatInt(hhDangCho)} bưu gửi
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          }
+                          className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-md"
+                        >
+                          <div className="w-full h-5 rounded-md overflow-hidden flex bg-gray-100">
+                            {hp1 > 0 && <div style={{ width: `${hp1}%` }} className="bg-[#1F7A5C] h-full" />}
+                            {hp2 > 0 && <div style={{ width: `${hp2}%` }} className="bg-[#7FBFA6] h-full" />}
+                            {hp3 > 0 && <div style={{ width: `${hp3}%` }} className="bg-[#B79BCB] h-full" />}
+                            {hp4 > 0 && <div style={{ width: `${hp4}%` }} className="bg-[#E0A82E] h-full" />}
+                            {hp5 > 0 && <div style={{ width: `${hp5}%` }} className="bg-[#B3202A] h-full" />}
+                          </div>
+                        </KttTooltip>
                         <div className="flex flex-wrap gap-3 text-[11px] text-gray-600 tabular-nums pt-1">
                           <span>1 · Đi trong ngày đúng: <strong>{hasNoData ? '—' : formatInt(hhT1)}</strong></span>
                           <span>2 · Đi trong ngày trượt: <strong>{hasNoData ? '—' : formatInt(hhT2)}</strong></span>
@@ -1443,19 +1586,46 @@ export default function KttLuuThoat({ authUser }) {
                           {' · trượt '}
                           <strong className="text-[#B3202A]">{hasNoData ? '—' : formatPercent(bTyLeTruot)}</strong>
                         </div>
-                        {/* Thanh lưu thoát */}
-                        <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mt-3 flex">
-                          <div
-                            style={{ width: `${(bTyLeLuu ?? 0) * 100}%` }}
-                            className="bg-[#1F7A5C] h-full"
-                            title={`Lưu thoát: ${formatPercent(bTyLeLuu)}`}
-                          />
-                          <div
-                            style={{ width: `${(bTyLeRot ?? 0) * 100}%` }}
-                            className="bg-[#E0A82E] h-full"
-                            title={`Rớt lại: ${formatPercent(bTyLeRot)}`}
-                          />
-                        </div>
+                        {/* Thanh lưu thoát chuẩn KttTooltip */}
+                        <KttTooltip
+                          ariaLabel={`${b.ten} · Mẫu số: ${formatInt(bMauSo)} bưu gửi · Lưu thoát: ${formatInt(bDi)} bưu gửi (${formatPercent(bTyLeLuu)}) · Rớt lại: ${formatInt(bRot)} bưu gửi (${formatPercent(bTyLeRot)}) · Trượt chuyến: ${formatInt(bTruot)} bưu gửi (${formatPercent(bTyLeTruot)})`}
+                          content={
+                            <div className="space-y-1 min-w-[200px]">
+                              <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
+                                <span>{b.ten}</span>
+                                <span className="text-gray-300 font-normal">
+                                  Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(bMauSo)}</strong> bưu gửi
+                                </span>
+                              </div>
+                              <div className="space-y-0.5 text-[11px] pt-0.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-emerald-300">Lưu thoát (trong ngày):</span>
+                                  <span className="tabular-nums font-bold text-white">{formatInt(bDi)} bưu gửi ({formatPercent(bTyLeLuu)})</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-amber-300">Rớt lại:</span>
+                                  <span className="tabular-nums font-bold text-white">{formatInt(bRot)} bưu gửi ({formatPercent(bTyLeRot)})</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-red-300">Trượt chuyến:</span>
+                                  <span className="tabular-nums font-bold text-white">{formatInt(bTruot)} bưu gửi ({formatPercent(bTyLeTruot)})</span>
+                                </div>
+                              </div>
+                            </div>
+                          }
+                          className="w-full mt-3 cursor-pointer py-1 focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-full"
+                        >
+                          <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 flex">
+                            <div
+                              style={{ width: `${(bTyLeLuu ?? 0) * 100}%` }}
+                              className="bg-[#1F7A5C] h-full"
+                            />
+                            <div
+                              style={{ width: `${(bTyLeRot ?? 0) * 100}%` }}
+                              className="bg-[#E0A82E] h-full"
+                            />
+                          </div>
+                        </KttTooltip>
                       </div>
                     );
                   })}
