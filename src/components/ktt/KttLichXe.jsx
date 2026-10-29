@@ -436,6 +436,7 @@ export default function KttLichXe({ authUser }) {
           {/* ── BẢNG DANH SÁCH BẤM Ô NẰM NGAY DƯỚI B5 ───────────────────────── */}
           {selectedCellFilter && (
             <KttDanhSachDiNgay
+              authUser={authUser}
               tu={dateRange.from}
               den={dateRange.to}
               initialLoai={selectedCellFilter.initialLoai || 'hom-sau'}
@@ -694,7 +695,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
       </div>
 
       <div className="overflow-x-auto max-w-full">
-        <table className="table-soft w-full min-w-[950px] text-left text-xs">
+        <table className="table-soft w-full min-w-[980px] text-left text-xs">
           <thead>
             <tr>
               <th>NƠI GỬI</th>
@@ -704,8 +705,8 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
               <th className="text-right">KHỐI LƯỢNG</th>
               <th className="w-40 text-center">TÌNH TRẠNG GIAO ĐI</th>
               <th className="text-right text-[#1F7A5C]">CÙNG NGÀY</th>
-              <th className="text-right bg-purple-50/50 text-[#4A1D6E]">HÔM SAU</th>
-              <th className="text-right bg-red-50/50 text-[#B3202A]">CHƯA ĐI &gt; 24H</th>
+              <th className="text-right bg-purple-50/50 text-[#4A1D6E] min-w-[125px] whitespace-nowrap">HÔM SAU</th>
+              <th className="text-right bg-red-50/50 text-[#B3202A] min-w-[145px] whitespace-nowrap">CHƯA ĐI &gt; 24H</th>
             </tr>
           </thead>
           <tbody>
@@ -723,8 +724,11 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                 const c3 = r.tu_2_ngay || 0;
                 const c4 = r.chua_di_duoi_24h || 0;
                 const c5 = r.chua_di_tren_24h || 0;
-                const isHoan = r.hang_hoan;
-                const isSelected = selectedCellFilter?.duongThu === r.duong_thu_ma && selectedCellFilter?.noiGui === r.noi_gui_ma;
+                const isHoan = !!r.hang_hoan;
+                const dtMa = r.duong_thu_ma ? r.duong_thu_ma : '__RONG__';
+                const ngMa = r.noi_gui_ma ? r.noi_gui_ma : '__RONG__';
+                const hhVal = isHoan ? 1 : 0;
+                const isSelected = selectedCellFilter?.duongThu === dtMa && selectedCellFilter?.noiGui === ngMa && selectedCellFilter?.hangHoan === hhVal;
 
                 return (
                   <tr
@@ -846,46 +850,60 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                     </td>
 
                     {/* % Hôm sau - BẤM ĐƯỢC kèm icon 3 gạch */}
-                    <td className="text-right tabular-nums bg-purple-50/40">
+                    <td className="text-right tabular-nums bg-purple-50/40 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => onSelectCell({
-                          duongThu: r.duong_thu_ma,
+                          duongThu: dtMa,
                           duongThuTen: r.duong_thu_ten,
-                          noiGui: r.noi_gui_ma,
+                          noiGui: ngMa,
                           noiGuiTen: r.noi_gui_ten,
                           huong,
-                          hangHoan: isHoan ? true : null,
+                          hangHoan: hhVal,
                           initialLoai: 'hom-sau',
-                          title: `${r.duong_thu_ten || r.duong_thu_ma} · Hôm sau`,
+                          title: `${r.duong_thu_ten || r.duong_thu_ma || '(không có mã)'} · Hôm sau`,
                         })}
-                        className="font-bold text-[#4A1D6E] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-purple-100"
+                        className="font-bold text-[#4A1D6E] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-purple-100 whitespace-nowrap"
                         title="Xem danh sách bưu gửi hôm sau"
                       >
-                        <ListFilter className="w-3 h-3 text-[#B79BCB]" />
-                        <span>{formatPercent(r.ty_le?.hom_sau)}</span>
+                        <ListFilter className="w-3 h-3 text-[#B79BCB] shrink-0" />
+                        {r.ty_le?.hom_sau === null || r.ty_le?.hom_sau === undefined ? (
+                          <span>—</span>
+                        ) : (
+                          <>
+                            <span>{formatInt(r.hom_sau)}</span>
+                            <span className="text-[10px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
+                          </>
+                        )}
                       </button>
                     </td>
 
                     {/* % Chưa đi > 24h - BẤM ĐƯỢC kèm icon 3 gạch */}
-                    <td className="text-right tabular-nums bg-red-50/40">
+                    <td className="text-right tabular-nums bg-red-50/40 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => onSelectCell({
-                          duongThu: r.duong_thu_ma,
+                          duongThu: dtMa,
                           duongThuTen: r.duong_thu_ten,
-                          noiGui: r.noi_gui_ma,
+                          noiGui: ngMa,
                           noiGuiTen: r.noi_gui_ten,
                           huong,
-                          hangHoan: isHoan ? true : null,
+                          hangHoan: hhVal,
                           initialLoai: 'chua-di-24h',
-                          title: `${r.duong_thu_ten || r.duong_thu_ma} · Chưa đi > 24h`,
+                          title: `${r.duong_thu_ten || r.duong_thu_ma || '(không có mã)'} · Chưa đi > 24h`,
                         })}
-                        className="font-bold text-[#B3202A] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-red-100"
+                        className="font-bold text-[#B3202A] hover:underline cursor-pointer inline-flex items-center gap-1 py-0.5 px-1 rounded hover:bg-red-100 whitespace-nowrap"
                         title="Xem danh sách bưu gửi chưa đi > 24 giờ"
                       >
-                        <ListFilter className="w-3 h-3 text-[#B3202A]" />
-                        <span>{formatPercent(r.ty_le?.chua_di_tren_24h)}</span>
+                        <ListFilter className="w-3 h-3 text-[#B3202A] shrink-0" />
+                        {r.ty_le?.chua_di_tren_24h === null || r.ty_le?.chua_di_tren_24h === undefined ? (
+                          <span>—</span>
+                        ) : (
+                          <>
+                            <span>{formatInt(r.chua_di_tren_24h)}</span>
+                            <span className="text-[10px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
