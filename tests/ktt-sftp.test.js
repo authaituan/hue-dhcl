@@ -533,7 +533,7 @@ test('GET /api/nap-nguon/ktt/trang-thai: chỉ ADMIN; hình dạng; độ mới,
   assert.equal((await goi('/api/nap-nguon/ktt/trang-thai?x=1', 'admin')).status, 400);
   let r = await goi('/api/nap-nguon/ktt/trang-thai', 'admin');
   assert.equal(r.status, 200);
-  assert.deepEqual(Object.keys(r.body), ['tu_dong', 'do_moi', 'canh_bao', 'cap', 'tham_so']);
+  assert.deepEqual(Object.keys(r.body), ['tu_dong', 'do_moi', 'do_moi_hang_hoan', 'canh_bao', 'cap', 'tham_so']);
   assert.equal(r.body.do_moi, null); assert.equal(r.body.tu_dong.trang_thai, 'TAT'); assert.ok(r.body.canh_bao.some((x) => x.ma === 'DU_LIEU_CU'));
   K.napCap(db, cap('20261020_090000', [tui()], [bg()]), { now: NOW });
   r = await goi('/api/nap-nguon/ktt/trang-thai', 'admin');

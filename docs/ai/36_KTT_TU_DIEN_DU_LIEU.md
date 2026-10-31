@@ -118,3 +118,18 @@ Chỉ mục: `shbg`; 7 cột khóa túi. Không FOREIGN KEY sang `ktt_tui`.
 - Kiểu dữ liệu của các cột đếm (`so_bd10_den`, `so_lan_quet_den`, `so_luong_tui`, `so_dong_dispatch`) là INTEGER theo tên; nếu file thật có giá trị không nguyên thì dòng đó bị tính lỗi `SO_SAI_DINH_DANG` (không mất dữ liệu khác).
 - Chưa thử với một file xuất thật (chỉ đối chiếu tiêu đề do PO cung cấp).
 - Các giá trị liệt kê (`chieu`, `dich_nhom`, `luong`) lưu nguyên, không CHECK; giá trị lạ vẫn nạp.
+
+## 9. Bảng `ktt_hang_hoan` và `ktt_hang_hoan_nap` (KTT-17-1)
+
+Danh sách SHBG hàng hoàn từ ItemReturn của CSDL BCCP, nạp từ file riêng `KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv` (không ghép cặp với Tui / BuuGui; chi tiết `39_KTT_NAP_SFTP.md` mục 15). Chỉ THÊM bảng, không ALTER bảng cũ. CHƯA dùng vào chỉ số nào.
+
+| Bảng.cột | Kiểu | Ý nghĩa |
+|---|---|---|
+| `ktt_hang_hoan.id` | INTEGER PK | tự tăng |
+| `ktt_hang_hoan.shbg` | TEXT NOT NULL UNIQUE | SHBG chuẩn hóa như `ktt_buu_gui.shbg` (trim, CHỮ HOA, Ð → Đ). Cộng dồn: không xóa |
+| `ktt_hang_hoan.nguon_xuat_luc` | TEXT NOT NULL | `Nguon_xuat_luc` của file đã ghi dòng này (giờ VN, bỏ mili giây); chỉ cập nhật khi file mới ≥ cũ |
+| `ktt_hang_hoan.nap_lan_id` | INTEGER | → `ktt_hang_hoan_nap.id` |
+| `ktt_hang_hoan.cap_nhat_luc` | TEXT NOT NULL | UTC |
+| `ktt_hang_hoan_nap` | — | một dòng mỗi file (UNIQUE `sha256`): `ten_file`, `nap_luc`, `nguon_xuat_luc`, `so_dong_doc / them / cap_nhat / bo_qua / loi / trung`, `trang_thai` OK hoặc REJECTED, `thong_bao`, `loi_mau` (không giá trị SHBG), `size_file`, `mtime_file` |
+
+Lý do nhật ký riêng: `ktt_nap_lan.loai` có CHECK chỉ `TUI` / `BUU_GUI`. File chỉ có hai cột (`SHBG`, `Nguon_xuat_luc`); không lưu cột nào khác của ItemReturn.

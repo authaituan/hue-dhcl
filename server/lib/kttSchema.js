@@ -93,6 +93,14 @@ const COT_BUU_GUI = [
   NGUON_XUAT
 ];
 
+// KTT-17-1: danh sách SHBG hàng hoàn (ItemReturn của CSDL BCCP), file RIÊNG KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv, KHÔNG ghép cặp với Tui / BuuGui. Chỉ lấy SHBG; CỘNG DỒN (không xóa).
+// Dùng chung lõi đọc của kttImport.docFile nên khai báo cùng dạng với LOAI_FILE (bang, cot, khoa, gioCot), nhưng KHÔNG nằm trong LOAI_FILE (tránh ảnh hưởng ghép cặp / ktt_nap_lan).
+const COT_HANG_HOAN = [
+  { csv: 'SHBG', db: 'shbg', kind: 'text', key: true, hoa: true }, // chuẩn hóa như ktt_buu_gui.shbg (HOA, Ð -> Đ)
+  NGUON_XUAT
+];
+const FILE_HANG_HOAN = { loai: 'HANG_HOAN', bang: 'ktt_hang_hoan', mauTen: /^KTT_HangHoan_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv', cot: COT_HANG_HOAN, khoa: ['shbg'], gioCot: 'nguon_xuat_luc' };
+
 // Mỗi loại file: bảng đích, gioCot (cột giờ ghi giờ dữ liệu nhỏ nhất / lớn nhất của file vào nhật ký cặp, KTT-6), mẫu tên file, bảng ánh xạ cột, khóa tự nhiên (theo cột DB).
 const LOAI_FILE = {
   TUI: { loai: 'TUI', bang: 'ktt_tui', mauTen: /^KTT_Tui_(\d{8})_(\d{6})\.csv$/, mau: 'KTT_Tui_<yyyymmdd>_<hhmmss>.csv', cot: COT_TUI, gioCot: 'gio_quet_tui_den' },
@@ -265,6 +273,34 @@ function ensureKttSchema(db) {
       lan_dau_thay TEXT NOT NULL, lan_cuoi_thay TEXT NOT NULL, giu_nguyen_tu TEXT NOT NULL,
       so_lan_giu_nguyen INTEGER NOT NULL DEFAULT 0, con_tren_nguon INTEGER NOT NULL DEFAULT 1
     );
+
+    -- KTT-17-1: nhật ký nạp danh sách hàng hoàn (RIÊNG: ktt_nap_lan.loai có CHECK chỉ TUI / BUU_GUI nên không dùng được). Không ghi giá trị SHBG; loi_mau chỉ có số dòng + tên cột + mã lỗi.
+    CREATE TABLE IF NOT EXISTS ktt_hang_hoan_nap (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ten_file TEXT NOT NULL,
+      sha256 TEXT NOT NULL UNIQUE,
+      nap_luc TEXT NOT NULL,
+      nguon_xuat_luc TEXT,
+      so_dong_doc INTEGER NOT NULL DEFAULT 0,
+      so_dong_them INTEGER NOT NULL DEFAULT 0,
+      so_dong_cap_nhat INTEGER NOT NULL DEFAULT 0,
+      so_dong_bo_qua INTEGER NOT NULL DEFAULT 0,
+      so_dong_loi INTEGER NOT NULL DEFAULT 0,
+      so_dong_trung INTEGER NOT NULL DEFAULT 0,
+      trang_thai TEXT NOT NULL CHECK (trang_thai IN ('OK', 'REJECTED')),
+      thong_bao TEXT,
+      loi_mau TEXT,
+      size_file INTEGER,
+      mtime_file INTEGER
+    );
+    -- KTT-17-1: SHBG hàng hoàn, CỘNG DỒN (đã vào là hàng hoàn; file mới không chứa thì KHÔNG xóa). shbg UNIQUE = chỉ mục tra theo SHBG.
+    CREATE TABLE IF NOT EXISTS ktt_hang_hoan (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shbg TEXT NOT NULL UNIQUE,
+      nguon_xuat_luc TEXT NOT NULL,
+      nap_lan_id INTEGER REFERENCES ktt_hang_hoan_nap(id),
+      cap_nhat_luc TEXT NOT NULL
+    );
   `);
 
   // Dữ liệu mặc định: INSERT OR IGNORE nên chạy lại không nhân dòng và không ghi đè giá trị PO đã sửa.
@@ -283,4 +319,4 @@ function ensureKttSchema(db) {
   })();
 }
 
-module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH, LICH_CHUYEN_MAC_DINH, LICH_CAU_HINH_MAC_DINH };
+module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, FILE_HANG_HOAN, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH, LICH_CHUYEN_MAC_DINH, LICH_CAU_HINH_MAC_DINH };
