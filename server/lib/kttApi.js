@@ -27,6 +27,7 @@ const X = require('./kttXuat');
 const S = require('./kttLuuThoat');
 const { MA_BCVH_HUE } = require('./kttTinh');
 const D = require('./kttDiNgay');
+const HH = require('./kttHangHoan');
 const DQ = require('./kttDiNgayQuery');
 const LX = require('./kttLichXe');
 const DP = require('./kttDoPhuBcvh');
@@ -40,7 +41,7 @@ const MUC_KHAC_TOI_DA = 200;
 
 const ngayLui = (ngay, n) => L.dinhDang(L.giayCua(`${ngay} 00:00:00`) - n * 86400).slice(0, 10);
 const nhuong = () => new Promise((r) => setImmediate(r));
-const boNho = { ngay: new Map(), ngayB: new Map(), tongHop: new Map(), chiTiet: new Map(), doPhu: new Map(), dangTinh: new Map(), phienBan: null };
+const boNho = { ngay: new Map(), ngayB: new Map(), tongHop: new Map(), chiTiet: new Map(), doPhu: new Map(), dangTinh: new Map(), phienBan: null, hangHoan: null };
 const dem = { ngayTinh: 0, ngayBTinh: 0, tongHopTinh: 0, chiTietTinh: 0, hangDenTinh: 0, doPhuTinh: 0, workerLan: 0, noiTuyenLan: 0 };
 
 function xoaCache() {
@@ -85,7 +86,9 @@ function chuKyLich(db) {
   } catch (e) { return 'khong-doc-duoc'; }
 }
 function dongBoPhienBan(db) {
-  const pb = `${thamSo.phienBan()}|${chuKyLich(db)}`;
+  const hh = HH.docDanhSachHangHoan(db, { chiThongTin: true }); // KTT-17-2: danh sách hàng hoàn mới (nạp ItemReturn) -> khóa đổi -> xóa đệm, số tự đổi không cần khởi động lại
+  boNho.hangHoan = HH.metaHangHoan(hh);
+  const pb = `${thamSo.phienBan()}|${chuKyLich(db)}|${hh.phienBan}`;
   if (boNho.phienBan !== pb) { boNho.ngay.clear(); boNho.ngayB.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.phienBan = pb; }
 }
 
@@ -240,14 +243,14 @@ async function layMuc(db, map, toiDa, khoa, now, doMoi, tinh) {
     return kq;
   });
 }
-const metaDoMoi = (doMoi, bayGio) => ({ nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null, bay_gio: bayGio, ly_do: doMoi ? null : 'CHUA_CO_DU_LIEU' });
+const metaDoMoi = (doMoi, bayGio, db) => ({ nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null, bay_gio: bayGio, ly_do: doMoi ? null : 'CHUA_CO_DU_LIEU', ...HH.metaHangHoan(HH.docDanhSachHangHoan(db, { chiThongTin: true })) });
 
 /** GET /api/ktt/tong-hop?tu=&den= — tongHopKtt + khối «Đánh giá» (danh_gia) + meta. */
 async function tongHop(db, query, { now = Date.now() } = {}) {
   const k = docKhoang(query);
   const doMoi = QL.docDoMoi(db);
   const bayGio = doMoi ? doMoi.nguon_xuat_luc : `${k.denNgay} 00:00:00`; // chưa có dữ liệu: cố định, không đọc đồng hồ
-  const tinh = async () => { dem.tongHopTinh++; const kq = await chayNen(db, 'tongHop', { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio }); return { ...kq, meta: metaDoMoi(doMoi, bayGio) }; };
+  const tinh = async () => { dem.tongHopTinh++; const kq = await chayNen(db, 'tongHop', { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio }); return { ...kq, meta: metaDoMoi(doMoi, bayGio, db) }; };
   if (!doMoi) return tinh();
   return layMuc(db, boNho.tongHop, MUC_KHAC_TOI_DA, `${k.tuNgay}|${k.denNgay}`, now, doMoi.nguon_xuat_luc, tinh);
 }
@@ -293,7 +296,7 @@ async function chiTiet(db, query, { now = Date.now() } = {}) {
     return {
       items: r.dong,
       pagination: { total: r.tong, page: trang, page_size: r.kichThuocTrang, total_pages: r.soTrang },
-      meta: { loai, ma_bcvh: maBcvh, nguon, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio) }
+      meta: { loai, ma_bcvh: maBcvh, nguon, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio, db) }
     };
   };
   if (!doMoi) return tinh();
@@ -359,8 +362,8 @@ async function layNgayB(db, ngay, doMoi, now) {
 /** Bó từng ngày + bó khoảng. Chưa có dữ liệu (chưa nạp cặp nào): các bó rỗng, doMoi = null. */
 async function boDiNgay(db, k, now) {
   const doMoi = QL.docDoMoi(db);
-  if (!doMoi) { const ds = k.ngays.map((n) => D.taoNgay(n)); return { doMoi: null, ds, m: D.congCacNgay(ds) }; }
   dongBoPhienBan(db);
+  if (!doMoi) { const ds = k.ngays.map((n) => D.taoNgay(n)); return { doMoi: null, ds, m: D.congCacNgay(ds) }; }
   const ds = [];
   for (const ngay of k.ngays) ds.push(await layNgayB(db, ngay, doMoi.nguon_xuat_luc, now));
   return { doMoi, ds, m: D.congCacNgay(ds) };
@@ -372,7 +375,7 @@ function dauPhanHoi(k, doMoi, cuaSo, extra = {}) {
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay, so_ngay: k.ngays.length },
     cua_so_thuc_te: { tu_ngay: cuaSo.tu_ngay, den_ngay: cuaSo.den_ngay, so_ngay_co_du_lieu: cuaSo.so_ngay_co_du_lieu === undefined ? null : cuaSo.so_ngay_co_du_lieu },
     nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null, bay_gio: doMoi ? doMoi.nguon_xuat_luc : null,
-    co_du_lieu: !!doMoi && cuaSo.tu_ngay !== null, ly_do: doMoi ? null : 'CHUA_CO_DU_LIEU', ...extra
+    co_du_lieu: !!doMoi && cuaSo.tu_ngay !== null, ly_do: doMoi ? null : 'CHUA_CO_DU_LIEU', ...(boNho.hangHoan || {}), ...extra
   };
 }
 const cuaSoB = (m) => ({ tu_ngay: m.ngay_dau, den_ngay: m.ngay_cuoi, so_ngay_co_du_lieu: m.so_ngay_co_du_lieu });
@@ -381,7 +384,7 @@ const DINH_NGHIA_B = Object.freeze({
   cung_ngay: 'BD10 đi (giờ lập) trước 24:00 ngày đến KTT (ngày của giờ quét túi đến) — cùng định nghĩa trạng thái 1 + 2 của /luu-thoat',
   ro_lai: 'không đi cùng ngày = hôm sau + từ 2 ngày + chưa đi (= trạng thái 3 + 4 + 5 của /luu-thoat); không tính hàng «đang chờ chuyến»',
   chua_di: 'chưa có BD10 đi; trên 24 giờ khi (độ mới dữ liệu − giờ quét túi đến) > 24 giờ đồng hồ liên tục',
-  hang_hoan: 'hàng hoàn Tổ KHHH (531120 → BCVH Thuận Hóa) tách riêng, không cộng vào tổng và tỷ lệ',
+  hang_hoan: 'hàng hoàn (SHBG trong danh sách ItemReturn, đích 6 BCVH Huế, mọi nơi gửi) tách riêng, không cộng vào tổng và tỷ lệ',
   moc_gio_den: 'gio_quet_tui_den'
 });
 
@@ -403,7 +406,7 @@ function docMa(query, ten) {
   if (!NG.RE_MA_NGUON.test(v)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "${ten}" phải là MÃ (không phải tên hiển thị): chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự; ${NG.MA_LOC_RONG} = mã rỗng.`);
   return v;
 }
-/** KTT-8d2: `hang_hoan` — 0 / false = LOẠI hàng hoàn Tổ KHHH; 1 / true = CHỈ hàng hoàn; vắng hoặc rỗng = cả hai (không lọc). Trả false | true | null; giá trị khác -> 400. */
+/** KTT-8d2: `hang_hoan` — 0 / false = LOẠI hàng hoàn; 1 / true = CHỈ hàng hoàn; vắng hoặc rỗng = cả hai (không lọc). Trả false | true | null; giá trị khác -> 400. */
 function docHangHoan(query) {
   const v = mot(query, 'hang_hoan');
   if (v === undefined || v === '') return null;
@@ -506,7 +509,7 @@ async function danhSachDiNgay(db, query, { now = Date.now() } = {}) {
     const r = await chayNen(db, 'danhSachDiNgay', { tuNgay: k.tuNgay, denNgay: k.denNgay, loai, duongThu, noiGui, huong: huong || null, hangHoan, maBcvh, trang, kichThuocTrang, bayGio });
     return {
       items: r.dong, pagination: { total: r.tong, page: trang, page_size: r.kichThuocTrang, total_pages: r.soTrang },
-      meta: { loai, duong_thu: duongThu, noi_gui: noiGui, huong: huong || null, hang_hoan: hangHoan, ma_bcvh: maBcvh, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio) }
+      meta: { loai, duong_thu: duongThu, noi_gui: noiGui, huong: huong || null, hang_hoan: hangHoan, ma_bcvh: maBcvh, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio, db) }
     };
   };
   if (!doMoi) return tinh();

@@ -2,6 +2,18 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-31] - KTT-17-2: phân loại «hàng hoàn» theo ItemReturn (backend + test + docs; KHÔNG đổi giao diện, KHÔNG thêm nhóm / hướng)
+
+- **Định nghĩa mới (PO 31/10):** hàng hoàn = SHBG có trong `ktt_hang_hoan` VÀ `u.nhom = BCVH_HUE` (đích 6 BCVH, mọi nơi gửi). Bỏ quy tắc 7b và hằng `MA_TO_KHHH` / `MA_THUAN_HOA`. `phanLoaiShbg` (`kttLuuThoat.js`): `const hoan = u.hangHoan === true;` (trước: `u.noiGuiGoc === '531120' && ma === '533140'`). Đích không rõ / ngoài 6 BCVH vẫn đi nhánh cũ nên không hoàn.
+- **Cách tra:** `kttHangHoan.docDanhSachHangHoan` (Set, một lần mỗi lượt) ở `kttQuery.taoNguCanh`; `dungDonShbg` gắn `u.hangHoan`. Mọi nơi dùng chung (`kttLuuThoatQuery`, `kttDiNgay`, `kttDiNgayQuery`, `kttXuat`, `kttNguon`, `kttDong`) tự đổi.
+- **Hướng (`kttDiNgay.phanLoaiDi`):** thêm `huongDong` (hướng của DÒNG B5 / rớt lại / danh sách theo nơi gửi, kể cả hàng hoàn); `huong` của hàng hoàn vẫn `noi_tinh_hang_hoan` (MỘT khối). Trước đây dòng hoàn luôn bị ép vào `noi_tinh_den_bcvh`; nay hoàn không-53 nằm ở `lien_tinh_den_bcvh` (cờ `hang_hoan`, không cộng vào `cong`).
+- **`tong_shbg_ngay` theo BCVH** (`kttLuuThoatQuery`) và số hoàn theo BCVH ở `kttXuat.soKhop`: hoàn của đúng BCVH đó (trước chỉ 533140). `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa` luôn 0 (lỗi thời); thêm `meta.hang_hoan_chua_nap`, `meta.hang_hoan_nguon_xuat_luc` (`/luu-thoat`, B, `tong-hop`, `chi-tiet`, `danh-sach`).
+- **Bộ nhớ đệm:** `kttApi.dongBoPhienBan` thêm phiên bản danh sách (`kttHangHoan.phienBanHangHoan`) vào khóa; `boDiNgay` gọi `dongBoPhienBan` cả khi chưa có độ mới. Chữ trong sheet «Thông tin» (định nghĩa hàng hoàn) và mô tả `hang_hoan` đổi theo.
+- **Test:** `tests/ktt-hang-hoan-itemreturn.test.js` (10 ca mới: a–i của ticket + hàm đọc danh sách; ca h thử lại thấy vỡ khi bỏ phiên bản khỏi khóa đệm). Fixture hoàn đổi từ «nơi gửi 531120 → 533140» sang «có trong ktt_hang_hoan» ở: `ktt-api`, `ktt-chi-tieu-hai-moc`, `ktt-chuyen-tiep`, `ktt-di-cung-ngay`, `ktt-nguon`, `ktt-tat-ca`, `ktt-xuat`, `ktt-xuat-sheet8` (thêm `hoan(...)` + dọn `ktt_hang_hoan` giữa các ca); `ktt-luu-thoat` viết lại 2 ca (hàm thuần, truy vấn) và ca TZ; số kỳ vọng đổi chỉ ở `meta` (hai cờ mới), tên mục «Định nghĩa: hàng hoàn», danh sách `require` của `ktt-query`. `npm test`: 1250 test (trước 1240), 1240 đạt, 10 bỏ qua, 0 lỗi; `npm run build` đạt.
+- **Đo trên bản sao DB (30/09–29/10, 190.068 SHBG; đã xóa):** hoàn 1.088 → 2.622 (447 giữ, 641 hoàn → thường, 2.175 thường → hoàn); thời gian truy vấn 30 ngày không đổi đáng kể (xem báo cáo bàn giao).
+- **Nợ:** giao diện (nhãn «Hàng hoàn Tổ KHHH 531120», ô hoàn chỉ ở cột Thuận Hóa, danh sách bấm ô hoàn lọc theo 533140); phải nạp ItemReturn trước golive.
+- **Tài liệu:** `41_KTT_LUU_THOAT.md` mục 5, `37`, `42`, `43`, `04_DECISIONS.md` #121, `36`, `39`, `03`, `00_SNAPSHOT.md`.
+
 ## [2026-10-31] - KTT-17-1: nạp danh sách hàng hoàn (ItemReturn) vào hệ thống (backend + test + docs; KHÔNG đổi phân loại, chỉ số, giao diện)
 
 - **Bảng mới** (`kttSchema.js`, chỉ THÊM): `ktt_hang_hoan` (shbg UNIQUE chuẩn hóa như `ktt_buu_gui`, `nguon_xuat_luc`, `nap_lan_id`, `cap_nhat_luc`; CỘNG DỒN) và nhật ký riêng `ktt_hang_hoan_nap`. Kiểm: `ktt_nap_lan.loai` có `CHECK (loai IN ('TUI','BUU_GUI'))` nên KHÔNG dùng / KHÔNG sửa, đúng điều cấm ALTER.

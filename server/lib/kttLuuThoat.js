@@ -1,5 +1,5 @@
 // ==========================================
-// «Hàng tại KTT» — trang «Lưu thoát» (KTT-7b): phân loại MỘT SHBG vào năm trạng thái lưu thoát, đạt / không đạt chỉ tiêu 14 giờ, hàng hoàn Tổ KHHH,
+// «Hàng tại KTT» — trang «Lưu thoát» (KTT-7b): phân loại MỘT SHBG vào năm trạng thái lưu thoát, đạt / không đạt chỉ tiêu 14 giờ, hàng hoàn (ItemReturn),
 // và bộ cộng theo ngày × BCVH. CÁC HÀM THUẦN: không DB, không giờ máy («bây giờ» luôn là tham số `bayGio`), không new Date(chuỗi) / Date.parse / Date.now.
 // Phần truy vấn (đọc ktt_*) nằm ở server/lib/kttLuuThoatQuery.js. Tài liệu: docs/ai/41_KTT_LUU_THOAT.md.
 //
@@ -13,8 +13,6 @@ const L = require('./kttLichChuyen');
 const { thoiGianThucGiay } = require('./quyThoiGian');
 const { chiTieuGio } = require('./quyThoiGianChiTieu');
 
-const MA_TO_KHHH = '531120';
-const MA_THUAN_HOA = '533140';
 const GIO_CHOT_NGAY = '09:00:00'; // số của ngày D chỉ chốt sau cặp 09:00 của D+1
 const SO_NGAY_TOI_DA = 31;
 
@@ -98,15 +96,15 @@ function ketQuaTheoMoc(d, coGioDi, coMoc) {
  * ngu: { lich (dòng lịch chuyến), hanPhut, bayGio }.
  * Trả { nhom: NHOM.*, ... }. PHAN_LOAI / HANG_HOAN kèm { maBcvh, trangThai (T1..T5 | DANG_CHO_CHUYEN), chuyenKq ('DUNG' | 'TRUOT' | 'LO' | 'CHUA_DEN_GIO'), chuyen, diTruocKhiDen, datKhongDat }.
  *  Thứ tự: đích không rõ -> ngoài phạm vi (530900, KHAC, KTT) -> hàng hoàn Tổ KHHH -> thiếu giờ quét đến -> không xếp được chuyến -> năm trạng thái.
- *  Hàng hoàn Tổ KHHH = túi đến gốc có nơi gửi BD10 là 531120 VÀ đích BCVH Thuận Hóa (533140). Từ 531120 mà đích BCVH Huế khác: tính như hàng thường, gắn `tu531120KhacThuanHoa`.
+ *  Hàng hoàn = SHBG có trong danh sách ItemReturn (ktt_hang_hoan; `u.hangHoan`, do kttQuery tra từ danh sách) VÀ đích là một trong 6 BCVH Huế (u.nhom = BCVH_HUE; đích không rõ / ngoài 6 BCVH không phải hàng hoàn,
+ *  giữ phân loại cũ). Không xét nơi gửi gốc. KTT-17-2 (PO 31/10/2026) thay quy tắc 7b (túi đến gốc từ 531120 và đích 533140).
  */
 function phanLoaiShbg(u, ngu) {
   if (u.nhom === 'KHONG_RO') return { nhom: NHOM.KHONG_RO_DICH };
   if (u.nhom !== 'BCVH_HUE') return { nhom: NHOM.NGOAI_PHAM_VI, loaiDich: u.nhom };
   const ma = u.maBcvh;
-  const tu531120 = u.noiGuiGoc === MA_TO_KHHH;
-  const hoan = tu531120 && ma === MA_THUAN_HOA;
-  const goc = { maBcvh: ma, tu531120KhacThuanHoa: tu531120 && !hoan };
+  const hoan = u.hangHoan === true;
+  const goc = { maBcvh: ma };
   const gioDi = giay(u.gioBd10Di) !== null ? u.gioBd10Di : null;
   const tinh = (batDau) => tinhTuMoc(batDau, { gioLapBd10Di: gioDi, bayGio: ngu.bayGio, maBcvh: ma, tenPhuong: u.tenPhuong });
   const mocChon = ngu.mocChiTieu === MOC_CHI_TIEU.QUET_TUI_DEN ? MOC_CHI_TIEU.QUET_TUI_DEN : MOC_CHI_TIEU_MAC_DINH; // KTT-10b: mốc nuôi `datKhongDat` (nhãn cũ); mặc định xnd = như trước
@@ -281,7 +279,7 @@ function daChot(ngay, doMoi, gioChot = GIO_CHOT_NGAY) {
 }
 
 module.exports = {
-  MA_TO_KHHH, MA_THUAN_HOA, GIO_CHOT_NGAY, SO_NGAY_TOI_DA, NHOM, TRANG_THAI, DAT, MOC,
+  GIO_CHOT_NGAY, SO_NGAY_TOI_DA, NHOM, TRANG_THAI, DAT, MOC,
   MOC_CHI_TIEU, MOC_CHI_TIEU_MAC_DINH, NHAN_MOC_CHI_TIEU, DO_MOC, hopLeMocChiTieu,
   danhGiaChiTieu, tinhTuMoc, ketQuaTheoMoc, phanLoaiShbg, taoKhoi, congChiTieu14h, daChot, tuNgayDen, ngayKe
 };

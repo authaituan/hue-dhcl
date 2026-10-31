@@ -871,5 +871,13 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 3. `RE_MA_NGUON` giữ nguyên: trên bản sao DB không có mã thật nào bị từ chối; thứ bị từ chối là tên / nhãn hiển thị (ngoặc, dài hơn 40). Nới để nhận chúng chỉ cho danh sách 0 dòng. Tham số được bỏ khoảng trắng đầu / cuối. Chi tiết: `42` mục 17.
 4. Bỏ định nghĩa «C1 / C2 / C3» khỏi «Thông tin» (chỉ «xe Cấp 1» có căn cứ ở `41` / `43`); câu C1 / C2 / C3 chờ PO chốt khi làm sheet 5.
 
+### 121. «Hàng hoàn» theo danh sách ItemReturn, thay quy tắc lộ trình 7b (KTT-17-2, PO 31/10/2026)
+
+1. **Định nghĩa:** hàng hoàn = SHBG có trong `ktt_hang_hoan` (ItemReturn, KTT-17-1) VÀ đích là một trong 6 BCVH Huế. Không xét nơi gửi gốc / 531120. Thay quyết định 26/10 (túi đến gốc từ 531120 và đích 533140; `41_KTT_LUU_THOAT.md` mục 5 cũ). **Lý do:** khảo sát KTT-17-0 / 17-1 trên bản sao DB (30 ngày): quy tắc cũ chỉ trùng ItemReturn 447/1.088 SHBG (41%), vì nó suy từ lộ trình nên hàng chuỗi 531120 → 530100 → 533140 (hàng thường) cũng khớp.
+2. **Hàng thường** gồm hàng chuỗi 531120 → 530100 → 533140 không trong danh sách. Trong danh sách mà đích ngoài 6 BCVH / không rõ: không phải hàng hoàn của KTT, giữ phân loại cũ.
+3. **Một khối hoàn chung** (mọi nơi gửi, 6 BCVH), vẫn tách khỏi tổng và tỷ lệ; cách xử lý trong chỉ số (mẫu số tỷ lệ, 14 giờ, B1 / B2 / B3, đạt / không đạt, `theo_nguon`) KHÔNG đổi, chỉ đổi TẬP SHBG. Tên khóa `noi_tinh_hang_hoan` giữ nguyên để khỏi vỡ giao diện, không còn nghĩa «nội tỉnh». Bỏ: hằng `MA_TO_KHHH` / `MA_THUAN_HOA`, nhóm riêng «chuỗi nội tỉnh» (không làm). `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa` lỗi thời, luôn 0.
+4. **Cách cài (Claude Code chọn):** danh sách đọc một lần mỗi lượt vào Set (không JOIN), `phanLoaiShbg` vẫn thuần (`u.hangHoan`); khóa bộ nhớ đệm thêm phiên bản danh sách; danh sách rỗng → hoàn 0 và `meta.hang_hoan_chua_nap = true` (không cảnh báo).
+5. **Điều kiện golive:** phải nạp ItemReturn TRƯỚC khi chạy bản này. Giao diện (nhãn «Hàng hoàn Tổ KHHH», ô hoàn chỉ ở cột Thuận Hóa ở KttBanDoNhiet) chưa đổi: ticket sau.
+
 ## Drift phát hiện
 _(chưa có)_

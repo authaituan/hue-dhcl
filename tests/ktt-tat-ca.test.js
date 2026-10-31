@@ -41,7 +41,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   TS.khoiTao(db);
   Api.xoaCache();
 });
@@ -49,6 +49,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NG = { nguon_xuat_luc: BAY_GIO, cap_nhat_luc: BAY_GIO };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NG, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o }); }
@@ -76,7 +77,9 @@ function duLieu() {
   kt('KTT-DEMO-A6', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-22 10:00:00' }); // t5 (đi từ D+2)
   kt('KTT-DEMO-A7', { quet: '2026-10-20 11:00:00', nhan: null }); // t5 (chưa đi, lỡ chuyến 12:30)
   kt('KTT-DEMO-H1', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '531120' }); // hàng hoàn
+  hoan('KTT-DEMO-H1');
   kt('KTT-DEMO-H2', { quet: null, xnd: '2026-10-20 06:00:00', gioDi: '2026-10-20 07:00:00', diemGui: '531120' }); // hàng hoàn, thiếu giờ quét đến: vẫn là hàng hoàn
+  hoan('KTT-DEMO-H2');
   kt('KTT-DEMO-X1', { quet: '2026-10-20 08:00:00', gioDi: '2026-10-20 09:00:00', nhan: '530900' }); // ngoài 6 BCVH: Hệ 1
   kt('KTT-DEMO-X2', { quet: '2026-10-20 08:00:00', gioDi: '2026-10-20 09:00:00', nhan: '700123' }); // ngoài: KHAC
   kt('KTT-DEMO-X3', { quet: '2026-10-20 08:00:00', gioDi: '2026-10-20 09:00:00', nhan: '530100' }); // ngoài: KTT
@@ -87,6 +90,7 @@ function duLieu() {
   kt('KTT-DEMO-B1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00' }); // t1
   kt('KTT-DEMO-B2', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', nhan: HT }); // t1
   kt('KTT-DEMO-H3', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', diemGui: '531120' }); // hàng hoàn
+  hoan('KTT-DEMO-H3');
   kt('KTT-DEMO-X4', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-21 09:00:00', nhan: '530900' }); // Hệ 1
   kt('KTT-DEMO-N2', { quet: null, xnd: '2026-10-21 07:00:00', gioDi: '2026-10-21 09:00:00', nhan: HT }); // thiếu giờ quét đến (Hương Trà)
   kt('KTT-DEMO-L2', { quet: '2026-10-21 03:00:00', gioDi: '2026-10-21 05:00:00', nhan: HTHUY }); // không xếp được chuyến

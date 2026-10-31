@@ -46,7 +46,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   db.exec("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'");
   TS.khoiTao(db);
   Api.xoaCache();
@@ -56,6 +56,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NG = { nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NG, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o }); }
@@ -78,6 +79,7 @@ function duLieu() {
   kt('KTT-DEMO-B1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00' });
   kt('KTT-DEMO-B2', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', nhan: HT });
   kt('KTT-DEMO-H1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', diemGui: '531120' }); // hàng hoàn Tổ KHHH
+  hoan('KTT-DEMO-H1');
   kt('KTT-DEMO-X1', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-21 09:00:00', nhan: '530900' }); // ngoài phạm vi
   kt('KTT-DEMO-C1', { quet: '2026-10-22 05:30:00', gioDi: '2026-10-22 06:50:00' });
   kt('KTT-DEMO-N0', { quet: null, xnd: '2026-10-21 06:00:00', gioDi: '2026-10-21 07:00:00' }); // thiếu giờ quét đến: «Không tính»
@@ -309,7 +311,7 @@ test('ngày không có dữ liệu: file vẫn hợp lệ (chỉ tiêu đề c�
   assert.deepEqual(wb.worksheets.map((w) => w.name), ['Thông tin', '7 Hàng rớt lại']);
   assert.equal(wb.getWorksheet('7 Hàng rớt lại').rowCount, 1);
   assert.equal(thongTin(wb).get('Số dòng kiểm tra'), 0);
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   Api.xoaCache();
   const wb2 = await docFile(await goi(`${U}${Q20}`, 'admin'));
   assert.equal(wb2.getWorksheet('7 Hàng rớt lại').rowCount, 1);
@@ -386,7 +388,7 @@ test('sheet «Thông tin»: đủ mục; tên đăng nhập người xuất (kh�
   const r = await goi(`${U}${Q20}`, 'ttvh');
   const tt = thongTin(await docFile(r));
   assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Phạm vi bưu gửi', 'Định nghĩa: năm trạng thái', 'Định nghĩa: đang chờ chuyến',
-    'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến',
+    'Định nghĩa: hàng hoàn', 'Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', 'Định nghĩa: mốc chuyến và hạn đến', 'Định nghĩa: hai mốc giờ đến',
     'Chỉ tiêu 14 giờ – Mốc A (xác nhận BD10 đến → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Mốc B (quét túi đến KTT → lập BD10 đi)', 'Chỉ tiêu 14 giờ – Không đo được',
     // KTT-8d: định nghĩa nhóm dùng chung mọi file xuất
     'Định nghĩa: rớt lại', 'Định nghĩa: hôm sau', 'Định nghĩa: chưa đi trên 24 giờ', 'Định nghĩa: xe Cấp 1', 'Định nghĩa: chuyến liền kề',
@@ -398,7 +400,7 @@ test('sheet «Thông tin»: đủ mục; tên đăng nhập người xuất (kh�
   assert.equal(tt.get('Chốt số theo ngày'), '20/10/2026: đã chốt; 21/10/2026: số tạm; 22/10/2026: số tạm');
   assert.match(tt.get('Ngày xuất, người xuất'), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(giờ Việt Nam\); tài khoản: KT8B_TTVH\.$/);
   assert.match(tt.get('Trạng thái số liệu'), /^Số tạm/);
-  assert.match(tt.get('Định nghĩa: hàng hoàn Tổ KHHH'), /531120.*Thuận Hóa \(533140\)/);
+  assert.match(tt.get('Định nghĩa: hàng hoàn'), /danh sách hàng hoàn \(ItemReturn.*6 BCVH Huế; không xét nơi gửi/);
   assert.match(tt.get('Định nghĩa: mốc chuyến và hạn đến'), /− 60 phút/);
   const tokenTho = tokens.ttvh;
   assert.ok(!r.buf.toString('latin1').includes(tokenTho));
@@ -578,7 +580,7 @@ test('KTT-10c sheet «Thông tin»: ba dòng tổng hợp chỉ tiêu 14 giờ (
   const tH = await kiem(`&ma_bcvh=${HT}`, (tc) => tc.theo_bcvh[HT]);
   assert.match(tH.get(X.NHAN_TONG_14H.a), new RegExp(`BCVH ${HT}, cả khoảng ngày`));
   await kiem('&trang_thai=t1', (tc) => tc); // bộ lọc trạng thái không đổi số tổng hợp (như màn hình)
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;'); Api.xoaCache();
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;'); Api.xoaCache();
   const rong = thongTin(await docFile(await goi(`${U}${Q20}`, 'admin')));
   for (const ten of Object.values(X.NHAN_TONG_14H)) assert.equal(rong.get(ten), 'Chưa có dữ liệu.');
 });

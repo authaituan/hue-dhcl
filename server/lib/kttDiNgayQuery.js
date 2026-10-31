@@ -64,7 +64,7 @@ function dongDanhSach(u, pl, bayGioGiay) {
   return {
     shbg: u.shbg, ngay_den: u.ngayDen, gio_den_ktt: u.quetDen || null, xnd_bd10_den: u.xndBd10 || null,
     kg: NG.thieuKhoiLuong(u) ? null : NG.r3(u.gam / 1000), ma_bcvh: u.maBcvh || null, ten_bcvh: u.maBcvh ? (TEN_BCVH[u.maBcvh] || null) : null,
-    huong: pl.huong === D.HUONG.NOI_TINH_HANG_HOAN ? D.HUONG.NOI_TINH_DEN_BCVH : pl.huong, hang_hoan: pl.hanHoan, nguon_hang: u.nguonHang, nhom: pl.nhom, bd10_di_gio_lap: u.gioBd10Di || null,
+    huong: pl.huongDong, hang_hoan: pl.hanHoan, nguon_hang: u.nguonHang, nhom: pl.nhom, bd10_di_gio_lap: u.gioBd10Di || null,
     cho_gio: moc && L.giayCua(moc) !== null && cuoi !== null ? Math.round(((cuoi - L.giayCua(moc)) / 3600) * 10) / 10 : null,
     duong_thu_ma: u.duongThuDenMa || null, duong_thu_ten: u.duongThuDenTen || null, noi_gui_ma: u.diemGuiDen || null, noi_gui_ten: u.diemGuiDenTen || null
   };
@@ -79,7 +79,7 @@ function duyetDanhSach(db, { tuNgay, denNgay, bayGio }, loc, cb) {
   chayShbg(db, { tuNgay, denNgay, bayGio }, (u, kq, pl) => {
     if (pl.bo || pl.khac || pl.nhom !== loc.nhomCan) return;
     if (!NG.khopMaLoc(loc.duongThu, u.duongThuDenMa) || !NG.khopMaLoc(loc.noiGui, u.diemGuiDen)) return; // KTT-8d2: NG.MA_LOC_RONG = mã null / rỗng
-    const huongDong = pl.huong === D.HUONG.NOI_TINH_HANG_HOAN ? D.HUONG.NOI_TINH_DEN_BCVH : pl.huong;
+    const huongDong = pl.huongDong;
     if (loc.huong !== null && huongDong !== loc.huong) return;
     if (loc.hangHoan !== null && pl.hanHoan !== loc.hangHoan) return;
     if (loc.maBcvh !== null && u.maBcvh !== loc.maBcvh) return;
