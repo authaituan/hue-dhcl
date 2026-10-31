@@ -92,7 +92,7 @@ const COT_SHEET8 = Object.freeze([
   { api: 'cho_gio', tieuDe: 'Số giờ chờ (giờ đồng hồ, đến lúc lập BD10 đi hoặc đến độ mới dữ liệu)', rong: 24, loai: 'gio_so', fmt: '0.0' },
   { api: 'nhom', tieuDe: 'Nhóm', rong: 20, loai: 'chu' },
   { api: 'huong', tieuDe: 'Hướng', rong: 32, loai: 'chu' },
-  { api: 'hang_hoan', tieuDe: 'Hàng hoàn Tổ KHHH', rong: 12, loai: 'chu' },
+  { api: 'hang_hoan', tieuDe: 'Hàng chuyển hoàn', rong: 12, loai: 'chu' },
   { api: 'ngay_den', tieuDe: 'Ngày đến KTT (ngày D)', rong: 14, loai: 'chu' }
 ].map((c) => Object.freeze(c)));
 const VI_TRI_8 = Object.freeze(Object.fromEntries(COT_SHEET8.map((c, i) => [c.api, i])));
@@ -168,7 +168,7 @@ function soKhop(luuThoat, { nhom = null, maBcvh = null, nguon = null } = {}) {
     }
   }
   const khoi = maBcvh ? tongCong.theo_bcvh[maBcvh] : tongCong;
-  const hoan = maBcvh ? khoi.tong_shbg_ngay - khoi.tong_shbg : tongCong.hang_hoan.tong_shbg; // KTT-17-2: hàng hoàn của BCVH đó (có ở cả 6 BCVH)
+  const hoan = maBcvh ? khoi.hang_hoan.tong_shbg : tongCong.hang_hoan.tong_shbg; // KTT-17-2: hàng hoàn của BCVH đó (có ở cả 6 BCVH); KTT-17-3b: khối theo_bcvh[m].hang_hoan
   const dk = khoi.dat_khong_dat;
   const kpl = khoi.khong_phan_loai || {};
   if (!nhom) return maBcvh ? khoi.tong_shbg + hoan : tongCong.tong_shbg_ngay;
@@ -255,7 +255,7 @@ function dongThongTin8(ctx) {
   const tatCaChot = b.ds.length > 0 && b.ds.every((x) => x.da_chot);
   const nhan = (v, f = (x) => x) => (v === null ? 'không (tất cả)' : f(v));
   const nhanMa = (v) => nhan(v, (x) => (x === NG.MA_LOC_RONG ? '(không có mã)' : x));
-  const o = `nhóm «${NHAN_NHOM_8[loc.nhomCan]}»; đường thư đến: ${nhanMa(loc.duongThu)}; nơi gửi BD10 đến: ${nhanMa(loc.noiGui)}; hướng: ${nhan(loc.huong, (h) => NHAN_HUONG_8[h] || h)}; hàng hoàn Tổ KHHH: ${nhan(loc.hangHoan, (h) => (h ? 'chỉ hàng hoàn' : 'không kể hàng hoàn'))}; BCVH: ${nhan(loc.maBcvh)}`;
+  const o = `nhóm «${NHAN_NHOM_8[loc.nhomCan]}»; đường thư đến: ${nhanMa(loc.duongThu)}; nơi gửi BD10 đến: ${nhanMa(loc.noiGui)}; hướng: ${nhan(loc.huong, (h) => NHAN_HUONG_8[h] || h)}; hàng chuyển hoàn: ${nhan(loc.hangHoan, (h) => (h ? 'chỉ hàng hoàn' : 'không kể hàng hoàn'))}; BCVH: ${nhan(loc.maBcvh)}`;
   const sm = ctx.soManHinh;
   return [
     ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (sheet «${TEN_SHEET_8}», theo ngày D = ngày của giờ quét túi đến KTT). ${cuaSoThucTe(b.m.ngay_dau, b.m.ngay_cuoi, b.m.so_ngay_co_du_lieu || 0)} Ô đã bấm: ${o}.`],

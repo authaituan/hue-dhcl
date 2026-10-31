@@ -461,7 +461,9 @@ test('chi-tiet: không rò thông tin cá nhân — chỉ các trường nghiệ
     // KTT-10c: nhãn chỉ tiêu 14 giờ theo từng mốc
     'chi_tieu_14h_xnd', 'chi_tieu_14h_quet_tui_den',
     // KTT-14: cờ nguồn và luồng túi
-    'nguon_hang', 'luong_tui']);
+    'nguon_hang', 'luong_tui',
+    // KTT-17-3b: cờ logic hàng chuyển hoàn (giao diện khỏi so chuỗi phan_loai)
+    'hang_hoan']);
   assert.ok(c.items.length > 0);
   for (const it of c.items) for (const k of Object.keys(it)) assert.ok(cho.has(k), `trường lạ: ${k}`);
   assert.ok(!/lai_xe|bien_so|nguoi|user|password|hrm/i.test(JSON.stringify(c)));

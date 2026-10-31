@@ -398,7 +398,7 @@ test('KTT-8d2 hang_hoan: 0 / false = loại hàng hoàn, 1 / true = chỉ hàng 
     assert.equal(dongSheet8(await docFile(await goi(`${U}${Q20}&loai=hom-sau${goc}${v}`, 'admin'))).length, n, v || 'trống');
   }
   const tt = thongTin(await docFile(await goi(`${U}${Q20}&loai=hom-sau${goc}&hang_hoan=0`, 'admin')));
-  assert.match(tt.get('Cửa sổ'), /hàng hoàn Tổ KHHH: không kể hàng hoàn/);
+  assert.match(tt.get('Cửa sổ'), /hàng chuyển hoàn: không kể hàng hoàn/);
   // giá trị lạ vẫn 400
   for (const v of ['2', 'yes', 'abc', '01']) assert.equal((await goi(`/api/ktt/danh-sach${Q20}&loai=hom-sau&hang_hoan=${v}`, 'admin')).status, 400, v);
 });

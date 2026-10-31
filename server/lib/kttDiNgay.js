@@ -290,7 +290,7 @@ function theoDuongThu(m, tops = {}) {
         noi_gui_ma: e.noi_gui_ma, noi_gui_ten: e.noi_gui_ten, duong_thu_ma: e.duong_thu_ma, duong_thu_ten: nhanDuongThu(e), hang_hoan: e.hang_hoan,
         gio_nhan_tb: gioTb(e) === null ? null : hhmm(gioTb(e)), gio_nhan_som_nhat: e.gio_min === null ? null : hhmm(e.gio_min), gio_nhan_muon_nhat: e.gio_max === null ? null : hhmm(e.gio_max), ...k
       })),
-      cong: ketQuaKhoi(lay.reduce((s, { e }) => (e.hang_hoan ? s : congKhoiThanh(s, e.khoi)), khoiMoi())) // hàng hoàn Tổ KHHH hiện riêng, không cộng vào tổng
+      cong: ketQuaKhoi(lay.reduce((s, { e }) => (e.hang_hoan ? s : congKhoiThanh(s, e.khoi)), khoiMoi())) // hàng chuyển hoàn hiện riêng, không cộng vào tổng
     };
   };
   return {

@@ -71,7 +71,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   const moc = { ...S.MOC, chi_tieu: S.NHAN_MOC_CHI_TIEU[mocChiTieu], chi_tieu_14h: { ...S.NHAN_MOC_CHI_TIEU, moc_mac_dinh: mocChiTieu } };
   const rong = (lyDo) => ({
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: lyDo, moc,
-    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...khoiRong(mocChiTieu), tong_shbg_ngay: 0 }])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, ngoai_bay_chip: ngoaiBayChipRong(), theo_nguon: [], theo_nguon_hang: nguonHangRong(mocChiTieu) })),
+    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...khoiRong(mocChiTieu), tong_shbg_ngay: 0, hang_hoan: khoiRong(mocChiTieu) }])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, ngoai_bay_chip: ngoaiBayChipRong(), theo_nguon: [], theo_nguon_hang: nguonHangRong(mocChiTieu) })),
     tong_cong: null, meta: { nguon_xuat_luc_moi_nhat: null, moc, moc_chi_tieu: mocChiTieu, ...HH.metaHangHoan(HH.docDanhSachHangHoan(db)) }, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.']
   });
   if (bayGio === null) return rong('CHUA_CO_DU_LIEU');
@@ -80,7 +80,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   const gio_chot = gioChot();
   const tenPhuongTheoMa = docTenPhuong(db);
   const theoNgay = new Map(k.ngays.map((ngay) => [ngay, {
-    ngay, hoanTheoBcvh: new Map(), tong: S.taoKhoi({ mocChiTieu }), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), hoan: S.taoKhoi({ mocChiTieu }),
+    ngay, hoanBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), kgHoanBcvh: new Map(BCVH.map((m) => [m, NG.taoKg()])), tong: S.taoKhoi({ mocChiTieu }), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), hoan: S.taoKhoi({ mocChiTieu }),
     khongRo: 0, ngoai: {}, tuiKhongBuuGui: 0, tongShbg: 0,
     kgTong: NG.taoKg(), kgBcvh: new Map(BCVH.map((m) => [m, NG.taoKg()])), kgHoan: NG.taoKg(), nguon: NG.taoNguon(), // KTT-8c: kg và nhóm theo nguồn (chỉ cộng thêm, không đụng taoKhoi)
     nh: { [Q.NGUON_HANG.KHAI_THAC]: nguonHangMoi(mocChiTieu), [Q.NGUON_HANG.CHUYEN_TIEP]: nguonHangMoi(mocChiTieu) } // KTT-14: tách hai cờ nguồn (cộng lại = tổng)
@@ -110,7 +110,7 @@ function luuThoatTheoNgay(db, opts = {}) {
         const kgShbg = NG.kgCua(u);
         if (kq.nhom === S.NHOM.KHONG_RO_DICH) { n.khongRo++; nh.khongRo++; meta.khong_ro_dich++; return; }
         if (kq.nhom === S.NHOM.NGOAI_PHAM_VI) { n.ngoai[kq.loaiDich] = (n.ngoai[kq.loaiDich] || 0) + 1; nh.ngoai[kq.loaiDich] = (nh.ngoai[kq.loaiDich] || 0) + 1; meta.ngoai_pham_vi[kq.loaiDich] = (meta.ngoai_pham_vi[kq.loaiDich] || 0) + 1; return; }
-        if (kq.nhom === S.NHOM.HANG_HOAN) { n.hoanTheoBcvh.set(kq.maBcvh, (n.hoanTheoBcvh.get(kq.maBcvh) || 0) + 1); n.hoan.them(kq, u.tuiDenId); n.kgHoan.them(kq, kgShbg); nh.hoan++; return; }
+        if (kq.nhom === S.NHOM.HANG_HOAN) { n.hoanBcvh.get(kq.maBcvh).them(kq, u.tuiDenId); n.kgHoanBcvh.get(kq.maBcvh).them(kq, kgShbg); n.hoan.them(kq, u.tuiDenId); n.kgHoan.them(kq, kgShbg); nh.hoan++; return; }
         n.tong.them(kq, u.tuiDenId);
         nh.tong.them(kq, u.tuiDenId);
         n.theoBcvh.get(kq.maBcvh).them(kq, u.tuiDenId);
@@ -130,10 +130,10 @@ function luuThoatTheoNgay(db, opts = {}) {
     const tong = NG.ganKg(n.tong.ketQua(), n.kgTong.ketQua());
     const hang_hoan = NG.ganKg(n.hoan.ketQua(), n.kgHoan.ketQua());
     // KTT-11b: tong_shbg_ngay của khối BCVH = số dòng xlsx khi lọc BCVH đó, không lọc trạng thái = SHBG của khối + hàng hoàn CỦA BCVH ĐÓ (từ KTT-17-2 hàng hoàn có ở cả 6 BCVH).
-    const hoanTheoBcvh = n.hoanTheoBcvh;
     const theo_bcvh = Object.fromEntries(BCVH.map((m) => {
       const khoi = NG.ganKg(n.theoBcvh.get(m).ketQua(), n.kgBcvh.get(m).ketQua());
-      return [m, { ...khoi, tong_shbg_ngay: khoi.tong_shbg + (hoanTheoBcvh.get(m) || 0) }];
+      const hoanM = NG.ganKg(n.hoanBcvh.get(m).ketQua(), n.kgHoanBcvh.get(m).ketQua()); // KTT-17-3b: khối hàng hoàn CỦA BCVH này, cùng hình dạng với hang_hoan toàn ngày
+      return [m, { ...khoi, tong_shbg_ngay: khoi.tong_shbg + hoanM.tong_shbg, hang_hoan: hoanM }];
     }));
     const ngoaiTong = Object.values(n.ngoai).reduce((a, b) => a + b, 0);
     return {
@@ -226,7 +226,7 @@ function congCacNgay(theoNgay) {
   for (const n of theoNgay) for (const [m, c] of Object.entries(n.khong_phan_loai.ngoai_pham_vi)) ngoai[m] = (ngoai[m] || 0) + c;
   return {
     ...congKhoi(theoNgay.map((n) => n.tong)),
-    theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...congKhoi(theoNgay.map((n) => n.theo_bcvh[m])), tong_shbg_ngay: theoNgay.reduce((s, n) => s + n.theo_bcvh[m].tong_shbg_ngay, 0) }])),
+    theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...congKhoi(theoNgay.map((n) => n.theo_bcvh[m])), tong_shbg_ngay: theoNgay.reduce((s, n) => s + n.theo_bcvh[m].tong_shbg_ngay, 0), hang_hoan: congKhoi(theoNgay.map((n) => n.theo_bcvh[m].hang_hoan)) }])),
     hang_hoan: congKhoi(theoNgay.map((n) => n.hang_hoan)),
     khong_phan_loai: { khong_ro_dich: theoNgay.reduce((s, n) => s + n.khong_phan_loai.khong_ro_dich, 0), ngoai_pham_vi: ngoai },
     ngoai_bay_chip: congNgoaiBayChip(theoNgay.map((n) => n.ngoai_bay_chip)),

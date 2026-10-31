@@ -27,11 +27,12 @@ const NHAN_DO_MOC = Object.freeze({
   [S.DO_MOC.MOC_SAU_GIO_DI]: 'Không đo được (mốc sau giờ lập BD10 đi)', [S.DO_MOC.CHUA_DI]: 'Không đo được (chưa đi)'
 });
 const LOAI_TRU = 'Loại trừ';
+const NHAN_HANG_HOAN = 'Hàng chuyển hoàn'; // KTT-17-3b: thay «Hàng hoàn Tổ KHHH» (hoàn nay theo ItemReturn, không còn gắn Tổ KHHH 531120)
 const KHONG_TINH = 'Không tính';
 
 function nhanNhom(kq, loaiDich) {
   switch (kq.nhom) {
-    case S.NHOM.HANG_HOAN: return 'Hàng hoàn Tổ KHHH';
+    case S.NHOM.HANG_HOAN: return NHAN_HANG_HOAN;
     case S.NHOM.KHONG_RO_DICH: return 'Đích không rõ';
     case S.NHOM.NGOAI_PHAM_VI: return `Ngoài phạm vi (${loaiDich || 'khác'})`;
     case S.NHOM.KHONG_CO_GIO_QUET_DEN: return 'Thiếu giờ quét túi đến';
@@ -44,7 +45,7 @@ const dd = (ngay) => `${ngay.slice(8, 10)}/${ngay.slice(5, 7)}/${ngay.slice(0, 4
 
 /**
  * 19 trường (tên snake_case của API chi-tiet; cùng thứ tự cột sheet 7, sheet 7 không có cột dat_khong_dat từ KTT-10c). Thiếu dữ liệu -> null.
- * Hàng hoàn Tổ KHHH: dat_khong_dat, chi_tieu_14h_* = «Loại trừ»; không phân loại được (thiếu giờ quét đến / không xếp được chuyến): «Không tính».
+ * Hàng chuyển hoàn: dat_khong_dat, chi_tieu_14h_* = «Loại trừ»; không phân loại được (thiếu giờ quét đến / không xếp được chuyến): «Không tính».
  */
 function dongChiTiet(u, kq) {
   const d = kq.datKhongDat || null;
@@ -69,6 +70,7 @@ function dongChiTiet(u, kq) {
     chi_tieu_14h_xnd: moc(S.MOC_CHI_TIEU.XND), // KTT-10c: mốc A (xác nhận BD10 đến -> lập BD10 đi)
     chi_tieu_14h_quet_tui_den: moc(S.MOC_CHI_TIEU.QUET_TUI_DEN), // KTT-10c: mốc B (quét túi đến KTT -> lập BD10 đi)
     phan_loai: nhanNhom(kq, u.nhom),
+    hang_hoan: kq.nhom === S.NHOM.HANG_HOAN, // KTT-17-3b: cờ logic cho giao diện (khỏi so chuỗi phan_loai); chỉ có ở chi-tiet, KHÔNG thêm cột vào sheet 7
     trang_thai: kq.trangThai ? NHAN_TRANG_THAI[kq.trangThai] : null,
     ngay_luu_thoat: u.ngayDen || null,
     nguon_hang: u.nguonHang || 'khai_thac', // KTT-14: cờ nguồn (khai_thac | chuyen_tiep); chỉ có ở chi-tiet, KHÔNG thêm cột vào sheet 7
@@ -76,4 +78,4 @@ function dongChiTiet(u, kq) {
   };
 }
 
-module.exports = { TEN_BCVH, NHAN_TRANG_THAI, NHAN_LY_DO, NHAN_DAT, NHAN_DO_MOC, LOAI_TRU, KHONG_TINH, nhanNhom, dd, dongChiTiet };
+module.exports = { NHAN_HANG_HOAN, TEN_BCVH, NHAN_TRANG_THAI, NHAN_LY_DO, NHAN_DAT, NHAN_DO_MOC, LOAI_TRU, KHONG_TINH, nhanNhom, dd, dongChiTiet };

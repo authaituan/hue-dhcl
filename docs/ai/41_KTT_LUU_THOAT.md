@@ -69,7 +69,7 @@ Chờ = giờ lập BD10 đi − **`ConfirmDate` (`bd10_den_xnd`)**, **bỏ khun
 - `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa`: **lỗi thời**, giữ khóa và luôn trả 0.
 - **Bộ nhớ đệm** (`kttApi.js`): khóa có thêm phiên bản danh sách (`kttHangHoan.phienBanHangHoan`: id lần nạp OK lớn nhất . số dòng . `cap_nhat_luc` lớn nhất), nạp ItemReturn mới thì số tự đổi, không cần khởi động lại.
 - **Cần nạp ItemReturn TRƯỚC khi golive bản này**; nếu không, mọi số hoàn về 0 và hàng hoàn cũ nằm vào hàng thường.
-- Tên khóa API / hướng `noi_tinh_hang_hoan`, `hang_hoan` giữ nguyên; `noi_tinh_hang_hoan` KHÔNG còn nghĩa «nội tỉnh». Nhãn chữ «Hàng hoàn Tổ KHHH» ở xlsx / giao diện chưa đổi (ticket giao diện sau).
+- Tên khóa API / hướng `noi_tinh_hang_hoan`, `hang_hoan` giữ nguyên; `noi_tinh_hang_hoan` KHÔNG còn nghĩa «nội tỉnh». Nhãn chữ phía server đã đổi thành **«Hàng chuyển hoàn»** ở KTT-17-3b (`phan_loai` của `chi-tiet` và xlsx sheet 7, tiêu đề cột sheet 8, câu bộ lọc ở «Thông tin» sheet 8); nhãn trong giao diện đổi ở KTT-17-3c. `theo_bcvh[mã].hang_hoan` (khối hàng hoàn của từng BCVH): `42_KTT_API.md` mục 15.
 
 ## 6. Ngày, độ mới, «bây giờ»
 - `tuNgay`, `denNgay` (`YYYY-MM-DD`; thiếu `denNgay` = một ngày); **tối đa 31 ngày** (quá → `LoiKtt` `KTT_KHOANG_QUA_DAI`, tiếng Việt). Mỗi ngày tính riêng rồi cộng (`tong_cong` = cộng các ngày). Ngày không có dữ liệu vẫn có mặt với số 0 và `co_du_lieu = false`.
