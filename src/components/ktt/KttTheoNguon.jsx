@@ -34,11 +34,12 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
     return { tongDen: den, tongRot: rot };
   }, [data, selectedBcvh]);
 
-  // Dữ liệu hàng chuyển hoàn Tổ KHHH 531120
+  // Dữ liệu hàng chuyển hoàn
   const hhStats = useMemo(() => {
-    if (!data?.tong_cong?.hang_hoan) return null;
-    if (selectedBcvh !== 'all' && selectedBcvh !== '533140') return null;
-    const hh = activeHangHoan || data.tong_cong.hang_hoan;
+    const hh = activeHangHoan || (selectedBcvh === 'all'
+      ? data?.tong_cong?.hang_hoan
+      : data?.tong_cong?.theo_bcvh?.[selectedBcvh]?.hang_hoan);
+    if (!hh) return null;
     const shbg = hh.tong_shbg ?? 0;
     const kg = (hh.trang_thai?.t1?.kg ?? 0) +
       (hh.trang_thai?.t2?.kg ?? 0) +
@@ -155,7 +156,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
         })}
       </div>
 
-      {/* Thẻ hàng chuyển hoàn Tổ KHHH (nếu áp dụng cho Thuận Hóa / Tất cả) */}
+      {/* Thẻ hàng chuyển hoàn */}
       {hhStats && (
         <div className="pt-2">
           <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">
@@ -164,7 +165,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
           <div className="p-4 rounded-[12px] border border-purple-200 bg-[#FAF5E8] flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="font-bold text-sm text-gray-900">
-                Chuyển hoàn · Tổ KHHH 531120 (về Thuận Hóa)
+                Hàng chuyển hoàn
               </span>
               <span className="text-xs text-gray-500 italic">
                 chỉ để theo dõi, không tính vào chỉ tiêu
@@ -183,11 +184,11 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
             </div>
             {/* Thanh chuyển hoàn chuẩn KttTooltip */}
             <KttTooltip
-              ariaLabel={`Chuyển hoàn Tổ KHHH · Mẫu số: ${formatInt(hhStats.shbg)} bưu gửi · Lưu thoát: ${formatInt(hhStats.luuThoat)} (${formatPercent(hhStats.tyLeLuu)}) · Rớt lại: ${formatInt(hhStats.roLai)} (${formatPercent(hhStats.tyLeRot)}) · Trượt chuyến: ${formatInt(hhStats.truot)} (${formatPercent(hhStats.tyLeTruot)})`}
+              ariaLabel={`Hàng chuyển hoàn · Mẫu số: ${formatInt(hhStats.shbg)} bưu gửi · Lưu thoát: ${formatInt(hhStats.luuThoat)} (${formatPercent(hhStats.tyLeLuu)}) · Rớt lại: ${formatInt(hhStats.roLai)} (${formatPercent(hhStats.tyLeRot)}) · Trượt chuyến: ${formatInt(hhStats.truot)} (${formatPercent(hhStats.tyLeTruot)})`}
               content={
                 <div className="space-y-1 min-w-[210px]">
                   <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
-                    <span>Chuyển hoàn · Tổ KHHH 531120</span>
+                    <span>Hàng chuyển hoàn</span>
                     <span className="text-gray-300 font-normal">
                       Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(hhStats.shbg)}</strong> bưu gửi
                     </span>

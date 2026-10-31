@@ -49,7 +49,7 @@ const EXPORT_STATUS_OPTIONS = [
   { key: 't4', label: '4 · Đi hôm sau, trượt chuyến' },
   { key: 't5', label: '5 · Từ 2 ngày hoặc chưa đi' },
   { key: 'dang_cho_chuyen', label: 'Đang chờ chuyến' },
-  { key: 'hang_hoan', label: 'Hàng hoàn Tổ KHHH' },
+  { key: 'hang_hoan', label: 'Hàng chuyển hoàn' },
 ];
 
 export default function KttLuuThoat({ authUser }) {
@@ -226,11 +226,8 @@ export default function KttLuuThoat({ authUser }) {
 
   const activeHangHoan = useMemo(() => {
     if (!data?.tong_cong?.hang_hoan) return null;
-    // Hàng hoàn chỉ của Thuận Hóa; nếu chọn BCVH khác Thuận Hóa thì ẩn khối hàng hoàn (không dựng số 0)
-    if (selectedBcvh !== 'all' && selectedBcvh !== '533140') {
-      return null;
-    }
-    return data.tong_cong.hang_hoan;
+    if (selectedBcvh === 'all') return data.tong_cong.hang_hoan;
+    return data.tong_cong.theo_bcvh?.[selectedBcvh]?.hang_hoan || null;
   }, [data, selectedBcvh]);
 
   // Số lượng cho từng chip xuất (phản ánh đúng bộ lọc BCVH đang chọn)
@@ -243,10 +240,9 @@ export default function KttLuuThoat({ authUser }) {
     if (!targetBlock) return 0;
     if (key === '') return targetBlock.tong_shbg_ngay ?? 0;
     if (key === 'hang_hoan') {
-      if (selectedBcvh !== 'all' && selectedBcvh !== '533140') return 0;
       return (selectedBcvh === 'all'
         ? data.tong_cong.hang_hoan?.tong_shbg
-        : (data.tong_cong.theo_bcvh?.['533140']?.hang_hoan?.tong_shbg ?? data.tong_cong.hang_hoan?.tong_shbg)) ?? 0;
+        : data.tong_cong.theo_bcvh?.[selectedBcvh]?.hang_hoan?.tong_shbg) ?? 0;
     }
     return targetBlock.trang_thai?.[key]?.shbg ?? 0;
   };
@@ -330,6 +326,8 @@ export default function KttLuuThoat({ authUser }) {
   }, [meta]);
 
   const nguonXuatLuc = data?.meta?.nguon_xuat_luc_moi_nhat || meta?.nguon_xuat_luc_moi_nhat;
+  const hangHoanChuaNap = data?.meta?.hang_hoan_chua_nap ?? meta?.hang_hoan_chua_nap;
+  const hangHoanNguonXuatLuc = data?.meta?.hang_hoan_nguon_xuat_luc || meta?.hang_hoan_nguon_xuat_luc;
   const isChuaCoDuLieu = data && (data.ly_do === 'CHUA_CO_DU_LIEU' || data.tong_cong === null);
   const isKhoangKhongCoHang = data && !isChuaCoDuLieu && !data.co_du_lieu;
   const hasNoData = !data?.co_du_lieu;
@@ -347,6 +345,17 @@ export default function KttLuuThoat({ authUser }) {
                 Dữ liệu đến lúc {formatDateTime(String(nguonXuatLuc).slice(0, 16))}
               </span>
             )}
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Chưa nạp danh sách hàng hoàn; số hoàn = 0 chưa đúng
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1F7A5C]" />
+                Danh sách hoàn cập nhật lúc {formatDateTime(String(hangHoanNguonXuatLuc).slice(0, 16))}
+              </span>
+            ) : null}
           </div>
           <p className="text-xs text-gray-600 mt-1">
             Trung tâm Khai thác · 530100 · Hàng tại KTT
@@ -1334,25 +1343,15 @@ export default function KttLuuThoat({ authUser }) {
             );
           })()}
 
-          {/* ── 5. KHỐI HÀNG HOÀN TỔ KHHH (531120) ─────────────────────────── */}
-          {selectedBcvh !== 'all' && selectedBcvh !== '533140' ? (
-            <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none">
-              <h2 className="ktt-h2 text-[17px] mb-1">
-                Hàng chuyển hoàn của Tổ KHHH (531120)
-              </h2>
-              <p className="text-xs text-gray-500 italic">
-                Chỉ áp dụng cho Thuận Hóa
-              </p>
-            </div>
-          ) : (
-            activeHangHoan && (
-              <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
+          {/* ── 5. KHỐI HÀNG CHUYỂN HOÀN ─────────────────────────── */}
+          {activeHangHoan && (
+            <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
                 <div>
                   <h2 className="ktt-h2 text-[17px]">
-                    Hàng chuyển hoàn của Tổ KHHH (531120): hiện riêng, không tính chỉ tiêu 14 giờ
+                    Hàng chuyển hoàn: hiện riêng, không tính chỉ tiêu 14 giờ
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
-                    Bưu gửi 531120 đã chấp nhận, bị chuyển hoàn, về BCVH Thuận Hóa để phát hoàn. Hiện riêng để nhìn sản lượng và hiện trạng; không cộng vào các con số và tỷ lệ của trang.
+                    Bưu gửi có trong danh sách hàng hoàn và đích là 6 BCVH Huế. Hiện riêng để nhìn sản lượng và hiện trạng; không cộng vào các con số và tỷ lệ của trang.
                   </p>
                 </div>
 
@@ -1397,7 +1396,7 @@ export default function KttLuuThoat({ authUser }) {
                           <div className="text-[11px] font-bold text-gray-600 uppercase">HÀNG HOÀN ĐẾN TRONG KHOẢNG</div>
                           <div className="text-xl font-bold text-gray-900 mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhTong)}</div>
                           <div className="text-[11px] text-gray-500 mt-0.5">
-                            {hasNoData ? 'bưu gửi · đều về Thuận Hóa' : `bưu gửi · ${formatKg(hhKg, { withUnit: true })} · đều về Thuận Hóa`}
+                            {hasNoData ? 'bưu gửi' : `bưu gửi · ${formatKg(hhKg, { withUnit: true })}`}
                           </div>
                         </div>
                         <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
@@ -1429,11 +1428,11 @@ export default function KttLuuThoat({ authUser }) {
                         </div>
                         {/* Thanh tỷ lệ hàng hoàn chuẩn KttTooltip */}
                         <KttTooltip
-                          ariaLabel={`Hàng hoàn Tổ KHHH · Mẫu số: ${formatInt(hhLuuThoat + hhRotLai)} bưu gửi · Lưu thoát: ${formatInt(hhLuuThoat)} (${formatPercent(hhTyLeLuu)}) · Rớt lại: ${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}
+                          ariaLabel={`Hàng chuyển hoàn · Mẫu số: ${formatInt(hhLuuThoat + hhRotLai)} bưu gửi · Lưu thoát: ${formatInt(hhLuuThoat)} (${formatPercent(hhTyLeLuu)}) · Rớt lại: ${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}
                           content={
                             <div className="space-y-1.5 min-w-[240px]">
                               <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                                <span>Hàng hoàn Tổ KHHH (về Thuận Hóa)</span>
+                                <span>Hàng chuyển hoàn</span>
                                 <span className="text-gray-300 font-normal">
                                   Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(hhLuuThoat + hhRotLai)}</strong> bưu gửi
                                 </span>
@@ -1525,7 +1524,6 @@ export default function KttLuuThoat({ authUser }) {
                   );
                 })()}
               </div>
-            )
           )}
 
           {/* ── 6. THEO BCVH ĐÍCH & THEO NGUỒN / ĐƯỜNG THƯ ĐẾN ─────────────── */}

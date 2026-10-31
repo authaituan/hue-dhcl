@@ -81,7 +81,7 @@ export function formatTrangThaiNhan(code) {
   if (c === 'khong_dat') return 'Không đạt 14 giờ';
   if (c === 'dat') return 'Đạt 14 giờ';
   if (c === 'dang_cho_chuyen') return 'Đang chờ chuyến';
-  if (c === 'hang_hoan') return 'Hàng hoàn Tổ KHHH';
+  if (c === 'hang_hoan') return 'Hàng chuyển hoàn';
   return c;
 }
 
