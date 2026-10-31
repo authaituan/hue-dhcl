@@ -237,7 +237,7 @@ test('số dòng sheet 7 = tổng SHBG của luu-thoat cùng khoảng; ô «Số
   }
   // phân loại theo nhóm riêng
   const theoShbg = Object.fromEntries(dong.map((d) => [d.shbg, d]));
-  assert.equal(theoShbg['KTT-DEMO-H1'].nhom, 'Hàng hoàn Tổ KHHH');
+  assert.equal(theoShbg['KTT-DEMO-H1'].nhom, 'Hàng chuyển hoàn');
   assert.match(theoShbg['KTT-DEMO-X1'].nhom, /^Ngoài phạm vi/);
   assert.equal(theoShbg['KTT-DEMO-W1'].nhom, 'Đang chờ chuyến');
   assert.equal(theoShbg['KTT-DEMO-A1'].nhom, 'Đã phân loại 5 trạng thái');
@@ -259,7 +259,7 @@ test('bộ lọc trang_thai: chỉ ra đúng nhóm đó, số dòng = tổng c�
   assert.ok(t1.length >= 1 && t1.every((d) => /^1 –/.test(d.trang_thai)));
 });
 
-test('hàng hoàn Tổ KHHH có mặt, cột đạt / không đạt ghi «Loại trừ», không vào tổng chỉ tiêu của luu-thoat', async () => {
+test('hàng chuyển hoàn có mặt, cột đạt / không đạt ghi «Loại trừ», không vào tổng chỉ tiêu của luu-thoat', async () => {
   duLieu();
   const dong = dongSheet7(await docFile(await goi(`${U}${Q20}&trang_thai=hang_hoan`, 'admin')));
   assert.deepEqual(dong.map((d) => d.shbg), ['KTT-DEMO-H1']);

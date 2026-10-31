@@ -6,7 +6,7 @@
 //   - nơi gửi của BD10 đến (`bd10_den_ma_diem_gui`) bắt đầu bằng '53' -> NOI_TINH («Nội tỉnh · các điểm khác»), bất kể đường thư;
 //   - còn lại có mã đường thư đến (`bd10_den_ma_duong_thu`) -> nhóm theo đường thư (ma = mã đường thư, ten = tên đường thư);
 //   - thiếu mã đường thư -> KHONG_RO_NGUON.
-// Hàng hoàn Tổ KHHH KHÔNG vào theo_nguon (đã có khối `hang_hoan`); chỉ SHBG có trạng thái (t1…t5, đang chờ chuyến) mới vào nhóm.
+// Hàng chuyển hoàn KHÔNG vào theo_nguon (đã có khối `hang_hoan`); chỉ SHBG có trạng thái (t1…t5, đang chờ chuyến) mới vào nhóm.
 // kg = khối lượng thực tế (gam) / 1000, làm tròn 3 chữ số; SHBG thiếu khối lượng tính 0. Mỗi SHBG đóng góp ĐÚNG MỘT lần (đơn vị SHBG đã gộp các dòng túi).
 // ==========================================
 'use strict';

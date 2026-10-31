@@ -95,7 +95,7 @@ function ketQuaTheoMoc(d, coGioDi, coMoc) {
  *      gioBd10Di (giờ lập BD10 đi), xndBd10 (bd10_den_xnd), tenPhuong }.
  * ngu: { lich (dòng lịch chuyến), hanPhut, bayGio }.
  * Trả { nhom: NHOM.*, ... }. PHAN_LOAI / HANG_HOAN kèm { maBcvh, trangThai (T1..T5 | DANG_CHO_CHUYEN), chuyenKq ('DUNG' | 'TRUOT' | 'LO' | 'CHUA_DEN_GIO'), chuyen, diTruocKhiDen, datKhongDat }.
- *  Thứ tự: đích không rõ -> ngoài phạm vi (530900, KHAC, KTT) -> hàng hoàn Tổ KHHH -> thiếu giờ quét đến -> không xếp được chuyến -> năm trạng thái.
+ *  Thứ tự: đích không rõ -> ngoài phạm vi (530900, KHAC, KTT) -> hàng chuyển hoàn -> thiếu giờ quét đến -> không xếp được chuyến -> năm trạng thái.
  *  Hàng hoàn = SHBG có trong danh sách ItemReturn (ktt_hang_hoan; `u.hangHoan`, do kttQuery tra từ danh sách) VÀ đích là một trong 6 BCVH Huế (u.nhom = BCVH_HUE; đích không rõ / ngoài 6 BCVH không phải hàng hoàn,
  *  giữ phân loại cũ). Không xét nơi gửi gốc. KTT-17-2 (PO 31/10/2026) thay quy tắc 7b (túi đến gốc từ 531120 và đích 533140).
  */

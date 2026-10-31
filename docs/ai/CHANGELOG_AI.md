@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-31] - KTT-17-3b: API «hàng chuyển hoàn theo BCVH» và nhãn phía server (backend + test + docs; KHÔNG đổi `src/`, định nghĩa hoàn, cách tính chỉ số)
+
+- **`/luu-thoat`:** `theo_bcvh[mã].hang_hoan` (từng ngày và `tong_cong`; khối hoàn của BCVH đó, cùng hình dạng `tong_cong.hang_hoan`; đủ khóa, 0 khi không có hoàn). `kttLuuThoatQuery.js`: bộ cộng `hoanTheoBcvh` (chỉ đếm) thay bằng `hoanBcvh` / `kgHoanBcvh` (khối đầy đủ theo BCVH), `congCacNgay` cộng khối này, ngày rỗng có khối. Chỉ thêm; `tong_shbg_ngay` giữ nguyên giá trị.
+- **Nhãn server → «Hàng chuyển hoàn»:** `kttDong.js` (`NHAN_HANG_HOAN`; `phan_loai` của chi-tiet, xlsx sheet 7), `kttXuat.js` (tiêu đề cột sheet 8, câu bộ lọc «Thông tin» sheet 8). `kttDong.dongChiTiet` thêm `hang_hoan` (boolean) cho `items[]` của chi-tiet; sheet 7 không thêm cột.
+- **Script quét biến chưa khai báo** (NGOÀI repo): `D:\Dev_tools\quet-bien-chua-khai-bao.js` (parseAst + transformWithOxc của vite, không thêm gói). Chạy trên `src/` (95 file): 0 biến chưa khai báo, 0 lỗi cú pháp.
+- **Test:** `tests/ktt-hang-hoan-theo-bcvh.test.js` (4 ca mới, thêm vào `npm test`). Test cũ sửa chỉ ở nhãn / trường mới: `ktt-api` (danh sách trường được phép của chi-tiet thêm `hang_hoan`), `ktt-xuat` (nhãn nhóm «Hàng chuyển hoàn», tên một ca), `ktt-xuat-sheet8` (regex câu bộ lọc). `npm test`: 1254 test (trước 1250), 1244 đạt, 10 bỏ qua, 0 lỗi; `npm run build` đạt.
+- **Nợ:** giao diện (KTT-17-3c); chưa đo trên bản sao DB (PO chưa ghi đường dẫn).
+- **Tài liệu:** `42_KTT_API.md` mục 15, `41`, `04_DECISIONS.md` #122, `00_SNAPSHOT.md`.
+
 ## [2026-10-31] - KTT-17-2: phân loại «hàng hoàn» theo ItemReturn (backend + test + docs; KHÔNG đổi giao diện, KHÔNG thêm nhóm / hướng)
 
 - **Định nghĩa mới (PO 31/10):** hàng hoàn = SHBG có trong `ktt_hang_hoan` VÀ `u.nhom = BCVH_HUE` (đích 6 BCVH, mọi nơi gửi). Bỏ quy tắc 7b và hằng `MA_TO_KHHH` / `MA_THUAN_HOA`. `phanLoaiShbg` (`kttLuuThoat.js`): `const hoan = u.hangHoan === true;` (trước: `u.noiGuiGoc === '531120' && ma === '533140'`). Đích không rõ / ngoài 6 BCVH vẫn đi nhánh cũ nên không hoàn.

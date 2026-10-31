@@ -879,5 +879,9 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 4. **Cách cài (Claude Code chọn):** danh sách đọc một lần mỗi lượt vào Set (không JOIN), `phanLoaiShbg` vẫn thuần (`u.hangHoan`); khóa bộ nhớ đệm thêm phiên bản danh sách; danh sách rỗng → hoàn 0 và `meta.hang_hoan_chua_nap = true` (không cảnh báo).
 5. **Điều kiện golive:** phải nạp ItemReturn TRƯỚC khi chạy bản này. Giao diện (nhãn «Hàng hoàn Tổ KHHH», ô hoàn chỉ ở cột Thuận Hóa ở KttBanDoNhiet) chưa đổi: ticket sau.
 
+### 122. Nhãn «Hàng chuyển hoàn» và `theo_bcvh[mã].hang_hoan` (KTT-17-3b, PO 31/10/2026)
+
+Phía server đổi nhãn «Hàng hoàn Tổ KHHH» → **«Hàng chuyển hoàn»** (`phan_loai` của chi-tiet / xlsx sheet 7, tiêu đề cột sheet 8, câu bộ lọc «Thông tin» sheet 8) vì hoàn không còn gắn Tổ KHHH 531120 (#121). `/luu-thoat` thêm `theo_bcvh[mã].hang_hoan` (cùng hình dạng `tong_cong.hang_hoan`; tổng 6 khối = khối chung, trừ số túi không cộng được) để giao diện hiện đúng hoàn của từng BCVH; `/chi-tiet` thêm `items[].hang_hoan` (boolean) để giao diện khỏi so chuỗi nhãn. Chỉ thêm field; không đổi định nghĩa hoàn hay cách tính chỉ số.
+
 ## Drift phát hiện
 _(chưa có)_
