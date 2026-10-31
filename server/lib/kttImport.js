@@ -268,4 +268,4 @@ function importKttDuongDan(db, target, opts = {}) {
   return opts.dryRun ? kq.map((r) => ({ ...r, dryRun: true })) : kq;
 }
 
-module.exports = { napFile, bamFile, demKhongCon, CUA_SO_NGAY, KttFileError, importKttTui, importKttBuuGui, importKttDuongDan, chayThu, loaiTuTen, giaTriGio, giaTriSo, TOI_DA_LOI_MAU };
+module.exports = { napFile, docFile, bamFile, demKhongCon, CUA_SO_NGAY, KttFileError, importKttTui, importKttBuuGui, importKttDuongDan, chayThu, loaiTuTen, giaTriGio, giaTriSo, TOI_DA_LOI_MAU };

@@ -2,6 +2,16 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-10-31] - KTT-17-1: nạp danh sách hàng hoàn (ItemReturn) vào hệ thống (backend + test + docs; KHÔNG đổi phân loại, chỉ số, giao diện)
+
+- **Bảng mới** (`kttSchema.js`, chỉ THÊM): `ktt_hang_hoan` (shbg UNIQUE chuẩn hóa như `ktt_buu_gui`, `nguon_xuat_luc`, `nap_lan_id`, `cap_nhat_luc`; CỘNG DỒN) và nhật ký riêng `ktt_hang_hoan_nap`. Kiểm: `ktt_nap_lan.loai` có `CHECK (loai IN ('TUI','BUU_GUI'))` nên KHÔNG dùng / KHÔNG sửa, đúng điều cấm ALTER.
+- **Importer** `server/lib/kttHangHoan.js` (mới), dùng lại `kttImport.docFile` (chỉ thêm `docFile` vào export của `kttImport.js`): UPSERT theo `Nguon_xuat_luc`, trùng trong file đếm riêng, sha256 chặn nạp lại, thiếu cột → REJECTED, file rỗng hợp lệ, dòng lỗi chỉ ghi mã (không giá trị), `dryRun`.
+- **CLI** `scripts/ktt-hang-hoan-import.js` (mới). **SFTP** `kttSftp.quetMotLan`: nhận `KTT_HangHoan_*.csv` như file độc lập (không ghép cặp / CHO_CAP / THIEU_FILE, không là `fileLa`; ổn định ≥ 2 lượt; không tải lại file đã OK / REJECTED cùng kích thước + mtime); kết quả thêm `hangHoan` ngoài `dem`. **API** `/api/nap-nguon/ktt/trang-thai` thêm `do_moi_hang_hoan`.
+- **Test:** `tests/ktt-hang-hoan.test.js` (17 ca, mới; thêm vào script `npm test` ở `package.json`). Sửa `tests/ktt-sftp.test.js` DUY NHẤT một dòng: danh sách khóa của `trang-thai` có thêm `do_moi_hang_hoan`. `npm test`: 1240 test (trước 1223), 1230 đạt, 10 bỏ qua, 0 lỗi; `npm run build` đạt.
+- **Đo trên bản sao DB (đã xóa; file thật của PO nằm ngoài repo; cửa sổ 30/09–29/10, 190.068 SHBG):** file 17.648 SHBG (đều 13 ký tự, 0 dòng lỗi); 8.345 SHBG của cửa sổ có trong ItemReturn; quy tắc hiện hành 1.088 hoàn: 447 trùng ItemReturn, 641 chỉ ở quy tắc, 7.898 chỉ ở ItemReturn (5.707 trong số đó đích ngoài 6 BCVH). Chi tiết ở báo cáo bàn giao.
+- **Chưa làm / nợ:** nối `phanLoaiShbg` với `ktt_hang_hoan` (KTT-17-2, chờ PO xem số đo); phiên bản danh sách trong khóa cache; chưa chạy trên SFTP thật.
+- **Tài liệu:** `39_KTT_NAP_SFTP.md` mục 15, `36_KTT_TU_DIEN_DU_LIEU.md` mục 9, `03_ARCHITECTURE_MAP.md`, `00_SNAPSHOT.md`.
+
 ## [2026-10-29] - KTT-8d2: sửa bộ lọc `/danh-sach` và sheet 8 — mã rỗng `__RONG__`, `hang_hoan`, bộ kiểm mã, bỏ định nghĩa C3 (backend + test + docs; không đổi `src/`, importer, `.env`, `data/`)
 
 - **Mã rỗng:** `duong_thu` / `noi_gui` nhận `__RONG__` (`kttNguon.MA_LOC_RONG`) = «mã null / rỗng / toàn khoảng trắng»; hàm khớp chung `kttNguon.khopMaLoc` dùng ở `kttDiNgayQuery.duyetDanhSach` (cả `/danh-sach` lẫn `/xuat/hom-sau-chua-di`) và `kttDiNgay.soOManHinh`; «Thông tin» ghi «(không có mã)». Tham số mã được bỏ khoảng trắng đầu / cuối.

@@ -14,6 +14,7 @@ const F = require('./sftpFiles');
 const S = require('./sftpSync');
 const Sch = require('./sftpScheduler');
 const K = require('./kttNapCap');
+const H = require('./kttHangHoan');
 const CF = require('../config/ktt-nap');
 
 const TT = Object.freeze({ TAT: 'TAT', CAU_HINH_SAI: 'CAU_HINH_SAI', CHO: 'CHO', DANG_CHAY: 'DANG_CHAY', TAM_DUNG: 'TAM_DUNG', DA_DUNG: 'DA_DUNG', CHUA_KHOI_DONG: 'CHUA_KHOI_DONG' });
@@ -103,8 +104,11 @@ async function quetMotLan({ client, db, thuMuc, napFn = K.napCap, now = () => ne
   dem.tongListKe = lietKe.length;
   const nhom = new Map(); // khoa -> { TUI, BUU_GUI }
   const khop = [];
+  const fileHangHoan = []; // KTT-17-1: KTT_HangHoan_*.csv là file ĐỘC LẬP (không ghép cặp, không CHO_CAP, không cảnh báo THIEU_FILE)
   for (const e of lietKe) {
     const ten = String(e.name);
+    const hh = e.type === '-' ? H.phanTichTenHangHoan(ten) : null;
+    if (hh) { const f = { name: ten, size: Number(e.size) || 0, mtime: Number(e.modifyTime) || 0, ...hh }; khop.push(f); fileHangHoan.push(f); continue; }
     const p = e.type === '-' ? K.phanTichTenKtt(ten) : null;
     if (!p) { dem.fileLa++; continue; }
     const f = { name: ten, size: Number(e.size) || 0, mtime: Number(e.modifyTime) || 0, ...p };
@@ -152,6 +156,26 @@ async function quetMotLan({ client, db, thuMuc, napFn = K.napCap, now = () => ne
         for (const f of [c.tui.path, c.buuGui.path]) { try { fs.rmSync(f, { force: true }); } catch (e) { /* tệp tạm */ } }
       }
       await new Promise((r) => setImmediate(r)); // nhường vòng lặp sự kiện giữa hai cặp
+    }
+    // KTT-17-1: file hàng hoàn, xử lý SAU các cặp, hoàn toàn tách khỏi cặp (lỗi ở đây không ảnh hưởng cặp).
+    const hh = kq.hangHoan = { tong: fileHangHoan.length, nap: 0, daCo: 0, chuaOnDinh: 0, tuChoi: 0, loi: 0, vuotToiDa: 0 };
+    for (const f of fileHangHoan.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (huy()) { kq.daHuy = true; break; }
+      if (H.lanNapDaXong(db, f.name, f.size, f.mtime)) { hh.daCo++; continue; }
+      if (!onDinh.has(f.name)) { hh.chuaOnDinh++; continue; }
+      if (hh.nap + hh.tuChoi + hh.loi >= CF.SO_CAP_TOI_DA_MOI_LUOT) { hh.vuotToiDa++; continue; }
+      if (!thuMucTam) thuMucTam = fs.mkdtempSync(path.join(tmpDir, `hue-dhcl-ktt-${crypto.randomBytes(4).toString('hex')}-`));
+      const dich = path.join(thuMucTam, f.name);
+      try {
+        await client.get(`${thuMuc.replace(/\/+$/, '')}/${f.name}`, dich);
+        const size = fs.statSync(dich).size;
+        if (size !== f.size) throw Object.assign(new Error(`Tải về ${size} byte nhưng danh sách báo ${f.size} byte (file có thể đang được ghi)`), { code: 'KICH_THUOC_LECH' });
+        const r = await thuLaiKhiBusy(() => H.napHangHoan(db, dich, { size: f.size, mtime: f.mtime }), sleep, log);
+        if (r.status === 'OK') hh.nap++; else if (r.status === 'DA_NAP') hh.daCo++; else hh.tuChoi++;
+      } catch (err) {
+        hh.loi++;
+        log(`Không nạp được file hàng hoàn: ${laBusy(err) ? 'SQLITE_BUSY' : (String((err && err.code) || '').replace(/[^A-Za-z0-9_]/g, '').toUpperCase().slice(0, 40) || 'LOI_TAI_HOAC_NAP')}`);
+      } finally { try { fs.rmSync(dich, { force: true }); } catch (e) { /* tệp tạm */ } }
     }
   } finally {
     if (thuMucTam) { try { fs.rmSync(thuMucTam, { recursive: true, force: true }); } catch (e) { /* tệp tạm */ } }
@@ -263,7 +287,7 @@ function taoBoHenGioKtt({ db, env = process.env, clock = dongHoThat, sleep, ketN
       const d = kq.dem;
       xong({ ketQua: d.capLoi || d.capTuChoi ? KET_QUA_LUOT.CO_LOI : KET_QUA_LUOT.XONG, dem: { ...d } });
       if (d.capNap > 0 && typeof sauNap === 'function') { try { sauNap(); } catch (e) { /* KTT-15: làm nóng cache nền; lỗi không được làm hỏng lượt nạp */ } }
-      nhatKy(`Quét xong: nạp ${d.capNap} cặp, đã có ${d.capDaCo}, chờ cặp ${d.capChoCap}, chưa ổn định ${d.capChuaOnDinh}, từ chối ${d.capTuChoi}, lỗi ${d.capLoi}${d.capVuotToiDa ? `, hoãn ${d.capVuotToiDa}` : ''}${d.fileLa ? `, file lạ ${d.fileLa}` : ''} — ${st.luotGanNhat.thoiGianMs} ms.`);
+      nhatKy(`Quét xong: nạp ${d.capNap} cặp, đã có ${d.capDaCo}, chờ cặp ${d.capChoCap}, chưa ổn định ${d.capChuaOnDinh}, từ chối ${d.capTuChoi}, lỗi ${d.capLoi}${d.capVuotToiDa ? `, hoãn ${d.capVuotToiDa}` : ''}${d.fileLa ? `, file lạ ${d.fileLa}` : ''}${kq.hangHoan && kq.hangHoan.tong ? `; file hàng hoàn: nạp ${kq.hangHoan.nap}, đã có ${kq.hangHoan.daCo}, chưa ổn định ${kq.hangHoan.chuaOnDinh}, từ chối ${kq.hangHoan.tuChoi}, lỗi ${kq.hangHoan.loi}` : ''} — ${st.luotGanNhat.thoiGianMs} ms.`);
       const cb = K.canhBao(db, clock.now());
       if (cb.length) { const dm = {}; for (const x of cb) dm[x.ma] = (dm[x.ma] || 0) + 1; nhatKy(`Cảnh báo đang mở: ${Object.entries(dm).map(([k, v]) => `${k}=${v}`).join(', ')}.`); }
     } finally {
