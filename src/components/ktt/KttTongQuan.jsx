@@ -174,6 +174,8 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
     (!loading && tongQuanData && !tongQuanData.co_du_lieu);
   const cuaSo = tongQuanData?.cua_so_thuc_te;
   const doMoi = tongQuanData?.nguon_xuat_luc_moi_nhat || meta?.nguon_xuat_luc_moi_nhat;
+  const hangHoanChuaNap = tongQuanData?.hang_hoan_chua_nap ?? meta?.hang_hoan_chua_nap;
+  const hangHoanNguonXuatLuc = tongQuanData?.hang_hoan_nguon_xuat_luc || meta?.hang_hoan_nguon_xuat_luc;
 
   // Dữ liệu Điểm chính (3 thẻ B1)
   const the = tongQuanData?.di_cung_ngay?.the;
@@ -200,6 +202,17 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                 Dữ liệu đến lúc {formatDateTimeWithoutSeconds(doMoi)}
               </span>
             )}
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-600" />
+                Chưa nạp danh sách hàng hoàn; số hoàn = 0 chưa đúng
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <Clock className="w-3 h-3" />
+                Danh sách hoàn cập nhật lúc {formatDateTimeWithoutSeconds(hangHoanNguonXuatLuc)}
+              </span>
+            ) : null}
           </div>
           <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
             <span>Trung tâm Khai thác · 530100 · Hàng tại KTT</span>
@@ -330,7 +343,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                 KTT. Hàng rớt lại gồm: đi hôm sau, đi từ 2 ngày trở lên, hoặc chưa đi quá 24 giờ.
               </p>
               <div className="pt-2 border-t border-gray-100 text-[11px] text-gray-500">
-                Hàng hoàn Tổ KHHH được tách riêng, không cộng vào tổng và tỷ lệ chung để đảm bảo
+                Hàng chuyển hoàn được tách riêng, không cộng vào tổng và tỷ lệ chung để đảm bảo
                 phản ánh đúng chất lượng điều hành.
               </div>
             </div>

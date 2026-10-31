@@ -13,7 +13,7 @@ const STATUS_CHIP_OPTIONS = [
   { key: 't4', label: '4 · Hôm sau trượt' },
   { key: 't5', label: '5 · Từ 2 ngày / chưa đi' },
   { key: 'dang_cho_chuyen', label: 'Đang chờ chuyến' },
-  { key: 'hang_hoan', label: 'Hàng hoàn Tổ KHHH' },
+  { key: 'hang_hoan', label: 'Hàng chuyển hoàn' },
   { key: 'dat', label: 'Đạt 14 giờ' },
   { key: 'khong_dat', label: 'Không đạt 14 giờ' },
 ];
@@ -240,7 +240,7 @@ export default function KttChiTiet({
                 const nguonTen =
                   r.duong_thu_den_ten ||
                   r.duong_thu_den_ma ||
-                  (r.phan_loai === 'Hàng hoàn Tổ KHHH' ? 'Chuyển hoàn · 531120' : '—');
+                  (r.hang_hoan ? 'Hàng chuyển hoàn' : '—');
 
                 // Chuyến liền kề: giờ xuất phát -> hạn đến muộn nhất
                 const chuyenLienKeStr =

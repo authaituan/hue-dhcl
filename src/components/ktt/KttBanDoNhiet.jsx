@@ -66,16 +66,25 @@ export default function KttBanDoNhiet({
     return [...regular, ...noiTinh, ...khongRo];
   }, [data]);
 
-  // Hàng chuyển hoàn Tổ KHHH
+  // Hàng chuyển hoàn
   const hhData = useMemo(() => {
     if (!data?.tong_cong?.hang_hoan) return null;
-    const hh = data.tong_cong.hang_hoan;
-    const shbg = hh.tong_shbg ?? 0;
-    const roLai = (hh.trang_thai?.t3?.shbg ?? 0) +
-      (hh.trang_thai?.t4?.shbg ?? 0) +
-      (hh.trang_thai?.t5?.shbg ?? 0);
-    const truot = (hh.dung_chuyen?.truot_chuyen ?? 0) + (hh.dung_chuyen?.lo_chuyen ?? 0);
-    return { shbg, roLai, truot };
+    const calc = (hh) => {
+      const shbg = hh?.tong_shbg ?? 0;
+      const roLai = (hh?.trang_thai?.t3?.shbg ?? 0) +
+        (hh?.trang_thai?.t4?.shbg ?? 0) +
+        (hh?.trang_thai?.t5?.shbg ?? 0);
+      const truot = (hh?.dung_chuyen?.truot_chuyen ?? 0) + (hh?.dung_chuyen?.lo_chuyen ?? 0);
+      return { shbg, roLai, truot };
+    };
+
+    const theo_bcvh = {};
+    BCVH_LIST.forEach((b) => {
+      theo_bcvh[b.ma] = calc(data?.tong_cong?.theo_bcvh?.[b.ma]?.hang_hoan);
+    });
+
+    const tong = calc(data.tong_cong.hang_hoan);
+    return { ...tong, theo_bcvh };
   }, [data]);
 
   // Dòng "Cộng" dưới đáy cho từng BCVH
@@ -650,40 +659,93 @@ export default function KttBanDoNhiet({
               })()}
             </tr>
 
-            {/* ── DÒNG «CHUYỂN HOÀN · TỔ KHHH 531120» ─────────────────────── */}
+            {/* ── DÒNG «HÀNG CHUYỂN HOÀN» ─────────────────────── */}
             {hhData && (
               <tr className="bg-purple-50/20 text-xs">
                 <td className="py-2.5 px-3">
                   <div className="font-bold text-gray-900">
-                    Chuyển hoàn · Tổ KHHH 531120 (về Thuận Hóa)
+                    Hàng chuyển hoàn
                   </div>
                   <div className="text-[11px] text-gray-500 italic mt-0.5">
                     Không tính chỉ tiêu 14 giờ; không cộng vào dòng Cộng
                   </div>
                 </td>
 
-                {/* Cột Thuận Hóa */}
-                <td className="p-1">
+                {/* Mỗi ô BCVH của hàng hoàn */}
+                {BCVH_LIST.map((b) => {
+                  const bHh = hhData.theo_bcvh?.[b.ma] || { shbg: 0, roLai: 0, truot: 0 };
+                  const ratio = bHh.shbg > 0 ? bHh.roLai / bHh.shbg : 0;
+                  const style = getHeatmapStyle(hasNoData || bHh.shbg === 0 ? 0 : ratio);
+                  const isSelected =
+                    selectedCell?.loai === 'hang_hoan' && selectedCell?.ma_bcvh === b.ma;
+
+                  return (
+                    <td key={b.ma} className="p-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectCell({
+                            nguon: null,
+                            nguonTen: 'Hàng chuyển hoàn',
+                            ma_bcvh: b.ma,
+                            bcvhTen: b.ten,
+                            loai: 'hang_hoan',
+                            label: 'Hàng chuyển hoàn',
+                          })
+                        }
+                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-purple-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          style.className
+                        } ${
+                          isSelected
+                            ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
+                            : ''
+                        }`}
+                      >
+                        {hasNoData || bHh.shbg === 0 ? (
+                          <span className="text-gray-400 italic">—</span>
+                        ) : (
+                          <>
+                            <div className="text-sm font-bold tabular-nums leading-tight">
+                              {formatInt(bHh.roLai)}
+                            </div>
+                            <div
+                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                            >
+                              {formatPercent(ratio)} của {formatInt(bHh.shbg)}
+                            </div>
+                            <div
+                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                            >
+                              trượt {formatInt(bHh.truot)}
+                            </div>
+                          </>
+                        )}
+                      </button>
+                    </td>
+                  );
+                })}
+
+                {/* Ô Cộng hàng hoàn */}
+                <td className="p-1 bg-[#FAF5E8]/30">
                   {(() => {
                     const ratio = hhData.shbg > 0 ? hhData.roLai / hhData.shbg : 0;
                     const style = getHeatmapStyle(hasNoData || hhData.shbg === 0 ? 0 : ratio);
                     const isSelected =
-                      selectedCell?.loai === 'hang_hoan' && selectedCell?.ma_bcvh === '533140';
+                      selectedCell?.loai === 'hang_hoan' && !selectedCell?.ma_bcvh;
 
                     return (
                       <button
                         type="button"
                         onClick={() =>
                           onSelectCell({
-                            nguon: null,
-                            nguonTen: 'Chuyển hoàn Tổ KHHH',
-                            ma_bcvh: '533140',
-                            bcvhTen: 'Thuận Hóa',
+                            ma_bcvh: null,
                             loai: 'hang_hoan',
-                            label: 'Chuyển hoàn Tổ KHHH (về Thuận Hóa)',
+                            nguon: null,
+                            nguonTen: 'Hàng chuyển hoàn',
+                            label: 'Hàng chuyển hoàn',
                           })
                         }
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-purple-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
                           style.className
                         } ${
                           isSelected
@@ -711,46 +773,6 @@ export default function KttBanDoNhiet({
                           </>
                         )}
                       </button>
-                    );
-                  })()}
-                </td>
-
-                {/* 5 BCVH còn lại: không có hàng hoàn Tổ KHHH */}
-                {BCVH_LIST.slice(1).map((b) => (
-                  <td key={b.ma} className="p-1 text-center text-gray-400 italic">
-                    —
-                  </td>
-                ))}
-
-                {/* Ô Cộng hàng hoàn */}
-                <td className="p-1 bg-[#FAF5E8]/30">
-                  {(() => {
-                    const ratio = hhData.shbg > 0 ? hhData.roLai / hhData.shbg : 0;
-                    const style = getHeatmapStyle(hasNoData || hhData.shbg === 0 ? 0 : ratio);
-                    return (
-                      <div
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center ${style.className}`}
-                      >
-                        {hasNoData || hhData.shbg === 0 ? (
-                          <span className="text-gray-400 italic">—</span>
-                        ) : (
-                          <>
-                            <div className="text-sm font-bold tabular-nums leading-tight">
-                              {formatInt(hhData.roLai)}
-                            </div>
-                            <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {formatPercent(ratio)} của {formatInt(hhData.shbg)}
-                            </div>
-                            <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              trượt {formatInt(hhData.truot)}
-                            </div>
-                          </>
-                        )}
-                      </div>
                     );
                   })()}
                 </td>

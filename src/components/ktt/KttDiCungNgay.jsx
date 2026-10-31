@@ -242,6 +242,8 @@ export default function KttDiCungNgay({ authUser }) {
   const isChuaCoDuLieu = tongHopData?.ly_do === 'CHUA_CO_DU_LIEU' || (!loading && tongHopData && !tongHopData.co_du_lieu);
   const cuaSo = tongHopData?.cua_so_thuc_te;
   const doMoi = tongHopData?.nguon_xuat_luc_moi_nhat || meta?.nguon_xuat_luc_moi_nhat;
+  const hangHoanChuaNap = tongHopData?.hang_hoan_chua_nap ?? meta?.hang_hoan_chua_nap;
+  const hangHoanNguonXuatLuc = tongHopData?.hang_hoan_nguon_xuat_luc || meta?.hang_hoan_nguon_xuat_luc;
 
   // Khối B1 ba thẻ
   const ltBcvh = tongHopData?.lien_tinh_den_bcvh;
@@ -277,6 +279,17 @@ export default function KttDiCungNgay({ authUser }) {
                 Dữ liệu đến lúc {formatDateTimeWithoutSeconds(doMoi)}
               </span>
             )}
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-600" />
+                Chưa nạp danh sách hàng hoàn; số hoàn = 0 chưa đúng
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <Clock className="w-3 h-3" />
+                Danh sách hoàn cập nhật lúc {formatDateTimeWithoutSeconds(hangHoanNguonXuatLuc)}
+              </span>
+            ) : null}
           </div>
           <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
             <span>Trung tâm Khai thác · 530100 · Hàng tại KTT</span>
@@ -441,7 +454,7 @@ export default function KttDiCungNgay({ authUser }) {
           <div className="bg-[#FAF5E8] rounded-[14px] p-4 border border-[#E4D5AE] text-xs space-y-2 min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="font-bold text-gray-800">
-                Nội tỉnh đi BCVH Huế (có và không kể hàng hoàn Tổ KHHH):
+                Nội tỉnh đi BCVH Huế (có và không kể hàng chuyển hoàn):
               </span>
               <div className="flex flex-wrap items-center gap-4 text-xs">
                 <div>
@@ -460,7 +473,7 @@ export default function KttDiCungNgay({ authUser }) {
                 </div>
                 {ntHangHoan && (
                   <div className="text-gray-600">
-                    <span>Hàng hoàn KHHH (531120): </span>
+                    <span>Hàng chuyển hoàn: </span>
                     <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntHangHoan?.tong_shbg)}</strong> bưu gửi
                     <span className="mx-1">·</span>
                     <strong className="font-bold tabular-nums text-gray-800">{formatPercent(ntHangHoan?.ty_le?.cung_ngay)}</strong>
@@ -469,7 +482,7 @@ export default function KttDiCungNgay({ authUser }) {
               </div>
             </div>
             <p className="text-[11px] text-gray-600 italic">
-              * Hàng chuyển hoàn từ Tổ KHHH (531120) về Thuận Hóa được theo dõi riêng, không tính vào chỉ tiêu 14 giờ và không tính vào tỷ lệ chung.
+              * Hàng chuyển hoàn được theo dõi riêng, không tính vào chỉ tiêu 14 giờ và không tính vào tỷ lệ chung.
             </p>
           </div>
 

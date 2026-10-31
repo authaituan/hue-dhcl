@@ -150,6 +150,8 @@ export default function KttLichXe({ authUser }) {
   const isChuaCoDuLieu = b5Data?.ly_do === 'CHUA_CO_DU_LIEU' || (!loading && b5Data && !b5Data.co_du_lieu);
   const cuaSo = b5Data?.cua_so_thuc_te;
   const doMoi = b5Data?.nguon_xuat_luc_moi_nhat || meta?.nguon_xuat_luc_moi_nhat;
+  const hangHoanChuaNap = b5Data?.hang_hoan_chua_nap ?? meta?.hang_hoan_chua_nap;
+  const hangHoanNguonXuatLuc = b5Data?.hang_hoan_nguon_xuat_luc || meta?.hang_hoan_nguon_xuat_luc;
 
   // Dữ liệu B4
   const b4Dong = b4Data?.dong || [];
@@ -178,6 +180,17 @@ export default function KttLichXe({ authUser }) {
                 Dữ liệu đến lúc {formatDateTimeWithoutSeconds(doMoi)}
               </span>
             )}
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-600" />
+                Chưa nạp danh sách hàng hoàn; số hoàn = 0 chưa đúng
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <Clock className="w-3 h-3" />
+                Danh sách hoàn cập nhật lúc {formatDateTimeWithoutSeconds(hangHoanNguonXuatLuc)}
+              </span>
+            ) : null}
           </div>
           <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-2">
             <span>Trung tâm Khai thác · 530100 · Hàng tại KTT</span>
@@ -427,9 +440,9 @@ export default function KttLichXe({ authUser }) {
               )}
             </div>
 
-            {/* Hộp ghi chú KHHH */}
+            {/* Hộp ghi chú hàng chuyển hoàn */}
             <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] p-3 text-xs text-[#5A4A62] mt-4">
-              <strong>Ghi chú hàng chuyển hoàn:</strong> Hàng chuyển hoàn từ Tổ KHHH (531120 → Thuận Hóa) được tách riêng ở dòng có nhãn «Hoàn», không cộng vào tổng mục và không tính chỉ tiêu 14 giờ.
+              <strong>Ghi chú hàng chuyển hoàn:</strong> Hàng chuyển hoàn được tách riêng ở dòng có nhãn «Hoàn», không cộng vào tổng mục và không tính chỉ tiêu 14 giờ.
             </div>
           </div>
 
