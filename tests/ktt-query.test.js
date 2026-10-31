@@ -553,7 +553,7 @@ test('mã nguồn: không new Date / Date.parse trên chuỗi giờ (Date.now ch
   }
   const q = fs.readFileSync(path.join(dir, 'kttQuery.js'), 'utf8');
   assert.equal((q.match(/Date\.now/g) || []).length, 1);
-  assert.deepEqual([...q.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map((m) => m[1]), ['./quyThoiGian', './kttTinh', './kttCauHinh', './kttLichChuyen', './kttChuyen']);
+  assert.deepEqual([...q.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map((m) => m[1]), ['./quyThoiGian', './kttTinh', './kttCauHinh', './kttLichChuyen', './kttHangHoan', './kttChuyen']);
   assert.ok(!/\.run\(|\.exec\(|db\.transaction|\.pragma\(/.test(q), 'kttQuery.js không được ghi DB');
   const sqls = [...q.matchAll(/`(SELECT[\s\S]*?)`/g)].length;
   assert.ok(sqls >= 3);

@@ -46,7 +46,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   db.exec("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'");
   TS.khoiTao(db);
   Api.xoaCache();
@@ -55,6 +55,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NGX = { nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NGX, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NGX, ...o }); }
@@ -86,6 +87,7 @@ function duLieu() {
   kt('KTT-DEMO-N2', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', nhan: HT, diemGui: '531120', gam: 250 }); // từ 531120 nhưng đích HT: hàng thường, NOI_TINH (không phải hàng hoàn)
   kt('KTT-DEMO-K1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 05:50:00', nhan: HT, diemGui: null, duong: [null, null], gam: 350 }); // thiếu mã đường thư -> KHONG_RO_NGUON
   kt('KTT-DEMO-H1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', diemGui: '531120', gam: 700 }); // hàng hoàn Tổ KHHH: không vào theo_nguon
+  hoan('KTT-DEMO-H1');
   kt('KTT-DEMO-X1', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-21 09:00:00', nhan: '530900', gam: 800 }); // ngoài phạm vi
   kt('KTT-DEMO-Q0', { quet: null, xnd: '2026-10-21 06:00:00', gioDi: '2026-10-21 07:00:00', gam: 900 }); // thiếu giờ quét đến
   capOk('2026-10-21 10:00:00');
@@ -223,7 +225,7 @@ test('ngày trống và chưa có dữ liệu: các trường mới có mặt v�
   assert.deepEqual(r.theo_ngay[0].theo_nguon, []);
   assert.deepEqual(r.tong_cong.theo_nguon, []);
   assert.equal(r.tong_cong.kg, 0);
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   Api.xoaCache();
   const rong = await lt();
   assert.equal(rong.tong_cong, null);

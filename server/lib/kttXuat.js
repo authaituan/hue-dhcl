@@ -168,7 +168,7 @@ function soKhop(luuThoat, { nhom = null, maBcvh = null, nguon = null } = {}) {
     }
   }
   const khoi = maBcvh ? tongCong.theo_bcvh[maBcvh] : tongCong;
-  const hoan = !maBcvh || maBcvh === S.MA_THUAN_HOA ? tongCong.hang_hoan.tong_shbg : 0;
+  const hoan = maBcvh ? khoi.tong_shbg_ngay - khoi.tong_shbg : tongCong.hang_hoan.tong_shbg; // KTT-17-2: hàng hoàn của BCVH đó (có ở cả 6 BCVH)
   const dk = khoi.dat_khong_dat;
   const kpl = khoi.khong_phan_loai || {};
   if (!nhom) return maBcvh ? khoi.tong_shbg + hoan : tongCong.tong_shbg_ngay;
@@ -218,8 +218,8 @@ function dongThongTin(ctx) {
     ['Phạm vi bưu gửi', 'Mỗi SHBG tính MỘT lần. Gồm bưu gửi khai thác lại (có túi đến được mở) và bưu gửi chỉ có túi chuyển tiếp đi (KTT không mở túi; đi ngoài hoặc túi chia sẵn). SHBG có cả hai loại túi tính theo túi đến. Cờ nguồn: trường nguon_hang của API chi-tiet (khai_thac | chuyen_tiep).'],
     ['Định nghĩa: năm trạng thái', 'Mốc xếp chuyến = giờ quét túi đến KTT; «đã đi» = giờ lập BD10 đi; ngày D = ngày quét túi đến. 1 = Đi trong ngày (D), đúng chuyến; 2 = Đi trong ngày (D), trượt chuyến; 3 = Đi hôm sau (D+1), đúng chuyến; 4 = Đi hôm sau (D+1), trượt chuyến; 5 = Từ 2 ngày (đi từ D+2) hoặc chưa đi mà đã lỡ giờ xe rời KTT. Lưu thoát = trạng thái 1 + 2.'],
     ['Định nghĩa: đang chờ chuyến', 'Chưa lập BD10 đi và chưa đến giờ xe rời KTT của chuyến liền kề; không tính vào trạng thái 5 và không vào mẫu số.'],
-    ['Định nghĩa: hàng hoàn Tổ KHHH', `Túi đến gốc có nơi gửi BD10 là ${S.MA_TO_KHHH} và đích là BCVH Thuận Hóa (${S.MA_THUAN_HOA}). Ghi «${LOAI_TRU}» ở cột đạt / không đạt, không vào tổng chỉ tiêu.`],
-    ['Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', `Đo song song hai mốc, cùng kết thúc ở giờ lập BD10 đi, bỏ khung 21:00–07:00. Mốc A = giờ xác nhận BD10 đến (ConfirmDate); Mốc B = giờ quét túi đến KTT. «Đo được» = đã lập BD10 đi và mốc không sau giờ đi (Đạt / Không đạt); «Không đo được» = thiếu mốc, mốc sau giờ lập BD10 đi, hoặc chưa đi. Mẫu số = SHBG đã phân loại (năm trạng thái + đang chờ chuyến). «${KHONG_TINH}» = hàng thiếu giờ quét túi đến hoặc không xếp được chuyến; «${LOAI_TRU}» = hàng hoàn Tổ KHHH (cả hai không vào mẫu số). Không có tỷ lệ «đạt» chung: chỉ ghi «đo được x/y» của từng mốc.`],
+    ['Định nghĩa: hàng hoàn', `SHBG có trong danh sách hàng hoàn (ItemReturn của CSDL BCCP, nạp riêng) và đích là một trong 6 BCVH Huế; không xét nơi gửi gốc. Ghi «${LOAI_TRU}» ở cột đạt / không đạt, không vào tổng chỉ tiêu.`],
+    ['Định nghĩa: chỉ tiêu 14 giờ (hai mốc)', `Đo song song hai mốc, cùng kết thúc ở giờ lập BD10 đi, bỏ khung 21:00–07:00. Mốc A = giờ xác nhận BD10 đến (ConfirmDate); Mốc B = giờ quét túi đến KTT. «Đo được» = đã lập BD10 đi và mốc không sau giờ đi (Đạt / Không đạt); «Không đo được» = thiếu mốc, mốc sau giờ lập BD10 đi, hoặc chưa đi. Mẫu số = SHBG đã phân loại (năm trạng thái + đang chờ chuyến). «${KHONG_TINH}» = hàng thiếu giờ quét túi đến hoặc không xếp được chuyến; «${LOAI_TRU}» = hàng hoàn (cả hai không vào mẫu số). Không có tỷ lệ «đạt» chung: chỉ ghi «đo được x/y» của từng mốc.`],
     ['Định nghĩa: mốc chuyến và hạn đến', `Mốc chuyến = giờ xe rời KTT. Hạn đến = giờ xe rời KTT − ${han} phút (lấy từ cấu hình lịch chuyến). Hàng quét túi đến không muộn hơn hạn thì được xếp vào chuyến đó.`],
     ['Định nghĩa: hai mốc giờ đến', 'Giờ quét túi đến KTT dùng xếp chuyến, tính lưu thoát và là mốc B của chỉ tiêu 14 giờ; giờ xác nhận BD10 đến (ConfirmDate) là mốc A của chỉ tiêu 14 giờ.'],
     ...dongChiTieu14h(lt, ctx.maBcvh),
@@ -263,10 +263,10 @@ function dongThongTin8(ctx) {
     ['Chốt số theo ngày', ngay.join('; ') || '(không có ngày)'],
     ['Ngày xuất, người xuất', `${ctx.xuatLuc} (giờ Việt Nam); tài khoản: ${ctx.nguoiXuat || '(không rõ)'}.`],
     ['Trạng thái số liệu', tatCaChot ? 'Đã chốt: mọi ngày trong khoảng đã qua giờ chốt.' : `Số tạm: có ngày chưa chốt (ngày D chốt khi dữ liệu đến sau ${ctx.gioChot} ngày D+1). Nhóm «chưa đi trên 24 giờ» còn đổi khi có dữ liệu mới.`],
-    ['Phạm vi bưu gửi', 'Mỗi SHBG tính MỘT lần. Gồm bưu gửi khai thác lại (có túi đến được mở) và bưu gửi chỉ có túi chuyển tiếp đi. Ba hướng của trang B: liên tỉnh (xe Cấp 1) → 6 BCVH Huế, nội tỉnh → 6 BCVH Huế (hàng hoàn Tổ KHHH tách riêng), nội tỉnh → đi liên tỉnh (xe Cấp 1).'],
+    ['Phạm vi bưu gửi', 'Mỗi SHBG tính MỘT lần. Gồm bưu gửi khai thác lại (có túi đến được mở) và bưu gửi chỉ có túi chuyển tiếp đi. Ba hướng của trang B: liên tỉnh (xe Cấp 1) → 6 BCVH Huế, nội tỉnh → 6 BCVH Huế (hàng hoàn tách riêng, mọi nơi gửi), nội tỉnh → đi liên tỉnh (xe Cấp 1).'],
     ['Định nghĩa: năm nhóm đi', 'Cùng ngày · hôm sau · từ 2 ngày (đã đi từ D+2) · chưa đi dưới 24 giờ · chưa đi trên 24 giờ. Mẫu số tỷ lệ = tổng năm nhóm; «đang chờ chuyến» và «không phân loại» (thiếu giờ quét túi đến / không xếp được chuyến) ngoài mẫu số.'],
     ...dinhNghiaChung(ctx.hanPhut),
-    ['Định nghĩa: hàng hoàn Tổ KHHH', `Túi đến gốc có nơi gửi BD10 là ${S.MA_TO_KHHH} và đích là BCVH Thuận Hóa (${S.MA_THUAN_HOA}); dòng «Hoàn» riêng ở B5, không cộng vào tổng và tỷ lệ.`],
+    ['Định nghĩa: hàng hoàn', `SHBG có trong danh sách hàng hoàn (ItemReturn của CSDL BCCP, nạp riêng) và đích là một trong 6 BCVH Huế; không xét nơi gửi gốc. Dòng «Hoàn» riêng ở B5 (theo nơi gửi), không cộng vào tổng và tỷ lệ.`],
     ['Định nghĩa: số giờ chờ', 'Giờ đồng hồ (1 chữ số thập phân) từ giờ quét túi đến KTT (thiếu thì giờ xác nhận BD10 đến) tới giờ lập BD10 đi; chưa đi thì tới độ mới dữ liệu. KHÔNG phải giờ chờ tính chỉ tiêu 14 giờ (không bỏ khung đêm).'],
     ['Đơn vị', `Sheet «${TEN_SHEET_THONG_TIN}»: mỗi dòng một mục mô tả. Sheet «${TEN_SHEET_8}»: mỗi dòng là một SHBG (số hiệu bưu gửi) của ô đã bấm; khối lượng tính bằng kg.`],
     ['Số dòng kiểm tra', ctx.soDong],

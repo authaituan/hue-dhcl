@@ -91,4 +91,31 @@ function docDoMoiHangHoan(db) {
   return db.prepare("SELECT nguon_xuat_luc, nap_luc FROM ktt_hang_hoan_nap WHERE trang_thai = 'OK' AND nguon_xuat_luc IS NOT NULL ORDER BY nguon_xuat_luc DESC, id DESC LIMIT 1").get() || null;
 }
 
-module.exports = { phanTichTenHangHoan, napHangHoan, importKttHangHoan, importHangHoanDuongDan, lanNapDaXong, docDoMoiHangHoan };
+/**
+ * KTT-17-2: danh sách hàng hoàn cho MỘT lượt truy vấn: { set: Set(shbg), soDong, nguonXuatLuc (nguon_xuat_luc lớn nhất của danh sách | null), phienBan }.
+ * Đọc MỘT lần (SELECT shbg, ~vài chục nghìn dòng, vài ms) rồi tra bằng Set.has từng SHBG: rẻ hơn JOIN / truy vấn từng dòng vào lượt duyệt SHBG vốn đã nặng, và hàm
+ * phanLoaiShbg vẫn thuần (không DB). Bảng chưa có (DB cũ) = danh sách rỗng. `chiThongTin`: bỏ qua việc nạp Set (set rỗng), chỉ trả soDong / nguonXuatLuc / phienBan.
+ */
+function docDanhSachHangHoan(db, { chiThongTin = false } = {}) {
+  const kq = { set: new Set(), soDong: 0, nguonXuatLuc: null, phienBan: '0.0.' };
+  try {
+    if (chiThongTin) kq.soDong = db.prepare('SELECT COUNT(*) AS n FROM ktt_hang_hoan').get().n; // chỉ cờ meta / phiên bản: không nạp Set
+    else { for (const r of db.prepare('SELECT shbg FROM ktt_hang_hoan').iterate()) kq.set.add(r.shbg); kq.soDong = kq.set.size; }
+    kq.nguonXuatLuc = db.prepare('SELECT MAX(nguon_xuat_luc) AS m FROM ktt_hang_hoan').get().m || null;
+    kq.phienBan = phienBanHangHoan(db);
+  } catch (e) { /* thiếu bảng: danh sách rỗng */ }
+  return kq;
+}
+
+/** Phiên bản danh sách (vào khóa bộ nhớ đệm): id lần nạp OK lớn nhất . số dòng . lần cập nhật cuối. Đổi khi nạp thêm / cập nhật danh sách. */
+function phienBanHangHoan(db) {
+  try {
+    const r = db.prepare("SELECT (SELECT COALESCE(MAX(id), 0) FROM ktt_hang_hoan_nap WHERE trang_thai = 'OK') AS a, COUNT(*) AS b, COALESCE(MAX(cap_nhat_luc), '') AS c FROM ktt_hang_hoan").get();
+    return `${r.a}.${r.b}.${r.c}`;
+  } catch (e) { return '0.0.'; }
+}
+
+/** Cờ meta của các API: { hang_hoan_chua_nap (danh sách rỗng: số hoàn = 0 không có nghĩa là «không có hàng hoàn»), hang_hoan_nguon_xuat_luc }. */
+const metaHangHoan = (tt) => ({ hang_hoan_chua_nap: tt.soDong === 0, hang_hoan_nguon_xuat_luc: tt.nguonXuatLuc });
+
+module.exports = { docDanhSachHangHoan, phienBanHangHoan, metaHangHoan, phanTichTenHangHoan, napHangHoan, importKttHangHoan, importHangHoanDuongDan, lanNapDaXong, docDoMoiHangHoan };

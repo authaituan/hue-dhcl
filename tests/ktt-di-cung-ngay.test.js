@@ -46,7 +46,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   db.exec("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'");
   TS.khoiTao(db);
   Api.xoaCache();
@@ -55,6 +55,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NG = { nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NG, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o }); }
@@ -82,6 +83,7 @@ function duLieu() {
   kt('KTT-DEMO-B1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', diemGui: '530101', dt: 'DT-N', dtTen: 'Nội tỉnh giả' }); // nội tỉnh
   kt('KTT-DEMO-B2', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', nhan: HT });
   kt('KTT-DEMO-H1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-21 06:50:00', diemGui: '531120' }); // hàng hoàn
+  hoan('KTT-DEMO-H1');
   kt('KTT-DEMO-X1', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-21 09:00:00', nhan: '530900', diemGui: '530101' }); // nội tỉnh đi liên tỉnh
   kt('KTT-DEMO-X2', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-22 09:00:00', nhan: '530900', diemGui: '530101' }); // nội tỉnh đi liên tỉnh, hôm sau
   kt('KTT-DEMO-C1', { quet: '2026-10-22 05:30:00', gioDi: '2026-10-22 06:50:00' });
@@ -430,7 +432,7 @@ test('tong-quan: số bằng ĐÚNG các hàm con (B1 the, B2 theo ngày, rớt 
   const a = (await goi(`/api/ktt/hang-den/tong-hop${Q20}`, 'admin')).body;
   const { khoang_ngay, cua_so_thuc_te, nguon_xuat_luc_moi_nhat } = th;
   assert.deepEqual([tq.khoang_ngay, tq.cua_so_thuc_te, tq.nguon_xuat_luc_moi_nhat], [khoang_ngay, cua_so_thuc_te, nguon_xuat_luc_moi_nhat]);
-  const bo = ({ khoang_ngay: _a, cua_so_thuc_te: _b, nguon_xuat_luc_moi_nhat: _c, bay_gio: _d, co_du_lieu: _e, ly_do: _f, dinh_nghia: _g, ...rest }) => rest; // eslint-disable-line no-unused-vars
+  const bo = ({ khoang_ngay: _a, cua_so_thuc_te: _b, nguon_xuat_luc_moi_nhat: _c, bay_gio: _d, co_du_lieu: _e, ly_do: _f, dinh_nghia: _g, hang_hoan_chua_nap: _h, hang_hoan_nguon_xuat_luc: _i, ...rest }) => rest; // eslint-disable-line no-unused-vars
   assert.deepEqual(tq.di_cung_ngay.the, bo(th));
   assert.deepEqual(tq.di_cung_ngay.theo_ngay.map((d) => [d.ngay, d.mau_so, d.cung_ngay, d.ty_le_cung_ngay, d.chu_nhat, d.da_chot]), tn.theo_ngay.map((d) => [d.ngay, d.bcvh_hue.mau_so, d.bcvh_hue.cung_ngay, d.bcvh_hue.ty_le.cung_ngay, d.chu_nhat, d.da_chot]));
   assert.deepEqual(tq.di_cung_ngay.so_sanh_chu_nhat, tn.so_sanh_chu_nhat);

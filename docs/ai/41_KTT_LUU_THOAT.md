@@ -1,4 +1,4 @@
-# 41 · KTT-7b — Lưu thoát 5 trạng thái, đạt / không đạt, hàng hoàn Tổ KHHH
+# 41 · KTT-7b — Lưu thoát 5 trạng thái, đạt / không đạt, hàng hoàn (định nghĩa theo ItemReturn từ KTT-17-2)
 
 Tính toán các chỉ số của trang «Lưu thoát» theo từng ngày đến trên dữ liệu `ktt_*`, và nối lịch chuyến chính thức (KTT-7a, `40_KTT_LICH_CHUYEN.md`) vào truy vấn KTT.
 **Chưa** có API, giao diện, xuất file, cache (KTT-8, KTT-9). Chỉ ĐỌC DB. Dữ liệu trong tài liệu này là dữ liệu giả.
@@ -57,18 +57,25 @@ Chờ = giờ lập BD10 đi − **`ConfirmDate` (`bd10_den_xnd`)**, **bỏ khun
 
 `ty_le_dat` = dat / (dat + khong_dat). Chỉ dùng các nhãn trên; KHÔNG dùng «Quá hạn», «Sắp hết hạn», «Còn thời gian», «quỹ thời gian» (module Thời gian Khai thác-Vận chuyển). Cột đạt / không đạt đặt **cạnh** «trượt chuyến» (`t2` / `t4` / `dung_chuyen.truot_chuyen`), không thay nó. Mốc đạt / không đạt (`bd10_den_xnd`) khác mốc lưu thoát (`gio_quet_tui_den`): mỗi chỉ số ghi `moc`.
 
-## 5. Hàng hoàn Tổ KHHH (531120)
-Nhận diện (PO chốt 26/10): SHBG có **túi đến gốc** (quét sớm nhất) với **nơi gửi BD10 đến** (`bd10_den_ma_diem_gui`) = `531120` VÀ đích = BCVH **Thuận Hóa** (533140).
-- Nhóm riêng `hang_hoan` (mỗi ngày): sản lượng (SHBG, túi), năm trạng thái, đạt / không đạt (chỉ để xem). **Không** vào tổng, tỷ lệ lưu thoát, đạt / không đạt, đúng chuyến.
-- Từ 531120 mà đích là BCVH Huế **khác** Thuận Hóa: tính như hàng thường; số SHBG này ở `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa`.
-- Từ 531120 đích tỉnh khác (xe Cấp 1) = hàng mới đi liên tỉnh: không phải hàng hoàn (ngoài phạm vi / không rõ như mục 2).
-- Cột `bd10_den_ma_diem_gui` đã lưu trong `ktt_tui` (đủ để nhận diện; không đổi bảng).
+## 5. Hàng hoàn (KTT-17-2: theo danh sách ItemReturn)
+**Định nghĩa (PO xác nhận 31/10/2026, thay quy tắc 7b «túi đến gốc từ 531120 và đích Thuận Hóa»):** hàng hoàn = SHBG có trong `ktt_hang_hoan` (danh sách ItemReturn của CSDL BCCP, nạp riêng, KTT-17-1, `39_KTT_NAP_SFTP.md` mục 15) **VÀ** đích đến lần này là một trong **6 BCVH Huế** (`u.nhom = BCVH_HUE`). Không xét nơi gửi gốc, không xét 531120, không xét hàng đã đi đâu trước đó.
+- **Hàng thường** = mọi SHBG đích 6 BCVH không có trong danh sách. Gồm hàng chuỗi 531120 → 530100 → 533140 (nơi gửi `53…` nên vẫn thuộc hướng nội tỉnh) và SHBG chưa có BD10 đi mà không có trong danh sách.
+- Trong danh sách nhưng đích **ngoài 6 BCVH** (530900, tỉnh khác, KTT) hoặc **không rõ** đích: KHÔNG phải hàng hoàn của KTT, giữ phân loại cũ (ngoài phạm vi / không rõ đích).
+- Đích lấy đúng như `phanLoaiShbg` vẫn lấy (`u.maBcvh`: nhãn nhận BD10 đi cuối; chưa có BD10 đi thì suy từ phường/xã).
+- **Cách tra:** `kttQuery.taoNguCanh` đọc `ktt_hang_hoan` MỘT lần mỗi lượt truy vấn vào một Set (~20 ms với ~17.600 dòng), `dungDonShbg` gắn `u.hangHoan = Set.has(shbg)`; `phanLoaiShbg` giữ thuần (không DB) và chỉ đọc `u.hangHoan`. Không JOIN và không truy vấn từng dòng vào lượt duyệt ~190.000 SHBG.
+- **Một khối «hàng hoàn» chung** cho mọi nơi gửi và cả 6 BCVH (khối `hang_hoan` mỗi ngày + `tong_cong`): sản lượng (SHBG, túi), năm trạng thái, đạt / không đạt (chỉ để xem), `chi_tieu_14h` riêng. **Không** vào tổng, tỷ lệ lưu thoát, đạt / không đạt, đúng chuyến, 14 giờ, `theo_nguon` (cách xử lý KHÔNG đổi so với trước; chỉ đổi TẬP SHBG được coi là hoàn).
+- `theo_bcvh[mã].tong_shbg_ngay` = SHBG của khối + hàng hoàn CỦA BCVH ĐÓ (trước đây chỉ Thuận Hóa); số dòng xlsx lọc `ma_bcvh` khớp.
+- **Danh sách chưa nạp (rỗng / chưa có bảng): hoàn = 0.** `meta.hang_hoan_chua_nap = true` (và `hang_hoan_nguon_xuat_luc` = `nguon_xuat_luc` lớn nhất của danh sách, hoặc `null`) ở `/luu-thoat`, `/dicungngay/*`, `/tong-quan`, `/danh-sach`, `/chi-tiet`: số hoàn chỉ đúng khi danh sách mới. Không có cảnh báo riêng.
+- `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa`: **lỗi thời**, giữ khóa và luôn trả 0.
+- **Bộ nhớ đệm** (`kttApi.js`): khóa có thêm phiên bản danh sách (`kttHangHoan.phienBanHangHoan`: id lần nạp OK lớn nhất . số dòng . `cap_nhat_luc` lớn nhất), nạp ItemReturn mới thì số tự đổi, không cần khởi động lại.
+- **Cần nạp ItemReturn TRƯỚC khi golive bản này**; nếu không, mọi số hoàn về 0 và hàng hoàn cũ nằm vào hàng thường.
+- Tên khóa API / hướng `noi_tinh_hang_hoan`, `hang_hoan` giữ nguyên; `noi_tinh_hang_hoan` KHÔNG còn nghĩa «nội tỉnh». Nhãn chữ «Hàng hoàn Tổ KHHH» ở xlsx / giao diện chưa đổi (ticket giao diện sau).
 
 ## 6. Ngày, độ mới, «bây giờ»
 - `tuNgay`, `denNgay` (`YYYY-MM-DD`; thiếu `denNgay` = một ngày); **tối đa 31 ngày** (quá → `LoiKtt` `KTT_KHOANG_QUA_DAI`, tiếng Việt). Mỗi ngày tính riêng rồi cộng (`tong_cong` = cộng các ngày). Ngày không có dữ liệu vẫn có mặt với số 0 và `co_du_lieu = false`.
 - **«Bây giờ» = độ mới của dữ liệu** (`kttNapCap.docDoMoi`: `nguon_xuat_luc` lớn nhất của cặp `OK`), KHÔNG phải đồng hồ máy; `opts.bayGio` thay thế (test / xem lại, khi đó `da_chot` so với giá trị này). Chưa có độ mới và không truyền `bayGio` → kết quả rỗng `ly_do = 'CHUA_CO_DU_LIEU'` (vẫn đủ ngày, số 0).
 - **`da_chot`** (mỗi ngày): độ mới ≥ 09:00:00 ngày D+1 (cặp 09:00 của D+1). Ngày chưa chốt vẫn trả số (giao diện hiện «đang cập nhật»).
-- **`meta`**: `nguon_xuat_luc_moi_nhat`, `bay_gio`, `moc`, và số SHBG theo từng lý do không phân loại được: `khong_ro_dich`, `ngoai_pham_vi`, `khong_co_gio_quet_den`, `khong_xep_duoc_chuyen` (theo lý do), `hang_hoan_tu_531120_dich_khac_thuan_hoa`, `di_truoc_khi_den`, `co_quet_di_chua_lap_bd10` (có giờ quét đi nhưng chưa lập BD10 → tính là chưa đi), `tui_khong_co_buu_gui`.
+- **`meta`**: `nguon_xuat_luc_moi_nhat`, `bay_gio`, `moc`, và số SHBG theo từng lý do không phân loại được: `khong_ro_dich`, `ngoai_pham_vi`, `khong_co_gio_quet_den`, `khong_xep_duoc_chuyen` (theo lý do), `hang_hoan_tu_531120_dich_khac_thuan_hoa` (lỗi thời, luôn 0 từ KTT-17-2), `hang_hoan_chua_nap`, `hang_hoan_nguon_xuat_luc` (KTT-17-2), `di_truoc_khi_den`, `co_quet_di_chua_lap_bd10` (có giờ quét đi nhưng chưa lập BD10 → tính là chưa đi), `tui_khong_co_buu_gui`.
 
 Hình dạng: `{ khoang_ngay, bay_gio, nguon_xuat_luc_moi_nhat, co_du_lieu, ly_do, moc, theo_ngay: [{ ngay, da_chot, co_du_lieu, tong_shbg, tong, theo_bcvh: { [mã 6 BCVH]: khối }, hang_hoan, khong_phan_loai, tong_shbg_ngay, tui_khong_co_buu_gui }], tong_cong, meta, canh_bao }`.
 Khối: `{ tong_shbg, trang_thai { t1..t5, dang_cho_chuyen: { shbg, tui } }, luu_thoat, dung_chuyen, chi_tiet_trang_thai_5, dat_khong_dat, khong_phan_loai, di_truoc_khi_den }`.
@@ -87,7 +94,7 @@ Khối: `{ tong_shbg, trang_thai { t1..t5, dang_cho_chuyen: { shbg, tui } }, luu
 Hướng tối ưu (chưa làm; ticket cấm cache): (1) ~60% thời gian còn lại nằm ở `kttLichChuyen.giayCua` / `dinhDang` (phân tích và định dạng chuỗi giờ) do `xepChuyen` dựng lại lịch từng SHBG — nhớ kết quả theo `(BCVH, giờ quét đến)` TRONG MỘT LẦN GỌI (nhiều SHBG cùng túi cùng giờ) hoặc sinh trước chuyến theo (BCVH, ngày); (2) `duyetShbg` (SQL nối) ≈ 20%; chỉ đọc cột cần thiết; (3) KTT-8 cache kết quả theo `(khoảng ngày, độ mới)` — đổi khi nạp cặp mới.
 
 ## 9. Điều chưa chắc
-- **Nhận diện hàng hoàn (PO DUYỆT 26/10/2026):** theo túi đến GỐC (sớm nhất) + đích Thuận Hóa; PO xem `meta.hang_hoan_tu_531120_dich_khac_thuan_hoa` để biết có hàng 531120 đích BCVH khác hay không.
+- **Nhận diện hàng hoàn:** ~~theo túi đến GỐC (sớm nhất) + đích Thuận Hóa (PO duyệt 26/10/2026)~~ — **thay bằng danh sách ItemReturn + đích 6 BCVH (PO 31/10/2026, KTT-17-2)**, xem mục 5 và `04_DECISIONS.md` #121.
 - **«Đang chờ chuyến»** (PO DUYỆT 26/10/2026): tách nhóm riêng, không vào t5 và mẫu số.
 - **Chọn túi đến / BD10 đi:** dùng quy tắc KTT-5 thực tế (túi đến ghép với lần đi cuối), khác mô tả «túi đến sớm nhất» trong ticket; chỉ khác với hàng qua KTT nhiều lần.
 - **Giờ đi:** chỉ dùng `bd10_di_gio_di`; hàng chỉ có giờ quét đi mà chưa lập BD10 tính là chưa đi (`meta.co_quet_di_chua_lap_bd10`).

@@ -46,7 +46,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   db.exec("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'");
   TS.khoiTao(db);
   Api.xoaCache();
@@ -56,6 +56,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả (cùng mẫu với ktt-di-cung-ngay.test.js) ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NG = { nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NG, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o }); }
@@ -79,6 +80,7 @@ function duLieu() {
   kt('KTT-DEMO-A7', { quet: '2026-10-21 08:00:00', nhan: null, diemGui: '999003' }); // chưa đi (trên 24 giờ), nơi gửi khác cùng đường thư
   kt('KTT-DEMO-C2', { quet: '2026-10-22 05:30:00', gioDi: '2026-10-23 05:00:00', dt: 'DT-B', dtTen: 'Đường thư giả B' }); // hôm sau
   kt('KTT-DEMO-H2', { quet: '2026-10-21 21:30:00', gioDi: '2026-10-22 06:30:00', diemGui: '531120' }); // hàng hoàn, hôm sau
+  hoan('KTT-DEMO-H2');
   kt('KTT-DEMO-X2', { quet: '2026-10-21 08:00:00', gioDi: '2026-10-22 09:00:00', nhan: '530900', diemGui: '530101' }); // nội tỉnh đi liên tỉnh, hôm sau (đường thư DT-A)
   kt('KTT-DEMO-X3', { quet: '2026-10-21 08:00:00', nhan: null, diemGui: '530101' }); // nội tỉnh đi liên tỉnh, chưa đi
   capOk('2026-10-23 10:00:00');
@@ -249,7 +251,7 @@ test('sheet «Thông tin» sheet 8: đủ mục (cửa sổ thực tế, ngày g
   const tt = thongTin(await docFile(await goi(`${U}${Q20}&loai=chua-di-24h&duong_thu=DT-A&huong=lien_tinh_den_bcvh`, 'ttvh')));
   assert.deepEqual([...tt.keys()], ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Phạm vi bưu gửi', 'Định nghĩa: năm nhóm đi',
     'Định nghĩa: rớt lại', 'Định nghĩa: hôm sau', 'Định nghĩa: chưa đi trên 24 giờ', 'Định nghĩa: xe Cấp 1', 'Định nghĩa: chuyến liền kề',
-    'Định nghĩa: hàng hoàn Tổ KHHH', 'Định nghĩa: số giờ chờ', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình B']);
+    'Định nghĩa: hàng hoàn', 'Định nghĩa: số giờ chờ', 'Đơn vị', 'Số dòng kiểm tra', 'Đối chiếu với màn hình B']);
   assert.match(tt.get('Cửa sổ'), /^Từ ngày 20\/10\/2026 đến ngày 22\/10\/2026 \(sheet «8 Hôm sau-chưa đi».*Ngày có dữ liệu thực tế: 20\/10\/2026 – 22\/10\/2026 \(3 ngày\)/);
   assert.match(tt.get('Cửa sổ'), /Ô đã bấm: nhóm «Chưa đi trên 24 giờ»; đường thư đến: DT-A; nơi gửi BD10 đến: không \(tất cả\); hướng: Liên tỉnh/);
   assert.match(tt.get('Ngày xuất, người xuất'), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(giờ Việt Nam\); tài khoản: KT8D_TTVH\.$/);

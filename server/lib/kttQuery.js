@@ -17,6 +17,7 @@ const { docGiay } = require('./quyThoiGian');
 const T = require('./kttTinh');
 const { docCauHinhKtt } = require('./kttCauHinh');
 const { docLichChuyen } = require('./kttLichChuyen');
+const { docDanhSachHangHoan } = require('./kttHangHoan');
 const { danhGiaChuyenLich } = require('./kttChuyen');
 
 const GIAY_NGAY = 86400;
@@ -91,6 +92,7 @@ function taoNguCanh(db, opts) {
     cauHinh,
     nguong: cauHinh.nguong,
     bangPhuongXa: docBangPhuongXa(db, canhBao),
+    hangHoan: docDanhSachHangHoan(db), // KTT-17-2: danh sách ItemReturn (Set) đọc MỘT lần mỗi lượt; hàng hoàn = SHBG trong danh sách ∧ đích 6 BCVH (kttLuuThoat.phanLoaiShbg)
     canhBao,
     bayGioGiay: docGiay(khoang.bayGio),
     boNhoChuyen: new Map(),
@@ -279,7 +281,7 @@ function dungDonShbg(dong, ctx) {
 
   let den = null;
   const denCoQuet = denDong.filter((x) => x.quetDenGiay !== null);
-  // KTT-7b: túi đến GỐC = túi đến có giờ quét sớm nhất (cùng giờ: id nhỏ nhất); dùng nhận diện hàng hoàn Tổ KHHH (nơi gửi BD10 đến).
+  // KTT-7b: túi đến GỐC = túi đến có giờ quét sớm nhất (cùng giờ: id nhỏ nhất). Từ KTT-17-2 KHÔNG còn dùng nhận diện hàng hoàn (xem u.hangHoan); giữ `noiGuiGoc` / `quetDenGoc` cho khảo sát và cờ KTT-10b.
   const denGoc = denCoQuet.length ? denCoQuet.reduce((tot, x) => (x.quetDenGiay < tot.quetDenGiay || (x.quetDenGiay === tot.quetDenGiay && x.id < tot.id) ? x : tot)) : (denDong.length ? denDong.reduce((tot, x) => (x.id < tot.id ? x : tot)) : null);
   if (denCoQuet.length) {
     let ung = gioDiGiay !== null ? denCoQuet.filter((x) => x.quetDenGiay <= gioDiGiay) : denCoQuet;
@@ -294,7 +296,7 @@ function dungDonShbg(dong, ctx) {
     luong: den ? den.luong : null, quetDen: den ? den.quetDen : null, gioDi: diCuoi ? diCuoi.gioDi : null, xndBd10: den ? den.xndBd10 : null, xnd: null,
     gioBd10Di: diCuoi ? diCuoi.gioBd10Di : null, gioQuetDi: diCuoi ? diCuoi.gioQuetDi : null, tenPhuong: (dong.find((x) => x.tenPhuong) || { tenPhuong: null }).tenPhuong,
     diemGuiDen: den ? den.diemGuiDen : null, diemGuiDenTen: den ? den.diemGuiTen : null, duongThuDenMa: den ? den.duongThuMa : null, duongThuDenTen: den ? den.duongThuTen : null,
-    tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
+    hangHoan: ctx.hangHoan.set.has(dong[0].shbg), tuiDenId: den ? den.tuiId : null, noiGuiGoc: denGoc ? denGoc.diemGuiDen : null, quetDenGoc: denGoc ? denGoc.quetDen : null,
     // KTT-10b: chất lượng túi đến cho mốc «giờ quét túi đến» (chỉ để đếm, không dùng để chọn túi): số túi đến có giờ quét, có túi đi không, id túi đến gốc.
     soTuiDen: new Set(denCoQuet.map((x) => x.tuiId)).size, coTuiDi: chuyenTiep || diRows.length > 0, tuiDenGocId: denGoc ? denGoc.tuiId : null,
     // KTT-14: cờ nguồn của hàng (khai_thac = có túi ĐẾN được mở; chuyen_tiep = chỉ có túi CHUYEN_TIEP_DI) và các cờ chất lượng để đếm (không dùng để tính).

@@ -33,7 +33,7 @@ Bốn hướng (`HUONG` trong `kttDiNgay.js`; hàng hoàn là hướng riêng):
 |---|---|
 | `lien_tinh_den_bcvh` | nơi gửi BD10 đến không bắt đầu bằng `53` (xe Cấp 1), đích 6 BCVH Huế |
 | `noi_tinh_den_bcvh` | nơi gửi `53…`, đích 6 BCVH Huế. Trả hai cách đếm: `khong_hang_hoan` (khớp `/luu-thoat` `tong`) và `co_hang_hoan`; `hang_hoan` riêng |
-| `noi_tinh_hang_hoan` | hàng hoàn Tổ KHHH (531120 → Thuận Hóa): tách riêng, **không cộng vào tổng và tỷ lệ** (như `/luu-thoat`) |
+| `noi_tinh_hang_hoan` | **hàng hoàn** (KTT-17-2: SHBG trong `ktt_hang_hoan` và đích 6 BCVH, MỌI nơi gửi): MỘT khối chung, tách riêng, **không cộng vào tổng và tỷ lệ** (như `/luu-thoat`). Tên khóa giữ nguyên, KHÔNG còn nghĩa «nội tỉnh». Ở B5 / bảng rớt lại / danh sách, dòng hoàn nằm trong hướng của nơi gửi (`53…` → `noi_tinh_den_bcvh`, khác → `lien_tinh_den_bcvh`) với `hang_hoan: true`, không cộng vào `cong` |
 | `noi_tinh_di_lien_tinh` | nơi gửi `53…`, đích ngoài 6 BCVH Huế (xe Cấp 1). Không có lịch chuyến nên so **ngày** trực tiếp: ngày lập BD10 đi ≤ ngày đến = cùng ngày |
 
 SHBG không rõ đích hoặc không thuộc bốn hướng trên không vào số nào; đếm ở `bo_qua` (`khong_ro_dich`, `ngoai_nhom_b`).
@@ -227,3 +227,5 @@ CPU luồng chính trong lúc làm nóng ≈ thời gian làm nóng (65 s / 22�
 3. Mục theo khoảng (`hang-den`, `gio-lap-bd10`) có TTL 10 phút: làm nóng chỉ có tác dụng 10 phút đầu và chỉ cho hai cửa sổ 7/30 ngày kết thúc ở ngày của độ mới; khoảng khác, `tong-hop`, `chi-tiet`, `danh-sach` (phụ thuộc tham số) không được làm nóng.
 4. Nạp bằng `scripts/ktt-import.js` (tiến trình khác) không kích hoạt làm nóng.
 5. Số đo là dữ liệu giả; chưa đo nhiều request đồng thời trong lúc làm nóng.
+
+- **KTT-17-2:** mọi phản hồi dạng B (`dauPhanHoi`) và `tong-hop` / `chi-tiet` / `danh-sach` có thêm `hang_hoan_chua_nap` (danh sách ItemReturn rỗng: hoàn = 0 chưa có nghĩa là «không có hàng hoàn») và `hang_hoan_nguon_xuat_luc`.

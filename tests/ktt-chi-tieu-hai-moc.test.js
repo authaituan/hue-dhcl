@@ -42,7 +42,8 @@ function tuiDi(db, { gioDi, nhan, shbgs, phuong = '49122' }) {
   for (const s of shbgs) bg(db, t, s, { ma_xa_phuong: phuong });
   return t;
 }
-function kt(db, shbg, { quet, gioDi = null, nhan = TH, xnd, diemGui = null }) {
+function kt(db, shbg, { quet, gioDi = null, nhan = TH, xnd, diemGui = null, hoan = false }) {
+  if (hoan) them(db, 'ktt_hang_hoan', { shbg, ...NG }); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
   tuiDen(db, { quet, xnd: xnd === undefined ? quet : xnd, diemGui, shbgs: [shbg] });
   if (gioDi || nhan) tuiDi(db, { gioDi, nhan, shbgs: [shbg] });
 }
@@ -62,11 +63,11 @@ function duLieu(db) {
   tuiDen(db, { quet: '2026-10-10 05:30:00', shbgs: ['KTT-DEMO-S7'], bd10: 'BD10-DEN-G' });
   tuiDen(db, { quet: '2026-10-20 05:30:00', shbgs: ['KTT-DEMO-S7'], bd10: 'BD10-DEN-H' });
   tuiDi(db, { gioDi: '2026-10-20 06:50:00', nhan: TH, shbgs: ['KTT-DEMO-S7'] });
-  // ngoài mẫu số: thiếu giờ quét đến (chỉ có XNĐ) và hàng hoàn Tổ KHHH
+  // ngoài mẫu số: thiếu giờ quét đến (chỉ có XNĐ) và hàng hoàn
   const t = tui(db, { chieu: 'DEN', luong: 'KHAI_THAC_DEN', co_mo_tui: 1, gio_quet_tui_den: null, bd10_den_so_hieu: 'BD10-DEN-Z', bd10_den_xnd: '2026-10-20 07:00:00' });
   bg(db, t, 'KTT-DEMO-S8', { ma_xa_phuong: '49122' });
   tuiDi(db, { gioDi: '2026-10-20 09:00:00', nhan: TH, shbgs: ['KTT-DEMO-S8'] });
-  kt(db, 'KTT-DEMO-S9', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '531120' });
+  kt(db, 'KTT-DEMO-S9', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '531120', hoan: true });
 }
 
 test('hàm thuần: danhGiaChiTieu (mốc A) không đổi — vẫn là lõi tinhTuMoc với batDau = xnd; nhãn cũ giữ nguyên', () => {

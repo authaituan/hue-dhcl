@@ -133,7 +133,7 @@ Sửa `tests/tham-so.test.js` (số khóa 32→38, 25→31 khóa sửa được,
 ## 15. KTT-17-1 — danh sách hàng hoàn (ItemReturn): file ĐỘC LẬP
 
 Nguồn: CSDL BCCP, bảng ItemReturn; PO chạy tay script `KTT-HH-1_Script_nguon_ItemReturn.sql` (lúc golive, rồi cùng giờ 09:00 / 15:00 với KTT-1) → `KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv`, cột `SHBG`, `Nguon_xuat_luc` (cột khác bị bỏ). Lần đầu cửa sổ 60 ngày, định kỳ 7 ngày. Ứng dụng KHÔNG kết nối BCCP.
-**Chỉ LƯU danh sách** (bảng `ktt_hang_hoan`); chưa dùng vào phân loại / chỉ số / giao diện nào (`phanLoaiShbg` giữ nguyên; đổi quy tắc là KTT-17-2).
+**Chỉ LƯU danh sách** (bảng `ktt_hang_hoan`) ở KTT-17-1; **từ KTT-17-2** `phanLoaiShbg` dùng danh sách này để nhận diện hàng hoàn (`41_KTT_LUU_THOAT.md` mục 5, `04_DECISIONS.md` #121), nên phải nạp trước khi golive.
 
 - **Cộng dồn:** SHBG đã vào là hàng hoàn; file mới không chứa SHBG cũ thì KHÔNG xóa. UPSERT theo `Nguon_xuat_luc`: mới ≥ cũ thì cập nhật, cũ hơn thì bỏ qua (đếm `so_dong_bo_qua`). SHBG chuẩn hóa như `ktt_buu_gui.shbg` (trim, CHỮ HOA, Ð → Đ).
 - **Nhật ký RIÊNG** `ktt_hang_hoan_nap`: `ktt_nap_lan.loai` có `CHECK (loai IN ('TUI','BUU_GUI'))` nên không dùng được và KHÔNG sửa bảng cũ. Cột: tên file, `sha256` (UNIQUE: nạp lại cùng nội dung = `DA_NAP`), `nap_luc`, `nguon_xuat_luc`, số dòng đọc / thêm / cập nhật / bỏ qua / lỗi / trùng, `trang_thai` OK | REJECTED, `thong_bao`, `loi_mau` (chỉ số dòng + tên cột + mã `KHOA_RONG` / `NGUON_XUAT_RONG` / `GIO_SAI_DINH_DANG`; KHÔNG ghi giá trị SHBG), `size_file` / `mtime_file` (để SFTP không tải lại).

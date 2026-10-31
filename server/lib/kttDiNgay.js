@@ -15,8 +15,8 @@ const NG = require('./kttNguon');
 
 const HUONG = Object.freeze({
   LIEN_TINH_DEN_BCVH: 'lien_tinh_den_bcvh', // nơi gửi BD10 đến không bắt đầu bằng '53', đích 6 BCVH Huế
-  NOI_TINH_DEN_BCVH: 'noi_tinh_den_bcvh', // nơi gửi '53…', đích 6 BCVH Huế, KHÔNG kể hàng hoàn Tổ KHHH
-  NOI_TINH_HANG_HOAN: 'noi_tinh_hang_hoan', // hàng hoàn Tổ KHHH (531120 → Thuận Hóa), tách riêng, không cộng vào tổng và tỷ lệ
+  NOI_TINH_DEN_BCVH: 'noi_tinh_den_bcvh', // nơi gửi '53…', đích 6 BCVH Huế, KHÔNG kể hàng hoàn
+  NOI_TINH_HANG_HOAN: 'noi_tinh_hang_hoan', // HÀNG HOÀN (SHBG trong ItemReturn, đích 6 BCVH, MỌI nơi gửi): một khối chung, tách riêng, không cộng vào tổng và tỷ lệ. Tên giữ nguyên cho khỏi vỡ giao diện, KHÔNG còn nghĩa «nội tỉnh» (KTT-17-2)
   NOI_TINH_DI_LIEN_TINH: 'noi_tinh_di_lien_tinh' // nơi gửi '53…', đích ngoài 6 BCVH Huế (xe Cấp 1)
 });
 const KHOA_HUONG = Object.values(HUONG);
@@ -50,7 +50,8 @@ function nhomChuaDi(gioMoc, bayGioGiay) {
 /**
  * u: đơn vị SHBG (kttQuery); kq: kết quả S.phanLoaiShbg(u); bayGioGiay: «bây giờ» (độ mới dữ liệu) tính bằng giây (L.giayCua).
  * Trả null khi SHBG không thuộc nhóm nào của B (đích không rõ, liên tỉnh đi liên tỉnh, đích KTT) — kèm `bo` để đếm vào meta; ngược lại
- * { huong, hanHoan, nhom (một trong CAC_NHOM) | khac ('dang_cho_chuyen' | 'khong_phan_loai') }.
+ * { huong, huongDong, hanHoan, nhom (một trong CAC_NHOM) | khac ('dang_cho_chuyen' | 'khong_phan_loai') }. `huong` của hàng hoàn luôn là NOI_TINH_HANG_HOAN (một khối chung); `huongDong` = hướng của DÒNG
+ * ở B5 / bảng rớt lại / danh sách: theo nơi gửi của túi đến ghép ('53…' -> nội tỉnh, khác -> liên tỉnh) kể cả hàng hoàn (dòng mang cờ hang_hoan, không cộng vào tổng).
  */
 function phanLoaiDi(u, kq, bayGioGiay) {
   if (u.nhom === 'KHONG_RO') return { bo: 'khong_ro_dich' };
@@ -58,7 +59,7 @@ function phanLoaiDi(u, kq, bayGioGiay) {
   if (u.nhom === 'BCVH_HUE') {
     const hanHoan = kq.nhom === S.NHOM.HANG_HOAN;
     const huong = hanHoan ? HUONG.NOI_TINH_HANG_HOAN : (noiTinh ? HUONG.NOI_TINH_DEN_BCVH : HUONG.LIEN_TINH_DEN_BCVH);
-    const o = { huong, hanHoan };
+    const o = { huong, huongDong: noiTinh ? HUONG.NOI_TINH_DEN_BCVH : HUONG.LIEN_TINH_DEN_BCVH, hanHoan };
     if (kq.trangThai === null || kq.trangThai === undefined) return { ...o, khac: 'khong_phan_loai' };
     switch (kq.trangThai) {
       case S.TRANG_THAI.T1: case S.TRANG_THAI.T2: return { ...o, nhom: 'cung_ngay' };
@@ -68,7 +69,7 @@ function phanLoaiDi(u, kq, bayGioGiay) {
     }
   }
   if (noiTinh && (u.nhom === 'KHAC' || u.nhom === 'HE1_530900')) {
-    const o = { huong: HUONG.NOI_TINH_DI_LIEN_TINH, hanHoan: false };
+    const o = { huong: HUONG.NOI_TINH_DI_LIEN_TINH, huongDong: HUONG.NOI_TINH_DI_LIEN_TINH, hanHoan: false };
     const moc = giay(u.quetDen) !== null ? u.quetDen : (giay(u.xndBd10) !== null ? u.xndBd10 : null);
     if (moc === null || !u.ngayDen) return { ...o, khac: 'khong_phan_loai' };
     return { ...o, nhom: giay(u.gioBd10Di) !== null ? nhomTheoNgayDi(u.ngayDen, u.gioBd10Di) : nhomChuaDi(moc, bayGioGiay) };
@@ -128,11 +129,11 @@ function themShbg(b, u, pl) {
 
   const noiGui = String(u.diemGuiDen || '').trim();
   const dt = String(u.duongThuDenMa || '').trim();
-  const khoa = `${pl.huong === HUONG.NOI_TINH_HANG_HOAN ? HUONG.NOI_TINH_DEN_BCVH : pl.huong}|${pl.hanHoan ? 'H' : 'T'}|${noiGui}|${dt}`;
+  const khoa = `${pl.huongDong}|${pl.hanHoan ? 'H' : 'T'}|${noiGui}|${dt}`;
   let e = b.duong_thu[khoa];
   if (!e) {
     e = b.duong_thu[khoa] = {
-      huong: pl.huong === HUONG.NOI_TINH_HANG_HOAN ? HUONG.NOI_TINH_DEN_BCVH : pl.huong, hang_hoan: pl.hanHoan, noi_gui_ma: noiGui || null, noi_gui_ten: u.diemGuiDenTen || null,
+      huong: pl.huongDong, hang_hoan: pl.hanHoan, noi_gui_ma: noiGui || null, noi_gui_ten: u.diemGuiDenTen || null,
       duong_thu_ma: dt || null, duong_thu_ten: u.duongThuDenTen || null, khoi: khoiMoi(), huong_bcvh: {}, gio_sum: 0, gio_n: 0, gio_min: null, gio_max: null
     };
   }

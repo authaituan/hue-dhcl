@@ -171,7 +171,7 @@ Giao diện (KTT-13d) phải gửi đúng quy ước dưới đây để số d�
 | `duong_thu`, `noi_gui` | một MÃ (không phải tên hiển thị) | So khớp đúng từng ký tự với mã sau khi bỏ khoảng trắng đầu / cuối (phân biệt hoa thường). Tham số cũng được bỏ khoảng trắng đầu / cuối. |
 | | **`__RONG__`** (`kttNguon.MA_LOC_RONG`) | «Mã null, rỗng hoặc toàn khoảng trắng». Dùng cho dòng không có mã: bỏ tham số KHÔNG làm được việc này vì bỏ tham số = không lọc, ra mọi mã (bản sao DB: ô «không có mã đường thư» 146 dòng, bỏ tham số ra 2.049). Không trùng mã thật (mã thật không có `__`). |
 | | vắng / rỗng | Không lọc. |
-| `hang_hoan` | **`0`** hoặc `false` | LOẠI hàng hoàn Tổ KHHH (dòng B5 thường, ô «nội tỉnh → BCVH» không phải dòng «Hoàn»). |
+| `hang_hoan` | **`0`** hoặc `false` | LOẠI hàng hoàn (KTT-17-2: theo danh sách ItemReturn; dòng B5 thường, ô «nội tỉnh → BCVH» không phải dòng «Hoàn»). |
 | | **`1`** hoặc `true` | CHỈ hàng hoàn (dòng B5 «Hoàn»). |
 | | vắng / rỗng | Cả hai (không lọc). Dòng thường của B5 mà gửi rỗng sẽ lẫn hàng hoàn cùng (nơi gửi, đường thư) — nên gửi `0`. |
 | | giá trị khác (`2`, `yes`, `01`) | 400 `KTT_THAM_SO_SAI`. Không phân biệt hoa thường với `true` / `false`. |

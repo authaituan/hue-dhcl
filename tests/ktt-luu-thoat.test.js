@@ -133,16 +133,18 @@ test('đạt / không đạt: hàng chưa đi tính tới bayGio — chưa quá 
 });
 
 // ---------- hàng hoàn Tổ KHHH ----------
-test('hàng hoàn: túi đến gốc từ 531120 và đích Thuận Hóa vào nhóm riêng; 531120 đích BCVH Huế khác hoặc tỉnh khác KHÔNG vào nhóm hoàn', () => {
-  const hoan = pl({ noiGuiGoc: '531120' });
-  assert.deepEqual([hoan.nhom, hoan.trangThai, hoan.tu531120KhacThuanHoa], ['HANG_HOAN', 'T5', false]);
+test('hàng hoàn (KTT-17-2): SHBG có trong danh sách (u.hangHoan) VÀ đích 6 BCVH Huế -> nhóm riêng, mọi BCVH; đích ngoài 6 BCVH / không rõ không phải hàng hoàn; nơi gửi gốc 531120 KHÔNG còn quyết định', () => {
+  const hoan = pl({ hangHoan: true });
+  assert.deepEqual([hoan.nhom, hoan.trangThai, hoan.tu531120KhacThuanHoa], ['HANG_HOAN', 'T5', undefined]);
   assert.ok(hoan.datKhongDat, 'có đạt / không đạt chỉ để xem');
-  const khac = pl({ noiGuiGoc: '531120', maBcvh: HT });
-  assert.deepEqual([khac.nhom, khac.tu531120KhacThuanHoa], ['PHAN_LOAI', true], 'đích BCVH Huế khác Thuận Hóa: tính như hàng thường');
-  assert.deepEqual(pl({ noiGuiGoc: '531120', nhom: 'KHAC', maBcvh: null }), { nhom: 'NGOAI_PHAM_VI', loaiDich: 'KHAC' }, 'đích tỉnh khác: không phải hàng hoàn');
+  assert.equal(pl({ hangHoan: true, maBcvh: HT }).nhom, 'HANG_HOAN', 'hoàn ở BCVH Huế khác Thuận Hóa cũng là hoàn');
+  assert.deepEqual(pl({ hangHoan: true, nhom: 'KHAC', maBcvh: null }), { nhom: 'NGOAI_PHAM_VI', loaiDich: 'KHAC' }, 'trong danh sách nhưng đích tỉnh khác: giữ phân loại cũ');
+  assert.deepEqual(pl({ hangHoan: true, nhom: 'KHONG_RO', maBcvh: null }), { nhom: 'KHONG_RO_DICH' }, 'trong danh sách nhưng đích không rõ: không hoàn');
   assert.deepEqual(pl({ noiGuiGoc: '530900', nhom: 'HE1_530900', maBcvh: null }).nhom, 'NGOAI_PHAM_VI');
-  assert.equal(pl({ noiGuiGoc: '599999' }).nhom, 'PHAN_LOAI');
-  assert.equal(pl({ noiGuiGoc: '531120', quetDen: null }).nhom, 'HANG_HOAN', 'hoàn thiếu giờ quét đến vẫn ở nhóm hoàn');
+  assert.equal(pl({ noiGuiGoc: '531120' }).nhom, 'PHAN_LOAI', 'từ 531120 đích Thuận Hóa nhưng KHÔNG trong danh sách: hàng thường');
+  assert.equal(pl({ noiGuiGoc: '599999', hangHoan: false }).nhom, 'PHAN_LOAI');
+  assert.equal(pl({ hangHoan: true, quetDen: null }).nhom, 'HANG_HOAN', 'hoàn thiếu giờ quét đến vẫn ở nhóm hoàn');
+  assert.equal(S.MA_TO_KHHH, undefined); assert.equal(S.MA_THUAN_HOA, undefined);
 });
 
 // ---------- truy vấn trên DB giả ----------
@@ -251,17 +253,18 @@ test('đạt / không đạt trong truy vấn: mốc bd10_den_xnd (không phải
   db.close();
 });
 
-test('hàng hoàn Tổ KHHH trong truy vấn: nhóm riêng, loại khỏi tổng / tỷ lệ; túi đến gốc (sớm nhất) quyết định; 531120 đích BCVH khác đếm ở meta', () => {
+test('hàng hoàn trong truy vấn (KTT-17-2): nhóm riêng theo danh sách, loại khỏi tổng / tỷ lệ; từ 531120 mà không trong danh sách là hàng thường; meta lỗi thời = 0', () => {
   const db = dbMoi();
   kt(db, 'KTT-DEMO-H1', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '531120' }); // hoàn (Thuận Hóa)
   kt(db, 'KTT-DEMO-H2', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 08:00:00', diemGui: '531120' }); // hoàn
   kt(db, 'KTT-DEMO-HX', { quet: '2026-10-20 04:30:00', gioDi: '2026-10-20 05:50:00', diemGui: '531120', nhan: HT }); // 531120 đích Hương Trà: KHÔNG hoàn
   kt(db, 'KTT-DEMO-HK', { quet: '2026-10-20 08:00:00', gioDi: '2026-10-20 09:00:00', diemGui: '531120', nhan: '700123' }); // đích tỉnh khác
   kt(db, 'KTT-DEMO-TH', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '599999' }); // thường
-  // hai lần đến: túi đến gốc (10/10) từ 531120, lần đến ghép (20/10) từ nơi khác -> theo TÚI ĐẾN GỐC: hoàn
+  // hai lần đến (gốc 10/10 từ 531120, ghép 20/10 từ nơi khác), SHBG trong danh sách -> hoàn
   tuiDen(db, { quet: '2026-10-10 05:30:00', diemGui: '531120', shbgs: ['KTT-DEMO-2LAN'], bd10: 'BD10-DEN-G' });
   tuiDen(db, { quet: '2026-10-20 05:30:00', diemGui: '599999', shbgs: ['KTT-DEMO-2LAN'], bd10: 'BD10-DEN-H' });
   tuiDi(db, { gioDi: '2026-10-20 06:50:00', nhan: TH, shbgs: ['KTT-DEMO-2LAN'] });
+  for (const x of ['KTT-DEMO-H1', 'KTT-DEMO-H2', 'KTT-DEMO-2LAN', 'KTT-DEMO-HK']) them(db, 'ktt_hang_hoan', { shbg: x, ...NG }); // HK: đích ngoài 6 BCVH -> không phải hàng hoàn của KTT
   const kq = QL.luuThoatTheoNgay(db, OPT);
   const n = ngayCua(kq, D);
   assert.equal(n.hang_hoan.tong_shbg, 3);
@@ -270,7 +273,8 @@ test('hàng hoàn Tổ KHHH trong truy vấn: nhóm riêng, loại khỏi tổng
   assert.equal(n.tong.luu_thoat.mau_so, 2, 'mẫu số không gồm hàng hoàn');
   assert.equal(n.hang_hoan.dat_khong_dat.dat + n.hang_hoan.dat_khong_dat.khong_dat + n.hang_hoan.dat_khong_dat.chua_do_duoc + n.hang_hoan.dat_khong_dat.chua_di + n.hang_hoan.dat_khong_dat.xnd_sau_gio_di, 3);
   assert.equal(n.khong_phan_loai.ngoai_pham_vi.KHAC, 1);
-  assert.equal(kq.meta.hang_hoan_tu_531120_dich_khac_thuan_hoa, 1, 'HX: từ 531120, đích BCVH Huế khác Thuận Hóa');
+  assert.equal(kq.meta.hang_hoan_tu_531120_dich_khac_thuan_hoa, 0, 'khóa meta lỗi thời: luôn 0');
+  assert.deepEqual([kq.meta.hang_hoan_chua_nap, kq.meta.hang_hoan_nguon_xuat_luc], [false, '2026-10-23 00:00:00']);
   assert.equal(tongNhom(n), n.tong_shbg_ngay);
   assert.equal(n.theo_bcvh[HT].trang_thai.t1.shbg, 1);
   db.close();
@@ -465,6 +469,7 @@ test('TZ: cùng kết quả ở TZ = UTC, Asia/Ho_Chi_Minh, America/Los_Angeles 
     kt('A4', '2026-10-20 11:00:00', null, '2026-10-20 11:00:00');
     kt('A5', '2026-10-20 05:30:00', '2026-10-21 14:00:01', '2026-10-20 14:00:00', '531120');
     kt('B1', '2027-03-28 02:30:00', '2027-03-28 06:30:00', '2027-03-28 03:00:00');
+    them('ktt_hang_hoan', { shbg: 'A5', ...NG });
     const kq = QL.luuThoatTheoNgay(db, { tuNgay: '2026-10-19', denNgay: '2026-10-22', bayGio: '2026-10-21 09:00:00' });
     const kq2 = QL.luuThoatTheoNgay(db, { tuNgay: '2027-03-27', denNgay: '2027-03-29', bayGio: '2027-03-29 09:00:00' });
     process.stdout.write(JSON.stringify([kq, kq2]));

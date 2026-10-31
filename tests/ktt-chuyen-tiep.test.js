@@ -40,7 +40,7 @@ after(async () => {
   cleanupDbFiles(ctx.testDbPath, db);
 });
 beforeEach(() => {
-  db.exec('DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   TS.khoiTao(db);
   Api.xoaCache();
 });
@@ -48,6 +48,7 @@ beforeEach(() => {
 // ---------- dữ liệu giả ----------
 let seq = 0;
 function them(bang, o) { const k = Object.keys(o); db.prepare(`INSERT INTO ${bang} (${k.join(', ')}) VALUES (${k.map(() => '?').join(', ')})`).run(...Object.values(o)); }
+const hoan = (...ds) => ds.forEach((shbg) => them('ktt_hang_hoan', { shbg, nguon_xuat_luc: '2026-10-23 00:00:00', cap_nhat_luc: '2026-10-23 00:00:00' })); // KTT-17-2: hàng hoàn = SHBG có trong ktt_hang_hoan
 const NG = { nguon_xuat_luc: BAY_GIO, cap_nhat_luc: BAY_GIO };
 function tui(o = {}) { seq++; const r = { from_pos: '999001', to_pos: '530100', mail_trip_type: 'T', service_code: 'S1', year: '20261020', mail_trip_number: '1', post_bag_index: String(seq), ...NG, ...o }; them('ktt_tui', r); return r; }
 function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_pos: t.to_pos, mail_trip_type: t.mail_trip_type, service_code: t.service_code, year: t.year, mail_trip_number: t.mail_trip_number, post_bag_index: t.post_bag_index, shbg, khoi_luong_thuc_te_g: 100, ma_xa_phuong: '49122', ...NG, ...o }); }
@@ -88,6 +89,7 @@ function duLieu() {
   ct('KTT-DEMO-CX', { quet: '2026-10-20 08:00:00', gioDi: '2026-10-20 09:00:00', nhan: '700123' }); // ngoài 6 BCVH (KHAC)
   ct('KTT-DEMO-CK', { quet: '2026-10-20 08:00:00', nhan: null, phuong: '00000' }); // không rõ đích
   ct('KTT-DEMO-CH', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00', diemGui: '531120' }); // hàng hoàn Tổ KHHH (531120 -> Thuận Hóa): tách riêng
+  hoan('KTT-DEMO-CH');
   ct('KTT-DEMO-CM', { quet: null, xnd: '2026-10-20 07:00:00', gioDi: '2026-10-20 09:00:00' }); // thiếu giờ quét túi đến
   ct('KTT-DEMO-CD', { quet: '2026-10-20 05:30:00', xnd: '2026-10-20 12:00:00', gioDi: '2026-10-20 06:50:00' }); // XNĐ sau giờ đi: mốc A không đo được, mốc B đo được
   // cả hai loại túi (chuyển tiếp 19/10 trước, rồi túi ĐẾN 20/10): tính MỘT lần, nguon_hang = khai_thac

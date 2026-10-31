@@ -121,7 +121,7 @@ Chỉ mục: `shbg`; 7 cột khóa túi. Không FOREIGN KEY sang `ktt_tui`.
 
 ## 9. Bảng `ktt_hang_hoan` và `ktt_hang_hoan_nap` (KTT-17-1)
 
-Danh sách SHBG hàng hoàn từ ItemReturn của CSDL BCCP, nạp từ file riêng `KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv` (không ghép cặp với Tui / BuuGui; chi tiết `39_KTT_NAP_SFTP.md` mục 15). Chỉ THÊM bảng, không ALTER bảng cũ. CHƯA dùng vào chỉ số nào.
+Danh sách SHBG hàng hoàn từ ItemReturn của CSDL BCCP, nạp từ file riêng `KTT_HangHoan_<yyyymmdd>_<hhmmss>.csv` (không ghép cặp với Tui / BuuGui; chi tiết `39_KTT_NAP_SFTP.md` mục 15). Chỉ THÊM bảng, không ALTER bảng cũ. Từ KTT-17-2 là nguồn nhận diện hàng hoàn (`41_KTT_LUU_THOAT.md` mục 5).
 
 | Bảng.cột | Kiểu | Ý nghĩa |
 |---|---|---|
