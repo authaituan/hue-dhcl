@@ -983,8 +983,8 @@ export default function KttDoiChieu({ authUser }) {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* ── Trái: Các chuyến BD10 không thấy hàng ở đích ── */}
                 <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 pb-2">
+                  <div className="space-y-3 lg:flex-1 lg:flex lg:flex-col lg:min-h-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 pb-2 shrink-0">
                       <div>
                         <h3 className="text-sm font-bold text-gray-900">
                           Các chuyến BD10 không thấy hàng ở đích
@@ -1036,87 +1036,89 @@ export default function KttDoiChieu({ authUser }) {
                     </div>
 
                     {/* Danh sách các chuyến */}
-                    {displayedChuyen.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-gray-400 italic">
-                        Không có chuyến nào thuộc phân loại này
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
-                        {displayedChuyen.map((c, idx) => {
-                          const ngayYmd = String(c.gio_lap || '').slice(0, 10);
-                          const thu = getThuTiengViet(ngayYmd);
-                          const isChuNhat = thu === 'Chủ nhật';
-                          const bcvhTen = bcvhMap.get(c.ma_bcvh_dich) || c.ma_bcvh_dich;
-                          const isMatDauChac = c.loai === 'MAT_DAU_CHAC';
-                          const pctBar = Math.min(100, Math.max(0, ((c.so_shbg || 0) / maxShbgChuyen) * 100));
+                    <div className="lg:flex-1 lg:min-h-[320px] lg:relative">
+                      {displayedChuyen.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-gray-400 italic">
+                          Không có chuyến nào thuộc phân loại này
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 max-h-[480px] lg:max-h-none overflow-y-auto overflow-x-hidden pr-1 lg:absolute lg:inset-0">
+                          {displayedChuyen.map((c, idx) => {
+                            const ngayYmd = String(c.gio_lap || '').slice(0, 10);
+                            const thu = getThuTiengViet(ngayYmd);
+                            const isChuNhat = thu === 'Chủ nhật';
+                            const bcvhTen = bcvhMap.get(c.ma_bcvh_dich) || c.ma_bcvh_dich;
+                            const isMatDauChac = c.loai === 'MAT_DAU_CHAC';
+                            const pctBar = Math.min(100, Math.max(0, ((c.so_shbg || 0) / maxShbgChuyen) * 100));
 
-                          return (
-                            <div
-                              key={`${c.ma_bd10 || idx}-${c.gio_lap}-${c.ma_bcvh_dich}`}
-                              className="p-3 bg-gray-50 rounded-[10px] border border-gray-100 hover:border-gray-200 transition-colors space-y-1.5"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="font-bold text-gray-900">
-                                    {c.ma_bcvh_dich} · {bcvhTen}
-                                  </span>
-                                  {c.ma_bd10 && (
-                                    <span className="text-[11px] font-medium text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
-                                      {c.ma_bd10}
+                            return (
+                              <div
+                                key={`${c.ma_bd10 || idx}-${c.gio_lap}-${c.ma_bcvh_dich}`}
+                                className="p-3 bg-gray-50 rounded-[10px] border border-gray-100 hover:border-gray-200 transition-colors space-y-1.5"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="font-bold text-gray-900">
+                                      {c.ma_bcvh_dich} · {bcvhTen}
+                                    </span>
+                                    {c.ma_bd10 && (
+                                      <span className="text-[11px] font-medium text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                                        {c.ma_bd10}
+                                      </span>
+                                    )}
+                                    {isMatDauChac ? (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                        Mất dấu chắc chắn
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                        Nghi ngờ thiếu file dữ liệu của BCVH
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="text-right">
+                                    <strong className="text-sm font-extrabold text-red-700 tabular-nums">
+                                      {formatInt(c.so_chua_thay || c.so_shbg)}
+                                    </strong>
+                                    <span className="text-gray-500 text-xs ml-1">SHBG</span>
+                                  </div>
+                                </div>
+
+                                {/* Thanh số lượng SHBG */}
+                                <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
+                                  <div
+                                    style={{ width: `${pctBar}%` }}
+                                    className={`h-full rounded-full ${isMatDauChac ? 'bg-[#B3202A]' : 'bg-[#D97706]'}`}
+                                  />
+                                </div>
+
+                                {/* Dòng ngày giờ lập và ghi chú */}
+                                <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-gray-500 pt-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span>Lập lúc: <strong className="text-gray-700">{formatDateTimeWithoutSeconds(c.gio_lap)}</strong></span>
+                                    <span className={isChuNhat ? 'font-bold text-red-700 bg-red-50 px-1 rounded' : 'text-gray-600'}>
+                                      {thu}
+                                    </span>
+                                  </div>
+
+                                  {!isMatDauChac && (
+                                    <span className="text-amber-800 italic text-[11px]">
+                                      BCVH không có file dữ liệu của ngày này nên chưa chắc đã mất dấu
                                     </span>
                                   )}
-                                  {isMatDauChac ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800 border border-red-200">
-                                      Mất dấu chắc chắn
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                      Nghi ngờ thiếu file dữ liệu của BCVH
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="text-right">
-                                  <strong className="text-sm font-extrabold text-red-700 tabular-nums">
-                                    {formatInt(c.so_chua_thay || c.so_shbg)}
-                                  </strong>
-                                  <span className="text-gray-500 text-xs ml-1">SHBG</span>
                                 </div>
                               </div>
-
-                              {/* Thanh số lượng SHBG */}
-                              <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
-                                <div
-                                  style={{ width: `${pctBar}%` }}
-                                  className={`h-full rounded-full ${isMatDauChac ? 'bg-[#B3202A]' : 'bg-[#D97706]'}`}
-                                />
-                              </div>
-
-                              {/* Dòng ngày giờ lập và ghi chú */}
-                              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-gray-500 pt-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span>Lập lúc: <strong className="text-gray-700">{formatDateTimeWithoutSeconds(c.gio_lap)}</strong></span>
-                                  <span className={isChuNhat ? 'font-bold text-red-700 bg-red-50 px-1 rounded' : 'text-gray-600'}>
-                                    {thu}
-                                  </span>
-                                </div>
-
-                                {!isMatDauChac && (
-                                  <span className="text-amber-800 italic text-[11px]">
-                                    BCVH không có file dữ liệu của ngày này nên chưa chắc đã mất dấu
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Nút Xem tất cả / Thu gọn nếu có nhiều chuyến */}
                   {filteredChuyen.length > 15 && (
-                    <div className="pt-2 border-t border-gray-100 flex justify-center">
+                    <div className="pt-2 border-t border-gray-100 flex justify-center shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowAllTrips((prev) => !prev)}
