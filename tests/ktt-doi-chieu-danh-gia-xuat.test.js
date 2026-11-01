@@ -169,7 +169,7 @@ async function bang(s, q) {
 }
 const cotCua = (s, khoa) => DX.SHEET[s].cot.findIndex((c) => c.khoa === khoa);
 const gioChuoi = (d) => (d instanceof Date ? d.toISOString().slice(0, 19).replace('T', ' ') : d);
-const CAM = /túi đi ngoài chưa mở/i;
+const CAM = /túi đi ngoài chưa mở|cửa sổ|dương tính|đã ghi đi|trung vị|p50|p90|phân vị|Mất dấu chắc(?! chắn)|Nghi thiếu file/i; // kèm thuật ngữ hiển thị cũ PO đã bỏ (chữ người đọc thấy)
 const layTong = async (q = DEN) => (await goi(`/api/ktt/doi-chieu/tong-hop?${q}`)).body;
 
 // ---------- quyền, tham số ----------
@@ -334,7 +334,7 @@ test('xuất: số dòng mỗi sheet = số API (tong-hop, chua-thay, danh-gia);
     assert.equal(b.r.headers.get('content-type'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     assert.match(b.r.headers.get('content-disposition'), new RegExp(`KTT_DoiChieu_.*_2026-10-18_2026-10-22\\.xlsx`));
     assert.equal(b.r.headers.get('cache-control'), 'no-store');
-    for (const k of ['Cửa sổ', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Định nghĩa: nhóm của sheet', 'Đơn vị']) assert.ok(b.ttin[k], `${s} ${k}`);
+    for (const k of ['Khoảng ngày đối chiếu được', 'Dữ liệu đến', 'Chốt số theo ngày', 'Ngày xuất, người xuất', 'Trạng thái số liệu', 'Định nghĩa: nhóm của sheet', 'Đơn vị']) assert.ok(b.ttin[k], `${s} ${k}`);
     assert.ok(String(b.ttin['Ngày xuất, người xuất']).includes('KT164_TTVH'));
     for (const v of Object.values(b.ttin)) assert.ok(!CAM.test(String(v)));
   }
@@ -349,7 +349,7 @@ test('xuất: số dòng mỗi sheet = số API (tong-hop, chua-thay, danh-gia);
   for (const r of b6.dong) assert.equal(r[i('ty_le')], r[i('tong')] > 0 ? Math.round((r[i('da_co')] / r[i('tong')]) * 10000) / 10000 : null);
 });
 
-test('xuất sheet 1: cột, nhãn nguồn / lý do (không có «túi đi ngoài chưa mở»), cờ nghi dương tính giả, giờ không lệch múi giờ', async () => {
+test('xuất sheet 1: cột, nhãn nguồn / lý do (không có «túi đi ngoài chưa mở»), cột «Có thể do BCVH thiếu dữ liệu», giờ không lệch múi giờ', async () => {
   duLieu();
   const b = await bang(1);
   const c = (k) => cotCua(1, k);
@@ -382,9 +382,9 @@ test('xuất sheet 2: chuyến mất dấu — loại, ngày trong tuần, Chủ
   const nhom = {};
   for (const r of b.dong) { const k = r[c('ma_bd10')]; (nhom[k] = nhom[k] || []).push(r); }
   assert.deepEqual(Object.keys(nhom).sort(), ['BD10-T2', 'BD10-T3', 'BD10-T7']);
-  assert.ok(nhom['BD10-T2'].every((r) => r[c('loai')] === 'MAT_DAU_CHAC' && r[c('thu')] === 'Thứ ba' && r[c('chu_nhat')] === 'Không'));
-  assert.ok(nhom['BD10-T3'].every((r) => r[c('loai')] === 'NGHI_THIEU_FILE' && r[c('ma_bcvh')] === HT));
-  assert.ok(nhom['BD10-T7'].every((r) => r[c('thu')] === 'Chủ nhật' && r[c('chu_nhat')] === 'Có' && r[c('loai')] === 'MAT_DAU_CHAC'));
+  assert.ok(nhom['BD10-T2'].every((r) => r[c('loai')] === 'Mất dấu chắc chắn' && r[c('thu')] === 'Thứ ba' && r[c('chu_nhat')] === 'Không'));
+  assert.ok(nhom['BD10-T3'].every((r) => r[c('loai')] === 'Nghi ngờ thiếu file dữ liệu của BCVH' && r[c('ma_bcvh')] === HT));
+  assert.ok(nhom['BD10-T7'].every((r) => r[c('thu')] === 'Chủ nhật' && r[c('chu_nhat')] === 'Có' && r[c('loai')] === 'Mất dấu chắc chắn'));
   assert.equal(gioChuoi(nhom['BD10-T7'][0][c('gio_lap')]), '2026-10-18 08:00:00');
   assert.equal(nhom['BD10-T2'].length, 5);
 });
@@ -537,4 +537,15 @@ test('hàng đợi xuất: ba yêu cầu cùng lúc -> lượt ba bị 429 KTT_X
     assert.equal((await goi(urlXuat(5))).status, 200);
   } finally { Api.trangThaiXuat.dem = 0; }
   assert.equal((await goi(urlXuat(2))).status, 200);
+});
+
+test('thuật ngữ hiển thị: tiêu đề cột, nhãn loại và sheet «Thông tin» dùng chữ mới, không còn chữ cũ', async () => {
+  duLieu();
+  for (const s of [1, 2, 3, 4, 5, 6]) for (const col of DX.SHEET[s].cot) assert.ok(!CAM.test(col.tieuDe), `${s} ${col.khoa}`);
+  assert.deepEqual(DX.SHEET[5].cot.filter((x) => /bưu gửi tới/.test(x.tieuDe)).map((x) => x.tieuDe), ['Giờ BCVH nhận (lúc 50% bưu gửi tới)', 'Thời gian để 50% bưu gửi tới (giờ)', 'Thời gian để 90% bưu gửi tới (giờ)']);
+  const b5 = await bang(5);
+  assert.ok(String(b5.ttin['Định nghĩa: 50% / 90% bưu gửi tới']).includes('hàng chưa thấy không tính'));
+  const b2 = await bang(2);
+  const loai = new Set(b2.dong.map((r) => r[cotCua(2, 'loai')]));
+  assert.deepEqual([...loai].sort(), ['Mất dấu chắc chắn', 'Nghi ngờ thiếu file dữ liệu của BCVH']);
 });

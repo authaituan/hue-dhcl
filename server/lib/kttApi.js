@@ -742,7 +742,7 @@ function dauDoiChieu({ k, maBcvh, doMoi, doPhu }) {
     cua_so_theo_bcvh: Object.fromEntries(doPhu.bcvh.filter((x) => !maBcvh || x.ma === maBcvh).map((x) => [x.ma, x.cua_so]))
   };
 }
-const metaDoiChieu = () => ({ ...(boNho.hangHoan || {}), do_phu: '/api/ktt/doi-chieu/do-phu', nghi_duong_tinh_gia: 'cờ dương tính giả của KTT-16-1 (BCVH đích thiếu file trong D..D+2); không bị bỏ khỏi số liệu, chỉ để chú thích' });
+const metaDoiChieu = () => ({ ...(boNho.hangHoan || {}), do_phu: '/api/ktt/doi-chieu/do-phu', nghi_duong_tinh_gia: 'có thể do BCVH thiếu dữ liệu (KTT-16-1: BCVH đích không có file dữ liệu trong D..D+2); không bị bỏ khỏi số liệu, chỉ để chú thích' });
 
 /**
  * GET /api/ktt/doi-chieu/thoi-gian-nhan?tu=&den=[&ma_bcvh=] — KTT-16-3 (a): «Hàng đi KTT rồi, bao lâu thì BCVH nhận?». Độ trễ = mốc đến hợp lệ MUỘN NHẤT ở BCVH đích − giờ lập BD10 đi,
@@ -755,7 +755,7 @@ async function doiChieuThoiGianNhan(db, query, { now = Date.now() } = {}) {
     ...DC.ghepThoiGianNhan({ ngays: h.k.ngays, bo: h.bo, doPhu: h.doPhu, maBcvh: h.maBcvh }),
     meta: {
       ...metaDoiChieu(),
-      dinh_nghia: 'do_tre = mốc đến hợp lệ muộn nhất ở BCVH đích − giờ lập BD10 đi; thanh 2 (đã ghi đi, không hoàn), tai_dich, ngày D trong cửa sổ của đích; không gồm nhóm thiếu giờ quét túi đến',
+      dinh_nghia: 'do_tre = mốc đến hợp lệ muộn nhất ở BCVH đích − giờ lập BD10 đi; thanh 2 (đã giao đi, không hoàn), tai_dich, ngày D trong khoảng đối chiếu của đích; không gồm nhóm thiếu giờ quét túi đến',
       phan_vi: 'thứ hạng gần nhất (rank = ceil(p*n)) trên histogram phút, trả cận trên của bin (giờ, 3 chữ số)',
       do_tre_am: 'mau_tong = mau + am + khong_doc; am (mốc đến trước giờ lập BD10 đi) không vào p50 / p90 / ty_le_cung_ngay',
       cung_ngay: 'mẫu không âm có mốc đến cùng ngày lịch với giờ lập BD10 đi; ty_le_cung_ngay = cung_ngay / mau'
@@ -775,8 +775,8 @@ async function doiChieuChuaThay(db, query, { now = Date.now() } = {}) {
     nguon_chua_thay: DC.ghepChuaThay(p),
     meta: {
       ...metaDoiChieu(),
-      chuyen: 'chuyến = (mã BD10 đi, giờ lập BD10, BCVH đích); chỉ SHBG thanh 2 đã phân loại (không gồm thiếu giờ quét túi đến) trong cửa sổ của đích',
-      mat_dau: 'mất dấu = mọi SHBG của chuyến chưa thấy và có từ so_shbg_toi_thieu SHBG; NGHI_THIEU_FILE khi có SHBG chưa thấy ở ngày cờ dương tính giả (không tính là mất dấu chắc)',
+      chuyen: 'chuyến = (mã BD10 đi, giờ lập BD10, BCVH đích); chỉ SHBG thanh 2 đã phân loại (không gồm thiếu giờ quét túi đến) trong khoảng đối chiếu của đích',
+      mat_dau: 'mất dấu = mọi SHBG của chuyến chưa thấy và có từ so_shbg_toi_thieu SHBG; NGHI_THIEU_FILE (nghi ngờ thiếu file dữ liệu của BCVH) khi có SHBG chưa thấy ở ngày có thể do BCVH thiếu dữ liệu (chưa tính là mất dấu chắc chắn)',
       thanh_1: 'thanh_1.tong = tong_cong.tap_chinh.chua_thay của tong-hop; mỗi SHBG đúng một lý do',
       thieu_gio_quet_den: 'thieu_gio_quet_den.tong = khong_phan_loai_da_ghi_di.tong của tong-hop = da_thay + chua_thay + ngoai_cua_so (không thuộc thanh 1)'
     }
@@ -801,10 +801,10 @@ async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
       khoa_ghep: 'tracking_no = SHBG (khớp chuỗi trực tiếp)',
       tra_cuu_file: 'file OK của 6 BCVH có file_date trong [D, D+2]',
       co_mat: 'có mặt ở BCVH = có dòng arrival_items với mốc đến hợp lệ (arrival_at); dòng chưa xác định ngày đến không tính. Nơi đến thực tế = BCVH có mốc muộn nhất; đã có mặt thì không xét trạng thái túi KTT',
-      khong_phan_loai_da_ghi_di: 'nằm trong da_ghi_di.tong: có giờ lập BD10 đi nhưng thiếu giờ quét túi đến. Có mặt ở BCVH Y -> theo_bcvh_noi_den[Y]; không thấy -> chua_thay nếu D trong cửa sổ của cả sáu BCVH, ngược lại ngoai_cua_so. da_ghi_di.tong - khong_phan_loai_da_ghi_di.tong = cung_ngay + hom_sau + tu_2_ngay của /dicungngay',
+      khong_phan_loai_da_ghi_di: 'nằm trong da_ghi_di.tong: có giờ lập BD10 đi nhưng thiếu giờ quét túi đến. Có mặt ở BCVH Y -> theo_bcvh_noi_den[Y]; không thấy -> chua_thay nếu D trong khoảng đối chiếu của cả sáu BCVH, ngược lại ngoai_cua_so (chưa đối chiếu được). da_ghi_di.tong - khong_phan_loai_da_ghi_di.tong = cung_ngay + hom_sau + tu_2_ngay của /dicungngay',
       thu_tu_uu_tien: 'có ở đích -> tai_dich; không ở đích nhưng có ở BCVH khác trong 6 BCVH -> bcvh_khac; không đâu -> chua_thay',
       nghi_duong_tinh_gia: 'tập con của chua_thay: ngày D..D+2 của BCVH đích có ngày không CO_DU_LIEU (co_the_duong_tinh_gia, KTT-16-1); không bị bỏ khỏi chua_thay',
-      ngoai_cua_so: 'SHBG ngoài cửa sổ kiểm tra được của BCVH đích (chưa kiểm tra được): chỉ đếm, không phân loại'
+      ngoai_cua_so: 'SHBG chưa đối chiếu được (nằm ngoài khoảng ngày có dữ liệu BCVH của BCVH đích): chỉ đếm, không phân loại'
     }
   };
 }

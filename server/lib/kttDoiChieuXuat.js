@@ -22,6 +22,7 @@ const NHAN_NGUON = Object.freeze({
   KDN_DA_XAC_NHAN: 'Kiện đi ngoài', KDN_CHUA_XAC_NHAN: 'Kiện đi ngoài', TUI_CHUYEN_TIEP_DA_CHIA_SAN: 'Túi chuyển tiếp đã chia sẵn',
   TUI_CHUA_QUET_DI: 'Túi khai thác đến chưa quét đi', KHAC: 'Khác'
 });
+const NHAN_LOAI_MAT_DAU = Object.freeze({ MAT_DAU_CHAC: 'Mất dấu chắc chắn', NGHI_THIEU_FILE: 'Nghi ngờ thiếu file dữ liệu của BCVH' });
 const THU = Object.freeze(['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']);
 const tenBcvh = (ma) => (ma ? (DQ.TEN_BCVH[ma] || null) : null);
 const coKhong = (b) => (b ? 'Có' : 'Không');
@@ -44,7 +45,7 @@ const SHEET = Object.freeze({
       cot('gio_ktt', 'Giờ KTT nhận (quét túi đến; thiếu thì xác nhận BD10 đến)', 26, 'gio'),
       cot('bd8', 'Số hiệu BD8 (túi / kiện)', 24), cot('bd10_den', 'BD10 túi đến', 24),
       cot('nguon', 'Nguồn', 30), cot('ly_do', 'Lý do thiếu trạng thái', 44), cot('ngay_den', 'Ngày đến KTT (ngày D)', 14),
-      cot('tuoi_gio', 'Tuổi (giờ, đến độ mới dữ liệu KTT)', 18, 'gio_so', '0.0'), cot('nghi', 'Nghi dương tính giả', 14)
+      cot('tuoi_gio', 'Tuổi (giờ, đến độ mới dữ liệu KTT)', 18, 'gio_so', '0.0'), cot('nghi', 'Có thể do BCVH thiếu dữ liệu', 14)
     ])
   }),
   2: Object.freeze({
@@ -73,8 +74,8 @@ const SHEET = Object.freeze({
     ten: '5 Chuyến chậm', tenFile: 'ChuyenCham', route: 'chuyen-cham',
     cot: Object.freeze([
       cot('ma_bd10', 'BD10 (mã chuyến)', 24), cot('ma_bcvh', 'BCVH đích (mã)', 14), cot('ten_bcvh', 'BCVH đích (tên)', 18), cot('gio_di', 'Giờ BD10 đi', 21, 'gio'),
-      cot('gio_den', 'Giờ BCVH nhận (theo trung vị)', 22, 'gio'), cot('p50', 'Thời gian BD10 đi → BCVH nhận, trung vị (giờ)', 22, 'gio_so', '0.00'),
-      cot('p90', 'Thời gian BD10 đi → BCVH nhận, p90 (giờ)', 22, 'gio_so', '0.00'), cot('so_shbg', 'Số SHBG của chuyến', 12, 'so', '0'),
+      cot('gio_den', 'Giờ BCVH nhận (lúc 50% bưu gửi tới)', 22, 'gio'), cot('p50', 'Thời gian để 50% bưu gửi tới (giờ)', 22, 'gio_so', '0.00'),
+      cot('p90', 'Thời gian để 90% bưu gửi tới (giờ)', 22, 'gio_so', '0.00'), cot('so_shbg', 'Số SHBG của chuyến', 12, 'so', '0'),
       cot('mau', 'Số SHBG đã thấy ở đích (mẫu)', 14, 'so', '0'), cot('c1', 'C1', 8), cot('c2', 'C2', 8), cot('c3', 'C3', 8)
     ])
   }),
@@ -82,8 +83,8 @@ const SHEET = Object.freeze({
     ten: '6 Đã có tại đích', tenFile: 'DaCoTaiDich', route: 'da-co-tai-dich',
     cot: Object.freeze([
       cot('ma_bcvh', 'BCVH đích (mã)', 14), cot('ten_bcvh', 'BCVH đích (tên)', 18), cot('ngay', 'Ngày (ngày D, theo giờ lập BD10 đi)', 16),
-      cot('trong_cua_so', 'Trong cửa sổ kiểm tra được', 14), cot('da_co', 'Số SHBG đã có tại đích', 14, 'so', '0'), cot('tong', 'Tổng SHBG đã ghi đi (trong cửa sổ)', 16, 'so', '0'),
-      cot('ty_le', 'Tỷ lệ đã có tại đích', 14, 'ty_le', '0.0%'), cot('ngoai_cua_so', 'SHBG ngoài cửa sổ (chưa kiểm tra được)', 18, 'so', '0')
+      cot('trong_cua_so', 'Trong khoảng đối chiếu được', 14), cot('da_co', 'Số SHBG đã có tại đích', 14, 'so', '0'), cot('tong', 'Tổng SHBG đã giao đi (trong khoảng đối chiếu)', 16, 'so', '0'),
+      cot('ty_le', 'Tỷ lệ đã có tại đích', 14, 'ty_le', '0.0%'), cot('ngoai_cua_so', 'SHBG chưa đối chiếu được (ngoài khoảng ngày có dữ liệu BCVH)', 18, 'so', '0')
     ])
   })
 });
@@ -134,7 +135,7 @@ function dongSheet2({ ngays, bo, doPhu, maBcvh = null }) {
       const loai = loaiTheoChuyen.get(`${r.d}|${r.b}|${r.g}`);
       if (!loai) continue;
       const thu = thuCua(r.g);
-      kq.push({ ngay: r.g || '', shbg: r.s, o: [r.s, r.d, tenBcvh(r.d), r.b || null, r.g, thu === null ? null : THU[thu], coKhong(thu === 0), loai] });
+      kq.push({ ngay: r.g || '', shbg: r.s, o: [r.s, r.d, tenBcvh(r.d), r.b || null, r.g, thu === null ? null : THU[thu], coKhong(thu === 0), NHAN_LOAI_MAT_DAU[loai] || loai] });
     }
   }
   return sapXep(kq);
@@ -229,12 +230,12 @@ function lietKe(db, opts) {
 // Sheet «Thông tin»
 // ------------------------------------------
 const MO_TA_NHOM = Object.freeze({
-  1: 'Mỗi dòng một SHBG thuộc thanh 1 (nhóm «chưa đi trên 24 giờ» của KTT, không phải hàng hoàn) mà không thấy ở BCVH nào trong 6 BCVH Huế (loại CHUA_THAY), ngày D (ngày đến KTT) nằm trong cửa sổ kiểm tra được của BCVH đích. Nguồn / lý do theo nhãn KTT-16-3: «Kiện đi ngoài» = SHBG đi ngoài túi (BD8 trùng SHBG), trạng thái chỉ «xác nhận» / «chưa xác nhận»; «Túi chuyển tiếp đã chia sẵn»; «Túi khai thác đến chưa quét đi»; «Khác». «Tuổi» = độ mới dữ liệu KTT − giờ KTT nhận.',
-  2: 'Mỗi dòng một SHBG chưa thấy thuộc một chuyến «mất dấu»: chuyến BD10 đi (mã BD10 + giờ lập + BCVH đích) có ít nhất 5 SHBG đã ghi đi (đã phân loại, ngày D trong cửa sổ của đích) và MỌI SHBG của chuyến đều chưa thấy. MAT_DAU_CHAC: không có SHBG nào rơi vào ngày BCVH đích thiếu file; NGHI_THIEU_FILE: có (cờ dương tính giả KTT-16-1), chưa phải mất dấu chắc. Cột «Chủ nhật» theo ngày lập BD10 đi. Không kết luận nguyên nhân.',
-  3: 'Mỗi dòng một SHBG chuyển tiếp (chỉ có túi chuyển tiếp đi, KTT không mở túi) thuộc nhóm «chưa đi trên 24 giờ» của KTT-14 (chưa có giờ lập BD10 đi quá 24 giờ kể từ giờ quét túi đến), không phải hàng hoàn. Không phụ thuộc cửa sổ kiểm tra BCVH (chỉ số liệu KTT). «Loại đích»: BCVH Huế (một trong 6 BCVH) hoặc khác.',
-  4: 'Mỗi dòng một SHBG thanh 1 (chưa đi trên 24 giờ, không hoàn) không thấy ở BCVH đích KTT biết nhưng thấy ở BCVH khác trong 6 BCVH (loại BCVH_KHAC), ngày D trong cửa sổ của đích. «BCVH thật sự thấy» = nơi đến thực tế = BCVH có mốc đến hợp lệ muộn nhất; «Giờ BCVH nhận» là mốc đó.',
-  5: 'Mỗi dòng một chuyến BD10 «chậm»: chuyến (mã BD10 + giờ lập + BCVH đích) có từ {mau} SHBG đã thấy ở đích (mẫu hợp lệ, ngày D trong cửa sổ) và trung vị thời gian «giờ lập BD10 đi → BCVH đích nhận» lớn hơn {nguong} giờ (hằng số CHUYEN_CHAM trong kttDoiChieu.js; PO chọn). Giờ BCVH nhận = giờ đi + trung vị. Cột C1, C2, C3 để TRỐNG: dữ liệu chưa có căn cứ phân loại (đang làm rõ C1/C2/C3 so với xe C2).',
-  6: 'Mỗi dòng một (BCVH đích, ngày D). «Đã có tại đích» = SHBG thanh 2 (đã ghi đi BD10, không hoàn) phân loại tai_dich; «Tổng» = SHBG thanh 2 phân loại được trong cửa sổ kiểm tra được (tại đích + thấy ở BCVH khác + chưa thấy); không gồm nhóm thiếu giờ quét túi đến. Ngày ngoài cửa sổ: Tổng = 0, SHBG ngoài cửa sổ chỉ đếm.'
+  1: 'Mỗi dòng một SHBG thuộc thanh 1 (nhóm «chưa đi trên 24 giờ» của KTT, không phải hàng hoàn) mà không thấy ở BCVH nào trong 6 BCVH Huế (loại CHUA_THAY), ngày D (ngày đến KTT) nằm trong khoảng đối chiếu được của BCVH đích. Nguồn / lý do theo nhãn KTT-16-3: «Kiện đi ngoài» = SHBG đi ngoài túi (BD8 trùng SHBG), trạng thái chỉ «xác nhận» / «chưa xác nhận»; «Túi chuyển tiếp đã chia sẵn»; «Túi khai thác đến chưa quét đi»; «Khác». «Tuổi» = độ mới dữ liệu KTT − giờ KTT nhận.',
+  2: 'Mỗi dòng một SHBG chưa thấy thuộc một chuyến «mất dấu»: chuyến BD10 đi (mã BD10 + giờ lập + BCVH đích) có ít nhất 5 SHBG đã giao đi (đã phân loại, ngày D trong khoảng đối chiếu của đích) và MỌI SHBG của chuyến đều chưa thấy. «Mất dấu chắc chắn»: không có SHBG nào rơi vào ngày BCVH không có file dữ liệu; «Nghi ngờ thiếu file dữ liệu của BCVH»: có (BCVH không có file dữ liệu của ngày này nên chưa chắc đã mất dấu). Cột «Chủ nhật» theo ngày lập BD10 đi. Không kết luận nguyên nhân.',
+  3: 'Mỗi dòng một SHBG chuyển tiếp (chỉ có túi chuyển tiếp đi, KTT không mở túi) thuộc nhóm «chưa đi trên 24 giờ» của KTT-14 (chưa có giờ lập BD10 đi quá 24 giờ kể từ giờ quét túi đến), không phải hàng hoàn. Không phụ thuộc khoảng ngày đối chiếu được của BCVH (chỉ số liệu KTT). «Loại đích»: BCVH Huế (một trong 6 BCVH) hoặc khác.',
+  4: 'Mỗi dòng một SHBG thanh 1 (chưa đi trên 24 giờ, không hoàn) không thấy ở BCVH đích KTT biết nhưng thấy ở BCVH khác trong 6 BCVH (loại BCVH_KHAC), ngày D trong khoảng đối chiếu của đích. «BCVH thật sự thấy» = nơi đến thực tế = BCVH có mốc đến hợp lệ muộn nhất; «Giờ BCVH nhận» là mốc đó.',
+  5: 'Mỗi dòng một chuyến BD10 «chậm»: chuyến (mã BD10 + giờ lập + BCVH đích) có từ {mau} SHBG đã thấy ở đích (mẫu hợp lệ, ngày D trong khoảng đối chiếu) và 50% số bưu gửi của chuyến tới sau hơn {nguong} giờ (thời gian «giờ lập BD10 đi → BCVH đích nhận») (hằng số CHUYEN_CHAM trong kttDoiChieu.js; PO chọn). Giờ BCVH nhận = giờ lập BD10 đi + thời gian để 50% bưu gửi tới. Cột C1, C2, C3 để TRỐNG: dữ liệu chưa có căn cứ phân loại (đang làm rõ C1/C2/C3 so với xe C2).',
+  6: 'Mỗi dòng một (BCVH đích, ngày D). «Đã có tại đích» = SHBG thanh 2 (đã giao đi BD10, không hoàn) phân loại tai_dich; «Tổng» = SHBG thanh 2 phân loại được trong khoảng đối chiếu được (tại đích + thấy ở BCVH khác + chưa thấy); không gồm nhóm thiếu giờ quét túi đến. Ngày chưa đối chiếu được (ngoài khoảng ngày có dữ liệu BCVH): Tổng = 0, SHBG chưa đối chiếu được chỉ đếm.'
 });
 const DONVI_DONG = Object.freeze({
   1: 'SHBG (số hiệu bưu gửi)', 2: 'SHBG (số hiệu bưu gửi) của chuyến mất dấu', 3: 'SHBG (số hiệu bưu gửi)', 4: 'SHBG (số hiệu bưu gửi)', 5: 'chuyến BD10', 6: '(BCVH, ngày)'
@@ -250,19 +251,20 @@ function dongThongTin(ctx) {
   const ngay = ctx.ngays.map((n) => `${dd(n)}: ${ctx.daChot[n] ? 'đã chốt' : 'số tạm'}`);
   const tatCaChot = ctx.ngays.length > 0 && ctx.ngays.every((n) => ctx.daChot[n]);
   const dsMa = ctx.maBcvh ? ctx.doPhu.bcvh.filter((x) => x.ma === ctx.maBcvh) : ctx.doPhu.bcvh;
-  const theoBcvh = dsMa.map((x) => `${x.ma}${x.cua_so ? `: ${dd(x.cua_so.tu)} – ${dd(x.cua_so.den)}` : ': chưa có cửa sổ'}`).join('; ');
+  const theoBcvh = dsMa.map((x) => `${x.ma}${x.cua_so ? `: ${dd(x.cua_so.tu)} – ${dd(x.cua_so.den)}` : ': chưa có khoảng đối chiếu được'}`).join('; ');
   const doMoiBcvh = dsMa.map((x) => `${x.ma}: ${x.do_moi || 'chưa có'}`).join('; ');
   const mo = MO_TA_NHOM[ctx.sheet].replace('{mau}', DC.CHUYEN_CHAM.SO_MAU_TOI_THIEU).replace('{nguong}', DC.CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO);
   const khop = ctx.soApi === ctx.soDong;
   return [
-    ['Cửa sổ', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (sheet «${tenSheet}»). Cửa sổ kiểm tra được chung của 6 BCVH trong khoảng: ${cuaSo ? `${dd(cuaSo.tu)} – ${dd(cuaSo.den)}` : 'không có ngày nào'}. Theo từng BCVH đích: ${theoBcvh}. BCVH lọc: ${ctx.maBcvh ? ctx.maBcvh : 'không (tất cả)'}.`],
+    ['Khoảng ngày đối chiếu được', `Từ ngày ${dd(ctx.tu)} đến ngày ${dd(ctx.den)} (sheet «${tenSheet}»). Khoảng ngày đối chiếu được chung của 6 BCVH trong khoảng đã chọn: ${cuaSo ? `${dd(cuaSo.tu)} – ${dd(cuaSo.den)}` : 'không có ngày nào'}. Theo từng BCVH đích: ${theoBcvh}. BCVH lọc: ${ctx.maBcvh ? ctx.maBcvh : 'không (tất cả)'}.`],
     ['Dữ liệu đến', `${ctx.doMoi ? `Dữ liệu KTT nguồn xuất lúc ${ctx.doMoi} (giờ Việt Nam).` : 'Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào).'} Độ mới «Hàng đến BCVH» (file OK mới nhất): ${doMoiBcvh}.`],
     ['Chốt số theo ngày', ngay.join('; ') || '(không có ngày)'],
     ['Ngày xuất, người xuất', `${ctx.xuatLuc} (giờ Việt Nam); tài khoản: ${ctx.nguoiXuat || '(không rõ)'}.`],
-    ['Trạng thái số liệu', tatCaChot ? 'Đã chốt: mọi ngày trong khoảng đã qua giờ chốt.' : `Số tạm: có ngày chưa chốt (ngày D chốt khi dữ liệu đến sau ${ctx.gioChot} ngày D+1). Số liệu BCVH có thể được nạp thêm; «chưa thấy» chỉ kết luận trong cửa sổ kiểm tra được (D + 48 giờ).`],
+    ['Trạng thái số liệu', tatCaChot ? 'Đã chốt: mọi ngày trong khoảng đã qua giờ chốt.' : `Số tạm: có ngày chưa chốt (ngày D chốt khi dữ liệu đến sau ${ctx.gioChot} ngày D+1). Số liệu BCVH có thể được nạp thêm; «chưa thấy» chỉ kết luận trong khoảng đối chiếu được (D + 48 giờ).`],
     ['Định nghĩa: nhóm của sheet', mo],
     ['Định nghĩa: có mặt ở BCVH', 'Có mặt ở BCVH = có dòng «Hàng đến BCVH» (file OK của 6 BCVH, file_date trong [D, D+2]) với mốc đến hợp lệ; dòng chưa xác định ngày đến không tính. Có ở BCVH đích → tại đích; chỉ ở BCVH khác → BCVH khác; không đâu → chưa thấy. Khóa ghép: SHBG = tracking_no (khớp chuỗi trực tiếp).'],
-    ['Định nghĩa: cờ nghi dương tính giả', 'BCVH đích có ngày D, D+1 hoặc D+2 không có dữ liệu (không có file, hoặc chỉ file rỗng): «chưa thấy» có thể chỉ do thiếu file BCVH (KTT-16-1). Không bị bỏ khỏi số liệu, chỉ để chú thích.'],
+    ['Định nghĩa: có thể do BCVH thiếu dữ liệu', 'BCVH đích có ngày D, D+1 hoặc D+2 không có dữ liệu (không có file, hoặc chỉ file rỗng): «chưa thấy» có thể chỉ do BCVH không có file dữ liệu của ngày này (KTT-16-1). Không bị bỏ khỏi số liệu, chỉ để chú thích.'],
+    ['Định nghĩa: 50% / 90% bưu gửi tới', '«50% bưu gửi tới» / «90% bưu gửi tới» là thời gian tính từ lúc lập BD10 đi đến khi BCVH nhận được 50% / 90% số bưu gửi của chuyến; chỉ tính các bưu gửi đã tới BCVH (hàng chưa thấy không tính). Đơn vị: giờ.'],
     ['Đơn vị', `Sheet «Thông tin»: mỗi dòng một mục mô tả. Sheet «${tenSheet}»: mỗi dòng là một ${DONVI_DONG[ctx.sheet]}.`],
     ['Số dòng kiểm tra', ctx.soDong],
     ['Đối chiếu với màn hình', `Số tương ứng trên trang Đối chiếu (cùng khoảng ngày và BCVH) là ${ctx.soApi}${khop ? `: khớp số dòng sheet «${tenSheet}».` : `: KHÔNG khớp số dòng sheet «${tenSheet}» (số liệu đang được cập nhật, hãy xuất lại).`}`]

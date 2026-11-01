@@ -177,7 +177,7 @@ Hai bảng riêng, vì thanh 1 (`chua_di_tren_24h`) KHÔNG chứa nhóm thiếu 
 - Điều chưa chắc: (1) «nhóm a» của canvas (xem 9.2); (2) p50 / p90 lấy cận trên bin phút nên cao hơn giá trị chính xác tới 1 phút; (3) mốc đến lấy dòng muộn nhất nên SHBG đến đích hai lần chỉ tính lần sau.
 
 ## 10. KTT-16-4: «Đánh giá» và xuất xlsx sheet 1–6 của trang Đối chiếu
-> Ticket KTT-16-4 (01/11/2026), PHẦN 1 backend (nhánh chung `feat/ktt-16-5-trang-doi-chieu`; giao diện = phần 2 của Antigravity, chưa làm). CHỈ ĐỌC. Code: `server/lib/kttDanhGiaDoiChieu.js` (hàm thuần), `server/lib/kttDoiChieuXuat.js` (cột, chọn dòng, «Thông tin»), `kttDoiChieu.js` (thêm `ghepChuyenTiepChuaQuet`, `ghepChuyenCham`, `gopThoiGianChuyen`, `CHUYEN_CHAM`; `boThuThap(ngay, { lietKe })`), `kttApi.js` (`doiChieuDanhGia`, `xuatDoiChieu`), `kttWorker.js` (tác vụ `xuatDoiChieu`), `kttXuat.js` (`ghiXlsx` nhận `cot` + `tenSheet`), `routes/ktt.js`. Test: `tests/ktt-doi-chieu-danh-gia-xuat.test.js` (18 ca, dữ liệu giả).
+> Ticket KTT-16-4 (01/11/2026), PHẦN 1 backend (nhánh chung `feat/ktt-16-5-trang-doi-chieu`; giao diện = phần 2 của Antigravity, chưa làm). CHỈ ĐỌC. Code: `server/lib/kttDanhGiaDoiChieu.js` (hàm thuần), `server/lib/kttDoiChieuXuat.js` (cột, chọn dòng, «Thông tin»), `kttDoiChieu.js` (thêm `ghepChuyenTiepChuaQuet`, `ghepChuyenCham`, `gopThoiGianChuyen`, `CHUYEN_CHAM`; `boThuThap(ngay, { lietKe })`), `kttApi.js` (`doiChieuDanhGia`, `xuatDoiChieu`), `kttWorker.js` (tác vụ `xuatDoiChieu`), `kttXuat.js` (`ghiXlsx` nhận `cot` + `tenSheet`), `routes/ktt.js`. Test: `tests/ktt-doi-chieu-danh-gia-xuat.test.js` (19 ca, dữ liệu giả).
 
 ### 10.1 Route (ADMIN + TTVH; GDVH, TIVI 403; không token 401; `tu`, `den` ≤ 31 ngày; `ma_bcvh` lọc theo BCVH ĐÍCH; khóa lạ -> 400)
 - `GET /api/ktt/doi-chieu/danh-gia` — `danh_gia[]` (thứ tự a–h, mục không đủ điều kiện thì KHÔNG có), `so_dong_sheet` (sheet 1–6: `ten`, `route`, `so_dong`), `hang_so` (`chuyen_cham`, `mat_dau`, `cung_ngay_thap`), `meta`; phần đầu như `tong-hop` (`khoang_ngay`, `cua_so_thuc_te`, `cua_so_theo_bcvh`, `co_du_lieu`, `ly_do`). Chưa có dữ liệu KTT: `danh_gia = []`.
@@ -228,6 +228,21 @@ Sheet 1–4: `boThuThap(ngay, { lietKe: true })` chạy trong worker, duyệt l�
 
 ### 10.6b Giới hạn xếp hàng xuất sheet 1–4 (Q&A 01/11/2026)
 Sheet 1–4 chạy ở MỘT worker duy nhất, xử lý tuần tự (`kttWorker.js:33–37`, `kttApi.js:146–149`), chung hàng đợi với mọi tác vụ nặng khác của KTT. `kttApi.xuatDoiChieu` giữ bộ đếm `trangThaiXuat.dem` (trả lại ở `finally`, kể cả khi lỗi): tối đa MỘT lượt chạy + MỘT lượt chờ (`GIOI_HAN_XUAT_DOI_CHIEU = 2`); lượt thứ ba trở đi bị từ chối bằng `LoiKtt('KTT_XUAT_BAN', 'Đang có xuất khác, thử lại sau ít phút.')`, route trả **429** `{ error, ma: 'KTT_XUAT_BAN' }`. Sheet 5, 6 (không duyệt SHBG) và sheet 7, 8 cũ không bị giới hạn. Bộ đếm chỉ bao phần chuẩn bị nội dung (nặng); ghi luồng file ra client không tính. RSS đỉnh khi có lượt chờ ước ≈ 500 MB (tuần tự, không cộng dồn; chưa đo trực tiếp). Server không đặt timeout HTTP (mặc định Node `requestTimeout` 300 giây); **rủi ro cần kiểm ở NAS / proxy phía trước**: nếu có timeout đọc ≈ 60 giây thì một lượt nguội (31–33 giây) cộng chờ lượt trước có thể vượt. Làm nóng cache chạy ở luồng chính, đọc DB WAL chỉ-đọc, không khóa với worker.
+
+### 10.8 Thuật ngữ HIỂN THỊ (PO chốt 01/11/2026; chỉ đổi chữ người đọc thấy, KHÔNG đổi tên trường / mã / số)
+
+Áp dụng cho câu «Đánh giá», tiêu đề cột và nhãn loại của sheet 1–6, sheet «Thông tin» và các câu `dinh_nghia` của API. Tên trường JSON (`trong_cua_so`, `ngoai_cua_so`, `co_the_duong_tinh_gia`, `nghi_duong_tinh_gia`, `p50_gio`, `p90_gio`, `gio_den_trung_vi`, `mat_dau_chac`, `nghi_thieu_file`, mã loại `MAT_DAU_CHAC` / `NGHI_THIEU_FILE`) và comment mã nguồn giữ nguyên.
+
+| Cũ | Mới (hiển thị) |
+|---|---|
+| cửa sổ đối chiếu / trong cửa sổ / ngoài cửa sổ | khoảng ngày đối chiếu được / trong khoảng đối chiếu / chưa đối chiếu được (nằm ngoài khoảng ngày có dữ liệu BCVH) |
+| dương tính giả | có thể do BCVH thiếu dữ liệu (ghi chú chuyến: «BCVH không có file dữ liệu của ngày này nên chưa chắc đã mất dấu») |
+| đã ghi đi | đã giao đi |
+| trung vị / p50 / phân vị p90 | 50% bưu gửi tới / 90% bưu gửi tới; câu chuyến chậm: «50% số bưu gửi của chuyến tới sau hơn 6 giờ»; đơn vị giữ «giờ» |
+| Mất dấu chắc | Mất dấu chắc chắn |
+| Nghi thiếu file BCVH | Nghi ngờ thiếu file dữ liệu của BCVH |
+
+Sheet 5: cột «Giờ BCVH nhận (lúc 50% bưu gửi tới)», «Thời gian để 50% bưu gửi tới (giờ)», «Thời gian để 90% bưu gửi tới (giờ)». Sheet 2: cột «Loại» ghi «Mất dấu chắc chắn» / «Nghi ngờ thiếu file dữ liệu của BCVH» (API vẫn trả mã). Sheet «Thông tin»: dòng «Khoảng ngày đối chiếu được» (trước là «Cửa sổ»), «Định nghĩa: có thể do BCVH thiếu dữ liệu», và dòng mới «Định nghĩa: 50% / 90% bưu gửi tới» (thời gian từ lúc lập BD10 đi đến khi BCVH nhận được 50% / 90% số bưu gửi; chỉ tính bưu gửi đã tới BCVH, hàng chưa thấy không tính). Test chặn chữ cũ: hằng `CAM` trong `tests/ktt-doi-chieu-danh-gia-xuat.test.js`.
 
 ### 10.7 Điều chưa chắc
 1. «Đã có tại đích» của sheet 6 theo thanh 2 (đã ghi đi), không theo thanh 1. 2. Sheet 4 theo thanh 1 (tập «chưa đi trên 24 giờ»); `bcvh_khac` của thanh 2 (338 SHBG) không có sheet. 3. Ngưỡng chuyến chậm (6 giờ, ≥ 5 mẫu) và ngưỡng mục f do dev đề xuất, chờ PO chọn. 4. Số «694 / 643» của canvas chưa tái tạo được. 5. Hàng hoàn bị loại khỏi sheet 1, 3, 4 (như thanh 1). 6. Mục f hiện chỉ khi dữ liệu ủng hộ; câu «chuyến tối» của canvas thay bằng khung giờ lập nhiều nhất tính từ dữ liệu (Thuận Hóa: 21:00, 20/48 chuyến chậm). 7. Số dòng file xuất có thể lệch số API tức thời nếu dữ liệu vừa đổi (xuất luôn duyệt lại, API có thể còn cache): sheet «Thông tin» báo «KHÔNG khớp». 8. Mã BD10 của sheet 2 và 5 chỉ có trong file xuất, không ghi vào test / docs.

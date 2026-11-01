@@ -42,8 +42,8 @@ function mucA(tc) {
   if (!(tc.tong > 0)) return null;
   const t = tc.trong_cua_so;
   let nd = '';
-  if (t > 0) nd = `Nhóm «chưa đi trên 24 giờ» trong cửa sổ kiểm tra được có ${so(t)} SHBG: ${so(tc.tai_dich)} (${pt(tc.tai_dich, t)}) đã có tại BCVH đích, ${so(tc.bcvh_khac)} (${pt(tc.bcvh_khac, t)}) thấy ở BCVH khác, ${so(tc.chua_thay)} (${pt(tc.chua_thay, t)}) chưa thấy ở đâu.`;
-  if (tc.ngoai_cua_so > 0) nd += `${nd ? ' ' : ''}${so(tc.ngoai_cua_so)} SHBG nằm ngoài cửa sổ nên chưa kiểm tra được.`;
+  if (t > 0) nd = `Nhóm «chưa đi trên 24 giờ» trong khoảng đối chiếu được có ${so(t)} SHBG: ${so(tc.tai_dich)} (${pt(tc.tai_dich, t)}) đã có tại BCVH đích, ${so(tc.bcvh_khac)} (${pt(tc.bcvh_khac, t)}) thấy ở BCVH khác, ${so(tc.chua_thay)} (${pt(tc.chua_thay, t)}) chưa thấy ở đâu.`;
+  if (tc.ngoai_cua_so > 0) nd += `${nd ? ' ' : ''}${so(tc.ngoai_cua_so)} SHBG chưa đối chiếu được (nằm ngoài khoảng ngày có dữ liệu BCVH).`;
   return muc('NHOM_CHUA_DI_24H', LOAI.LUU_Y, 'Nhóm chưa đi trên 24 giờ', nd,
     { trong_cua_so: t, tai_dich: tc.tai_dich, bcvh_khac: tc.bcvh_khac, chua_thay: tc.chua_thay, ngoai_cua_so: tc.ngoai_cua_so, tong: tc.tong }, null, 'tap_chinh.tong > 0');
 }
@@ -68,8 +68,8 @@ function mucC(md) {
   const cn = md.danh_sach.filter((c) => laChuNhat(c.gio_lap));
   const ngayCn = [...new Set(cn.map((c) => c.gio_lap.slice(0, 10)))].sort();
   const phan = [];
-  if (md.mat_dau_chac.so_chuyen > 0) phan.push(`${so(md.mat_dau_chac.so_chuyen)} chuyến mất dấu chắc (${so(md.mat_dau_chac.so_shbg)} SHBG)`);
-  if (md.nghi_thieu_file.so_chuyen > 0) phan.push(`${so(md.nghi_thieu_file.so_chuyen)} chuyến nghi thiếu file BCVH (${so(md.nghi_thieu_file.so_shbg)} SHBG)`);
+  if (md.mat_dau_chac.so_chuyen > 0) phan.push(`${so(md.mat_dau_chac.so_chuyen)} chuyến mất dấu chắc chắn (${so(md.mat_dau_chac.so_shbg)} SHBG)`);
+  if (md.nghi_thieu_file.so_chuyen > 0) phan.push(`${so(md.nghi_thieu_file.so_chuyen)} chuyến nghi ngờ thiếu file dữ liệu của BCVH (${so(md.nghi_thieu_file.so_shbg)} SHBG)`);
   let nd = `Có ${phan.join(' và ')}: mọi SHBG của chuyến đều chưa thấy.`;
   if (ngayCn.length > 0) {
     const hien = ngayCn.slice(0, NGUONG_DANH_GIA.toiDaNgayChuNhatNeu).map(ngayVn).join(', ');
@@ -112,7 +112,7 @@ function mucF(tg, cham) {
   let nd = `Đi cùng ngày chưa bằng đến cùng ngày: tỷ lệ BCVH nhận ngay trong ngày lập BD10 đi thấp hơn mức chung ${ptSo(chung)} ở ${cau}.`;
   if (tong > 0) {
     const co = ct.filter((x) => x.khung_gio_lap_nhieu_nhat !== null);
-    nd += ` Tại đó có ${so(tong)} chuyến chậm (trung vị trên ${DC.CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO} giờ)${co.length === 1 ? `, nhiều nhất ở khung giờ lập ${co[0].khung_gio_lap_nhieu_nhat}:00 (${so(co[0].so_chuyen_khung)} chuyến)` : ''}.`;
+    nd += ` Tại đó có ${so(tong)} chuyến chậm (50% số bưu gửi của chuyến tới sau hơn ${DC.CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO} giờ)${co.length === 1 ? `, nhiều nhất ở khung giờ lập ${co[0].khung_gio_lap_nhieu_nhat}:00 (${so(co[0].so_chuyen_khung)} chuyến)` : ''}.`;
   }
   return muc('DEN_CUNG_NGAY_THAP', LOAI.THONG_TIN, 'Đi cùng ngày chưa bằng đến cùng ngày', nd,
     { ty_le_cung_ngay_chung: chung, bcvh_thap: ct, nguong: N, trung_vi_chuyen_cham_gio_vuot: DC.CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO }, 5,
@@ -137,7 +137,7 @@ function mucG({ doPhu, ngays, maBcvh, thoiGianNhan }) {
   const tyThieu = dong > 0 ? thieuMoc / dong : null;
   if (khongFile === 0 && chiRong === 0 && !(am > 0) && !(tyThieu > 0)) return null;
   const phan = [];
-  if (khongFile + chiRong > 0) phan.push(`${so(khongFile + chiRong)} lượt (BCVH, ngày) không có file hoặc chỉ có file rỗng (${so(khongFile)} không có file, ${so(chiRong)} file rỗng), nên «chưa thấy» ở các ngày đó có thể là dương tính giả`);
+  if (khongFile + chiRong > 0) phan.push(`${so(khongFile + chiRong)} lượt (BCVH, ngày) không có file hoặc chỉ có file rỗng (${so(khongFile)} không có file, ${so(chiRong)} file rỗng), nên «chưa thấy» ở các ngày đó có thể do BCVH thiếu dữ liệu`);
   if (am > 0) phan.push(`${so(am)} SHBG có mốc BCVH nhận trước giờ lập BD10 đi`);
   if (tyThieu > 0) phan.push(`${ptSo(tyThieu)} dòng «Hàng đến BCVH» thiếu mốc xác nhận đến`);
   return muc('CHAT_LUONG_DU_LIEU_BCVH', LOAI.LUU_Y, 'Chất lượng dữ liệu BCVH', `Dữ liệu BCVH: ${phan.join('; ')}.`,
@@ -149,8 +149,8 @@ function mucH(t2) {
   if (!(t2.tong > 0)) return null;
   const ten = { chuyen_tiep: 'kiện đi ngoài', da_chia_san: 'túi chuyển tiếp đã chia sẵn', khai_thac: 'túi khai thác' };
   const nguon = t2.chua_thay.theo_nguon.map((n) => `${ten[n.ma] || n.nhan} ${so(n.so_luong)}`).join(', ');
-  let nd = `${so(t2.tong)} SHBG đã ghi đi nhưng thiếu giờ quét túi đến ở KTT: ${so(t2.da_thay.tong)} đã thấy ở BCVH, ${so(t2.chua_thay.tong)} chưa thấy`;
-  if (t2.ngoai_cua_so > 0) nd += `, ${so(t2.ngoai_cua_so)} ngoài cửa sổ`;
+  let nd = `${so(t2.tong)} SHBG đã giao đi nhưng thiếu giờ quét túi đến ở KTT: ${so(t2.da_thay.tong)} đã thấy ở BCVH, ${so(t2.chua_thay.tong)} chưa thấy`;
+  if (t2.ngoai_cua_so > 0) nd += `, ${so(t2.ngoai_cua_so)} chưa đối chiếu được (ngoài khoảng ngày có dữ liệu BCVH)`;
   nd += '.';
   if (nguon) nd += ` Chưa thấy theo nguồn: ${nguon}.`;
   return muc('THIEU_GIO_QUET_DEN', LOAI.THONG_TIN, 'Thiếu giờ quét túi đến ở KTT', nd,
