@@ -134,3 +134,44 @@ Một ngày D (ngày KTT lập BD10 đi) kiểm tra được cho BCVH đích X k
 4. Ngày D tính từ 00:00 (mục 3): SHBG lập BD10 muộn ngày cuối cửa sổ có thể chưa đủ 48 giờ trọn vẹn.
 5. **Hạn chế đã biết — nạp tay không làm nóng.** Nạp qua «Lấy ngay / Lấy lại» (`/api/nap-nguon/*`) và `scripts/import-arrivals.js` không gọi hook `sauNap`; chỉ lượt hẹn giờ SFTP mới làm nóng bó đối chiếu. Sau nạp tay, request đầu tiên của ngày bị ảnh hưởng tính lại (nguội) rồi mới nóng; kết quả vẫn đúng nhờ chữ ký BCVH.
 6. Hook `sauNap` của `sftpScheduler.js` được bọc `try/catch` (lỗi đồng bộ) và `Promise.resolve(...).catch` (Promise bị từ chối) nên không gây `unhandledRejection`; hook nối ở `server/index.js` còn luôn trả Promise không bao giờ từ chối.
+
+## 9. KTT-16-3: thời gian BCVH nhận, chuyến mất dấu, nguồn «chưa thấy»
+> Ticket KTT-16-3 (01/11/2026; PO duyệt định nghĩa bước 0 cùng ngày). Backend, CHỈ ĐỌC. Chưa «Đánh giá» (16-4), chưa sheet xlsx (16-3b), chưa giao diện (16-5). Code: `server/lib/kttDoiChieu.js` (`ghepThoiGianNhan`, `ghepChuyenMatDau`, `ghepChuaThay`, thu thập thêm trong `boThuThap`), `kttApi.js` (`doiChieuThoiGianNhan`, `doiChieuChuaThay`, `layBoDoiChieu`), `routes/ktt.js`. Test: `tests/ktt-doi-chieu-thoi-gian-nhan.test.js` (11 ca, dữ liệu giả).
+
+### 9.1 Route
+`GET /api/ktt/doi-chieu/thoi-gian-nhan` (a) và `GET /api/ktt/doi-chieu/chua-thay` (b + c), cùng tham số `tu`, `den` (≤ 31 ngày), `ma_bcvh` (lọc theo BCVH ĐÍCH) và cùng quyền như `tong-hop`. Tách hai route để giao diện chỉ tải phần nó cần (JSON ≈ 32 KB và ≈ 13 KB cho 30 ngày so với ≈ 126 KB của `tong-hop`); cả ba dùng CHUNG bó ngày `ngayDC` nên request thứ hai trở đi là nóng. Phần đầu chung: `khoang_ngay`, `ma_bcvh`, `nguon_xuat_luc_moi_nhat`, `co_du_lieu`, `ly_do`, `cua_so_thuc_te`, `cua_so_theo_bcvh`; `meta` có `hang_hoan_chua_nap`, `hang_hoan_nguon_xuat_luc`, `do_phu`, `nghi_duong_tinh_gia` (chú thích).
+
+### 9.2 (a) Thời gian nhận
+- **Mẫu:** SHBG thanh 2 (đã ghi đi, không hoàn) phân loại `tai_dich`, ngày D trong cửa sổ của đích. KHÔNG gồm nhóm thiếu giờ quét túi đến.
+- **Độ trễ** = mốc đến hợp lệ **muộn nhất** của SHBG ở BCVH đích (`arrival_at`, mốc R2) − giờ lập BD10 đi (cùng mốc với «nơi đến thực tế» của 16-2). Chọn mốc muộn nhất vì mốc sớm nhất cho nhiều độ trễ âm hơn (123 so với 48 trên bản sao 30 ngày: dính chuyến cũ của cùng SHBG); p50 / p90 gần như không đổi.
+- **Độ trễ âm** (mốc đến trước giờ lập BD10 đi) đếm riêng (`am`, `ty_le_am`), KHÔNG vào p50 / p90 / `ty_le_cung_ngay`. `mau_tong = mau + am + khong_doc` (`khong_doc`: mốc không phân tích được, hiện luôn 0). `mau_tong` = `da_ghi_di.tai_dich` trong cửa sổ của `tong-hop` (có test, từng BCVH).
+- **`cung_ngay`** = số mẫu không âm có mốc đến cùng NGÀY LỊCH với giờ lập BD10 đi; `ty_le_cung_ngay = cung_ngay / mau`. (PO chưa chỉ rõ nghĩa «nhóm a» của canvas; tạm hiểu là ngày nhận = ngày đi. Đổi được vì bó cất đủ thông tin? KHÔNG: chỉ cất `cung_ngay`; nếu «nhóm a» khác thì phải sửa `ghiDoTre`.)
+- **p50 / p90:** thứ hạng gần nhất, `rank = ceil(p·n)`, trên histogram theo PHÚT; trả cận trên của bin (giờ, 3 chữ số), nên lớn hơn giá trị chính xác < 1 phút (test: mẫu ngẫu nhiên 3.000, sai ≤ 1/60 giờ). Mỗi (ngày, BCVH) cất histogram thưa `{phút: số}` (100–660 khóa mỗi BCVH trên 30 ngày), gộp nhiều ngày bằng cộng histogram; **không giữ danh sách SHBG**. Gộp ba ngày bằng đúng bó cả khoảng (test).
+- **Kết quả:** `theo_bcvh[mã]` và `tong_cong` = `{ mau_tong, mau, am, khong_doc, ty_le_am, cung_ngay, ty_le_cung_ngay, p50_gio, p90_gio, ngoai_cua_so }` (`ngoai_cua_so` = mẫu ở ngày D ngoài cửa sổ của đích, chỉ đếm); `theo_ngay[].theo_bcvh[mã]` cùng khối kèm `trong_cua_so`. Ví dụ GIẢ: `{ "mau_tong": 7, "mau": 6, "am": 1, "p50_gio": 1.517, "p90_gio": 24.017, "ty_le_cung_ngay": 0.8333 }`.
+- Số trên bản sao DB 30/09–29/10 (6 BCVH, 114.545 mẫu, 48 âm): p50 1,1–3,7 giờ, p90 1,9–6,35 giờ, đến cùng ngày 91–100 % (Thuận Hóa 91,0 %, thấp nhất).
+
+### 9.3 (b) Chuyến mất dấu (`chua-thay` → `chuyen_mat_dau`)
+- **Chuyến** = (mã BD10 đi, giờ lập BD10, BCVH đích); mẫu là SHBG thanh 2 đã phân loại (có đủ ba loại), ngày D trong cửa sổ của đích. Mỗi bó ngày cất `{ b, g, n, ct }` mỗi chuyến (không cất SHBG); gộp nhiều ngày theo chuyến.
+- **Mất dấu** = mọi SHBG của chuyến chưa thấy (`ty_le_chua_thay ≥ 1`) VÀ `so_shbg ≥ 5` (`MAT_DAU`, PO duyệt; hằng số trong `kttDoiChieu.js`, trả ở `tieu_chi`). `loai`: `NGHI_THIEU_FILE` nếu có SHBG chưa thấy rơi vào ngày cờ dương tính giả của đích (tách riêng, KHÔNG phải mất dấu chắc), ngược lại `MAT_DAU_CHAC`.
+- **Kết quả:** `tong_chuyen`, `tong_shbg_da_ghi_di`, `phan_bo_ty_le_chua_thay` (`khong`, `duoi_10`, `tu_10_den_duoi_50`, `tu_50_den_duoi_100`, `het`), `so_chuyen_mat_dau`, `mat_dau_chac`, `nghi_thieu_file` (`so_chuyen`, `so_shbg`), `danh_sach` (mỗi chuyến: `ma_bd10`, `gio_lap`, `ma_bcvh_dich`, `so_shbg`, `so_chua_thay`, `so_chua_thay_nghi`, `ty_le_chua_thay`, `loai`). **Mã BD10 chỉ có ở phản hồi API** (giao diện cần), không ghi vào tests / docs.
+- Bản sao DB 30 ngày: 868 chuyến, 123.141 SHBG, 26 chuyến mất dấu (11 chắc / 600 SHBG, 15 nghi thiếu file / 559 SHBG) so với 8.258 SHBG chưa thấy thanh 2: phần lớn chưa thấy không nằm ở chuyến toàn bộ chưa thấy.
+
+### 9.4 (c) Nguồn của SHBG «chưa thấy» (`chua-thay` → `nguon_chua_thay`)
+Hai bảng riêng, vì thanh 1 (`chua_di_tren_24h`) KHÔNG chứa nhóm thiếu giờ quét túi đến (nhóm đó nằm ở thanh 2). Mỗi bảng loại trừ lẫn nhau và cộng đúng:
+- **`thanh_1`:** `tong` = `tong_cong.tap_chinh.chua_thay` của `tong-hop` (có test; 816 trên bản sao). Chia theo BCVH đích (`theo_bcvh`, `theo_bcvh_ly_do`) và theo lý do (`theo_ly_do[]`: `ma`, `nhan`, `so_luong`, `nghi_duong_tinh_gia`), cùng `theo_ngay` (ngày đến KTT = ngày D của bó). Lý do (`LY_DO`):
+
+| Mã | Nhãn | Điều kiện |
+|---|---|---|
+| `KDN_DA_XAC_NHAN` | Kiện đi ngoài đã xác nhận, chưa lập BD10 đi | kiện đi ngoài = luồng túi `DI_NGOAI` HOẶC số hiệu BD8 trùng SHBG (PO), có XNĐ BD10 đến |
+| `KDN_CHUA_XAC_NHAN` | Kiện đi ngoài chưa xác nhận | như trên, chưa có XNĐ BD10 đến |
+| `TUI_CHUYEN_TIEP_DA_CHIA_SAN` | Túi chuyển tiếp đã chia sẵn, chưa quét đi | hàng chuyển tiếp luồng `DA_CHIA_SAN` mà BD8 khác SHBG (nằm trong túi, không phải kiện đi ngoài) |
+| `TUI_CHUA_QUET_DI` | Túi khai thác đến chưa quét đi | có túi đến được mở, có XNĐ BD10 đến, chưa có túi đi |
+| `KHAC` | Khác | còn lại (kể cả túi khai thác chưa xác nhận BD10 đến) |
+
+  Nhãn «Chưa có giờ lập BD10 đi» bỏ vì mọi SHBG thanh 1 đều chưa có giờ này theo định nghĩa. Bản sao: 274 / 1 / 88 / 414 / 39 theo thứ tự `KDN_DA_XAC_NHAN` / `KDN_CHUA_XAC_NHAN` / `TUI_CHUYEN_TIEP_DA_CHIA_SAN` / `TUI_CHUA_QUET_DI` / `KHAC` (cộng 816).
+- **`thieu_gio_quet_den`:** `tong` = `da_ghi_di.khong_phan_loai_da_ghi_di.tong` của `tong-hop` (996 trên bản sao) = `da_thay.tong` (theo nơi đến thực tế: `theo_bcvh_noi_den`) + `chua_thay.tong` (theo nguồn: `theo_nguon` = `chuyen_tiep` (kiện đi ngoài) / `khai_thac` (túi khai thác) / `da_chia_san` (túi chuyển tiếp đã chia sẵn, khóa riêng); `nghi_duong_tinh_gia`) + `ngoai_cua_so`. Bản sao: 455 + 541 (172 kiện đi ngoài + 53 túi khai thác + 316 túi chuyển tiếp đã chia sẵn) + 0. Nhóm này gồm cả 551 SHBG chưa ghi đi (466 khai thác + 85 chuyển tiếp) KHÔNG thuộc thanh nào của 16-2: chưa liên hệ được với khoảng lệch B3 so với B1 (~2.100), cần ticket riêng nếu muốn kết luận.
+
+### 9.5 Thiết kế, cache, hiệu năng
+- **Bó ngày mở rộng** (`bcvhMoi`): thêm `tg` (histogram độ trễ + âm + cùng ngày), `chuyen`, `ly_do`, `kpl.khong_thay_nguon`. Thu thập trong CÙNG lượt duyệt và cùng lượt tra `arrival_items` của 16-2 (không thêm truy vấn); cửa sổ / cờ vẫn áp lúc ghép. **Chữ ký cache giữ nguyên** (dấu hiệu KTT, file BCVH D..D+2, phiên bản hàng hoàn): các số mới chỉ phụ thuộc đúng các nguồn đó. Không có bộ nhớ đệm thứ hai; làm nóng của 16-2 (`layNgayDC`) đã phủ cả ba route.
+- **Hiệu năng** (bản sao DB 30 ngày, `perf` đo xen kẽ bản trước / sau trên cùng máy): nguội `tong-hop` trước 16,8–17,5 giây, sau 16,0–17,3 giây (chênh nằm trong nhiễu giữa các lần đo ±1 giây; mục tiêu ≤ +1,5 giây đạt); `thoi-gian-nhan` / `chua-thay` lần đầu ≈ nguội của bó (dùng chung bó, không tính thêm); nóng 20–70 ms; RSS đỉnh 233–260 MB (không đổi so với trước). Cách giữ chi phí thấp: đường phân tích giờ nhanh có nhớ phần ngày (`giayNhanh`, đo thấy `L.giayCua` ≈ 1,3 µs × ~250.000 lần ≈ 0,33 giây nếu gọi trực tiếp).
+- Điều chưa chắc: (1) «nhóm a» của canvas (xem 9.2); (2) p50 / p90 lấy cận trên bin phút nên cao hơn giá trị chính xác tới 1 phút; (3) mốc đến lấy dòng muộn nhất nên SHBG đến đích hai lần chỉ tính lần sau.
