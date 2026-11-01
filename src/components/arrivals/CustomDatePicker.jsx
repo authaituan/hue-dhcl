@@ -67,6 +67,51 @@ export default function CustomDatePicker({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const [popupPosition, setPopupPosition] = useState({ align: 'left', style: {} });
+
+  // Tính vị trí căn lề cho khung lịch (tránh bị tràn mép phải màn hình)
+  const updatePlacement = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const windowWidth = typeof window !== 'undefined'
+      ? (window.innerWidth || document.documentElement?.clientWidth || 1024)
+      : 1024;
+    const POPUP_WIDTH = 256; // Khung lịch w-64 = 256px
+    const MARGIN = 8; // Lề an toàn 8px
+
+    // Nếu mép phải của khung lịch (mép trái ô + 256px + lề an toàn 8px) vượt bề rộng
+    if (rect.left + POPUP_WIDTH + MARGIN > windowWidth) {
+      // Căn khung theo mép PHẢI của ô (right-0 thay left-0)
+      // Nếu căn phải mà mép trái vẫn tràn ra ngoài (màn rất hẹp) thì kẹp trong lề 8px
+      if (rect.right - POPUP_WIDTH < MARGIN) {
+        setPopupPosition({
+          align: 'clamped',
+          style: { left: `${MARGIN - rect.left}px`, right: 'auto' }
+        });
+      } else {
+        setPopupPosition({
+          align: 'right',
+          style: {}
+        });
+      }
+    } else {
+      // Đủ chỗ thì giữ left-0 như cũ
+      setPopupPosition({
+        align: 'left',
+        style: {}
+      });
+    }
+  };
+
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!isOpen) {
+      updatePlacement();
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  };
 
   // Xác định mode: Date object hay YYYY-MM-DD string
   const isDateMode = asDate || (value instanceof Date);
@@ -105,7 +150,7 @@ export default function CustomDatePicker({
     }
   }, [value]);
 
-  // Đóng lịch khi click ra ngoài hoặc bấm Escape
+  // Đóng lịch khi click ra ngoài hoặc bấm Escape; tính lại vị trí khi mở và khi resize
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -115,13 +160,20 @@ export default function CustomDatePicker({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') setIsOpen(false);
     };
+    const handleResize = () => {
+      updatePlacement();
+    };
+
     if (isOpen) {
+      updatePlacement();
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('resize', handleResize);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isOpen]);
 
@@ -294,7 +346,7 @@ export default function CustomDatePicker({
           />
           <button
             type="button"
-            onClick={() => !disabled && setIsOpen(!isOpen)}
+            onClick={handleToggle}
             disabled={disabled}
             className="text-gray-400 hover:text-gray-600 cursor-pointer p-0.5 transition-colors"
             title="Mở lịch chọn ngày"
@@ -323,7 +375,7 @@ export default function CustomDatePicker({
           />
           <button
             type="button"
-            onClick={() => !disabled && setIsOpen(!isOpen)}
+            onClick={handleToggle}
             disabled={disabled}
             className="pr-3 text-gray-400 hover:text-orange-600 cursor-pointer transition-colors"
             title="Mở lịch chọn ngày"
@@ -343,7 +395,16 @@ export default function CustomDatePicker({
 
       {/* Popup lịch chọn ngày trực quan tiếng Việt (Thứ 2 - CN) */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 p-3.5 animate-in fade-in duration-100">
+        <div
+          style={popupPosition.style}
+          className={`absolute top-full ${
+            popupPosition.align === 'right'
+              ? 'right-0'
+              : popupPosition.align === 'clamped'
+              ? ''
+              : 'left-0'
+          } mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 p-3.5 animate-in fade-in duration-100`}
+        >
           <div className="flex items-center justify-between mb-3">
             <button
               type="button"
