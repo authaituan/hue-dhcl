@@ -2,6 +2,17 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-01] - KTT-16-2: ghép KTT ↔ «Hàng đến BCVH» và tổng hợp đối chiếu (backend + test + docs; KHÔNG đổi giao diện, importer, EMPTY)
+
+- **Route** `GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]` (`routes/ktt.js`): thanh 1 (tập `chua_di_tren_24h`, không hoàn, gồm chuyển tiếp) và thanh 2 (đã ghi đi) chia `tai_dich` / `bcvh_khac` / `chua_thay` + `nghi_duong_tinh_gia` (⊂ `chua_thay`), `ngoai_cua_so`, `hang_hoan_loai_khoi`, `theo_ngay[]`, `tong_cong`, `cua_so_thuc_te`, `meta.hang_hoan_chua_nap`.
+- **Lõi** `server/lib/kttDoiChieu.js` (mới): `boThuThap` (đếm, không giữ danh sách SHBG; tra `arrival_items` theo lô 800 qua `ix_arrival_items_tracking`, file OK [D, D+2]), `ghepTongHop` (hàm thuần, áp cửa sổ KTT-16-1 lúc trả lời), `chuKyBcvh`. `kttDiNgayQuery.tinhNgay` thêm móc `them` (CHUNG lượt duyệt với bó B).
+- **Cache** (`kttApi.js`): `layNgayDC`, bộ nhớ `ngayDC`; chữ ký = như bó B + file BCVH D..D+2 + phiên bản hàng hoàn. `layNgayDC` cất cả bó B (đếm `ngayBTinh`); `layNgayB` chờ lượt DC cùng ngày đang chạy.
+- **Làm nóng:** `kttNong.js` gọi `layNgayDC` trước bó B; chế độ `chiDoiChieu` (`SAU_NAP_BCVH`); `sftpScheduler.js` thêm tùy chọn `sauNap` (sau lượt nạp ≥ 1 file), nối ở `server/index.js`.
+- **Test:** `tests/ktt-doi-chieu-tong-hop.test.js` (18 ca). `npm test`: 1272 test, 1262 đạt, 10 bỏ qua, 0 lỗi (ba múi giờ giống nhau; trước 1254; `package.json` thêm `tests/ktt-doi-chieu-tong-hop.test.js` vào script test).
+- **Bổ sung 01/11 (PO chốt: đã có mặt ở BCVH nào thì xếp vào BCVH đó):** «có mặt» chỉ tính dòng có mốc đến hợp lệ (`arrival_at`); nơi đến thực tế = mốc muộn nhất (`bcvh_khac_theo_noi_den`); `khong_phan_loai_da_ghi_di` (thiếu giờ quét túi đến, có giờ BD10 đi) KHÔNG loại khỏi thanh 2, xếp theo nơi đến thực tế, `chua_thay` chỉ khi D trong cửa sổ của cả sáu BCVH; đẳng thức `da_ghi_di.tong − khong_phan_loai = /dicungngay`. Test 11 → 13 ca.
+- **Nợ:** giao diện; 16-3 / 16-4; nạp tay («Lấy ngay», script) chưa gọi làm nóng; xem `44` mục 8.6.
+- **Tài liệu:** `44_KTT_DO_PHU_BCVH.md` mục 8, `00_SNAPSHOT.md`.
+
 ## [2026-10-31] - KTT-17-3b: API «hàng chuyển hoàn theo BCVH» và nhãn phía server (backend + test + docs; KHÔNG đổi `src/`, định nghĩa hoàn, cách tính chỉ số)
 
 - **`/luu-thoat`:** `theo_bcvh[mã].hang_hoan` (từng ngày và `tong_cong`; khối hoàn của BCVH đó, cùng hình dạng `tong_cong.hang_hoan`; đủ khóa, 0 khi không có hoàn). `kttLuuThoatQuery.js`: bộ cộng `hoanTheoBcvh` (chỉ đếm) thay bằng `hoanBcvh` / `kgHoanBcvh` (khối đầy đủ theo BCVH), `congCacNgay` cộng khối này, ngày rỗng có khối. Chỉ thêm; `tong_shbg_ngay` giữ nguyên giá trị.

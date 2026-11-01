@@ -14,7 +14,7 @@ const Api = require('./kttApi');
 const QL = require('./kttLuuThoatQuery');
 const S = require('./kttLuuThoat');
 
-const { layNgay, layNgayB, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY } = Api.noiBoNong;
+const { layNgay, layNgayB, layNgayDC, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY } = Api.noiBoNong;
 const NGAY_TOI_DA = 31;
 const NGHI_CUA_SO_MS = 25; // giữa hai ngày trong cửa sổ nạp
 const NGHI_THUA_MS = 150; // giữa hai ngày của lượt thưa
@@ -35,11 +35,12 @@ const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function mot(db, ngay, doMoi) {
   // Cùng khóa cache với request: /luu-thoat (hai mốc) và bó B (B1–B6, danh-sach, tong-quan).
+  await layNgayDC(db, ngay, doMoi, Date.now()); // KTT-16-2: một lượt duyệt cho bó đối chiếu VÀ bó B (layNgayDC cất cả hai)
   await layNgayB(db, ngay, doMoi, Date.now());
   for (const moc of MOC) await layNgay(db, ngay, doMoi, Date.now(), moc);
 }
 
-async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs }, soThuTu) {
+async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs, chiDoiChieu = false }, soThuTu) {
   const bd = Date.now();
   const tk = { ly_do: lyDo, ngay_cua_so: 0, ngay_thua: 0, muc_khoang: 0, bi_huy: false, loi: null, ms: 0 };
   const huy = () => the !== soThuTu || (typeof dung === 'function' && dung());
@@ -50,6 +51,16 @@ async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs }, soThuT
     const den = nguonXuat.slice(0, 10);
     const tongNgay = soNgay(env);
     dongBoPhienBan(db);
+    if (chiDoiChieu) {
+      // KTT-16-2: sau lần nạp «Hàng đến BCVH» chỉ bó đối chiếu có thể đổi: duyệt MỚI NHẤT trước; ngày nào chữ ký BCVH D..D+2 không đổi (và đã chốt, ngoài cửa sổ nạp) thì giữ cache, không tính lại.
+      for (let i = 0; i < tongNgay; i++) {
+        if (huy()) { tk.bi_huy = true; return tk; }
+        await layNgayDC(db, ngayLui(den, i), nguonXuat, Date.now());
+        if (i < CUA_SO_NAP_NGAY + 1) tk.ngay_cua_so++; else tk.ngay_thua++;
+        await nghi(i < CUA_SO_NAP_NGAY + 1 ? nghiCuaSoMs : nghiThuaMs);
+      }
+      return tk;
+    }
     // (1) cửa sổ nạp: mới nhất trước (trang mở theo ngày gần đây)
     const trongCuaSo = Math.min(tongNgay, CUA_SO_NAP_NGAY + 1);
     for (let i = 0; i < trongCuaSo; i++) {
@@ -91,12 +102,14 @@ function batDauNong(db, opts = {}) {
   const env = opts.env || process.env;
   const log = opts.log || ((m) => console.log(m));
   if (!dangBat(env)) return Promise.resolve({ da_chay: false, ly_do: 'TAT' });
-  const soThuTu = ++the;
+  const chiDoiChieu = !!opts.chiDoiChieu; // KTT-16-2: lượt sau nạp BCVH (chỉ làm nóng bó đối chiếu)
+  // Lượt chỉ-đối-chiếu KHÔNG tăng bộ đếm: nó không hủy lượt đầy đủ đang chạy / đang xếp hàng mà xếp hàng chạy sau. Lượt đầy đủ đến sau vẫn hủy mọi lượt cũ (như KTT-15; lượt đầy đủ đã gồm cả bó đối chiếu).
+  const soThuTu = chiDoiChieu ? the : ++the;
   const lyDo = opts.lyDo || 'SAU_NAP';
   const chay = hangCho.then(async () => {
     if (the !== soThuTu) return { da_chay: false, ly_do: 'DA_CO_LUOT_MOI' }; // lượt mới hơn đã xếp hàng: bỏ lượt này
     trangThai.dangChay = true; trangThai.lan++;
-    const tk = await chayLuot(db, { lyDo, env, dung: opts.dung, nghiCuaSoMs: opts.nghiCuaSoMs ?? NGHI_CUA_SO_MS, nghiThuaMs: opts.nghiThuaMs ?? NGHI_THUA_MS }, soThuTu);
+    const tk = await chayLuot(db, { lyDo, env, dung: opts.dung, chiDoiChieu, nghiCuaSoMs: opts.nghiCuaSoMs ?? NGHI_CUA_SO_MS, nghiThuaMs: opts.nghiThuaMs ?? NGHI_THUA_MS }, soThuTu);
     trangThai.dangChay = false; trangThai.lanCuoi = tk;
     try {
       log(`[ktt-nong] ${lyDo}: ${tk.ngay_cua_so}+${tk.ngay_thua} ngày, ${tk.muc_khoang} mục khoảng trong ${tk.ms} ms${tk.bi_huy ? ' (bị hủy)' : ''}${tk.loi ? ` (lỗi: ${tk.loi})` : ''}`);

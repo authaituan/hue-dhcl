@@ -117,7 +117,8 @@ if (process.env.KTT_WARM !== '0' && !process.env.NODE_TEST_CONTEXT && process.en
 // ==========================================
 try {
   const sched = require('./lib/sftpScheduler');
-  sched.startSftpScheduler({ db: require('./db'), env: process.env });
+  // KTT-16-2: sau mỗi lượt nạp «Hàng đến BCVH» có file mới, làm nóng bó đối chiếu KTT ↔ BCVH (chỉ phần đối chiếu; KTT_WARM=0 để tắt).
+  sched.startSftpScheduler({ db: require('./db'), env: process.env, sauNap: () => require('./lib/kttNong').batDauNong(require('./db'), { lyDo: 'SAU_NAP_BCVH', chiDoiChieu: true, dung: () => daDongKtt }) });
   // KTT-6: bộ nạp «Hàng tại KTT» (cùng cờ SFTP_SYNC_ENABLED; mặc định TẮT, không chạy trong test, sai cấu hình chỉ ghi một dòng log).
   const ktt = require('./lib/kttSftp');
   // KTT-15: sau mỗi lượt nạp cặp OK, làm nóng cache KTT nền (kttNong.js; KTT_WARM=0 để tắt).

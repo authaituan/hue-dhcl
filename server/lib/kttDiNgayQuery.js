@@ -31,10 +31,11 @@ function chayShbg(db, { tuNgay, denNgay, bayGio }, cb) {
   });
 }
 
-/** Bó số liệu MỘT ngày đến (D.taoNgay) tính ở «bây giờ» = bayGio. Cộng được: D.congCacNgay. */
-function tinhNgay(db, ngay, bayGio) {
+/** Bó số liệu MỘT ngày đến (D.taoNgay) tính ở «bây giờ» = bayGio. Cộng được: D.congCacNgay. `them(u, kq, pl)`: móc tùy chọn gọi cho mỗi SHBG trong CÙNG lượt duyệt (KTT-16-2). */
+function tinhNgay(db, ngay, bayGio, them = null) {
   const b = D.taoNgay(ngay);
   chayShbg(db, { tuNgay: ngay, denNgay: ngay, bayGio }, (u, kq, pl) => {
+    if (them) them(u, kq, pl); // KTT-16-2: bộ thu thập đối chiếu dùng CHUNG lượt duyệt (không đổi bó B)
     b.co_du_lieu = true;
     if (pl.bo) b.bo[pl.bo]++;
     else D.themShbg(b, u, pl);

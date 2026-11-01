@@ -8,6 +8,7 @@
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
 //   GET /api/ktt/xuat/hom-sau-chua-di?tu=&den=&loai=[&duong_thu=&noi_gui=&huong=&hang_hoan=&ma_bcvh=]   KTT-8d: file .xlsx («Thông tin» + «8 Hôm sau-chưa đi»), cùng tham số /danh-sach
 //   GET /api/ktt/doi-chieu/do-phu?tu=&den=   KTT-16-1: độ phủ «Hàng đến BCVH» theo (BCVH, ngày), cửa sổ đối chiếu được, cờ «có thể dương tính giả» (lib/kttDoPhuBcvh.js, doc 44)
+//   GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]   KTT-16-2: ghép SHBG KTT với «Hàng đến BCVH» (lib/kttDoiChieu.js, doc 44 mục 8)
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
@@ -61,6 +62,8 @@ router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query))
 
 // KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu — chỉ đọc arrival_*, không chạm bảng ktt_* (docs/ai/44_KTT_DO_PHU_BCVH.md).
 router.get('/doi-chieu/do-phu', xuLy('doi-chieu/do-phu', (req) => Api.doPhuBcvh(db, req.query)));
+// KTT-16-2: ghép KTT ↔ BCVH, tổng hợp đối chiếu (hai thanh xếp chồng), cache theo ngày + làm nóng (docs/ai/44 mục 8).
+router.get('/doi-chieu/tong-hop', xuLy('doi-chieu/tong-hop', (req) => Api.doiChieuTongHop(db, req.query)));
 
 // KTT-8b / KTT-8d: xuất xlsx (sheet «Thông tin» + một sheet dữ liệu). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
 // chuanBi(req) -> nội dung file (kttApi); boLoc(kq) -> các trường bộ lọc ghi nhật ký (không số hiệu bưu gửi).
