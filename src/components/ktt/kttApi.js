@@ -221,4 +221,69 @@ export async function fetchKttTongQuan({ tu, den }) {
   return apiFetchJson(`/api/ktt/tong-quan?${query}`);
 }
 
+/**
+ * KTT-16-2 / KTT-16-5 (3.1): Đối chiếu BCVH - Tổng hợp đối chiếu (hai thanh xếp chồng)
+ * @param {Object} params { tu, den, ma_bcvh }
+ */
+export async function fetchKttDoiChieuTongHop({ tu, den, ma_bcvh }) {
+  const params = { tu, den };
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/doi-chieu/tong-hop?${query}`);
+}
+
+/**
+ * KTT-16-3 / KTT-16-5 (3.1): Đối chiếu BCVH - Thời gian BCVH nhận (p50/p90, % cùng ngày)
+ * @param {Object} params { tu, den, ma_bcvh }
+ */
+export async function fetchKttDoiChieuThoiGianNhan({ tu, den, ma_bcvh }) {
+  const params = { tu, den };
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/doi-chieu/thoi-gian-nhan?${query}`);
+}
+
+/**
+ * KTT-16-3 / KTT-16-5 (3.1): Đối chiếu BCVH - Chuyến mất dấu & Nguồn chưa thấy
+ * @param {Object} params { tu, den, ma_bcvh }
+ */
+export async function fetchKttDoiChieuChuaThay({ tu, den, ma_bcvh }) {
+  const params = { tu, den };
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/doi-chieu/chua-thay?${query}`);
+}
+
+/**
+ * KTT-16-4 / KTT-16-5 (3.1): Đối chiếu BCVH - Các mục Đánh giá (sinh từ backend)
+ * @param {Object} params { tu, den, ma_bcvh }
+ */
+export async function fetchKttDoiChieuDanhGia({ tu, den, ma_bcvh }) {
+  const params = { tu, den };
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/doi-chieu/danh-gia?${query}`);
+}
+
+/**
+ * KTT-16-4 / KTT-16-5 (3.6): Tải file Excel đối chiếu BCVH (sheet 1 đến 6)
+ * @param {string} route Tên route (chua-thay, chuyen-mat-dau, chuyen-tiep-chua-quet-di, thay-o-bcvh-khac, chuyen-cham, da-co-tai-dich)
+ * @param {Object} params { tu, den, maBcvh, ma_bcvh }
+ */
+export async function taiExcelDoiChieu(route, { tu, den, maBcvh, ma_bcvh }) {
+  const params = { tu, den };
+  const bcvh = maBcvh || ma_bcvh;
+  if (bcvh && bcvh !== 'all') params.ma_bcvh = String(bcvh);
+  const query = new URLSearchParams(params).toString();
+  const url = `/api/ktt/doi-chieu/xuat/${route}?${query}`;
+  const defaultFilename = `KTT_DoiChieu_${route}_${tu}_${den}.xlsx`;
+  const res = await apiDownloadExcel(url, defaultFilename);
+  if (!res.ok) {
+    throw new Error(res.error || 'Chưa tải được file. Thử lại sau ít phút.');
+  }
+  return res;
+}
+
+
+
 

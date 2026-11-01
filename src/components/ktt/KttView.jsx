@@ -4,6 +4,7 @@ import KttLuuThoat from './KttLuuThoat';
 import KttHangDen from './KttHangDen';
 import KttDiCungNgay from './KttDiCungNgay';
 import KttLichXe from './KttLichXe';
+import KttDoiChieu from './KttDoiChieu';
 import KttErrorBoundary from './KttErrorBoundary';
 
 export default function KttView({ authUser }) {
@@ -15,6 +16,7 @@ export default function KttView({ authUser }) {
     { id: 'a_hang_den', label: 'A · Hàng đến' },
     { id: 'b_ty_le', label: 'B · Tỷ lệ đi cùng ngày' },
     { id: 'b_lich_xe', label: 'B · Lịch xe, đường thư' },
+    { id: 'doi_chieu', label: 'Đối chiếu BCVH' },
   ];
 
   return (
@@ -68,6 +70,12 @@ export default function KttView({ authUser }) {
       {activeTab === 'b_lich_xe' && (
         <KttErrorBoundary>
           <KttLichXe authUser={authUser} />
+        </KttErrorBoundary>
+      )}
+
+      {activeTab === 'doi_chieu' && (
+        <KttErrorBoundary>
+          <KttDoiChieu authUser={authUser} />
         </KttErrorBoundary>
       )}
     </div>
