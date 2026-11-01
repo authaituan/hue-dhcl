@@ -53,10 +53,10 @@ function docCauHinhHenGio(env) {
 }
 
 /**
- * Tạo bộ hẹn giờ (chưa lên lịch; gọi .batDau()). opts: { db, env, clock, sleep, ketNoi (cfg -> client), importFn, log, tmpDir, troiDauMs, choPhepTrongTest }.
+ * Tạo bộ hẹn giờ (chưa lên lịch; gọi .batDau()). opts: { db, env, clock, sleep, ketNoi (cfg -> client), importFn, log, tmpDir, troiDauMs, choPhepTrongTest, sauNap (() -> void, KTT-16-2: gọi KHÔNG chờ sau lượt có ≥ 1 file nạp; mặc định không có) }.
  * Trả { batDau(), dung() (Promise), chayNgay() (Promise, một lượt NGAY — dùng cho test / ticket API sau), trangThai() }.
  */
-function taoBoHenGio({ db, env = process.env, clock = dongHoThat, sleep, ketNoi, importFn, log = (...a) => console.log(...a), tmpDir, troiDauMs = MAC_DINH.troiDauMs, choPhepTrongTest = false } = {}) {
+function taoBoHenGio({ db, env = process.env, clock = dongHoThat, sleep, ketNoi, importFn, log = (...a) => console.log(...a), tmpDir, troiDauMs = MAC_DINH.troiDauMs, choPhepTrongTest = false, sauNap = null } = {}) {
   const nhatKy = (m) => { try { log(`[sftp-sync] ${m}`); } catch (e) { /* log hỏng không được làm sập */ } };
   const st = {
     trangThai: TT.TAT, lyDo: null, batLuc: null, luotGanNhat: null, luotKeTiep: null, chuKyPhut: null, maxFiles: null, soLuot: 0
@@ -168,6 +168,7 @@ function taoBoHenGio({ db, env = process.env, clock = dongHoThat, sleep, ketNoi,
         dem: { daNap: d.daNap, daCo: d.daCo, chuaOnDinh: d.chuaOnDinh, rong: d.rong, boQuaKhac: d.boQuaKhac, loi: d.loi, maLa: d.maLa }
       });
       nhatKy(`Lượt #${kq.runId}: nạp ${d.daNap}, đã có ${d.daCo}, chưa ổn định ${d.chuaOnDinh}, rỗng ${d.rong}, bỏ qua ${d.boQuaKhac}, lỗi ${d.loi}${d.maLa ? `, mã lạ ${d.maLa} (không nạp)` : ''} — ${st.luotGanNhat.thoiGianMs} ms.`);
+      if (d.daNap > 0 && typeof sauNap === 'function') { try { Promise.resolve(sauNap()).catch(() => {}); } catch (e) { /* KTT-16-2: làm nóng cache đối chiếu; lỗi (đồng bộ hoặc Promise bị từ chối) không được làm hỏng lượt nạp */ } }
       if (kq.loiThuMuc.length) nhatKy(`Lỗi thư mục: ${kq.loiThuMuc.map((t) => `${F.tenAnToan(t.thuMuc, 60)} [${t.nhom}]`).join('; ')}`);
       if (xacThuc) tamDung(xacThuc.ma === F.MA_THOAT.VAN_TAY ? 'VAN_TAY_SAI' : 'XAC_THUC', xacThuc.nhom);
     } finally {
