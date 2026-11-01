@@ -13,6 +13,7 @@ const X = require('./kttXuat');
 const DQ = require('./kttDiNgayQuery');
 const HD = require('./kttHangDen');
 const LX = require('./kttLichXe');
+const DX = require('./kttDoiChieuXuat');
 
 const TAC_VU = Object.freeze({
   tongHop: (db, a) => { const th = Q.tongHopKtt(db, a); return { ...th, danh_gia: taoDanhGia(th) }; },
@@ -22,7 +23,8 @@ const TAC_VU = Object.freeze({
   xuatHomSauChuaDi: (db, a) => X.xuatHomSauChuaDi(db, a), // KTT-8d: sheet 8, toàn bộ SHBG của một ô (cùng lượt duyệt với danhSachDiNgay)
   danhSachDiNgay: (db, a) => DQ.danhSach(db, a), // KTT-12: danh sách bấm ô «hôm sau» / «chưa đi trên 24 giờ»
   hangDen: (db, a) => HD.tinh(db, a), // KTT-12: trang A «Hàng đến từ xe Cấp 1»
-  gioLapBd10: (db, a) => LX.gioLapBd10(db, a) // KTT-12: B4 (nhẹ nhưng đọc nhiều BD10 đi), cũng dùng cho B6
+  gioLapBd10: (db, a) => LX.gioLapBd10(db, a), // KTT-12: B4 (nhẹ nhưng đọc nhiều BD10 đi), cũng dùng cho B6
+  xuatDoiChieu: (db, a) => DX.lietKe(db, a) // KTT-16-4: sheet 1–4 của trang Đối chiếu (duyệt lại SHBG từng ngày, chọn dòng theo cửa sổ / cờ)
 });
 
 if (!isMainThread && parentPort) {

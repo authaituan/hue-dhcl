@@ -32,6 +32,8 @@ const DQ = require('./kttDiNgayQuery');
 const LX = require('./kttLichXe');
 const DP = require('./kttDoPhuBcvh');
 const DC = require('./kttDoiChieu');
+const DG = require('./kttDanhGiaDoiChieu');
+const DX = require('./kttDoiChieuXuat');
 const { bcvhNames } = require('./dashboardQuery');
 
 const CUA_SO_NAP_NGAY = 8; // ngày nằm trong cửa sổ nạp = từ độ mới dữ liệu lùi chừng này ngày trở lại (mỗi lần xuất lùi 7 ngày + 1 ngày đệm)
@@ -807,10 +809,85 @@ async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
   };
 }
 
+// ------------------------------------------
+// KTT-16-4: «Đánh giá» và xuất xlsx sheet 1–6 của trang Đối chiếu
+// ------------------------------------------
+/** Các kết quả ghép (cùng hàm thuần với tong-hop / thoi-gian-nhan / chua-thay) cho «Đánh giá» và số dòng đối chiếu của xuất xlsx. */
+function ghepDoiChieuDayDu(h) {
+  const p = { ngays: h.k.ngays, bo: h.bo, daChot: h.daChot, doPhu: h.doPhu, maBcvh: h.maBcvh };
+  return {
+    p, tongHop: DC.ghepTongHop(p), thoiGianNhan: DC.ghepThoiGianNhan(p),
+    chuaThay: { chuyen_mat_dau: DC.ghepChuyenMatDau(p), nguon_chua_thay: DC.ghepChuaThay(p) },
+    chuyenTiep: DC.ghepChuyenTiepChuaQuet(p), chuyenCham: DC.ghepChuyenCham(p)
+  };
+}
+
+/**
+ * GET /api/ktt/doi-chieu/danh-gia?tu=&den=[&ma_bcvh=] — KTT-16-4: khối «Đánh giá» sinh từ số thật (kttDanhGiaDoiChieu), cùng bó ngày với tong-hop / thoi-gian-nhan / chua-thay.
+ * `so_dong_sheet`: số dòng của sheet 1–6 (= số dòng file xuất tương ứng).
+ */
+async function doiChieuDanhGia(db, query, { now = Date.now() } = {}) {
+  const h = await layBoDoiChieu(db, query, now);
+  const g = ghepDoiChieuDayDu(h);
+  const danhGia = DG.taoDanhGiaDoiChieu({ ...g, doPhu: h.doPhu, ngays: h.k.ngays, maBcvh: h.maBcvh });
+  const soDong = {};
+  for (const s of [1, 2, 3, 4, 5, 6]) soDong[s] = { ten: DX.SHEET[s].ten, route: `/api/ktt/doi-chieu/xuat/${DX.SHEET[s].route}`, so_dong: DX.soApi(s, g.p, g.tongHop) };
+  return {
+    ...dauDoiChieu(h),
+    danh_gia: h.doMoi ? danhGia : [],
+    so_dong_sheet: soDong,
+    hang_so: { chuyen_cham: DC.CHUYEN_CHAM, mat_dau: DC.MAT_DAU, cung_ngay_thap: DG.NGUONG_DANH_GIA.cungNgayThap },
+    meta: {
+      ...metaDoiChieu(),
+      nguon: 'mỗi mục tái tạo được từ tong-hop (a, e), chua-thay (b, c, h), thoi-gian-nhan (f, g) và hai số của KTT-16-4 (chuyen_tiep_chua_quet_di: d; chuyen_cham: f); độ phủ KTT-16-1 (g)',
+      dieu_kien: 'mục không đủ điều kiện hiện thì không có trong danh_gia (xem dieu_kien_hien của từng mục)'
+    }
+  };
+}
+
+const TEN_SHEET_XUAT_DC = Object.freeze({ 1: 'chua-thay', 2: 'chuyen-mat-dau', 3: 'chuyen-tiep-chua-quet-di', 4: 'thay-o-bcvh-khac', 5: 'chuyen-cham', 6: 'da-co-tai-dich' });
+/**
+ * GET /api/ktt/doi-chieu/xuat/<sheet>?tu=&den=[&ma_bcvh=] — KTT-16-4: chuẩn bị nội dung file xlsx { tenFile, thongTin, dong, cot, tenSheet, khoang, ... } (chưa ghi gì ra response).
+ * Số dòng = số ở API tương ứng (DX.soApi). Sheet 1–4 duyệt lại SHBG từng ngày ở worker (bó chế độ lietKe, KHÔNG cache danh sách); sheet 5–6 cắt từ bó đã cache.
+ */
+async function xuatDoiChieu(db, query, sheet, opts = {}) {
+  if (sheet > 4) return xuatDoiChieuTrong(db, query, sheet, opts); // sheet 5, 6 cắt từ bó cache, không duyệt SHBG: không giới hạn
+  // Sheet 1–4 duyệt lại SHBG ở worker (một worker, tuần tự): tối đa MỘT lượt chạy + MỘT lượt chờ; lượt thứ ba trở đi bị từ chối (route trả 429). Bộ đếm luôn được trả lại ở finally.
+  if (trangThaiXuat.dem >= GIOI_HAN_XUAT_DOI_CHIEU) throw new Q.LoiKtt('KTT_XUAT_BAN', 'Đang có xuất khác, thử lại sau ít phút.');
+  trangThaiXuat.dem++;
+  try { return await xuatDoiChieuTrong(db, query, sheet, opts); } finally { trangThaiXuat.dem--; }
+}
+const GIOI_HAN_XUAT_DOI_CHIEU = 2; // một đang chạy + một đang chờ
+const trangThaiXuat = { dem: 0 };
+async function xuatDoiChieuTrong(db, query, sheet, { now = Date.now(), nguoiXuat = null } = {}) {
+  const h = await layBoDoiChieu(db, query, now);
+  const g = ghepDoiChieuDayDu(h);
+  const tran = X.tranDong();
+  let dong;
+  if (sheet === 5) dong = DX.dongSheet5(g.chuyenCham);
+  else if (sheet === 6) dong = DX.dongSheet6(g.tongHop, h.maBcvh);
+  else if (!h.doMoi) dong = [];
+  else {
+    const r = await chayNen(db, 'xuatDoiChieu', { sheet, ngays: h.k.ngays, doPhu: h.doPhu, maBcvh: h.maBcvh, bayGio: h.doMoi.nguon_xuat_luc, tranDong: tran });
+    if (r.vuotTran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${r.tong} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc chọn một BCVH.`);
+    dong = r.dong;
+  }
+  if (dong.length > tran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${dong.length} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc chọn một BCVH.`);
+  const apiSo = DX.soApi(sheet, g.p, g.tongHop);
+  const thongTin = DX.dongThongTin({
+    sheet, tu: h.k.tuNgay, den: h.k.denNgay, maBcvh: h.maBcvh, doMoi: h.doMoi ? h.doMoi.nguon_xuat_luc : null, doPhu: h.doPhu, daChot: h.daChot, ngays: h.k.ngays,
+    soDong: dong.length, soApi: apiSo, nguoiXuat, xuatLuc: X.gioVietNam(now), gioChot: QL.gioChot()
+  });
+  return {
+    tenFile: DX.tenFile(sheet, h.k.tuNgay, h.k.denNgay), thongTin, dong, cot: DX.SHEET[sheet].cot, tenSheet: DX.SHEET[sheet].ten,
+    khoang: { tuNgay: h.k.tuNgay, denNgay: h.k.denNgay }, maBcvh: h.maBcvh, sheet, tong: dong.length, soApi: apiSo
+  };
+}
+
 module.exports = {
   docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
-  doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
+  doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, doiChieuDanhGia, xuatDoiChieu, TEN_SHEET_XUAT_DC, trangThaiXuat, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).
   noiBoNong: { layNgay, layNgayB, layNgayDC, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY }
 };
