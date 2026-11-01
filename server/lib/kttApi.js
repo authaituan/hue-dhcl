@@ -714,7 +714,7 @@ async function layNgayDC(db, ngay, doMoi, now) {
  * GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=] — thanh 1 (tập chính chia ba loại), thanh 2 (đã ghi đi chia ba loại), theo ngày và tổng. ma_bcvh lọc theo BCVH ĐÍCH (mặc định cả 6).
  * Cửa sổ kiểm tra được và trạng thái ngày lấy từ độ phủ KTT-16-1 (doPhuBcvh, cùng khoảng). Không có dữ liệu KTT: kết quả rỗng có `ly_do`.
  */
-async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
+async function layBoDoiChieu(db, query, now) {
   const k = docKhoang(query, ['ma_bcvh']);
   const maBcvh = docMaBcvh(query);
   const doMoi = QL.docDoMoi(db);
@@ -725,6 +725,64 @@ async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
     for (const ngay of k.ngays) { const b = await layNgayDC(db, ngay, doMoi.nguon_xuat_luc, now); bo[ngay] = b; daChot[ngay] = b.da_chot; }
   }
   const doPhu = await doPhuBcvh(db, { tu: k.tuNgay, den: k.denNgay }, { now });
+  return { k, maBcvh, doMoi, bo, daChot, doPhu };
+}
+
+/** Phần đầu chung của các route đối chiếu KTT-16-3 (khoảng ngày, cửa sổ, meta hàng hoàn). */
+function dauDoiChieu({ k, maBcvh, doMoi, doPhu }) {
+  return {
+    khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay, so_ngay: k.ngays.length },
+    ma_bcvh: maBcvh,
+    nguon_xuat_luc_moi_nhat: doMoi ? doMoi.nguon_xuat_luc : null,
+    co_du_lieu: !!doMoi,
+    ly_do: doMoi ? null : 'CHUA_CO_DU_LIEU',
+    cua_so_thuc_te: doPhu.cua_so_thuc_te,
+    cua_so_theo_bcvh: Object.fromEntries(doPhu.bcvh.filter((x) => !maBcvh || x.ma === maBcvh).map((x) => [x.ma, x.cua_so]))
+  };
+}
+const metaDoiChieu = () => ({ ...(boNho.hangHoan || {}), do_phu: '/api/ktt/doi-chieu/do-phu', nghi_duong_tinh_gia: 'cờ dương tính giả của KTT-16-1 (BCVH đích thiếu file trong D..D+2); không bị bỏ khỏi số liệu, chỉ để chú thích' });
+
+/**
+ * GET /api/ktt/doi-chieu/thoi-gian-nhan?tu=&den=[&ma_bcvh=] — KTT-16-3 (a): «Hàng đi KTT rồi, bao lâu thì BCVH nhận?». Độ trễ = mốc đến hợp lệ MUỘN NHẤT ở BCVH đích − giờ lập BD10 đi,
+ * của SHBG thanh 2 phân loại `tai_dich` trong cửa sổ của đích. p50 / p90 (giờ) theo thứ hạng gần nhất trên histogram phút; độ trễ âm đếm riêng. Dùng chung bó ngày với tong-hop.
+ */
+async function doiChieuThoiGianNhan(db, query, { now = Date.now() } = {}) {
+  const h = await layBoDoiChieu(db, query, now);
+  return {
+    ...dauDoiChieu(h),
+    ...DC.ghepThoiGianNhan({ ngays: h.k.ngays, bo: h.bo, doPhu: h.doPhu, maBcvh: h.maBcvh }),
+    meta: {
+      ...metaDoiChieu(),
+      dinh_nghia: 'do_tre = mốc đến hợp lệ muộn nhất ở BCVH đích − giờ lập BD10 đi; thanh 2 (đã ghi đi, không hoàn), tai_dich, ngày D trong cửa sổ của đích; không gồm nhóm thiếu giờ quét túi đến',
+      phan_vi: 'thứ hạng gần nhất (rank = ceil(p*n)) trên histogram phút, trả cận trên của bin (giờ, 3 chữ số)',
+      do_tre_am: 'mau_tong = mau + am + khong_doc; am (mốc đến trước giờ lập BD10 đi) không vào p50 / p90 / ty_le_cung_ngay',
+      cung_ngay: 'mẫu không âm có mốc đến cùng ngày lịch với giờ lập BD10 đi; ty_le_cung_ngay = cung_ngay / mau'
+    }
+  };
+}
+
+/**
+ * GET /api/ktt/doi-chieu/chua-thay?tu=&den=[&ma_bcvh=] — KTT-16-3 (b) chuyến mất dấu và (c) nguồn của SHBG «chưa thấy». Danh sách chuyến có mã BD10 (chỉ ở phản hồi này).
+ */
+async function doiChieuChuaThay(db, query, { now = Date.now() } = {}) {
+  const h = await layBoDoiChieu(db, query, now);
+  const p = { ngays: h.k.ngays, bo: h.bo, doPhu: h.doPhu, maBcvh: h.maBcvh };
+  return {
+    ...dauDoiChieu(h),
+    chuyen_mat_dau: DC.ghepChuyenMatDau(p),
+    nguon_chua_thay: DC.ghepChuaThay(p),
+    meta: {
+      ...metaDoiChieu(),
+      chuyen: 'chuyến = (mã BD10 đi, giờ lập BD10, BCVH đích); chỉ SHBG thanh 2 đã phân loại (không gồm thiếu giờ quét túi đến) trong cửa sổ của đích',
+      mat_dau: 'mất dấu = mọi SHBG của chuyến chưa thấy và có từ so_shbg_toi_thieu SHBG; NGHI_THIEU_FILE khi có SHBG chưa thấy ở ngày cờ dương tính giả (không tính là mất dấu chắc)',
+      thanh_1: 'thanh_1.tong = tong_cong.tap_chinh.chua_thay của tong-hop; mỗi SHBG đúng một lý do',
+      thieu_gio_quet_den: 'thieu_gio_quet_den.tong = khong_phan_loai_da_ghi_di.tong của tong-hop = da_thay + chua_thay + ngoai_cua_so (không thuộc thanh 1)'
+    }
+  };
+}
+
+async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
+  const { k, maBcvh, doMoi, bo, daChot, doPhu } = await layBoDoiChieu(db, query, now);
   const kq = DC.ghepTongHop({ ngays: k.ngays, bo, daChot, doPhu, maBcvh });
   return {
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay, so_ngay: k.ngays.length },
@@ -752,7 +810,7 @@ async function doiChieuTongHop(db, query, { now = Date.now() } = {}) {
 module.exports = {
   docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
-  doiChieuTongHop, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
+  doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).
   noiBoNong: { layNgay, layNgayB, layNgayDC, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY }
 };

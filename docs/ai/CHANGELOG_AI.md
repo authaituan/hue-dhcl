@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-01] - KTT-16-3: thời gian BCVH nhận, chuyến mất dấu, nguồn «chưa thấy» (backend + test + docs; KHÔNG đổi giao diện, importer, EMPTY, xlsx)
+
+- **Route mới** `GET /api/ktt/doi-chieu/thoi-gian-nhan` (a) và `GET /api/ktt/doi-chieu/chua-thay` (b + c), tham số / quyền như `tong-hop` (`tu`, `den` ≤ 31 ngày, `ma_bcvh`); `routes/ktt.js`, `kttApi.js` (`doiChieuThoiGianNhan`, `doiChieuChuaThay`; tách `layBoDoiChieu` dùng chung, `doiChieuTongHop` không đổi kết quả).
+- **Lõi** `kttDoiChieu.js`: bó ngày cất thêm histogram độ trễ theo phút (`tg`), chuyến BD10 (`chuyen`), lý do thiếu trạng thái (`ly_do`), nguồn hàng của nhóm thiếu giờ quét đến; hàm thuần `ghepThoiGianNhan`, `ghepChuyenMatDau`, `ghepChuaThay`, `phanViHist`. Cùng lượt duyệt và tra BCVH của 16-2; chữ ký cache giữ nguyên; không giữ danh sách SHBG.
+- **Định nghĩa (PO duyệt 01/11/2026):** độ trễ = mốc đến muộn nhất ở đích − giờ lập BD10 đi, thanh 2 `tai_dich` trong cửa sổ; âm đếm riêng; p50 / p90 thứ hạng gần nhất trên histogram phút; mất dấu = chuyến ≥ 5 SHBG, 100 % chưa thấy (`NGHI_THIEU_FILE` tách riêng); (c) hai bảng (thanh 1 theo BCVH / lý do; nhóm thiếu giờ quét túi đến). Thuật ngữ: «kiện đi ngoài» chỉ có «đã xác nhận» / «chưa xác nhận», không có khái niệm «mở túi».
+- **Test:** `tests/ktt-doi-chieu-thoi-gian-nhan.test.js` (11 ca, dữ liệu giả; `npm test` 1283 ca, 1273 đạt, 0 lỗi, 10 bỏ qua, giống nhau ở ba múi giờ; thêm vào script `test` của `package.json`). Đo trên bản sao DB 30 ngày: nguội không chậm hơn 16-2 trong nhiễu (≈ 16–17 giây cả hai), nóng 20–70 ms, RSS đỉnh không đổi.
+- **Docs:** `44_KTT_DO_PHU_BCVH.md` mục 9, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`.
+- **Điều chưa chắc:** nghĩa «nhóm a» của canvas (tạm: ngày nhận = ngày đi); p50 / p90 lấy cận trên bin phút; 551 SHBG thiếu giờ quét túi đến chưa ghi đi không thuộc thanh nào; khoảng lệch B3 so với B1 chưa được giải thích đầy đủ.
+
 ## [2026-11-01] - KTT-16-2: ghép KTT ↔ «Hàng đến BCVH» và tổng hợp đối chiếu (backend + test + docs; KHÔNG đổi giao diện, importer, EMPTY)
 
 - **Route** `GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]` (`routes/ktt.js`): thanh 1 (tập `chua_di_tren_24h`, không hoàn, gồm chuyển tiếp) và thanh 2 (đã ghi đi) chia `tai_dich` / `bcvh_khac` / `chua_thay` + `nghi_duong_tinh_gia` (⊂ `chua_thay`), `ngoai_cua_so`, `hang_hoan_loai_khoi`, `theo_ngay[]`, `tong_cong`, `cua_so_thuc_te`, `meta.hang_hoan_chua_nap`.
