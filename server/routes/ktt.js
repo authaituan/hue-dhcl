@@ -10,6 +10,8 @@
 //   GET /api/ktt/doi-chieu/do-phu?tu=&den=   KTT-16-1: độ phủ «Hàng đến BCVH» theo (BCVH, ngày), cửa sổ đối chiếu được, cờ «có thể dương tính giả» (lib/kttDoPhuBcvh.js, doc 44)
 //   GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]   KTT-16-2: ghép SHBG KTT với «Hàng đến BCVH» (lib/kttDoiChieu.js, doc 44 mục 8)
 //   GET /api/ktt/doi-chieu/thoi-gian-nhan | chua-thay ?tu=&den=[&ma_bcvh=]   KTT-16-3: độ trễ BCVH nhận (p50/p90), chuyến mất dấu, nguồn «chưa thấy» (doc 44 mục 9)
+//   GET /api/ktt/doi-chieu/danh-gia?tu=&den=[&ma_bcvh=]   KTT-16-4: khối «Đánh giá» sinh từ số thật + số dòng sheet 1–6 (lib/kttDanhGiaDoiChieu.js, doc 44 mục 10)
+//   GET /api/ktt/doi-chieu/xuat/{chua-thay,chuyen-mat-dau,chuyen-tiep-chua-quet-di,thay-o-bcvh-khac,chuyen-cham,da-co-tai-dich}?tu=&den=[&ma_bcvh=]   KTT-16-4: file .xlsx sheet 1–6 («Thông tin» + sheet dữ liệu), lib/kttDoiChieuXuat.js
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
@@ -68,6 +70,8 @@ router.get('/doi-chieu/tong-hop', xuLy('doi-chieu/tong-hop', (req) => Api.doiChi
 // KTT-16-3: thời gian BCVH nhận (a), chuyến mất dấu (b) + nguồn «chưa thấy» (c); dùng chung bó ngày với tong-hop (docs/ai/44 mục 9).
 router.get('/doi-chieu/thoi-gian-nhan', xuLy('doi-chieu/thoi-gian-nhan', (req) => Api.doiChieuThoiGianNhan(db, req.query)));
 router.get('/doi-chieu/chua-thay', xuLy('doi-chieu/chua-thay', (req) => Api.doiChieuChuaThay(db, req.query)));
+// KTT-16-4: «Đánh giá» (xuất xlsx đăng ký ở cuối file, sau xuatFile).
+router.get('/doi-chieu/danh-gia', xuLy('doi-chieu/danh-gia', (req) => Api.doiChieuDanhGia(db, req.query)));
 
 // KTT-8b / KTT-8d: xuất xlsx (sheet «Thông tin» + một sheet dữ liệu). Mọi kiểm tra và tính toán xong TRƯỚC khi gửi header (lỗi vẫn là JSON 400/500); sau đó ghi luồng.
 // chuanBi(req) -> nội dung file (kttApi); boLoc(kq) -> các trường bộ lọc ghi nhật ký (không số hiệu bưu gửi).
@@ -76,7 +80,7 @@ const xuatFile = (kind, chuanBi, boLoc) => async (req, res) => {
   try {
     kq = await chuanBi(req);
   } catch (err) {
-    if (err instanceof Q.LoiKtt) return res.status(400).json({ error: err.message, ma: err.code });
+    if (err instanceof Q.LoiKtt) return res.status(err.code === 'KTT_XUAT_BAN' ? 429 : 400).json({ error: err.message, ma: err.code }); // KTT-16-4: đang có xuất sheet 1–4 khác
     console.error(`Ktt xuat ${kind} error:`, err && err.code ? err.code : (err && err.name));
     return res.status(500).json({ error: 'Lỗi hệ thống khi xuất dữ liệu Hàng tại KTT', ma: 'LOI_HE_THONG' });
   }
@@ -106,5 +110,11 @@ router.get('/xuat/luu-thoat', xuatFile('luu-thoat', (req) => Api.xuatLuuThoat(db
 // KTT-8d: sheet 8 «Hôm sau / chưa đi trên 24 giờ» — cùng tham số với /danh-sach (trừ page, page_size).
 router.get('/xuat/hom-sau-chua-di', xuatFile('hom-sau-chua-di', (req) => Api.xuatHomSauChuaDi(db, req.query, nguoiXuat(req)),
   (kq) => ({ loai: kq.loai, duong_thu: kq.loc.duongThu, noi_gui: kq.loc.noiGui, huong: kq.loc.huong, hang_hoan: kq.loc.hangHoan, ma_bcvh: kq.loc.maBcvh })));
+
+// KTT-16-4: xuất xlsx sheet 1–6 của trang Đối chiếu — mỗi sheet một route, cùng tham số tu, den, ma_bcvh như tong-hop.
+for (const [sheet, ten] of Object.entries(Api.TEN_SHEET_XUAT_DC)) {
+  router.get(`/doi-chieu/xuat/${ten}`, xuatFile(`doi-chieu-${ten}`, (req) => Api.xuatDoiChieu(db, req.query, Number(sheet), nguoiXuat(req)),
+    (kq) => ({ sheet: kq.sheet, ma_bcvh: kq.maBcvh })));
+}
 
 module.exports = router;

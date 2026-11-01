@@ -2,6 +2,18 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-01] - KTT-16-4 (phần 1 backend): «Đánh giá» và xuất xlsx sheet 1–6 của trang Đối chiếu (backend + test + docs; KHÔNG đổi `src/`, importer, EMPTY, KTT-14, định nghĩa hoàn, kết quả 16-2 / 16-3)
+
+- **Route mới** `GET /api/ktt/doi-chieu/danh-gia` (tám mục a–h, mục không đủ điều kiện thì không có; kèm `so_dong_sheet`, `hang_so`) và sáu route xuất `GET /api/ktt/doi-chieu/xuat/{chua-thay,chuyen-mat-dau,chuyen-tiep-chua-quet-di,thay-o-bcvh-khac,chuyen-cham,da-co-tai-dich}` (ADMIN + TTVH; `tu`, `den` ≤ 31 ngày, `ma_bcvh`). `routes/ktt.js`, `kttApi.js` (`doiChieuDanhGia`, `xuatDoiChieu`), `kttWorker.js` (tác vụ `xuatDoiChieu`).
+- **Lõi mới** `kttDanhGiaDoiChieu.js` (hàm thuần, bám khuôn `kttDanhGia.js`), `kttDoiChieuXuat.js` (cột, chọn dòng sheet 1–6, «Thông tin»); `kttDoiChieu.js` thêm `boThuThap(ngay, { lietKe })` (xuất: thêm danh sách dòng trong cùng lượt duyệt, không đổi số đếm), bộ đếm `ctcq` / `ctcq_khac` (chuyển tiếp chưa quét đi), histogram phút thưa theo chuyến (`h`, `nt`), `ghepChuyenTiepChuaQuet`, `ghepChuyenCham`, hằng `CHUYEN_CHAM`; `kttXuat.ghiXlsx` nhận `cot` + `tenSheet` (cột số / tỷ lệ).
+- **Quyết định:** danh sách SHBG không vào cache (xuất sheet 1–4 duyệt lại từng ngày ở worker); sheet 5, 6 cắt từ bó cache; số dòng = số API (có test); chuyến chậm = trung vị > 6 giờ và ≥ 5 mẫu (đề xuất, PO chọn); C1/C2/C3 để trống; «Kiện đi ngoài» = SHBG đi ngoài túi, không dùng cụm «túi đi ngoài chưa mở».
+- **Số trên bản sao DB 30 ngày:** sheet 1 = 816, sheet 2 = 1.159 (26 chuyến), sheet 3 = 588, sheet 4 = 100, sheet 5 = 65 chuyến (868 chuyến), sheet 6 = 180; nguội `tong-hop` 15,7–16,1 giây (trước 15,9–16,5), xuất sheet 1–4 nguội ≈ 31–33 giây, RSS đỉnh ≈ 500 MB (xuất sheet 8 cũ: 491 MB).
+- **Test:** `tests/ktt-doi-chieu-danh-gia-xuat.test.js` (19 ca, dữ liệu giả; thêm vào script `test`); `npm test` 1302 ca, 1292 đạt, 0 lỗi, 10 bỏ qua, giống nhau ở ba múi giờ.
+- **Đổi thuật ngữ hiển thị (PO chốt 01/11/2026):** cửa sổ -> khoảng ngày đối chiếu được; dương tính giả -> có thể do BCVH thiếu dữ liệu; đã ghi đi -> đã giao đi; trung vị / p50 / p90 -> 50% / 90% bưu gửi tới; Mất dấu chắc -> Mất dấu chắc chắn; Nghi thiếu file BCVH -> Nghi ngờ thiếu file dữ liệu của BCVH. Chỉ chữ hiển thị (`kttDanhGiaDoiChieu.js`, `kttDoiChieuXuat.js` cột / nhãn loại sheet 2 / «Thông tin», câu `dinh_nghia` trong `kttApi.js`); không đổi tên trường, mã, logic, số. Bảng: `44_KTT_DO_PHU_BCVH.md` mục 10.8. Test: +1 ca (chặn chữ cũ).
+- **Giới hạn xếp hàng (bổ sung):** xuất sheet 1–4 tối đa một lượt chạy + một lượt chờ (`kttApi.xuatDoiChieu`, bộ đếm trả lại ở `finally`); lượt thứ ba -> 429 `KTT_XUAT_BAN` (`routes/ktt.js`); sheet 5, 6, 7, 8 không đổi. Cần kiểm timeout proxy / NAS.
+- **Docs:** `44_KTT_DO_PHU_BCVH.md` mục 10, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`.
+- **Nợ / chưa chắc:** giao diện (phần 2, Antigravity); số «694 / 643» của canvas chưa tái tạo được (thật: 588 / 588); ngưỡng chuyến chậm và mục f chờ PO; C1/C2/C3; sheet 6 theo thanh 2; xem `44` mục 10.7.
+
 ## [2026-11-01] - KTT-16-3: thời gian BCVH nhận, chuyến mất dấu, nguồn «chưa thấy» (backend + test + docs; KHÔNG đổi giao diện, importer, EMPTY, xlsx)
 
 - **Route mới** `GET /api/ktt/doi-chieu/thoi-gian-nhan` (a) và `GET /api/ktt/doi-chieu/chua-thay` (b + c), tham số / quyền như `tong-hop` (`tu`, `den` ≤ 31 ngày, `ma_bcvh`); `routes/ktt.js`, `kttApi.js` (`doiChieuThoiGianNhan`, `doiChieuChuaThay`; tách `layBoDoiChieu` dùng chung, `doiChieuTongHop` không đổi kết quả).

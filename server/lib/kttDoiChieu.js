@@ -25,7 +25,8 @@ const kplMoi = () => ({ noi_den: {}, khong_thay: 0, khong_thay_nguon: {} }); // 
 // KTT-16-3: tg = độ trễ «KTT ghi đi -> BCVH đích nhận» của thanh 2 (tai_dich): histogram theo PHÚT (khóa phút -> số), am = độ trễ âm (không vào histogram), cung_ngay = số mẫu không âm có mốc cùng ngày lịch với giờ lập BD10.
 // chuyen = các chuyến BD10 (khóa «mã BD10|giờ lập») -> { b, g, n (SHBG đã ghi đi, đã phân loại), ct (chưa thấy) }. ly_do = lý do thiếu trạng thái của SHBG chưa thấy thanh 1. Không giữ danh sách SHBG.
 const tgMoi = () => ({ hist: {}, n: 0, am: 0, khong_doc: 0, cung_ngay: 0 });
-const bcvhMoi = () => ({ tap_chinh: khoiMoi(), da_ghi_di: khoiMoi(), khac_noi_den: { tap_chinh: {}, da_ghi_di: {} }, kpl: kplMoi(), hang_hoan: 0, tg: tgMoi(), chuyen: {}, ly_do: {} });
+// KTT-16-4: ctcq = số SHBG «chuyển tiếp chưa quét đi» (nguồn chuyen_tiep, nhóm chưa đi trên 24 giờ, không hoàn) đích 6 BCVH Huế; ch.h/ch.nt = histogram phút (thưa) và số mẫu thời gian nhận của chuyến.
+const bcvhMoi = () => ({ tap_chinh: khoiMoi(), da_ghi_di: khoiMoi(), khac_noi_den: { tap_chinh: {}, da_ghi_di: {} }, kpl: kplMoi(), hang_hoan: 0, tg: tgMoi(), chuyen: {}, ly_do: {}, ctcq: 0 });
 
 /** Lý do SHBG thanh 1 (chưa đi trên 24 giờ) đang thiếu trạng thái. Kiện đi ngoài không có khái niệm «mở túi». */
 const LY_DO = Object.freeze({
@@ -65,24 +66,25 @@ function giayNhanh(c) {
   if (h > 23 || m > 59 || s > 59) return L.giayCua(c);
   return g + h * 3600 + m * 60 + s;
 }
-/** Ghi một mẫu độ trễ (moc = mốc đến muộn nhất ở đích, gdi = giờ lập BD10 đi) vào tg. */
+/** Ghi một mẫu độ trễ (moc = mốc đến muộn nhất ở đích, gdi = giờ lập BD10 đi) vào tg; trả số phút của mẫu hợp lệ, hoặc null. */
 function ghiDoTre(tg, moc, gdi) {
   const a = giayNhanh(moc);
   const b = giayNhanh(gdi);
-  if (a === null || b === null) { tg.khong_doc++; return; }
+  if (a === null || b === null) { tg.khong_doc++; return null; }
   const delta = a - b;
-  if (delta < 0) { tg.am++; return; }
+  if (delta < 0) { tg.am++; return null; }
   tg.n++;
   const phut = Math.floor(delta / 60);
   tg.hist[phut] = (tg.hist[phut] || 0) + 1;
   if (String(moc).slice(0, 10) === String(gdi).slice(0, 10)) tg.cung_ngay++;
+  return phut; // KTT-16-4: phút của mẫu hợp lệ (cho histogram theo chuyến); null = âm / không đọc được
 }
 const ngayCong = (ngay, n) => L.dinhDang(L.giayCua(`${ngay} 00:00:00`) + n * 86400).slice(0, 10);
 const cong1 = (o, k, n = 1) => { o[k] = (o[k] || 0) + n; };
 
 /** Bó rỗng của một ngày. */
 function taoNgayDoiChieu(ngay) {
-  return { ngay, co_du_lieu: false, bcvh: Object.fromEntries(MA_BCVH_HUE.map((m) => [m, bcvhMoi()])) };
+  return { ngay, co_du_lieu: false, ctcq_khac: 0, bcvh: Object.fromEntries(MA_BCVH_HUE.map((m) => [m, bcvhMoi()])) };
 }
 
 /**
@@ -129,8 +131,11 @@ function loaiGhep(ma, co) {
  * Danh sách SHBG chỉ tồn tại trong bộ thu thập này (≤ vài chục nghìn chuỗi, giải phóng khi xong), không đưa vào kết quả.
  * Nhóm bit: 1 = tập chính, 2 = đã ghi đi đã phân loại, 4 = `khong_phan_loai` đã ghi đi (có giờ lập BD10 đi nhưng thiếu giờ quét túi đến nên không xếp được chuyến): xếp theo NƠI ĐẾN THỰC TẾ.
  */
-function boThuThap(ngay) {
+function boThuThap(ngay, tuyChon = null) {
+  const lietKe = !!(tuyChon && tuyChon.lietKe); // KTT-16-4: chế độ XUẤT — thêm danh sách dòng (b.dong) ngoài số đếm; bó đếm không đổi
   const b = taoNgayDoiChieu(ngay);
+  const dongCt = []; // chuyển tiếp chưa quét đi (kể cả đích ngoài 6 BCVH Huế)
+  const ex = [];
   const shbg = [];
   const dich = [];
   const bit = [];
@@ -141,6 +146,11 @@ function boThuThap(ngay) {
   return {
     them(u, kq, pl) {
       b.co_du_lieu = true;
+      if (!pl.bo && !pl.khac && !pl.hanHoan && pl.nhom === 'chua_di_tren_24h' && u.nguonHang === 'chuyen_tiep') { // KTT-16-4: «chuyển tiếp chưa quét đi» (không phụ thuộc cửa sổ BCVH)
+        const hue = u.nhom === 'BCVH_HUE' && !!u.maBcvh && !!b.bcvh[u.maBcvh];
+        if (hue) b.bcvh[u.maBcvh].ctcq++; else b.ctcq_khac++;
+        if (lietKe) dongCt.push({ s: u.shbg, d: hue ? u.maBcvh : null, g: u.quetDen || u.xndBd10 || null });
+      }
       if (pl.bo || !u.maBcvh || !b.bcvh[u.maBcvh] || u.nhom !== 'BCVH_HUE') return;
       if (pl.hanHoan) { b.bcvh[u.maBcvh].hang_hoan++; return; }
       let m = 0;
@@ -155,8 +165,10 @@ function boThuThap(ngay) {
       shbg.push(u.shbg); dich.push(u.maBcvh); bit.push(m);
       gdi.push(u.gioBd10Di || null); bd10.push(u.bd10Di || ''); nguon.push(nguonKpl(u));
       lyDo.push(m & 1 ? lyDoThieu(u) : null);
+      if (lietKe && tuyChon.ex !== false) ex.push({ g: u.quetDen || u.xndBd10 || null, ngay: u.ngayDen || null, bd8: u.soHieuBd8 || null, bd10den: u.bd10Den || null });
     },
     xong(db) {
+      if (lietKe) b.dong = { chuyen_tiep: dongCt, chua_thay: [], bcvh_khac: [], chua_thay_t2: [] };
       if (shbg.length === 0) return b;
       const co = traCuuBcvh(db, shbg, ngay, ngayCong(ngay, NGAY_SAU_D));
       for (let i = 0; i < shbg.length; i++) {
@@ -169,14 +181,21 @@ function boThuThap(ngay) {
         }
         const loai = loaiGhep(dich[i], c);
         const nd = loai === LOAI.BCVH_KHAC ? noiDen(c) : null;
-        if (bit[i] & 1) { x.tap_chinh[loai]++; if (nd) cong1(x.khac_noi_den.tap_chinh, nd); if (loai === LOAI.CHUA_THAY) cong1(x.ly_do, lyDo[i]); }
+        if (bit[i] & 1) {
+          x.tap_chinh[loai]++; if (nd) cong1(x.khac_noi_den.tap_chinh, nd); if (loai === LOAI.CHUA_THAY) cong1(x.ly_do, lyDo[i]);
+          if (lietKe && loai === LOAI.CHUA_THAY) b.dong.chua_thay.push({ s: shbg[i], d: dich[i], ly: lyDo[i], ...ex[i] });
+          if (lietKe && loai === LOAI.BCVH_KHAC) b.dong.bcvh_khac.push({ s: shbg[i], d: dich[i], nd, gb: c.get(nd), ...ex[i] });
+        }
         if (bit[i] & 2) {
           x.da_ghi_di[loai]++; if (nd) cong1(x.khac_noi_den.da_ghi_di, nd);
-          if (loai === LOAI.TAI_DICH) ghiDoTre(x.tg, c.get(dich[i]), gdi[i]);
           const kc = `${bd10[i]}|${gdi[i]}`;
-          const ch = x.chuyen[kc] || (x.chuyen[kc] = { b: bd10[i], g: gdi[i], n: 0, ct: 0 });
+          const ch = x.chuyen[kc] || (x.chuyen[kc] = { b: bd10[i], g: gdi[i], n: 0, ct: 0, nt: 0, h: {} });
+          if (loai === LOAI.TAI_DICH) {
+            const ph = ghiDoTre(x.tg, c.get(dich[i]), gdi[i]);
+            if (ph !== null) { ch.nt++; ch.h[ph] = (ch.h[ph] || 0) + 1; }
+          }
           ch.n++;
-          if (loai === LOAI.CHUA_THAY) ch.ct++;
+          if (loai === LOAI.CHUA_THAY) { ch.ct++; if (lietKe) b.dong.chua_thay_t2.push({ s: shbg[i], d: dich[i], b: bd10[i], g: gdi[i] }); }
         }
       }
       return b;
@@ -185,8 +204,8 @@ function boThuThap(ngay) {
 }
 
 /** Bó đối chiếu của MỘT ngày đến D tính ở «bây giờ» = bayGio, với lượt duyệt RIÊNG (dùng khi không cần bó B). */
-function tinhNgayDoiChieu(db, ngay, bayGio) {
-  const t = boThuThap(ngay);
+function tinhNgayDoiChieu(db, ngay, bayGio, tuyChon = null) {
+  const t = boThuThap(ngay, tuyChon);
   DQ.chayShbg(db, { tuNgay: ngay, denNgay: ngay, bayGio }, t.them);
   return t.xong(db);
 }
@@ -410,6 +429,73 @@ function ghepChuaThay({ ngays, bo, doPhu, maBcvh = null }) {
   };
 }
 
+// ------------------------------------------
+// KTT-16-4: chuyển tiếp chưa quét đi, chuyến chậm (HÀM THUẦN trên bó theo ngày)
+// ------------------------------------------
+/**
+ * Ngưỡng «chuyến chậm» (PO chọn; đổi ở đây): chuyến BD10 (trong cửa sổ của đích) có ít nhất SO_MAU_TOI_THIEU SHBG đã thấy ở đích với mẫu hợp lệ
+ * và TRUNG VỊ thời gian «giờ lập BD10 đi -> BCVH đích nhận» > NGUONG_TRUNG_VI_GIO. C1/C2/C3: chưa có căn cứ trong dữ liệu -> không suy đoán (cột để trống).
+ */
+const CHUYEN_CHAM = Object.freeze({ NGUONG_TRUNG_VI_GIO: 6, SO_MAU_TOI_THIEU: 5 });
+
+/** Số SHBG «chuyển tiếp chưa quét đi» (nhóm chưa đi trên 24 giờ, nguồn chuyển tiếp, không hoàn), không phụ thuộc cửa sổ BCVH. maBcvh lọc theo đích: chỉ đích 6 BCVH Huế (khac = 0). */
+function ghepChuyenTiepChuaQuet({ ngays, bo, maBcvh = null }) {
+  const dsMa = maBcvh ? [maBcvh] : MA_BCVH_HUE;
+  const theoBcvh = Object.fromEntries(dsMa.map((m) => [m, 0]));
+  let khac = 0;
+  for (const ngay of ngays) {
+    const b = bo[ngay];
+    if (!b) continue;
+    for (const ma of dsMa) theoBcvh[ma] += (b.bcvh[ma] || bcvhMoi()).ctcq;
+    if (!maBcvh) khac += b.ctcq_khac || 0;
+  }
+  const hue = Object.values(theoBcvh).reduce((s, n) => s + n, 0);
+  return { tong: hue + khac, thuoc_bcvh_hue: hue, khac, theo_bcvh: theoBcvh };
+}
+
+/** Chuyến (mã BD10, giờ lập, BCVH đích) gộp nhiều ngày, mẫu thời gian nhận (histogram phút) trong cửa sổ của đích. Trả mảng { ma_bd10, gio_lap, ma_bcvh_dich, so_shbg, mau, p50_gio, p90_gio, gio_den_trung_vi }. */
+function gopThoiGianChuyen({ ngays, bo, doPhu, maBcvh = null }) {
+  const dsMa = maBcvh ? [maBcvh] : MA_BCVH_HUE;
+  const dpMa = doPhuTheoMaNgay(doPhu);
+  const chuyen = new Map();
+  for (const ngay of ngays) {
+    const b = bo[ngay];
+    if (!b) continue;
+    for (const ma of dsMa) {
+      if (!dpMa.get(ma).get(ngay).trong_cua_so) continue;
+      for (const c of Object.values((b.bcvh[ma] || bcvhMoi()).chuyen)) {
+        const khoa = `${ma}|${c.b}|${c.g}`;
+        const e = chuyen.get(khoa) || { ma_bd10: c.b, gio_lap: c.g, ma_bcvh_dich: ma, so_shbg: 0, mau: 0, hist: {} };
+        e.so_shbg += c.n; e.mau += c.nt || 0;
+        for (const [k, v] of Object.entries(c.h || {})) e.hist[k] = (e.hist[k] || 0) + v;
+        chuyen.set(khoa, e);
+      }
+    }
+  }
+  const kq = [];
+  for (const e of chuyen.values()) {
+    const p50 = phanViHist(e.hist, e.mau, 0.5);
+    const gioLap = L.giayCua(e.gio_lap);
+    kq.push({
+      ma_bd10: e.ma_bd10, gio_lap: e.gio_lap, ma_bcvh_dich: e.ma_bcvh_dich, so_shbg: e.so_shbg, mau: e.mau,
+      p50_gio: p50, p90_gio: phanViHist(e.hist, e.mau, 0.9), gio_den_trung_vi: p50 !== null && gioLap !== null ? L.dinhDang(gioLap + Math.round(p50 * 3600)) : null
+    });
+  }
+  return kq;
+}
+
+/** Chuyến chậm = chuyến có mẫu >= SO_MAU_TOI_THIEU và trung vị > NGUONG_TRUNG_VI_GIO (hằng CHUYEN_CHAM). Sắp: trung vị giảm dần, rồi giờ lập, mã BD10. */
+function ghepChuyenCham(p) {
+  const so = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const tatCa = gopThoiGianChuyen(p);
+  const ds = tatCa.filter((c) => c.mau >= CHUYEN_CHAM.SO_MAU_TOI_THIEU && c.p50_gio !== null && c.p50_gio > CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO)
+    .sort((a, b) => b.p50_gio - a.p50_gio || so(a.gio_lap, b.gio_lap) || so(a.ma_bd10, b.ma_bd10));
+  return {
+    tieu_chi: { trung_vi_toi_thieu_gio_vuot: CHUYEN_CHAM.NGUONG_TRUNG_VI_GIO, so_mau_toi_thieu: CHUYEN_CHAM.SO_MAU_TOI_THIEU },
+    tong_chuyen: tatCa.length, so_chuyen_cham: ds.length, so_shbg_chuyen_cham: ds.reduce((s, c) => s + c.so_shbg, 0), danh_sach: ds
+  };
+}
+
 /**
  * Chữ ký dữ liệu BCVH của ngày D: các file OK / EMPTY của 6 BCVH có file_date trong [D, D+2] (số file, tổng id, file mới nhất). Nạp thêm / thay / khôi phục file của D..D+2 đổi chữ ký;
  * file của ngày khác không đổi nó. (Cửa sổ kiểm tra được và cờ dương tính giả KHÔNG nằm trong bó: chúng được ghép lúc trả lời từ độ phủ KTT-16-1.)
@@ -422,4 +508,4 @@ function chuKyBcvh(db, ngay) {
   } catch (e) { return 'khong-doc-duoc'; }
 }
 
-module.exports = { LOAI, LY_DO, MAT_DAU, taoNgayDoiChieu, boThuThap, tinhNgayDoiChieu, ghepTongHop, ghepThoiGianNhan, ghepChuyenMatDau, ghepChuaThay, phanViHist, chuKyBcvh, traCuuBcvh, loaiGhep, noiDen };
+module.exports = { LOAI, LY_DO, MAT_DAU, taoNgayDoiChieu, boThuThap, tinhNgayDoiChieu, ghepTongHop, ghepThoiGianNhan, ghepChuyenMatDau, ghepChuaThay, ghepChuyenTiepChuaQuet, gopThoiGianChuyen, ghepChuyenCham, CHUYEN_CHAM, doPhuTheoMaNgay, phanViHist, chuKyBcvh, traCuuBcvh, loaiGhep, noiDen };

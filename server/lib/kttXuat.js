@@ -334,9 +334,9 @@ function oGio(s) {
  * Ghi file hai sheet vào `out` (response). thongTin: [[mục, nội dung]]; dong: mảng ô của sheet 7 (từ worker). dungChua(): true khi client đã ngắt -> huỷ file.
  * Trả { rows, aborted }.
  */
-async function ghiXlsx(out, { thongTin, dong, sheet = 7 }, dungChua = () => false) {
-  const COT = sheet === 8 ? COT_SHEET8 : COT_SHEET7; // KTT-8d: sheet 8 cùng cách ghi, khác cột / tên sheet
-  const TEN = sheet === 8 ? TEN_SHEET_8 : TEN_SHEET_7;
+async function ghiXlsx(out, { thongTin, dong, sheet = 7, cot = null, tenSheet = null }, dungChua = () => false) {
+  const COT = cot || (sheet === 8 ? COT_SHEET8 : COT_SHEET7); // KTT-8d: sheet 8 cùng cách ghi, khác cột / tên sheet; KTT-16-4: bên gọi truyền `cot` + `tenSheet` (sheet 1–6 của Đối chiếu)
+  const TEN = tenSheet || (sheet === 8 ? TEN_SHEET_8 : TEN_SHEET_7);
   const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
   const dam = { bold: true };
 
@@ -366,7 +366,7 @@ async function ghiXlsx(out, { thongTin, dong, sheet = 7 }, dungChua = () => fals
     for (let i = 0; i < COT.length; i++) {
       const x = v[i];
       const loai = COT[i].loai;
-      gt[i] = x === null || x === undefined ? null : loai === 'gio' ? oGio(x) : (loai === 'kg' || loai === 'gio_so') ? x : vanBan(x);
+      gt[i] = x === null || x === undefined ? null : loai === 'gio' ? oGio(x) : (loai === 'kg' || loai === 'gio_so' || loai === 'so' || loai === 'ty_le') ? x : vanBan(x);
     }
     const r = ws.addRow(gt);
     for (let i = 0; i < COT.length; i++) {
