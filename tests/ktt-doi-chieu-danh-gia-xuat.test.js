@@ -169,7 +169,7 @@ async function bang(s, q) {
 }
 const cotCua = (s, khoa) => DX.SHEET[s].cot.findIndex((c) => c.khoa === khoa);
 const gioChuoi = (d) => (d instanceof Date ? d.toISOString().slice(0, 19).replace('T', ' ') : d);
-const CAM = /túi đi ngoài chưa mở|cửa sổ|dương tính|đã ghi đi|trung vị|p50|p90|phân vị|Mất dấu chắc(?! chắn)|Nghi thiếu file/i; // kèm thuật ngữ hiển thị cũ PO đã bỏ (chữ người đọc thấy)
+const CAM = /túi đi ngoài chưa mở|cửa sổ|dương tính|đã ghi đi|trung vị|\bp50\b|\bp90\b|phân vị|Mất dấu chắc(?! chắn)|Nghi thiếu file/i; // kèm thuật ngữ hiển thị cũ PO đã bỏ (chữ người đọc thấy)
 const layTong = async (q = DEN) => (await goi(`/api/ktt/doi-chieu/tong-hop?${q}`)).body;
 
 // ---------- quyền, tham số ----------
@@ -474,8 +474,10 @@ test('thuCua / laChuNhat không phụ thuộc múi giờ; nhãn nguồn không c
   assert.equal(DX.thuCua('khong-hop-le'), null);
   assert.ok(DX.laChuNhat('2026-10-25'));
   assert.equal(DX.THU[0], 'Chủ nhật');
-  const tatCa = JSON.stringify([DC.LY_DO, DX.NHAN_NGUON, DX.SHEET, DX.THU]);
+  const chuHienThi = Object.values(DX.SHEET).flatMap((sh) => [sh.ten, ...sh.cot.map((x) => x.tieuDe)]); // chỉ chữ người đọc thấy; không gồm khóa cột (p50, p90...)
+  const tatCa = JSON.stringify([DC.LY_DO, DX.NHAN_NGUON, chuHienThi, DX.THU]);
   assert.ok(!CAM.test(tatCa));
+  assert.ok(CAM.test(JSON.stringify([...chuHienThi, 'Thời gian p50 (giờ)']))); // bản sao có chuỗi giả: CAM vẫn bắt «p50» đứng riêng
   assert.equal(new Set(Object.values(DX.NHAN_NGUON)).size, 4); // Kiện đi ngoài / Túi chuyển tiếp đã chia sẵn / Túi khai thác đến chưa quét đi / Khác
 });
 
