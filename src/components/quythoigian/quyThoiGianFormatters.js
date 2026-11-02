@@ -141,6 +141,19 @@ export function formatDateTime(str, includeYear = true) {
 }
 
 /**
+ * Định dạng ngày giờ không giây: 'YYYY-MM-DD HH:mm:ss' hoặc ISO -> 'DD/MM/YYYY HH:mm'
+ * @param {string|null|undefined} str
+ */
+export function formatDateTimeWithoutSeconds(str) {
+  if (!str) return '—';
+  const s = String(str).replace('T', ' ').trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+  if (!m) return s;
+  const [, yyyy, mm, dd, hh, min] = m;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+/**
  * Tên hiển thị thân thiện cho nhóm BD10
  */
 export const NHOM_BD10_LABELS = {
@@ -156,6 +169,7 @@ export const NHOM_BD10_LABELS = {
  * Tên nhãn cho các lý do không đo được
  */
 export const LY_DO_KHONG_DO_LABELS = {
+  HANG_HOAN: 'Hàng hoàn: chưa có mốc về Khai thác',
   LAP_DI_TAI_BCVH: 'Lập đi tại BCVH',
   THIEU_XAC_NHAN_KTT: 'Thiếu mốc tại Trung tâm khai thác',
   KHONG_QUA_KTT: 'BD10 nguồn khác (không qua Trung tâm khai thác)',
@@ -164,3 +178,4 @@ export const LY_DO_KHONG_DO_LABELS = {
   THIEU_XND_BCVH: 'Thiếu mốc BCVH nhận',
   NHAN_TRUC_TIEP_KHONG_QUA_KTT: 'Nhận trực tiếp, không qua TTKT',
 };
+

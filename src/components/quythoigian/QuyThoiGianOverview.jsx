@@ -1,11 +1,12 @@
 import React from 'react';
-import { ArrowRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import {
   formatInt,
   formatPercent,
   formatDurationGiay,
   formatDdMm,
+  formatDateTimeWithoutSeconds,
   NGUONG_IT_SO_LIEU_BANG,
   LY_DO_KHONG_DO_LABELS
 } from './quyThoiGianFormatters';
@@ -150,6 +151,7 @@ export default function QuyThoiGianOverview({
   // Danh sách các lý do không đo được
   const khongDoLyDo = tong.khong_do_duoc_theo_ly_do || {};
   const activeReasons = Object.entries(khongDoLyDo).filter(([, count]) => count > 0);
+  const soHangHoan = Number(khongDoLyDo.HANG_HOAN) || 0;
 
   // Lấy tên BCVH từ mã
   const getBcvhName = (ma) => {
@@ -162,14 +164,32 @@ export default function QuyThoiGianOverview({
     ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3.5'
     : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5';
 
+  // Độ mới / tình trạng danh sách hàng hoàn (QUYTG-10c)
+  const meta = data?.meta || luyKeData?.meta || {};
+  const hangHoanChuaNap = meta.hang_hoan_chua_nap === true;
+  const hangHoanNguonXuatLuc = meta.hang_hoan_nguon_xuat_luc;
+
   return (
     <div className="p-6 space-y-5">
       {/* ── 1. TIÊU ĐỀ & BỘ LỌC ĐẦU TRANG ─────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="hue-h1">
-            Thời gian còn lại để phát tại BCVH
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="hue-h1">
+              Thời gian còn lại để phát tại BCVH
+            </h1>
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-600" />
+                Chưa nạp danh sách hàng hoàn: hàng hoàn có thể đang bị tính vào Quá hạn.
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <Clock className="w-3 h-3" />
+                Danh sách hoàn cập nhật lúc {formatDateTimeWithoutSeconds(hangHoanNguonXuatLuc)}
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs text-gray-600 mt-1">
             Tổng quan theo khoảng thời gian và số liệu mới nhất
           </p>
@@ -261,7 +281,11 @@ export default function QuyThoiGianOverview({
       {/* ── 3. CÁC Ô CHỈ SỐ KPI (CÙNG DÒNG LŨY KẾ THÁNG ĐỒNG NHẤT) ─────────── */}
       <div className={kpiGridClass}>
         {/* Ô 1: Bưu gửi đến */}
-        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
+        <button
+          type="button"
+          onClick={() => onNavigateToLuot({ statusChip: 'ALL' })}
+          className="w-full text-left bg-white rounded-[14px] p-4 border border-gray-200 hover:border-gray-300 hover:bg-cream-light/20 transition-colors cursor-pointer shadow-none flex flex-col justify-between min-h-[172px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4A1D6E] focus-visible:ring-offset-2"
+        >
           <div>
             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
               BƯU GỬI ĐẾN
@@ -276,7 +300,7 @@ export default function QuyThoiGianOverview({
           <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrShbg}>
             {luyKeStrShbg}
           </div>
-        </div>
+        </button>
 
         {/* Ô 2: Đo được */}
         <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
@@ -295,6 +319,17 @@ export default function QuyThoiGianOverview({
                 {chuaTinhNote}
               </div>
             )}
+            {soHangHoan > 0 && (
+              <div className="mt-1 leading-tight">
+                <button
+                  type="button"
+                  onClick={() => onNavigateToLuot({ statusChip: 'KHONG_DO', trang_thai: 'KHONG_DO_DUOC', ly_do: 'HANG_HOAN' })}
+                  className="text-[11px] text-gray-600 hover:text-[#4A1D6E] hover:underline font-medium cursor-pointer text-left inline-flex items-center gap-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#4A1D6E] rounded"
+                >
+                  Hàng hoàn không tính: {formatInt(soHangHoan)}
+                </button>
+              </div>
+            )}
           </div>
           <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrChinh}>
             {luyKeStrChinh}
@@ -302,7 +337,11 @@ export default function QuyThoiGianOverview({
         </div>
 
         {/* Ô 3: Quá hạn khi đến */}
-        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
+        <button
+          type="button"
+          onClick={() => onNavigateToLuot({ statusChip: 'QUA_HAN' })}
+          className="w-full text-left bg-white rounded-[14px] p-4 border border-gray-200 hover:border-gray-300 hover:bg-cream-light/20 transition-colors cursor-pointer shadow-none flex flex-col justify-between min-h-[172px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B3202A] focus-visible:ring-offset-2"
+        >
           <div>
             <div className="text-[11px] font-bold text-[#B3202A] tracking-wide uppercase">
               QUÁ HẠN KHI ĐẾN
@@ -317,10 +356,14 @@ export default function QuyThoiGianOverview({
           <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrQuaHan}>
             {luyKeStrQuaHan}
           </div>
-        </div>
+        </button>
 
         {/* Ô 4: Sắp hết hạn */}
-        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
+        <button
+          type="button"
+          onClick={() => onNavigateToLuot({ statusChip: 'SAP_HET' })}
+          className="w-full text-left bg-white rounded-[14px] p-4 border border-gray-200 hover:border-gray-300 hover:bg-cream-light/20 transition-colors cursor-pointer shadow-none flex flex-col justify-between min-h-[172px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E0A82E] focus-visible:ring-offset-2"
+        >
           <div>
             <div className="text-[11px] font-bold text-[#A87A12] tracking-wide uppercase">
               SẮP HẾT HẠN
@@ -335,10 +378,14 @@ export default function QuyThoiGianOverview({
           <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrSapHet}>
             {luyKeStrSapHet}
           </div>
-        </div>
+        </button>
 
         {/* Ô 5: Còn thời gian */}
-        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
+        <button
+          type="button"
+          onClick={() => onNavigateToLuot({ statusChip: 'CON_THOI_GIAN' })}
+          className="w-full text-left bg-white rounded-[14px] p-4 border border-gray-200 hover:border-gray-300 hover:bg-cream-light/20 transition-colors cursor-pointer shadow-none flex flex-col justify-between min-h-[172px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F7A5C] focus-visible:ring-offset-2"
+        >
           <div>
             <div className="text-[11px] font-bold text-[#1F7A5C] tracking-wide uppercase">
               CÒN THỜI GIAN
@@ -353,11 +400,15 @@ export default function QuyThoiGianOverview({
           <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrConLai}>
             {luyKeStrConLai}
           </div>
-        </div>
+        </button>
 
         {/* Ô 6: Giao nhận trực tiếp (chỉ hiện khi > 0) */}
         {trucTiep > 0 && (
-          <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[172px]">
+          <button
+            type="button"
+            onClick={() => onNavigateToLuot({ statusChip: 'TRUC_TIEP' })}
+            className="w-full text-left bg-white rounded-[14px] p-4 border border-gray-200 hover:border-gray-300 hover:bg-cream-light/20 transition-colors cursor-pointer shadow-none flex flex-col justify-between min-h-[172px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F7A5C] focus-visible:ring-offset-2"
+          >
             <div>
               <div className="text-[11px] font-bold text-[#1F7A5C] tracking-wide uppercase">
                 GIAO NHẬN TRỰC TIẾP
@@ -375,7 +426,7 @@ export default function QuyThoiGianOverview({
             <div className="border-t border-dashed border-[#E4D5AE] pt-2 mt-2 text-xs font-medium text-[#4A1D6E] truncate" title={luyKeStrTrucTiep}>
               {luyKeStrTrucTiep}
             </div>
-          </div>
+          </button>
         )}
       </div>
 
@@ -806,7 +857,7 @@ export default function QuyThoiGianOverview({
               <button
                 key={reasonKey}
                 type="button"
-                onClick={() => onNavigateToLuot({ trang_thai: 'KHONG_DO_DUOC', ly_do: reasonKey })}
+                onClick={() => onNavigateToLuot({ statusChip: 'KHONG_DO', trang_thai: 'KHONG_DO_DUOC', ly_do: reasonKey })}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cream-light hover:bg-[#FAF6EC] border border-[#D9CBA8] text-xs text-gray-800 transition-colors cursor-pointer"
               >
                 <span>{label}</span>

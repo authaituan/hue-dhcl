@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import {
   formatInt,
   formatDurationGiay,
   formatDateTime,
+  formatDateTimeWithoutSeconds,
   formatDdMmYyyy,
   countDaysInclusive,
   NHOM_BD10_LABELS,
@@ -26,7 +27,9 @@ export default function QuyThoiGianLuotView({
 }) {
   // Bộ lọc Màn 2
   const [bcvh, setBcvh] = useState(selectedBcvh || 'all');
-  const [statusChip, setStatusChip] = useState(initialFilters.statusChip || 'ALL');
+  const [statusChip, setStatusChip] = useState(
+    () => initialFilters.statusChip || (initialFilters.trang_thai === 'KHONG_DO_DUOC' ? 'KHONG_DO' : 'ALL')
+  );
   const [duongThu, setDuongThu] = useState(initialFilters.duong_thu || '');
   const [nhomBd10, setNhomBd10] = useState(initialFilters.nhom || '');
   const [chiNghiNgo, setChiNghiNgo] = useState(initialFilters.nghi_ngo === '1');
@@ -35,6 +38,7 @@ export default function QuyThoiGianLuotView({
   // Dữ liệu danh sách & phân trang
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, page_size: PAGE_SIZE, total_pages: 1 });
+  const [luotMeta, setLuotMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [validationError, setValidationError] = useState(null);
@@ -122,6 +126,7 @@ export default function QuyThoiGianLuotView({
       if (res.ok) {
         setItems(res.data?.items || []);
         setPagination(res.data?.pagination || { total: 0, page: pageToLoad, page_size: PAGE_SIZE, total_pages: 1 });
+        if (res.data?.meta) setLuotMeta(res.data.meta);
       } else {
         setError(res.error || 'Có lỗi xảy ra khi tải danh sách bưu gửi.');
         setItems([]);
@@ -161,6 +166,11 @@ export default function QuyThoiGianLuotView({
     ? `Hàng đến BCVH ngày ${formatDdMmYyyy(dateRange.from)}`
     : `Hàng đến BCVH từ ${formatDdMmYyyy(dateRange.from)} đến ${formatDdMmYyyy(dateRange.to)}`;
 
+  // Độ mới / tình trạng danh sách hàng hoàn (QUYTG-10c)
+  const meta = luotMeta || summaryData?.meta || {};
+  const hangHoanChuaNap = meta.hang_hoan_chua_nap === true;
+  const hangHoanNguonXuatLuc = meta.hang_hoan_nguon_xuat_luc;
+
   return (
     <div className="p-6 space-y-5">
       {/* ── 1. ĐẦU TRANG & TIÊU ĐỀ ────────────────────────────────────────── */}
@@ -175,9 +185,22 @@ export default function QuyThoiGianLuotView({
             <span>Thời gian Khai thác-Vận chuyển</span>
           </button>
 
-          <h1 className="hue-h1">
-            Danh sách bưu gửi — thời gian còn lại để phát tại BCVH
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="hue-h1">
+              Danh sách bưu gửi — thời gian còn lại để phát tại BCVH
+            </h1>
+            {hangHoanChuaNap ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-600" />
+                Chưa nạp danh sách hàng hoàn: hàng hoàn có thể đang bị tính vào Quá hạn.
+              </span>
+            ) : hangHoanNguonXuatLuc ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                <Clock className="w-3 h-3" />
+                Danh sách hoàn cập nhật lúc {formatDateTimeWithoutSeconds(hangHoanNguonXuatLuc)}
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs text-gray-600 mt-1">
             {rangeTitleStr} · {formatInt(pagination.total)} bưu gửi
           </p>
@@ -488,6 +511,18 @@ export default function QuyThoiGianLuotView({
                       <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DDF1E8] text-[#1F7A5C] border border-[#B7E0CE]">
                         Giao nhận trực tiếp · tính từ lúc BCVH nhận
                       </span>
+                    );
+                  } else if (item.lyDo === 'HANG_HOAN') {
+                    const lyDoText = LY_DO_KHONG_DO_LABELS[item.lyDo] || item.lyDo || 'Không đủ điều kiện đo';
+                    tinhTrangBadge = (
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                          Hàng hoàn
+                        </span>
+                        <span className="text-[11px] text-gray-500 leading-tight">
+                          {lyDoText}
+                        </span>
+                      </div>
                     );
                   } else if (isKhongDo) {
                     const lyDoText = LY_DO_KHONG_DO_LABELS[item.lyDo] || item.lyDo || 'Không đủ điều kiện đo';
