@@ -3,12 +3,20 @@ import { X, UserPlus, AlertCircle, Tv } from 'lucide-react';
 import { apiFetchJson } from '../utils/api';
 import { BCVH_LIST } from '../constants/bcvh';
 
-const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI'];
+const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI', 'TTKT'];
+const ROLE_LABELS = {
+  TTVH: 'TTVH',
+  GDVH: 'GDVH',
+  ADMIN: 'ADMIN',
+  TIVI: 'TIVI',
+  TTKT: 'TTKT (Trung tâm Khai thác)',
+};
 const ROLE_HINTS = {
   TTVH: ' (xem toàn bộ dữ liệu 6 BCVH)',
   GDVH: ' (xem toàn bộ dữ liệu 6 BCVH)',
   ADMIN: ' (toàn quyền)',
   TIVI: ' (chỉ xem dashboard tivi, không xuất file)',
+  TTKT: ' (chỉ xem và tải dữ liệu module Hàng tại Khai thác tỉnh)',
 };
 
 const TIVI_SCOPE_OPTIONS = [
@@ -142,7 +150,7 @@ export default function AddUserModal({ onClose, onSuccess }) {
             >
               <option value="" disabled>— Chọn vai trò —</option>
               {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>{r}{ROLE_HINTS[r]}</option>
+                <option key={r} value={r}>{(ROLE_LABELS[r] || r)}{ROLE_HINTS[r]}</option>
               ))}
             </select>
           </div>

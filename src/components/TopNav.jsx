@@ -6,6 +6,7 @@ const ROLE_LABELS = {
   ADMIN: 'ADMIN (quản trị)',
   TTVH: 'TTVH',
   GDVH: 'GDVH',
+  TTKT: 'TTKT',
 };
 
 const ADMIN_ITEMS = [
@@ -64,7 +65,7 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
 
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin = authUser?.role === 'ADMIN';
-  const canKtt = ['ADMIN', 'TTVH'].includes(authUser?.role);
+  const canKtt = ['ADMIN', 'TTVH', 'TTKT'].includes(authUser?.role);
 
   const adminTabIds = ['network', 'useradmin', 'replace_day', 'nap_nguon', 'tham_so'];
   const isAdminTabActive = adminTabIds.includes(activeTab);
