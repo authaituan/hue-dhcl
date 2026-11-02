@@ -58,7 +58,7 @@ app.use('/api', arrivalsRoutes);
 app.use('/api', phatRoutes);
 app.use('/api', napNguonRoutes);
 app.use('/api', kttNapRoutes);
-app.use('/api/ktt', kttRoutes); // KTT-8: chỉ ADMIN, TTVH (requireRoles ở đầu router); GDVH / TIVI 403
+app.use('/api/ktt', kttRoutes); // KTT-8: chỉ ADMIN, TTVH, TTKT (requireRoles ở đầu router; TTKT chỉ GET qua allowlist); GDVH / TIVI 403
 app.use('/api', thamSoRoutes);
 
 // Serve frontend static files in production

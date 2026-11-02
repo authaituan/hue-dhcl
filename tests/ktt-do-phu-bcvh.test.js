@@ -23,7 +23,8 @@ const USERS = {
   admin: { hrm: 'KT16_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT16_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT16_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT16_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT16_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT16_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -274,6 +275,7 @@ test('quyền: không token 401; ADMIN và TTVH 200 cùng số liệu; GDVH 403;
   assert.equal(a.status, 200);
   assert.equal(t.status, 200);
   assert.deepEqual(a.body, t.body);
+  assert.equal((await goi(url, 'ttkt')).status, 200);
   assert.equal((await goi(url, 'gdvh')).status, 403);
   assert.equal((await goi(url, 'tivi')).status, 403);
   const post = await fetch(`${ctx.baseUrl}${url}`, { method: 'POST', headers: { Authorization: `Bearer ${tokens.admin}`, 'Content-Type': 'application/json' }, body: '{}' });

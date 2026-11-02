@@ -1,5 +1,5 @@
 // ==========================================
-// Test: vai trò ADMIN / TTVH / GDVH (+ TIVI, test riêng ở tivi.test.js) (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49–#54):
+// Test: vai trò ADMIN / TTVH / GDVH / TTKT (+ TIVI, test riêng ở tivi.test.js; TTKT: thêm ktt-vai-tro-ttkt.test.js) (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49–#54):
 // ma trận quyền theo nhóm route, quyền có hiệu lực ngay (tra DB mỗi request), chống leo thang,
 // ADMIN cuối cùng, gán GDVH ↔ BCVH (user_bcvh). Server thật trên DB tạm; tài khoản GIẢ.
 // ==========================================
@@ -14,11 +14,12 @@ const { DASHBOARD_BCVH } = require('../server/lib/dashboardQuery');
 
 const PORT = 5914;
 const PASS = 'Fake@1234';
-const WHO = ['admin', 'ttvh', 'gdvh'];
+const WHO = ['admin', 'ttvh', 'gdvh', 'ttkt'];
 const ACCOUNTS = {
   admin: { hrm: 'RL_ADMIN', role: ROLES.ADMIN },
   ttvh: { hrm: 'RL_TTVH', role: ROLES.TTVH },
-  gdvh: { hrm: 'RL_GDVH', role: ROLES.GDVH }
+  gdvh: { hrm: 'RL_GDVH', role: ROLES.GDVH },
+  ttkt: { hrm: 'RL_TTKT', role: ROLES.TTKT }
 };
 
 let ctx;
@@ -70,6 +71,8 @@ const roleOf = (uid) => ctx.db.prepare('SELECT role FROM users WHERE id = ?').ge
 const ALL = ['admin', 'ttvh', 'gdvh'];
 const VIEW = ['admin', 'ttvh', 'gdvh'];
 const ADMIN_ONLY = ['admin'];
+const KTT_ROLES = ['admin', 'ttvh', 'ttkt'];
+const CHUNG = ['admin', 'ttvh', 'gdvh', 'ttkt']; // route chung TTKT được phép (đổi mật khẩu)
 const MATRIX = [
   // Quản lý tài khoản — chỉ ADMIN (id không tồn tại: ADMIN qua cổng quyền và nhận 404/400)
   ['GET', '/api/users', undefined, ADMIN_ONLY],
@@ -82,7 +85,15 @@ const MATRIX = [
   ['GET', '/api/users/khong-ton-tai/bcvh', undefined, ADMIN_ONLY],
   ['PUT', '/api/users/khong-ton-tai/bcvh', { codes: [] }, ADMIN_ONLY],
   // Tự đổi mật khẩu — mọi vai trò (mật khẩu hiện tại sai -> 400, qua được cổng quyền)
-  ['PUT', '/api/users/me/password', { currentPassword: 'sai-mat-khau', newPassword: '123456' }, ALL],
+  ['PUT', '/api/users/me/password', { currentPassword: 'sai-mat-khau', newPassword: '123456' }, CHUNG],
+  // Hàng tại KTT: ADMIN, TTVH, TTKT (GDVH 403); TTKT chỉ GET (allowlist theo vai trò)
+  ['GET', '/api/ktt/meta', undefined, KTT_ROLES],
+  ['GET', '/api/ktt/luu-thoat?tu=2026-10-01&den=2026-10-02', undefined, KTT_ROLES],
+  ['GET', '/api/ktt/doi-chieu/tong-hop?tu=2026-10-01&den=2026-10-02', undefined, KTT_ROLES],
+  ['GET', '/api/ktt/xuat/luu-thoat?tu=2026-10-01&den=2026-10-02', undefined, KTT_ROLES],
+  // Nạp nguồn / tham số / Phát / quỹ thời gian: TTKT 403 (kể cả trạng thái nạp KTT)
+  ['GET', '/api/nap-nguon/ktt/trang-thai', undefined, ADMIN_ONLY],
+  ['GET', '/api/tham-so', undefined, ADMIN_ONLY],
   // Mạng lưới (THEME-1): toàn bộ chỉ ADMIN
   ['GET', '/api/network', undefined, ADMIN_ONLY],
   ['GET', '/api/network/export-data', undefined, ADMIN_ONLY],
@@ -203,7 +214,7 @@ test('role ngoài danh sách hợp lệ khi tạo / sửa -> 400 tiếng Việt;
   assert.equal(ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE hrm_code LIKE 'RL_BAD_%'").get().n, 0);
 });
 
-test('POST /api/users tạo được cả 4 vai trò hợp lệ; không gửi role -> 400 (không có vai trò mặc định)', async () => {
+test('POST /api/users tạo được cả 5 vai trò hợp lệ (gồm TTKT, không cần BCVH); không gửi role -> 400 (không có vai trò mặc định)', async () => {
   for (const role of Object.values(ROLES)) {
     const r = await as('admin', 'POST', '/api/users', { hrm_code: `RL_NEW_${role}`, full_name: 'Giả', role, password: '123456' });
     assert.equal(r.status, 201, role);
@@ -272,6 +283,18 @@ test('đổi vai trò có hiệu lực ngay, không cần đăng nhập lại (t
   assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.GDVH })).status, 200);
   assert.equal((await call('GET', '/api/users', { tok: u.tok })).status, 403, 'hạ khỏi ADMIN: mất quyền quản trị ngay');
   assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 200);
+});
+
+test('PUT /api/users/:id đổi sang / khỏi TTKT: quyền đổi ngay, TTKT không cần BCVH', async () => {
+  const u = await makeUser(ROLES.TTVH, 'TTKT');
+  assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.TTKT })).status, 200);
+  assert.equal(roleOf(u.id), ROLES.TTKT);
+  assert.equal((await call('GET', '/api/ktt/meta', { tok: u.tok })).status, 200);
+  assert.equal((await call('GET', '/api/arrivals/meta', { tok: u.tok })).status, 403);
+  assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.GDVH })).status, 200);
+  assert.equal((await call('GET', '/api/ktt/meta', { tok: u.tok })).status, 403, 'GDVH không vào KTT');
+  assert.equal((await as('admin', 'PUT', `/api/users/${u.id}`, { role: ROLES.TTKT })).status, 200);
+  assert.equal((await call('GET', '/api/ktt/meta', { tok: u.tok })).status, 200);
 });
 
 test('token ký role ADMIN nhưng DB là STAFF (vai trò đã gỡ): server theo DB, không tin vai trò trong token', async () => {
@@ -353,8 +376,8 @@ test('user_bcvh: mã ngoài 6 BCVH, sai kiểu, thiếu codes -> 400 và tập c
   assert.deepEqual((await as('admin', 'GET', `/api/users/${g.id}/bcvh`)).body.codes, ['533140']);
 });
 
-test('user_bcvh: chỉ gán cho GDVH (TTVH/ADMIN/TIVI -> 400); tài khoản không tồn tại -> 404', async () => {
-  for (const role of [ROLES.TTVH, ROLES.ADMIN, ROLES.TIVI]) {
+test('user_bcvh: chỉ gán cho GDVH (TTVH/ADMIN/TIVI/TTKT -> 400); tài khoản không tồn tại -> 404', async () => {
+  for (const role of [ROLES.TTVH, ROLES.ADMIN, ROLES.TIVI, ROLES.TTKT]) {
     const u = await makeUser(role, 'NG');
     const r = await as('admin', 'PUT', `/api/users/${u.id}/bcvh`, { codes: ['533140'] });
     assert.equal(r.status, 400, role);

@@ -92,7 +92,7 @@ export default function KttDiCungNgay({ authUser }) {
       return null;
     }
   })();
-  const canExport = userRole === 'ADMIN' || userRole === 'TTVH';
+  const canExport = userRole === 'ADMIN' || userRole === 'TTVH' || userRole === 'TTKT';
 
   const handleExportRowSheet7 = async (maNguon) => {
     if (exportingNguon !== null || !dateRange || !maNguon || maNguon === '__RONG__') return;

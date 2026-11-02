@@ -1,6 +1,6 @@
 # 43 · KTT-12 — API «đi cùng ngày» (B1–B3), hàng rớt lại, lịch xe (B4–B6), danh sách bấm ô, hàng đến từ xe Cấp 1 (A), tổng quan
 
-Đưa các số của canvas «Hàng tại KTT» ra API **chỉ đọc**, cho **ADMIN và TTVH** (GDVH, TIVI 403; không token 401), cùng router và cùng middleware với `/api/ktt/luu-thoat` (xem `42_KTT_API.md` mục 1).
+Đưa các số của canvas «Hàng tại KTT» ra API **chỉ đọc**, cho **ADMIN, TTVH và TTKT** (GDVH, TIVI 403; không token 401), cùng router và cùng middleware với `/api/ktt/luu-thoat` (xem `42_KTT_API.md` mục 1).
 **KTT-14 (28/10/2026): tập SHBG của mọi bảng dưới đây nay gồm cả hàng chuyển tiếp — mục 9 cũ đã được giải quyết, xem mục 12.** Chưa có giao diện. Chưa làm: đối chiếu BCVH, tồn tại và gợi ý, xlsx 9 sheet. Mọi JSON trong tài liệu này là **dữ liệu giả**.
 
 ## 1. File
@@ -55,7 +55,7 @@ không có cả hai → «không rõ»; còn lại → «tỉnh khác». Tên t�
 
 ## 4. Endpoint
 
-| Route (GET, ADMIN/TTVH) | Tham số riêng | Trả về |
+| Route (GET, ADMIN/TTVH/TTKT) | Tham số riêng | Trả về |
 |---|---|---|
 | `/api/ktt/dicungngay/tong-hop` | — | **B1**: `lien_tinh_den_bcvh`, `noi_tinh_den_bcvh {khong_hang_hoan, co_hang_hoan, hang_hoan}`, `noi_tinh_di_lien_tinh`, `bcvh_hue_khong_hang_hoan` (= hai hướng đến BCVH, khớp `/luu-thoat`), `bo_qua`, `dinh_nghia`. Mỗi khối: `tong_shbg`, `mau_so`, năm nhóm, `ro_lai`, `dang_cho_chuyen`, `khong_phan_loai`, `ty_le` (null khi mẫu số 0), `kg`, `kg_ro_lai` |
 | `/api/ktt/dicungngay/theo-ngay` | — | **B2**: `theo_ngay[]` {ngay, chu_nhat, da_chot, co_du_lieu, bcvh_hue, lien_tinh_den_bcvh, noi_tinh_den_bcvh, hang_hoan, noi_tinh_di_lien_tinh}; `so_sanh_chu_nhat` {chu_nhat, ngay_thuong}: số ngày, tỷ lệ gộp, tỷ lệ trung bình ngày |

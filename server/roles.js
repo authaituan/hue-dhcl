@@ -1,7 +1,7 @@
 // ==========================================
 // VAI TRÒ NGƯỜI DÙNG — MỘT nơi định nghĩa duy nhất (docs/ai/04_DECISIONS.md #49).
 // Chuỗi ASCII, chữ hoa. Mọi chỗ so khớp vai trò (server, script) dùng module này,
-// không viết lại chuỗi 'ADMIN' / 'TTVH'... ở nơi khác.
+// không viết lại chuỗi 'ADMIN' / 'TTVH'... ở nơi khác. Vai trò: ADMIN, TTVH, GDVH, TIVI, TTKT.
 // ==========================================
 'use strict';
 
@@ -10,11 +10,13 @@ const ROLES = Object.freeze({
   TTVH: 'TTVH',
   GDVH: 'GDVH',
   // Màn hình tivi 24/24: CHỈ xem dashboard phần «đến», allowlist ở server/lib/tivi.js (#74). KHÔNG thuộc VIEWER_ROLES.
-  TIVI: 'TIVI'
+  TIVI: 'TIVI',
+  // Trung tâm Khai thác: CHỈ module «Hàng tại Khai thác tỉnh» (GET /api/ktt/**), allowlist ở server/lib/allowlistVaiTro.js (#123). KHÔNG thuộc VIEWER_ROLES.
+  TTKT: 'TTKT'
 });
 
 // Danh sách vai trò hợp lệ (thứ tự dùng cho thông báo lỗi / giao diện).
-const VALID_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH, ROLES.TIVI]);
+const VALID_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH, ROLES.TIVI, ROLES.TTKT]);
 
 // Nhóm được XEM dữ liệu "Hàng đến", Dashboard điều hành và danh sách mạng lưới.
 const VIEWER_ROLES = Object.freeze([ROLES.ADMIN, ROLES.TTVH, ROLES.GDVH]);

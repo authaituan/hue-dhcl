@@ -28,7 +28,8 @@ const USERS = {
   admin: { hrm: 'KT8_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT8_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT8_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT8_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT8_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT8_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -107,9 +108,11 @@ test('quyền: mọi route /api/ktt/*: không token 401; ADMIN và TTVH 200; GDV
     assert.equal((await goi(url)).status, 401, `${ten}: không token`);
     assert.equal((await goi(url, 'admin')).status, 200, `${ten}: ADMIN`);
     assert.equal((await goi(url, 'ttvh')).status, 200, `${ten}: TTVH`);
+    assert.equal((await goi(url, 'ttkt')).status, 200, `${ten}: TTKT`);
     assert.equal((await goi(url, 'gdvh')).status, 403, `${ten}: GDVH`);
     assert.equal((await goi(url, 'tivi')).status, 403, `${ten}: TIVI`);
   }
+  assert.equal((await goi('/api/ktt/khong-co', 'ttkt')).status, 404, 'TTKT qua allowlist (tiền tố), router không có route -> 404');
   assert.equal((await goi('/api/ktt/khong-co', 'gdvh')).status, 403);
   assert.equal((await goi('/api/ktt/khong-co', 'admin')).status, 404);
   for (const [ten, url] of ROUTES) assert.equal((await goi(url, 'admin', { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } })).status, 404, `${ten}: chỉ GET`);
@@ -123,9 +126,9 @@ test('ADMIN và TTVH thấy CÙNG số liệu (không lọc theo BCVH được g
   assert.match(a.headers.get('cache-control') || '', /no-store/);
 });
 
-test('kiểm tĩnh routes/ktt.js: requireRoles(ADMIN, TTVH) đứng TRƯỚC mọi route; chỉ router.get; không ghi DB', () => {
+test('kiểm tĩnh routes/ktt.js: requireRoles(ADMIN, TTVH, TTKT) đứng TRƯỚC mọi route; chỉ router.get; không ghi DB', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'routes', 'ktt.js'), 'utf8').split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
-  const iGuard = src.indexOf('router.use(requireRoles(ROLES.ADMIN, ROLES.TTVH))');
+  const iGuard = src.indexOf('router.use(requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.TTKT))');
   assert.ok(iGuard > 0);
   for (const m of src.matchAll(/router\.(get|post|put|patch|delete|all)\(/g)) { assert.equal(m[1], 'get'); assert.ok(m.index > iGuard); }
   assert.ok(!/\.run\(|\.exec\(|INSERT|UPDATE|DELETE/.test(src));

@@ -31,7 +31,8 @@ const USERS = {
   admin: { hrm: 'KT163_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT163_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT163_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT163_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT163_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT163_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -233,9 +234,11 @@ test('(a) nhóm thiếu giờ quét túi đến không vào mẫu; ma_bcvh lọc
   assert.equal((await goi(`${TG}&khong_co=1`)).status, 400);
   assert.equal((await goi('/api/ktt/doi-chieu/thoi-gian-nhan?tu=2026-10-20')).body.ma, 'KTT_THIEU_THAM_SO');
   assert.equal((await goi(TG, 'admin')).status, 200);
+  assert.equal((await goi(TG, 'ttkt')).status, 200);
   assert.equal((await goi(TG, 'gdvh')).status, 403);
   assert.equal((await goi(TG, 'tivi')).status, 403);
   assert.equal((await goi(TG, null)).status, 401);
+  assert.equal((await goi(CT, 'ttkt')).status, 200);
   assert.equal((await goi(CT, 'gdvh')).status, 403);
   assert.equal((await goi(CT, null)).status, 401);
 });

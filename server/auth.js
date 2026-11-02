@@ -1,13 +1,13 @@
 // ==========================================
 // AUTH MODULE - JWT + RBAC (Role-Based Access Control)
-// 5 vai trò có tên (server/roles.js): ADMIN, TTVH, GDVH, TIVI. Quyền theo từng route dùng
-// requireRoles(...) với danh sách tường minh (docs/ai/04_DECISIONS.md #49–#50); TIVI thêm allowlist trung tâm (#74).
+// 5 vai trò có tên (server/roles.js): ADMIN, TTVH, GDVH, TIVI, TTKT. Quyền theo từng route dùng
+// requireRoles(...) với danh sách tường minh (docs/ai/04_DECISIONS.md #49–#50); TIVI và TTKT thêm allowlist trung tâm theo vai trò, từ chối mặc định (#74, #123).
 // Dùng crypto built-in cho password hashing (scrypt) - KHÔNG thêm native dep.
 // ==========================================
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { ROLES, isValidRole } = require('./roles');
-const { tiviAllows } = require('./lib/tivi');
+const { vaiTroAllows } = require('./lib/allowlistVaiTro');
 
 // Secret BẮT BUỘC lấy từ ENV (hoặc .env). Thiếu -> server không khởi động, trừ khi
 // ALLOW_INSECURE_DEV=1 (chỉ cho máy dev: dùng secret mặc định, ai đọc mã nguồn cũng biết).
@@ -77,7 +77,7 @@ function signToken(user) {
 //     (đổi vai trò / khoá tài khoản có hiệu lực ngay, token cũ vẫn dùng được nếu còn quyền);
 //   - tài khoản bị khoá hoặc không còn -> 401; vai trò ngoài danh sách hợp lệ (vd MANAGER chưa chuyển đổi) -> 403;
 //   - token TIVI (dài hạn) mà tài khoản không còn là TIVI hoặc đã đổi mật khẩu -> 401 (không mang token 90 ngày sang vai trò khác);
-//   - vai trò TIVI: chỉ các request trong allowlist (server/lib/tivi.js), còn lại 403 — từ chối mặc định (#74).
+//   - vai trò TIVI, TTKT: chỉ các request trong allowlist (server/lib/allowlistVaiTro.js), còn lại 403 — từ chối mặc định (#74, #123); TTKT dùng hạn token thường (8 giờ).
 // db.js được nạp LƯỜI ở lần gọi đầu: fixtures/script require auth.js chỉ để băm mật khẩu, không được
 // mở nhầm data/hue-dhcl.db.
 // ------------------------------------------
@@ -117,8 +117,8 @@ function authRequired(req, res, next) {
   if (decoded.tivi && (state.role !== ROLES.TIVI || decoded.pwd !== passwordStamp(state.password_hash))) {
     return res.status(401).json({ error: 'Phiên màn hình tivi không còn hiệu lực (tài khoản đã đổi vai trò hoặc mật khẩu), vui lòng đăng nhập lại' });
   }
-  if (state.role === ROLES.TIVI && !tiviAllows(req)) {
-    return res.status(403).json({ error: 'Tài khoản màn hình tivi chỉ được xem dashboard' });
+  if (!vaiTroAllows(state.role, req)) {
+    return res.status(403).json({ error: state.role === ROLES.TIVI ? 'Tài khoản màn hình tivi chỉ được xem dashboard' : 'Không đủ quyền thực hiện thao tác này' });
   }
   const { tivi, pwd, ...claims } = decoded;
   req.user = { ...claims, role: state.role };

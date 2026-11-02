@@ -43,7 +43,11 @@ const TV_ROLES = ['ADMIN', 'TTVH', 'GDVH', 'TIVI'];
 const ME_RETRY_MS = 10_000;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('ops_today');
+  const [activeTab, setActiveTab] = useState(() => {
+    const user = getInitialAuthUser();
+    if (user?.role === 'TTKT') return 'ktt';
+    return 'ops_today';
+  });
   const [authUser, setAuthUser] = useState(getInitialAuthUser);
   const [arrivalsNavParams, setArrivalsNavParams] = useState(null);
 
@@ -57,7 +61,8 @@ export default function App() {
 
   const isViewer = ['ADMIN', 'TTVH', 'GDVH'].includes(authUser?.role);
   const isAdmin  = authUser?.role === 'ADMIN';
-  const canKtt   = ['ADMIN', 'TTVH'].includes(authUser?.role);
+  const canKtt   = ['ADMIN', 'TTVH', 'TTKT'].includes(authUser?.role);
+  const isTtkt   = authUser?.role === 'TTKT';
   const isTiviRole = authUser?.role === 'TIVI';
   const canTv = TV_ROLES.includes(authUser?.role);
 
@@ -85,6 +90,13 @@ export default function App() {
       setActiveTab('ops_today');
     }
   }, [activeTab]);
+
+  // Với TTKT: tab hợp lệ duy nhất là 'ktt'. Tự về 'ktt' nếu trạng thái tab bị đặt tay hoặc sót phiên cũ
+  useEffect(() => {
+    if (authUser?.role === 'TTKT' && activeTab !== 'ktt') {
+      setActiveTab('ktt');
+    }
+  }, [authUser?.role, activeTab]);
 
   // Gọi GET /api/auth/me để lấy tivi_scope mới nhất mỗi khi vào chế độ tivi với TIVI role.
   // Không đọc từ JWT vì token có thể được tạo trước khi admin gán phạm vi.
@@ -159,8 +171,8 @@ export default function App() {
     url.searchParams.delete('bcvh');
     window.history.replaceState(null, '', url.toString());
     setTvMode(false);
-    setActiveTab('ops_today');
-  }, []);
+    setActiveTab(authUser?.role === 'TTKT' ? 'ktt' : 'ops_today');
+  }, [authUser?.role]);
 
   // Bất kỳ request ghi nào (qua src/utils/api.js) nhận 401 từ backend sẽ tự
   // xoá token + phát event này -> quay về LoginView, không để lộ lỗi JSON thô.
@@ -175,6 +187,7 @@ export default function App() {
     const user = decodeJwtPayload(token);
     setAuthUser(user);
     if (user?.role === 'TIVI') setTvMode(true);
+    if (user?.role === 'TTKT') setActiveTab('ktt');
   };
 
   const handleLogout = () => {
@@ -218,7 +231,7 @@ export default function App() {
         <Header activeTab={activeTab} />
 
         <main className="flex-1">
-          {(activeTab === 'ops_today' || activeTab === 'dashboard') && (
+          {(activeTab === 'ops_today' || activeTab === 'dashboard') && !isTtkt && (
             <DailyOpsDashboard
               authUser={authUser}
               onNavigate={handleNavigate}

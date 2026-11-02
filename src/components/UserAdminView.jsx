@@ -6,7 +6,14 @@ import AddUserModal from './AddUserModal';
 import ResetUserPasswordModal from './ResetUserPasswordModal';
 import AssignBcvhModal from './AssignBcvhModal';
 
-const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI'];
+const ROLE_OPTIONS = ['TTVH', 'GDVH', 'ADMIN', 'TIVI', 'TTKT'];
+const ROLE_LABELS = {
+  TTVH: 'TTVH',
+  GDVH: 'GDVH',
+  ADMIN: 'ADMIN',
+  TIVI: 'TIVI',
+  TTKT: 'TTKT (Trung tâm Khai thác)',
+};
 
 // Chuyển mã tivi_scope thành tên hiển thị dễ đọc
 function formatTiviScope(scope) {
@@ -24,7 +31,7 @@ const TIVI_SCOPE_OPTIONS = [
 
 // Định dạng hiển thị cột «BCVH ĐƯỢC GIAO» theo vai trò
 function formatBcvhAssigned(u) {
-  if (u.role === 'ADMIN' || u.role === 'TTVH') {
+  if (u.role === 'ADMIN' || u.role === 'TTVH' || u.role === 'TTKT') {
     return <span className="text-subtext text-xs">Tất cả (theo vai trò)</span>;
   }
   if (u.role === 'TIVI') {
@@ -292,7 +299,7 @@ export default function UserAdminView({ authUser }) {
                               className="input-soft px-2 py-1.5 rounded-lg text-xs disabled:opacity-50"
                             >
                               {ROLE_OPTIONS.map((r) => (
-                                <option key={r} value={r}>{r}</option>
+                                <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
                               ))}
                             </select>
                             {isSelf && (

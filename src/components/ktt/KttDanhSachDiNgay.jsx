@@ -46,7 +46,7 @@ export default function KttDanhSachDiNgay({
       return null;
     }
   })();
-  const canExport = userRole === 'ADMIN' || userRole === 'TTVH';
+  const canExport = userRole === 'ADMIN' || userRole === 'TTVH' || userRole === 'TTKT';
 
   // Khi bấm tab khác, reset về trang 1
   const handleTabChange = (nextLoai) => {

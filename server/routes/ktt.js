@@ -1,6 +1,6 @@
 // ==========================================
-// KTT-8: API «Hàng tại KTT» — /api/ktt/*, CHỈ ĐỌC, CHỈ ADMIN và TTVH (GDVH 403, TIVI 403 ở authRequired / allowlist, không token 401). Mount riêng ở server/index.js
-// (KHÔNG dưới /api/arrivals: đường đó mở cả GDVH). Mọi route đi qua `requireRoles(ADMIN, TTVH)` ngay đầu router. ADMIN và TTVH thấy CÙNG số liệu (không lọc theo BCVH được giao).
+// KTT-8: API «Hàng tại KTT» — /api/ktt/*, CHỈ ĐỌC, CHỈ ADMIN, TTVH và TTKT (GDVH 403, TIVI 403 ở authRequired / allowlist, không token 401; TTKT chỉ GET, allowlist server/lib/allowlistVaiTro.js, #123). Mount riêng ở server/index.js
+// (KHÔNG dưới /api/arrivals: đường đó mở cả GDVH). Mọi route đi qua `requireRoles(ADMIN, TTVH, TTKT)` ngay đầu router. ADMIN, TTVH và TTKT thấy CÙNG số liệu (không lọc theo BCVH được giao).
 //   GET /api/ktt/meta                    độ mới dữ liệu, lịch chuyến (14 dòng), hạn đến trước chuyến, giờ chốt ngày, ngưỡng
 //   GET /api/ktt/luu-thoat?tu=&den=[&moc_chi_tieu=xnd|quet_tui_den]   lưu thoát 5 trạng thái, đạt / không đạt, chỉ tiêu 14 giờ hai mốc, hàng hoàn (kttLuuThoatQuery.luuThoatTheoNgay), cache theo (mốc, ngày)
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
@@ -26,8 +26,8 @@ const Xuat = require('../lib/kttXuat');
 
 const router = express.Router();
 
-// Mọi route của router này CHỈ cho ADMIN, TTVH (route thêm sau này cũng bị chặn mặc định).
-router.use(requireRoles(ROLES.ADMIN, ROLES.TTVH));
+// Mọi route của router này CHỈ cho ADMIN, TTVH, TTKT (route thêm sau này cũng bị chặn mặc định).
+router.use(requireRoles(ROLES.ADMIN, ROLES.TTVH, ROLES.TTKT));
 
 const xuLy = (ten, fn) => async (req, res) => {
   try {

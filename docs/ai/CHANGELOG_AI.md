@@ -2,6 +2,24 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-02] - KTT-ROLE-3: cập nhật tài liệu sau khi TTKT có đủ máy chủ và giao diện (chỉ `docs/ai/`)
+
+- Bỏ câu cảnh báo lỗi thời về việc tạo TTKT qua màn Quản trị (nay đã tạo được) (`00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `06_DEPLOYMENT.md`, `04_DECISIONS.md` #123): ADMIN tạo / sửa TTKT ở màn «Quản trị», không cần gán BCVH, mật khẩu do ADMIN đặt. `#123` thêm phần giao diện ROLE-2, ghi chú ROLE-1b, mục «Thêm một vai trò mới: các điểm phải đổi» và hai điểm nợ (`ROLE_LABELS` thiếu TIVI ở `TopNav.jsx`; chú thích «Chỉ ADMIN và TTVH» ở `KttLuuThoat.jsx`). `npm test`: 1317 ca (1307 đạt, 10 bỏ qua).
+
+## [2026-11-02] - KTT-ROLE-2: giao diện vai trò TTKT (chỉ `src/`)
+
+- `App.jsx`: TTKT vào thẳng tab `ktt`, guard tự về `ktt`, không render `DailyOpsDashboard` với TTKT; `canKtt` thêm TTKT. `TopNav.jsx`: `canKtt` + nhãn TTKT, menu chỉ «Hàng tại Khai thác tỉnh» và menu người dùng. `KttDanhSachDiNgay.jsx`, `KttDiCungNgay.jsx`: `canExport` thêm TTKT. `AddUserModal.jsx`, `UserAdminView.jsx`: `ROLE_OPTIONS` thêm TTKT (nhãn «TTKT (Trung tâm Khai thác)»), cột «BCVH được giao» hiện «Tất cả (theo vai trò)». Quyết định #123.
+
+## [2026-11-02] - KTT-ROLE-1b: allowlist vai trò TỪ CHỐI mặc định thật sự (máy chủ + test)
+
+- `server/lib/allowlistVaiTro.js`: bản đầu cho qua mọi vai trò thiếu mục trong bảng (fail-open: gỡ mục TTKT thì TTKT được mở thêm). Nay chỉ nhóm toàn quyền `VAI_TRO_TOAN_QUYEN` (= `VIEWER_ROLES`: ADMIN, TTVH, GDVH) không bị chặn; vai trò hợp lệ khác thiếu mục → allowlist rỗng, 403 mọi request `/api`. `coAllowlist` thay bằng `allowlistCua`. Test: +2 ca trong `tests/ktt-vai-tro-ttkt.test.js` (cấu trúc bảng; `vaiTroAllows` với vai trò giả). Kiểm tra đột biến (a), (a′), (c) đều đỏ. `npm test`: 1317 ca (1307 đạt, 10 bỏ qua). Quyết định #123.
+
+## [2026-11-02] - KTT-ROLE-1: vai trò TTKT (máy chủ, test, script, tài liệu; KHÔNG đổi `src/`)
+
+- `server/roles.js` thêm `TTKT` (không vào `VIEWER_ROLES`). `server/lib/allowlistVaiTro.js` MỚI: bảng `ALLOWLIST_THEO_VAI_TRO` (TIVI giữ nguyên + TTKT: `GET /api/ktt/**`, `GET /api/auth/me`, `PUT /api/users/me/password`), từ chối mặc định, chuẩn hoá đường dẫn; `server/auth.js` gọi `vaiTroAllows` thay `tiviAllows`. `routes/ktt.js`: `requireRoles(ADMIN, TTVH, TTKT)`. Token TTKT 8 giờ. Quyết định #123.
+- Test: `tests/ktt-vai-tro-ttkt.test.js` MỚI (8 ca), thêm TTKT vào `roles.test.js` và 10 file `ktt-*.test.js`; script `test` thêm file mới. Script: `migrate-roles.js` (chú thích), `ktt-demo-server.js` (người dùng demo TTKT).
+- **Nợ / lưu ý lúc đó:** giao diện (menu vai trò, TopNav, tab mặc định `ops_today` của TTKT gọi API ngoài allowlist → 403) — đã làm ở KTT-ROLE-2. Phải KHỞI ĐỘNG LẠI server sau khi merge.
+
 ## [2026-11-02] - QUYTG-10: Quỹ thời gian loại hàng hoàn khỏi lượt «chính» (chuyển «Không đo được», lý do `HANG_HOAN`) (backend + test + docs; KHÔNG đổi `src/`, `package.json`, công thức thời gian thực, khung 21:00–07:00, chỉ tiêu 14 giờ, ngưỡng 7 ngày / Sắp hết hạn)
 
 - **Định nghĩa mới (PO chốt, hiệu lực 02/11/2026):** SHBG trong danh sách hàng hoàn (`kttHangHoan.docDanhSachHangHoan`, cùng nguồn trang Hàng tại KTT tỉnh) → `KHONG_DO_DUOC`, `lyDo = HANG_HOAN`, `dai = null`: ra khỏi tử và mẫu mọi tỷ lệ (tổng, nhóm, BCVH, đường thư, giờ, ngày, lũy kế, xếp hạng); ưu tiên hơn các lý do «không đo được» khác. `quyThoiGianNhom.js` (lý do + đầu vào `hangHoan`), `quyThoiGianQuery.js` (`danhGiaDong`, `tatCaLuot`, `tinhTheoBcvhNgay`, `tinhNgayGop`, `metaHoanCua`), `quyThoiGianCache.js`.

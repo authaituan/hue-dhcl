@@ -21,7 +21,8 @@ const VONG_NGUON = [0, 1, 2, 0, 3, 4, 'NT', 5, 0, 1, 6, 2, 'NT', 3, 'KR', 0, 5, 
 const USERS = [
   { hrm: 'KTT_DEMO_ADMIN', pass: 'KttDemo@2026', role: 'ADMIN' },
   { hrm: 'KTT_DEMO_TTVH', pass: 'KttDemo@2026', role: 'TTVH' },
-  { hrm: 'KTT_DEMO_GDVH', pass: 'KttDemo@2026', role: 'GDVH' }
+  { hrm: 'KTT_DEMO_GDVH', pass: 'KttDemo@2026', role: 'GDVH' },
+  { hrm: 'KTT_DEMO_TTKT', pass: 'KttDemo@2026', role: 'TTKT' }
 ];
 
 function homNayVn() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()); }

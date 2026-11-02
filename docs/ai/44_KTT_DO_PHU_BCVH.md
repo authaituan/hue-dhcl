@@ -5,7 +5,7 @@
 
 ## 1. Route
 `GET /api/ktt/doi-chieu/do-phu?tu=YYYY-MM-DD&den=YYYY-MM-DD`
-- Quyền như mọi route KTT: ADMIN + TTVH (cùng số liệu); GDVH, TIVI → 403; không token → 401; chỉ GET.
+- Quyền như mọi route KTT: ADMIN + TTVH + TTKT (cùng số liệu); GDVH, TIVI → 403; không token → 401; chỉ GET.
 - `tu`, `den` bắt buộc, ≤ 31 ngày, `tu ≤ den`; khóa lạ / lặp tham số / ngày sai → 400 `{ error (tiếng Việt), ma }` (`KTT_THIEU_THAM_SO`, `KTT_NGAY_SAI`, `KTT_KHOANG_NGAY_SAI`, `KTT_KHOANG_QUA_DAI`, `KTT_THAM_SO_LA`, `KTT_THAM_SO_SAI`).
 - Chỉ đọc `arrival_import_files`, `arrival_items`, `post_offices` (tên BCVH). **Không đọc bảng `ktt_*`**, không ghi gì, không phụ thuộc lịch chuyến / tham số KTT / độ mới KTT (có test chặn câu SQL nhắc `ktt_`).
 - Cache trong bộ nhớ theo `(tu, den)`: ≤ 10 phút VÀ cùng dấu hiệu DB (`phatDashboard.dauHieuDb` = `data_version` + `total_changes`); nạp file mới ở tiến trình này hoặc tiến trình khác làm mất hiệu lực. `Api.xoaCache()` xóa; `Api.thongKe().doPhuTinh` đếm số lần tính.
@@ -87,7 +87,7 @@ Một ngày D (ngày KTT lập BD10 đi) kiểm tra được cho BCVH đích X k
 > Ticket KTT-16-2 (29/10/2026, sửa 31/10/2026). Backend, CHỈ ĐỌC. Chưa làm thời gian BCVH nhận, chuyến mất dấu, nguồn chưa thấy, «Đánh giá» (KTT-16-3, 16-4). Code: `server/lib/kttDoiChieu.js` (ghép + hàm thuần), `kttApi.js` (`doiChieuTongHop`, `layNgayDC`), `kttNong.js`. Test: `tests/ktt-doi-chieu-tong-hop.test.js` (18 ca, gồm hook `sauNap`, lỗi trong `layNgayDC`, hàng đợi hai loại lượt).
 
 ### 8.1 Route
-`GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]` — quyền như mọi route KTT (ADMIN + TTVH; GDVH, TIVI 403). `tu`, `den` ≤ 31 ngày; `ma_bcvh` lọc theo BCVH ĐÍCH (mặc định cả 6; mã lạ -> 400 `KTT_BCVH_SAI`). Khóa lạ -> 400.
+`GET /api/ktt/doi-chieu/tong-hop?tu=&den=[&ma_bcvh=]` — quyền như mọi route KTT (ADMIN + TTVH + TTKT; GDVH, TIVI 403). `tu`, `den` ≤ 31 ngày; `ma_bcvh` lọc theo BCVH ĐÍCH (mặc định cả 6; mã lạ -> 400 `KTT_BCVH_SAI`). Khóa lạ -> 400.
 
 ### 8.2 Định nghĩa
 - **Tập chính (thanh 1)** = SHBG nhóm `chua_di_tren_24h` của KTT-14 (gồm hàng chuyển tiếp), theo ngày D của «lưu thoát», đích = `maBcvh`; KHÔNG gồm hàng hoàn (KTT-17-2: SHBG có trong `ktt_hang_hoan`, đích 6 BCVH). Hàng hoàn không ghép, không phân loại: chỉ trả `hang_hoan_loai_khoi` (tổng hoàn trong ngày / khoảng) để thấy phần bị loại.
@@ -179,7 +179,7 @@ Hai bảng riêng, vì thanh 1 (`chua_di_tren_24h`) KHÔNG chứa nhóm thiếu 
 ## 10. KTT-16-4: «Đánh giá» và xuất xlsx sheet 1–6 của trang Đối chiếu
 > Ticket KTT-16-4 (01/11/2026), PHẦN 1 backend (nhánh chung `feat/ktt-16-5-trang-doi-chieu`; giao diện = phần 2 của Antigravity, chưa làm). CHỈ ĐỌC. Code: `server/lib/kttDanhGiaDoiChieu.js` (hàm thuần), `server/lib/kttDoiChieuXuat.js` (cột, chọn dòng, «Thông tin»), `kttDoiChieu.js` (thêm `ghepChuyenTiepChuaQuet`, `ghepChuyenCham`, `gopThoiGianChuyen`, `CHUYEN_CHAM`; `boThuThap(ngay, { lietKe })`), `kttApi.js` (`doiChieuDanhGia`, `xuatDoiChieu`), `kttWorker.js` (tác vụ `xuatDoiChieu`), `kttXuat.js` (`ghiXlsx` nhận `cot` + `tenSheet`), `routes/ktt.js`. Test: `tests/ktt-doi-chieu-danh-gia-xuat.test.js` (19 ca, dữ liệu giả).
 
-### 10.1 Route (ADMIN + TTVH; GDVH, TIVI 403; không token 401; `tu`, `den` ≤ 31 ngày; `ma_bcvh` lọc theo BCVH ĐÍCH; khóa lạ -> 400)
+### 10.1 Route (ADMIN + TTVH + TTKT; GDVH, TIVI 403; không token 401; `tu`, `den` ≤ 31 ngày; `ma_bcvh` lọc theo BCVH ĐÍCH; khóa lạ -> 400)
 - `GET /api/ktt/doi-chieu/danh-gia` — `danh_gia[]` (thứ tự a–h, mục không đủ điều kiện thì KHÔNG có), `so_dong_sheet` (sheet 1–6: `ten`, `route`, `so_dong`), `hang_so` (`chuyen_cham`, `mat_dau`, `cung_ngay_thap`), `meta`; phần đầu như `tong-hop` (`khoang_ngay`, `cua_so_thuc_te`, `cua_so_theo_bcvh`, `co_du_lieu`, `ly_do`). Chưa có dữ liệu KTT: `danh_gia = []`.
 - `GET /api/ktt/doi-chieu/xuat/{chua-thay | chuyen-mat-dau | chuyen-tiep-chua-quet-di | thay-o-bcvh-khac | chuyen-cham | da-co-tai-dich}` — file `.xlsx` (sheet «Thông tin» đứng đầu + một sheet dữ liệu), tên file `KTT_DoiChieu_<tên>_<tu>_<den>.xlsx`; lỗi tham số vẫn là JSON 400 (kiểm tra xong TRƯỚC khi gửi header); vượt `KTT_XUAT_TRAN_DONG` (mặc định 200.000) -> 400 `KTT_QUA_NHIEU_DONG`; nhật ký `ktt_export` ghi `kind`, `sheet`, `ma_bcvh`, số dòng (không SHBG).
 

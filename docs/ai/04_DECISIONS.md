@@ -883,5 +883,26 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 
 Phía server đổi nhãn «Hàng hoàn Tổ KHHH» → **«Hàng chuyển hoàn»** (`phan_loai` của chi-tiet / xlsx sheet 7, tiêu đề cột sheet 8, câu bộ lọc «Thông tin» sheet 8) vì hoàn không còn gắn Tổ KHHH 531120 (#121). `/luu-thoat` thêm `theo_bcvh[mã].hang_hoan` (cùng hình dạng `tong_cong.hang_hoan`; tổng 6 khối = khối chung, trừ số túi không cộng được) để giao diện hiện đúng hoàn của từng BCVH; `/chi-tiet` thêm `items[].hang_hoan` (boolean) để giao diện khỏi so chuỗi nhãn. Chỉ thêm field; không đổi định nghĩa hoàn hay cách tính chỉ số.
 
+### 123. Vai trò TTKT (Trung tâm Khai thác) và allowlist theo vai trò (KTT-ROLE-1, PO 02/11/2026)
+
+Thêm vai trò `TTKT` (`server/roles.js`, KHÔNG thuộc `VIEWER_ROLES`). TTKT chỉ dùng module «Hàng tại Khai thác tỉnh»: `GET /api/ktt/**` + `GET /api/auth/me` + `PUT /api/users/me/password`; mọi nhóm API khác 403 — kể cả route chỉ có `authRequired` (`/api/dashboard/widgets`, `/widgets-data`, `/dashboard/stats`, `/api/organization/*`). **Cách chặn:** khái quát cơ chế allowlist TIVI (#74) thành bảng theo vai trò `ALLOWLIST_THEO_VAI_TRO` (`server/lib/allowlistVaiTro.js`), kiểm trong `authRequired` sau khi tra DB, TỪ CHỐI MẶC ĐỊNH. **Sửa KTT-ROLE-1b (fail-open -> fail-closed):** bản đầu cho qua mọi vai trò KHÔNG có mục trong bảng, nên gỡ hoặc quên mục TTKT làm TTKT được MỞ thêm (qua `/api/dashboard/*`, `/api/organization/*` chỉ có `authRequired`). Nay chỉ nhóm toàn quyền `VAI_TRO_TOAN_QUYEN` (= `VIEWER_ROLES`: ADMIN, TTVH, GDVH, dùng `requireRoles` ở từng route) không bị lớp này chặn; MỌI vai trò hợp lệ khác chỉ được mục khai báo, thiếu mục thì allowlist RỖNG (403 mọi request `/api`). Test cấu trúc bắt lỗi thêm vai trò mới mà quên bảng. Lưu ý: thêm vai trò vào `VIEWER_ROLES` đồng nghĩa cho nó toàn quyền ở lớp này. Khớp tiền tố theo đoạn (`/api/ktt/` khớp, `/api/kttx` không) sau khi chuẩn hoá đường dẫn (bỏ query, giải mã một lần — còn `%` hoặc dấu gạch chéo ngược thì từ chối, chữ thường, gộp `//`, xử lý `..`, bỏ `/` cuối); HEAD cũng bị chặn. TTKT thấy đủ 6 BCVH, không chế độ tivi, **token 8 giờ** (không dùng hạn 90 ngày của TIVI), được tự đổi mật khẩu, **chỉ GET**, không cần gán BCVH. `requireRoles(ADMIN, TTVH, TTKT)` ở `routes/ktt.js`. Hành vi ADMIN / TTVH / GDVH / TIVI không đổi; không đổi schema DB (cột `users.role` không có CHECK). Sau khi merge phải khởi động lại server.
+
+**Giao diện (KTT-ROLE-2):** TTKT vào thẳng tab `ktt` (`App.jsx`: tab khởi tạo, sau đăng nhập, sau đổi người dùng); guard `useEffect` tự đưa về `ktt` nếu tab bị đặt khác và `DailyOpsDashboard` không render với TTKT (`isTtkt`); menu `TopNav.jsx` chỉ hiện «Hàng tại Khai thác tỉnh» và menu người dùng; `canKtt` (`App.jsx`, `TopNav.jsx`) và `canExport` (`KttDanhSachDiNgay.jsx`, `KttDiCungNgay.jsx`) thêm TTKT; `ROLE_OPTIONS` ở màn Quản trị (`UserAdminView.jsx`, `AddUserModal.jsx`) thêm TTKT (nhãn «TTKT (Trung tâm Khai thác)»). ADMIN tạo / sửa người dùng TTKT ở màn «Quản trị» (không cần gán BCVH; cột «BCVH được giao» hiện «Tất cả (theo vai trò)»), mật khẩu do ADMIN đặt.
+
+**Allowlist từ chối mặc định thật sự (KTT-ROLE-1b):** nhóm toàn quyền = `VAI_TRO_TOAN_QUYEN` = `VIEWER_ROLES` = ADMIN, TTVH, GDVH (không bị lớp allowlist chặn, dùng `requireRoles` ở từng route); MỌI vai trò hợp lệ khác chỉ được các mục trong `ALLOWLIST_THEO_VAI_TRO`, thiếu mục thì bị từ chối toàn bộ. **Lưu ý:** thêm một vai trò chỉ-xem vào `VIEWER_ROLES` sẽ lặng lẽ thành toàn quyền ở lớp allowlist (các route chỉ có `authRequired` sẽ mở) — vai trò như vậy phải có mục riêng trong bảng và KHÔNG vào `VIEWER_ROLES`.
+
+**Thêm một vai trò mới: các điểm phải đổi.**
+1. `server/roles.js`: `ROLES`, `VALID_ROLES`; `VIEWER_ROLES` chỉ khi là nhóm toàn quyền xem dữ liệu (xem lưu ý trên).
+2. `server/lib/allowlistVaiTro.js`: mục trong `ALLOWLIST_THEO_VAI_TRO` (nếu thiếu, vai trò bị từ chối mọi request; test cấu trúc bắt lỗi này).
+3. `requireRoles(...)` ở từng router liên quan (ví dụ `routes/ktt.js`).
+4. `src/App.jsx` và `src/components/TopNav.jsx`: `canKtt` (hoặc cờ tương ứng), tab mặc định, guard tab.
+5. `canExport` ở `src/components/ktt/KttDanhSachDiNgay.jsx` và `KttDiCungNgay.jsx`.
+6. Hai danh sách `ROLE_OPTIONS` ở `AddUserModal.jsx` và `UserAdminView.jsx` (kèm nhãn).
+7. `scripts/migrate-roles.js`, `scripts/ktt-demo-server.js`.
+8. Test: `tests/roles.test.js`, `tests/ktt-vai-tro-ttkt.test.js`, các `tests/ktt-*.test.js`.
+9. Tài liệu: `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `06_DEPLOYMENT.md`, `CHANGELOG_AI.md`, quyết định này.
+
+**Nợ đã biết (chưa sửa):** (a) `ROLE_LABELS` ở `src/components/TopNav.jsx` thiếu nhãn vai trò TIVI; (b) dòng chú thích «Chỉ ADMIN và TTVH» ở `src/components/ktt/KttLuuThoat.jsx` (gần phần xuất lưu thoát) ghi sai so với quyền thực tế (TTKT cũng xuất được).
+
 ## Drift phát hiện
 _(chưa có)_
