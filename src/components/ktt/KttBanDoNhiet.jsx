@@ -128,7 +128,7 @@ export default function KttBanDoNhiet({
       {/* ── TIÊU ĐỀ & CÔNG TẮC TÔ MÀU ───────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="ktt-h2 text-[17px]">
+          <h2 className="hue-h2 text-[17px]">
             Rớt lại nằm ở đâu: nguồn / đường thư × BCVH đích
           </h2>
           <p className="text-xs text-gray-600 mt-1">
@@ -268,7 +268,7 @@ export default function KttBanDoNhiet({
                             <span className="tabular-nums">{formatInt(khongDat)} bưu gửi ({formatPercent(khongDat / shbg)})</span>
                           </div>
                         </div>
-                        <div className="pt-1 border-t border-gray-800 text-[10px] text-gray-400 italic">
+                        <div className="pt-1 border-t border-gray-800 text-[11px] text-gray-400 italic">
                           Bấm để xem danh sách chi tiết bưu gửi
                         </div>
                       </div>
@@ -309,12 +309,12 @@ export default function KttBanDoNhiet({
                                   {formatInt(metricVal)}
                                 </div>
                                 <div
-                                  className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
                                   {formatPercent(ratio)} của {formatInt(shbg)}
                                 </div>
                                 <div
-                                  className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
                                   {subLabel} {formatInt(subVal)}
                                 </div>
@@ -420,12 +420,12 @@ export default function KttBanDoNhiet({
                                   {formatInt(metricVal)}
                                 </div>
                                 <div
-                                  className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
                                   {formatPercent(ratio)} của {formatInt(shbg)}
                                 </div>
                                 <div
-                                  className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
                                   {subLabel} {formatInt(subVal)}
                                 </div>
@@ -536,12 +536,12 @@ export default function KttBanDoNhiet({
                               {formatInt(metricVal)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {formatPercent(ratio)} của {formatInt(total.shbg)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {subLabel} {formatInt(subVal)}
                             </div>
@@ -641,12 +641,12 @@ export default function KttBanDoNhiet({
                               {formatInt(metricVal)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {formatPercent(ratio)} của {formatInt(total.shbg)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {subLabel} {formatInt(subVal)}
                             </div>
@@ -709,12 +709,12 @@ export default function KttBanDoNhiet({
                               {formatInt(bHh.roLai)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {formatPercent(ratio)} của {formatInt(bHh.shbg)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               trượt {formatInt(bHh.truot)}
                             </div>
@@ -761,12 +761,12 @@ export default function KttBanDoNhiet({
                               {formatInt(hhData.roLai)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               {formatPercent(ratio)} của {formatInt(hhData.shbg)}
                             </div>
                             <div
-                              className={`text-[10px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
+                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
                               trượt {formatInt(hhData.truot)}
                             </div>

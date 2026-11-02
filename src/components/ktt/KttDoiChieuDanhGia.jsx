@@ -12,7 +12,7 @@ export default function KttDoiChieuDanhGia({ danh_gia, danhGia, tu, den, maBcvh 
   return (
     <div className="space-y-4 pt-2 border-t border-gray-200">
       <div>
-        <h2 className="text-base font-bold text-gray-900">
+        <h2 className="hue-h2 text-[17px]">
           Đánh giá đối chiếu
         </h2>
         <p className="text-xs text-gray-500 mt-0.5">

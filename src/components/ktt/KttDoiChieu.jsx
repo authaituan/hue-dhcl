@@ -488,7 +488,7 @@ export default function KttDoiChieu({ authUser }) {
         <div className={`space-y-6 transition-opacity duration-200 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
           {/* Tiêu đề khối & dòng mô tả 3.2 (Sửa nhỏ D: Bỏ chữ kỹ thuật) */}
           <div>
-            <h2 className="text-base font-bold text-gray-900">
+            <h2 className="hue-h2 text-[17px]">
               Đối chiếu nhóm «chưa đi trên 24 giờ» với «Hàng đến BCVH»
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -505,14 +505,14 @@ export default function KttDoiChieu({ authUser }) {
             {/* Thẻ 1: Chưa đi trên 24 giờ, trong khoảng ngày đối chiếu được */}
             <div className="bg-white rounded-[14px] p-4 border border-gray-200 border-t-4 border-t-[#4A1D6E] shadow-none flex flex-col justify-between">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Chưa đi trên 24 giờ, trong khoảng ngày đối chiếu được
                 </div>
-                <div className="text-3xl font-extrabold text-gray-900 mt-2 tabular-nums">
+                <div className="hue-num-lg my-1.5 text-gray-900">
                   {formatInt(tapChinhTrongCuaSo)}
                 </div>
               </div>
-              <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
+              <div className="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
                 {tapChinhNgoaiCuaSo > 0 ? (
                   <span>
                     Thêm <strong className="text-gray-700 tabular-nums">{formatInt(tapChinhNgoaiCuaSo)}</strong> SHBG chưa đối chiếu được (nằm ngoài khoảng ngày có dữ liệu BCVH)
@@ -526,11 +526,11 @@ export default function KttDoiChieu({ authUser }) {
             {/* Thẻ 2: Đã có tại BCVH đích (xanh lá) */}
             <div className="bg-white rounded-[14px] p-4 border border-gray-200 border-t-4 border-t-[#1F7A5C] shadow-none flex flex-col justify-between">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-[#1F7A5C]">
+                <div className="text-[11px] font-bold text-[#1F7A5C] tracking-wide uppercase">
                   Đã có tại BCVH đích
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-[#1F7A5C] tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-[#1F7A5C]">
                     {formatInt(tapChinhTaiDich)}
                   </div>
                   <div className="text-xs font-bold text-[#1F7A5C] tabular-nums">
@@ -538,7 +538,7 @@ export default function KttDoiChieu({ authUser }) {
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
+              <div className="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
                 {formatPercent(tyLeTaiDich)} của nhóm
               </div>
             </div>
@@ -547,13 +547,13 @@ export default function KttDoiChieu({ authUser }) {
             <div className="bg-white rounded-[14px] p-4 border border-gray-200 border-t-4 border-t-[#D97706] shadow-none flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#B45309]">
+                  <div className="text-[11px] font-bold text-[#B45309] tracking-wide uppercase">
                     Thấy ở BCVH khác
                   </div>
                   <KttNutXuat route="thay-o-bcvh-khac" tu={dateRange?.from} den={dateRange?.to} maBcvh={selectedBcvh} />
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-[#B45309] tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-[#B45309]">
                     {formatInt(tapChinhBcvhKhac)}
                   </div>
                   <div className="text-xs font-bold text-[#B45309] tabular-nums">
@@ -561,7 +561,7 @@ export default function KttDoiChieu({ authUser }) {
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
+              <div className="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
                 {formatPercent(tyLeBcvhKhac)} của nhóm
               </div>
             </div>
@@ -570,13 +570,13 @@ export default function KttDoiChieu({ authUser }) {
             <div className="bg-white rounded-[14px] p-4 border border-gray-200 border-t-4 border-t-[#B3202A] shadow-none flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#B3202A]">
+                  <div className="text-[11px] font-bold text-[#B3202A] tracking-wide uppercase">
                     Chưa thấy ở đâu
                   </div>
                   <KttNutXuat route="chua-thay" tu={dateRange?.from} den={dateRange?.to} maBcvh={selectedBcvh} />
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-[#B3202A] tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-[#B3202A]">
                     {formatInt(tapChinhChuaThay)}
                   </div>
                   <div className="text-xs font-bold text-[#B3202A] tabular-nums">
@@ -584,7 +584,7 @@ export default function KttDoiChieu({ authUser }) {
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
+              <div className="text-[11px] text-gray-600 mt-2 pt-2 border-t border-gray-100">
                 <span className="font-semibold text-red-700">Cần BCVH kiểm tra</span>
                 {tapChinhNghiDuongTinhGia > 0 && (
                   <span className="text-gray-500 text-[11px] block mt-0.5">
@@ -727,7 +727,7 @@ export default function KttDoiChieu({ authUser }) {
             <div className="space-y-4 pt-2 border-t border-gray-200">
               {/* Tiêu đề khối 3.3 (Sửa nhỏ D: bỏ chữ kỹ thuật) */}
               <div>
-                <h2 className="text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   Hàng đi KTT rồi, bao lâu thì BCVH nhận?
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -971,7 +971,7 @@ export default function KttDoiChieu({ authUser }) {
             <div className="space-y-4 pt-2 border-t border-gray-200">
               {/* Tiêu đề khối 3.4 */}
               <div>
-                <h2 className="text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   Chuyến mất dấu và nguồn của {formatInt(thanh1Tong)} SHBG chưa thấy
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -1173,7 +1173,7 @@ export default function KttDoiChieu({ authUser }) {
                               <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
                                 <div style={{ width: `${pct}%` }} className="h-full bg-[#B3202A] rounded-full" />
                               </div>
-                              <div className="text-[10px] text-right text-gray-400 tabular-nums">
+                              <div className="text-[11px] text-right text-gray-400 tabular-nums">
                                 {formatPercent(thanh1Tong > 0 ? count / thanh1Tong : 0)}
                               </div>
                             </div>

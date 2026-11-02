@@ -371,21 +371,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 1: Liên tỉnh đến → BCVH */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Liên tỉnh đến → 6 BCVH Huế
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ltBcvh?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ltBcvh?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ltBcvh?.ty_le?.hom_sau)}</strong>
                 </div>
@@ -398,21 +398,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 2: Nội tỉnh → BCVH Huế */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Nội tỉnh → 6 BCVH Huế (k.hàng hoàn)
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ntBcvhKhongHoan?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ntBcvhKhongHoan?.ty_le?.hom_sau)}</strong>
                 </div>
@@ -425,21 +425,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 3: Nội tỉnh → Liên tỉnh */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Nội tỉnh → Liên tỉnh (xe Cấp 1)
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ntDiLienTinh?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntDiLienTinh?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ntDiLienTinh?.ty_le?.hom_sau)}</strong>
                 </div>
@@ -490,7 +490,7 @@ export default function KttDiCungNgay({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="ktt-h2 text-[17px]">
+                <h2 className="hue-h2 text-[17px]">
                   Tỷ lệ đi cùng ngày từng ngày (Hàng đi 6 BCVH Huế)
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -558,7 +558,7 @@ export default function KttDiCungNgay({ authUser }) {
                             <div>Cùng ngày: <strong className="tabular-nums">{formatInt(d.bcvh_hue?.cung_ngay)}</strong></div>
                             <div>Tỷ lệ: <strong className="tabular-nums text-amber-300">{formatPercent(tyLe)}</strong></div>
                             {isTam && (
-                              <div className="text-[#E0A82E] font-semibold text-[10px] pt-0.5">
+                              <div className="text-[#E0A82E] font-semibold text-[11px] pt-0.5">
                                 * Số tạm (chưa chốt)
                               </div>
                             )}
@@ -566,7 +566,7 @@ export default function KttDiCungNgay({ authUser }) {
                         </div>
 
                         {/* % trên đầu cột */}
-                        <div className="text-[10px] font-bold tabular-nums text-gray-600 mb-1">
+                        <div className="text-[11px] font-bold tabular-nums text-gray-600 mb-1">
                           {pctVal !== null ? `${pctVal}%` : '–'}
                         </div>
 
@@ -582,7 +582,7 @@ export default function KttDiCungNgay({ authUser }) {
                         />
 
                         {/* Nhãn ngày dưới đáy */}
-                        <div className="mt-2 text-[10px] font-semibold text-gray-500 tabular-nums whitespace-nowrap">
+                        <div className="mt-2 text-[11px] font-semibold text-gray-500 tabular-nums whitespace-nowrap">
                           {formatDdMm(d.ngay)}
                         </div>
                         {isSunday && (
@@ -628,7 +628,7 @@ export default function KttDiCungNgay({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="ktt-h2 text-[17px]">
+                <h2 className="hue-h2 text-[17px]">
                   Phân bố tình trạng giao đi theo giờ hàng đến (Giờ quét túi đến)
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -754,7 +754,7 @@ export default function KttDiCungNgay({ authUser }) {
                       </div>
 
                       {/* Số bưu gửi trên cột */}
-                      <div className="text-[10px] font-bold tabular-nums text-gray-500 mb-1 pointer-events-none">
+                      <div className="text-[11px] font-bold tabular-nums text-gray-500 mb-1 pointer-events-none">
                         {mau > 0 ? formatInt(mau) : ''}
                       </div>
 
@@ -802,13 +802,13 @@ export default function KttDiCungNgay({ authUser }) {
                       </div>
 
                       {/* Nhãn giờ */}
-                      <div className="mt-2 text-[10px] font-medium text-gray-600 tabular-nums pointer-events-none">
+                      <div className="mt-2 text-[11px] font-medium text-gray-600 tabular-nums pointer-events-none">
                         {g.gio}h
                       </div>
 
                       {/* Hàng % đi cùng ngày dưới trục giờ */}
                       <div
-                        className={`mt-1 text-[10px] font-bold tabular-nums pointer-events-none ${
+                        className={`mt-1 text-[11px] font-bold tabular-nums pointer-events-none ${
                           tyLe === null || tyLe === undefined ? 'text-gray-400' : (tyLe < 0.5 ? 'text-[#B3202A]' : 'text-gray-700')
                         }`}
                       >
@@ -854,7 +854,7 @@ export default function KttDiCungNgay({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <h2 className="ktt-h2 text-[17px]">
+                <h2 className="hue-h2 text-[17px]">
                   Hàng rớt lại: từ đường thư nào (Xe Cấp 1 đến → 6 BCVH Huế)
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -969,7 +969,7 @@ export default function KttDiCungNgay({ authUser }) {
                         >
                           <td className="font-medium text-gray-800">
                             <div>{dtTen || '(chưa có tên)'}</div>
-                            {r.duong_thu_ma && <div className="text-[10px] text-gray-400 font-mono">{r.duong_thu_ma}</div>}
+                            {r.duong_thu_ma && <div className="text-[11px] text-gray-400 font-mono">{r.duong_thu_ma}</div>}
                           </td>
                           <td className="text-right tabular-nums font-semibold text-gray-800">
                             {formatInt(r.tong_shbg)}
@@ -988,7 +988,7 @@ export default function KttDiCungNgay({ authUser }) {
                                   className="h-full bg-[#B3202A]"
                                 />
                               </div>
-                              <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute bottom-full mb-1 right-0 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                              <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute bottom-full mb-1 right-0 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                 {roLaiBarTip}
                               </div>
                             </div>
@@ -1016,7 +1016,7 @@ export default function KttDiCungNgay({ authUser }) {
                               ) : (
                                 <>
                                   <span>{formatInt(r.hom_sau)}</span>
-                                  <span className="text-[10px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
+                                  <span className="text-[11px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
                                 </>
                               )}
                             </button>
@@ -1028,7 +1028,7 @@ export default function KttDiCungNgay({ authUser }) {
                             ) : (
                               <>
                                 <span>{formatInt(r.tu_2_ngay)}</span>
-                                <span className="text-[10px] text-gray-400 font-normal">({formatPercent(r.ty_le.tu_2_ngay)})</span>
+                                <span className="text-[11px] text-gray-400 font-normal">({formatPercent(r.ty_le.tu_2_ngay)})</span>
                               </>
                             )}
                           </td>
@@ -1052,7 +1052,7 @@ export default function KttDiCungNgay({ authUser }) {
                               ) : (
                                 <>
                                   <span>{formatInt(r.chua_di_tren_24h)}</span>
-                                  <span className="text-[10px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
+                                  <span className="text-[11px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
                                 </>
                               )}
                             </button>
@@ -1099,7 +1099,7 @@ export default function KttDiCungNgay({ authUser }) {
                           {canExport && (
                             <td className="text-center">
                               {(!r.duong_thu_ma || r.duong_thu_ma === '__RONG__') ? (
-                                <span className="text-[10px] text-gray-400 italic">
+                                <span className="text-[11px] text-gray-400 italic">
                                   Không xuất theo đường thư cho nhóm không có mã
                                 </span>
                               ) : (
@@ -1114,7 +1114,7 @@ export default function KttDiCungNgay({ authUser }) {
                                     <Download className="w-3 h-3" />
                                     <span>{exportingNguon === r.duong_thu_ma ? 'Đang tạo file…' : 'Xuất xlsx · Sheet 7'}</span>
                                   </button>
-                                  <span className="text-[10px] text-gray-500 font-medium tabular-nums">
+                                  <span className="text-[11px] text-gray-500 font-medium tabular-nums">
                                     {formatInt(r.ro_lai)} dòng
                                   </span>
                                 </div>

@@ -491,7 +491,7 @@ export default function KttLuuThoat({ authUser }) {
           {/* ── 2. BẢNG «THEO NGÀY HÀNG ĐẾN» ───────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none">
             <div className="mb-3">
-              <h2 className="ktt-h2 text-[17px]">Theo ngày hàng đến</h2>
+              <h2 className="hue-h2 text-[17px]">Theo ngày hàng đến</h2>
               <p className="text-xs text-gray-600 mt-1">
                 Ngày chưa chốt hiện <span className="text-[#A87A12] font-semibold">«Số tạm»</span>; ngày chốt khi dữ liệu 09:00 của hôm sau về.
               </p>
@@ -630,7 +630,7 @@ export default function KttLuuThoat({ authUser }) {
               {/* Cột trái */}
               <div className="flex flex-col justify-between">
                 <div>
-                  <h2 className="ktt-h2 text-[17px]">
+                  <h2 className="hue-h2 text-[17px]">
                     Xuất xlsx · Sheet 7
                   </h2>
                   <p className="text-xs text-gray-600 leading-relaxed mt-1.5">
@@ -882,7 +882,7 @@ export default function KttLuuThoat({ authUser }) {
             return (
               <div className="space-y-3">
                 <div>
-                  <h2 className="ktt-h2 text-[17px]">
+                  <h2 className="hue-h2 text-[17px]">
                     {sectionTitle}
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
@@ -986,7 +986,7 @@ export default function KttLuuThoat({ authUser }) {
                             <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                               ĐẠT CHỈ TIÊU 14 GIỜ
                             </div>
-                            <span className="text-[10px] text-gray-400 font-medium italic">trên số đo được</span>
+                            <span className="text-[11px] text-gray-400 font-medium italic">trên số đo được</span>
                           </div>
 
                           {hasNoData || !c14 ? (
@@ -1010,7 +1010,7 @@ export default function KttLuuThoat({ authUser }) {
                                     {mocA?.do_duoc > 0 ? formatPercent(mocA.ty_le_dat_tren_do_duoc) : '—'}
                                   </span>
                                 </div>
-                                <div className="text-[10px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
                                   đo được <strong>{formatInt(mocA?.do_duoc ?? 0)}</strong>/{formatInt(mocA?.mau_so ?? 0)} · đạt {formatInt(mocA?.dat ?? 0)} · không đạt {formatInt(mocA?.khong_dat ?? 0)}
                                 </div>
                               </div>
@@ -1032,14 +1032,14 @@ export default function KttLuuThoat({ authUser }) {
                                     {mocB?.do_duoc > 0 ? formatPercent(mocB.ty_le_dat_tren_do_duoc) : '—'}
                                   </span>
                                 </div>
-                                <div className="text-[10px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
                                   đo được <strong>{formatInt(mocB?.do_duoc ?? 0)}</strong>/{formatInt(mocB?.mau_so ?? 0)} · đạt {formatInt(mocB?.dat ?? 0)} · không đạt {formatInt(mocB?.khong_dat ?? 0)}
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          <div className="text-[10px] text-gray-400 pt-1 leading-tight border-t border-gray-100">
+                          <div className="text-[11px] text-gray-400 pt-1 leading-tight border-t border-gray-100">
                             Di chuột vào mốc để xem chi tiết lý do không đo được
                           </div>
                         </div>
@@ -1076,7 +1076,7 @@ export default function KttLuuThoat({ authUser }) {
                   return (
                     <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none space-y-3 mt-3.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="ktt-h2 text-[17px]">
+                        <h2 className="hue-h2 text-[17px]">
                           Theo nguồn hàng
                         </h2>
                         {selectedBcvh !== 'all' && (
@@ -1163,7 +1163,7 @@ export default function KttLuuThoat({ authUser }) {
             return (
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
                 <div>
-                  <h2 className="ktt-h2 text-[17px]">Tổng quan trong ngày</h2>
+                  <h2 className="hue-h2 text-[17px]">Tổng quan trong ngày</h2>
                   <div className="flex flex-wrap items-center justify-between text-xs text-gray-700 mt-2 font-medium">
                     <span>
                       Hàng đến tính chỉ tiêu: đi được bao nhiêu, rớt lại bao nhiêu
@@ -1347,7 +1347,7 @@ export default function KttLuuThoat({ authUser }) {
           {activeHangHoan && (
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
                 <div>
-                  <h2 className="ktt-h2 text-[17px]">
+                  <h2 className="hue-h2 text-[17px]">
                     Hàng chuyển hoàn: hiện riêng, không tính chỉ tiêu 14 giờ
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
@@ -1532,7 +1532,7 @@ export default function KttLuuThoat({ authUser }) {
               {/* Cột trái: Theo BCVH đích (6 thẻ + Bảng tỷ trọng) */}
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
                 <div>
-                  <h2 className="ktt-h2 text-[17px]">Theo BCVH đích</h2>
+                  <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
                   <p className="text-xs text-gray-600 mt-1">
                     Sản lượng, tỷ lệ lưu thoát và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
                   </p>
@@ -1641,13 +1641,13 @@ export default function KttLuuThoat({ authUser }) {
                           <th className="text-left">BCVH</th>
                           <th className="text-right">
                             TỶ TRỌNG HÀNG ĐI
-                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                            <div className="text-[11px] font-normal normal-case text-gray-500">
                               trong {formatInt(data.tong_cong.luu_thoat?.tu_so ?? 0)} hàng đi
                             </div>
                           </th>
                           <th className="text-right">
                             TỶ TRỌNG RỚT LẠI
-                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                            <div className="text-[11px] font-normal normal-case text-gray-500">
                               {(() => {
                                 const tRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
                                   (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
@@ -1658,13 +1658,13 @@ export default function KttLuuThoat({ authUser }) {
                           </th>
                           <th className="text-right">
                             RỚT LẠI BCVH
-                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                            <div className="text-[11px] font-normal normal-case text-gray-500">
                               trong hàng đến
                             </div>
                           </th>
                           <th className="text-right">
                             ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)
-                            <div className="text-[10px] font-normal normal-case text-gray-500">
+                            <div className="text-[11px] font-normal normal-case text-gray-500">
                               trong hàng đến của BCVH này
                             </div>
                           </th>
@@ -1784,7 +1784,7 @@ export default function KttLuuThoat({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="ktt-h2 text-[17px]">Mốc chuyến theo BCVH</h2>
+                <h2 className="hue-h2 text-[17px]">Mốc chuyến theo BCVH</h2>
                 {metaError && (
                   <span className="text-xs text-red-600 font-semibold italic">
                     (Không tải được lịch chuyến)
@@ -1808,13 +1808,13 @@ export default function KttLuuThoat({ authUser }) {
                     <th className="text-left">BCVH</th>
                     <th className="text-left">
                       GIỜ XUẤT PHÁT (LỊCH C2)
-                      <div className="text-[10px] font-normal normal-case text-gray-500">
+                      <div className="text-[11px] font-normal normal-case text-gray-500">
                         mốc hàng phải đi
                       </div>
                     </th>
                     <th className="text-left">
                       HÀNG ĐẾN MUỘN NHẤT ĐỂ KỊP CHUYẾN
-                      <div className="text-[10px] font-normal normal-case text-gray-500">
+                      <div className="text-[11px] font-normal normal-case text-gray-500">
                         {metaError ? '—' : `− ${meta?.han_den_truoc_chuyen_phut ?? 60} phút khai thác`}
                       </div>
                     </th>

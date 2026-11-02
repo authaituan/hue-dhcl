@@ -115,7 +115,7 @@ export default function KttChiTiet({
       {/* ── TIÊU ĐỀ & MÔ TẢ ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="ktt-h2 text-[17px]">
+          <h2 className="hue-h2 text-[17px]">
             Danh sách hàng đến trong ngày theo trạng thái
           </h2>
           <p className="text-xs text-gray-600 mt-1">

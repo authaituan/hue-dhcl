@@ -390,7 +390,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="hue-h2 text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   Điểm chính · Tỷ lệ đi cùng ngày
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -409,12 +409,12 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                 )}`}
               >
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                  <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                     Liên tỉnh đến → 6 BCVH Huế
                   </div>
-                  <div className="flex items-baseline gap-2 mt-2">
+                  <div className="flex items-baseline gap-2 my-1.5">
                     <div
-                      className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(
+                      className={`hue-num-lg ${getTyLeColorClass(
                         ltBcvh?.ty_le?.cung_ngay
                       )}`}
                     >
@@ -422,7 +422,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                     </div>
                     <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-[11px] text-gray-600 mt-1">
                     Mẫu số:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
                       {formatInt(ltBcvh?.tong_shbg)}
@@ -431,7 +431,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                   <div>
                     Hôm sau:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
@@ -454,12 +454,12 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                 )}`}
               >
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                  <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                     Nội tỉnh → 6 BCVH Huế (k.hàng hoàn)
                   </div>
-                  <div className="flex items-baseline gap-2 mt-2">
+                  <div className="flex items-baseline gap-2 my-1.5">
                     <div
-                      className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(
+                      className={`hue-num-lg ${getTyLeColorClass(
                         ntBcvhKhongHoan?.ty_le?.cung_ngay
                       )}`}
                     >
@@ -467,7 +467,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                     </div>
                     <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-[11px] text-gray-600 mt-1">
                     Mẫu số:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
                       {formatInt(ntBcvhKhongHoan?.tong_shbg)}
@@ -476,7 +476,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                   <div>
                     Hôm sau:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
@@ -499,12 +499,12 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                 )}`}
               >
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                  <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                     Nội tỉnh → Liên tỉnh (xe Cấp 1)
                   </div>
-                  <div className="flex items-baseline gap-2 mt-2">
+                  <div className="flex items-baseline gap-2 my-1.5">
                     <div
-                      className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(
+                      className={`hue-num-lg ${getTyLeColorClass(
                         ntDiLienTinh?.ty_le?.cung_ngay
                       )}`}
                     >
@@ -512,7 +512,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                     </div>
                     <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-[11px] text-gray-600 mt-1">
                     Mẫu số:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
                       {formatInt(ntDiLienTinh?.tong_shbg)}
@@ -521,7 +521,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                   <div>
                     Hôm sau:{' '}
                     <strong className="text-gray-800 font-bold tabular-nums">
@@ -590,7 +590,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                               Tỷ lệ: <strong className="tabular-nums text-amber-300">{formatPercent(rate)}</strong>
                             </div>
                             {isChuaChot && (
-                              <div className="text-[#E0A82E] font-semibold text-[10px] pt-0.5">
+                              <div className="text-[#E0A82E] font-semibold text-[11px] pt-0.5">
                                 * Số tạm (chưa chốt)
                               </div>
                             )}
@@ -635,7 +635,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                           {/* Nhãn ngày bên dưới trục */}
                           <div className="mt-1.5 text-center pointer-events-none">
                             <div
-                              className={`text-[10px] font-bold tabular-nums ${
+                              className={`text-[11px] font-bold tabular-nums ${
                                 isSunday ? 'text-[#B3202A]' : 'text-gray-700'
                               }`}
                             >
@@ -661,7 +661,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
           {/* ── 3. NHẬN XÉT, ĐÁNH GIÁ (CHỈ HIỆN CẢNH BÁO DO API TRẢ) ────────── */}
           <div className="space-y-3">
             <div>
-              <h2 className="hue-h2 text-base font-bold text-gray-900">
+              <h2 className="hue-h2 text-[17px]">
                 Nhận xét, đánh giá tự động
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -710,7 +710,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeStyle}`}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider ${badgeStyle}`}
                           >
                             {badgeText}
                           </span>
@@ -788,7 +788,7 @@ export default function KttTongQuan({ authUser, onNavigateTab }) {
           {/* ── 4. CÁC CHỨC NĂNG CHI TIẾT (LIÊN KẾT 4 TAB ĐÃ CÓ) ───────────── */}
           <div className="space-y-3">
             <div>
-              <h2 className="hue-h2 text-base font-bold text-gray-900">
+              <h2 className="hue-h2 text-[17px]">
                 Các chức năng chi tiết
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
