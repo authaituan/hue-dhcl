@@ -8,6 +8,7 @@
 'use strict';
 const QQ = require('./quyThoiGianQuery');
 const PD = require('./phatDashboard');
+const HH = require('./kttHangHoan');
 
 const CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 const TONG_MAX = 500;
@@ -20,6 +21,8 @@ const xoaCache = () => {
   tong.clear(); danhSach.clear(); theoNgayCache.clear(); cacheDauHieu = null;
   xoaLuyKe();
 };
+/** QUYTG-10: dấu hiệu cache = dấu hiệu DB + phiên bản danh sách hàng hoàn (nạp danh sách mới thì mọi kết quả tính lại). */
+const dauHieuCache = (db) => `${PD.dauHieuDb(db)}|h${HH.phienBanHangHoan(db)}`;
 
 /** Khóa khung đã chuẩn hóa: from|to|mã BCVH (bỏ trùng, sắp xếp)|ward_key. */
 function khoaKhung(f) {
@@ -53,18 +56,18 @@ function luotDayDu(db, f, khoa, now) {
 /** GET …/quy-thoi-gian/luot: query như layLuotQuyThoiGian. `now`: chỉ để test. */
 function luot(db, query, now = Date.now()) {
   const { f, rieng } = QQ.docThamSo(query, { coPhanTrang: true });
-  dongBo(PD.dauHieuDb(db));
-  return QQ.trangTuLuot(luotDayDu(db, f, khoaKhung(f), now), f, rieng);
+  dongBo(dauHieuCache(db));
+  return QQ.trangTuLuot(luotDayDu(db, f, khoaKhung(f), now), f, rieng, QQ.metaHoanCua(db));
 }
 
 /** GET …/quy-thoi-gian/tong-hop: query như tongHopQuyThoiGian. */
 function tongHop(db, query, now = Date.now()) {
   const { f } = QQ.docThamSo(query, { coPhanTrang: false });
-  dongBo(PD.dauHieuDb(db));
+  dongBo(dauHieuCache(db));
   const khoa = khoaKhung(f);
   let kq = lay(tong, khoa, now);
   if (!kq) {
-    kq = QQ.tongHopTuLuot(luotDayDu(db, f, khoa, now), f);
+    kq = QQ.tongHopTuLuot(luotDayDu(db, f, khoa, now), f, QQ.metaHoanCua(db));
     dat(tong, TONG_MAX, khoa, kq, now);
   }
   return kq;
@@ -73,11 +76,11 @@ function tongHop(db, query, now = Date.now()) {
 /** GET …/quy-thoi-gian/theo-ngay: query như theoNgayQuyThoiGian (tối đa 31 ngày). */
 function theoNgay(db, query, now = Date.now()) {
   const { f } = QQ.docThamSoTheoNgay(query);
-  dongBo(PD.dauHieuDb(db));
+  dongBo(dauHieuCache(db));
   const khoa = khoaKhung(f);
   let kq = lay(theoNgayCache, khoa, now);
   if (!kq) {
-    kq = QQ.theoNgayTuLuot(luotDayDu(db, f, khoa, now), f);
+    kq = QQ.theoNgayTuLuot(luotDayDu(db, f, khoa, now), f, QQ.metaHoanCua(db));
     dat(theoNgayCache, TONG_MAX, khoa, kq, now);
   }
   return kq;
@@ -109,16 +112,23 @@ const luyKeKetQua = new Map(); // khóa (BCVH|tháng|ngày cuối) -> { token, k
 const luyKeNgay = new Map(); // chế độ MỘT BCVH: `mã|ngày` -> { chuKy, g (demRong hoặc null = không có lượt) }
 const luyKeLuot = new Map(); // chế độ NHIỀU BCVH: `mã|ngày` -> { chuKy, tong_shbg }
 const luyKeNgayGop = new Map(); // chế độ NHIỀU BCVH: `mã1,mã2,…|ngày` -> { sig, g (demRong đã loại trùng xuyên BCVH, hoặc null) }
+let luyKeHoanPhienBan = null; // phiên bản danh sách hàng hoàn của số đếm đang giữ (QUYTG-10)
 const demLuyKe = { lanTinh: 0, capTinhLai: 0, lanChuKy: 0, ngayGopTinhLai: 0 }; // chỉ để test / đo
 function xoaLuyKe() {
   luyKeKetQua.clear(); luyKeNgay.clear(); luyKeLuot.clear(); luyKeNgayGop.clear();
   demLuyKe.lanTinh = 0; demLuyKe.capTinhLai = 0; demLuyKe.lanChuKy = 0; demLuyKe.ngayGopTinhLai = 0;
+  luyKeHoanPhienBan = null;
 }
 
 function luyKe(db, query, now = Date.now()) {
   const kh = QQ.khungLuyKe(db, QQ.docThamSoLuyKe(query));
-  if (!kh.den) return QQ.ghepLuyKe(kh, new Map(), new Map());
-  const token = PD.dauHieuDb(db);
+  if (!kh.den) return QQ.ghepLuyKe(kh, new Map(), new Map(), null, QQ.metaHoanCua(db));
+  const pbHoan = HH.phienBanHangHoan(db);
+  if (luyKeHoanPhienBan !== pbHoan) { // chữ ký dữ liệu hàng đến KHÔNG bắt được đổi danh sách hoàn: bỏ số đã giữ (luyKeLuot chỉ là số lượt, không phụ thuộc hoàn nên giữ)
+    luyKeKetQua.clear(); luyKeNgay.clear(); luyKeNgayGop.clear();
+    luyKeHoanPhienBan = pbHoan;
+  }
+  const token = `${PD.dauHieuDb(db)}|h${pbHoan}`;
   const khoa = `lk1|${kh.codes.join(',')}|${kh.tu}|${kh.den}`;
   const c = lay(luyKeKetQua, khoa, now);
   if (c && c.token === token) return c.ket_qua;
@@ -127,6 +137,7 @@ function luyKe(db, query, now = Date.now()) {
   const chuKy = QQ.chuKyDuLieu(db, kh.codes, kh.tu, kh.den);
   const gop = QQ.luyKeGop(kh); // nhiều BCVH: số của ngày loại trùng xuyên BCVH (như /tong-hop)
   const kho = gop ? luyKeLuot : luyKeNgay;
+  const hoan = HH.docDanhSachHangHoan(db).set;
   const can = [];
   const ranhXa = kh.ngayMoiNhat ? lui(kh.ngayMoiNhat, LUY_KE_NGAY_XA) : null; // ngày < ranh giới này là ngày XA
   const tuoiCua = (ngay) => (ranhXa !== null && ngay < ranhXa ? LUY_KE_TUOI_NGAY_XA_MS : CACHE_MAX_AGE_MS);
@@ -149,7 +160,7 @@ function luyKe(db, query, now = Date.now()) {
       const dem = QQ.demLuotTheoBcvhNgay(db, ...hopBao);
       for (const x of can) dat(luyKeLuot, LUY_KE_NGAY_MAX, x.k, { chuKy: chuKy.get(x.k) || QQ.CHU_KY_TRONG, tong_shbg: dem.has(x.k) ? dem.get(x.k).tong_shbg : 0 }, now);
     } else {
-      const tinh = QQ.tinhTheoBcvhNgay(db, ...hopBao);
+      const tinh = QQ.tinhTheoBcvhNgay(db, ...hopBao, hoan);
       for (const x of can) dat(luyKeNgay, LUY_KE_NGAY_MAX, x.k, { chuKy: chuKy.get(x.k) || QQ.CHU_KY_TRONG, g: tinh.get(x.k) || null }, now);
     }
   }
@@ -169,11 +180,11 @@ function luyKe(db, query, now = Date.now()) {
     const e = luyKeNgayGop.get(k);
     if (e && now - e.luc < tuoiCua(ngay) && e.kq.sig === sig) return e.kq.g;
     demLuyKe.ngayGopTinhLai++;
-    const g = QQ.tinhNgayGop(db, coDuLieu, ngay);
+    const g = QQ.tinhNgayGop(db, coDuLieu, ngay, hoan);
     dat(luyKeNgayGop, LUY_KE_NGAY_MAX, k, { sig, g }, now);
     return g;
   };
-  const ketQua = QQ.ghepLuyKe(kh, QQ.thongTinFile(db, kh.codes, kh.tu, kh.den), agg, gopNgay);
+  const ketQua = QQ.ghepLuyKe(kh, QQ.thongTinFile(db, kh.codes, kh.tu, kh.den), agg, gopNgay, QQ.metaHoanCua(db));
   dat(luyKeKetQua, LUY_KE_KET_QUA_MAX, khoa, { token, ket_qua: ketQua }, now);
   return ketQua;
 }

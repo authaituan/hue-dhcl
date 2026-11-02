@@ -17,6 +17,7 @@
 //   nguonMocBatDau: 'KTT' khi đo (hoặc AM) từ mốc KTT; 'XND_BCVH' cho NGOAI_53 đo được; null khi KHONG_DO_DUOC.
 //   trangThai AM: đọc được cả hai mốc và XNĐ < KTT; lyDo KTT_SAU_XND_BCVH; thoiGianThucGiay là số âm đối xứng; quyConLaiGiay = null.
 //   trangThai DO_DUOC: đọc được cả hai mốc, XNĐ >= KTT; lyDo null; quyConLaiGiay = { F1_3, F4_1, F4_2 } (giây, có thể âm = hết quỹ).
+//   QUYTG-10 (đầu vào hangHoan === true; PO chốt 02/11/2026): hàng hoàn -> KHONG_DO_DUOC, lyDo HANG_HOAN, xét TRƯỚC mọi lý do khác (nhóm BD10 vẫn được tính).
 //   nghiNgo = true khi đọc được cả hai mốc và |XNĐ − KTT| (hiệu gộp, giây) > ngưỡng (mặc định 7 ngày); vẫn trả đủ số, lyDo giữ nguyên.
 // ==========================================
 'use strict';
@@ -46,7 +47,8 @@ const LY_DO = Object.freeze({
   THIEU_XAC_NHAN_KTT: 'THIEU_XAC_NHAN_KTT',
   THIEU_XND_BCVH: 'THIEU_XND_BCVH',
   KTT_SAU_XND_BCVH: 'KTT_SAU_XND_BCVH',
-  NGHI_NGO_QUA_7_NGAY: 'NGHI_NGO_QUA_7_NGAY'
+  NGHI_NGO_QUA_7_NGAY: 'NGHI_NGO_QUA_7_NGAY',
+  HANG_HOAN: 'HANG_HOAN'
 });
 const NHAN_LY_DO = Object.freeze({
   LAP_DI_TAI_BCVH: 'BD10 lập đi tại BCVH, không đo quỹ thời gian',
@@ -57,7 +59,8 @@ const NHAN_LY_DO = Object.freeze({
   THIEU_XAC_NHAN_KTT: 'Thiếu xác nhận đến tại KTT',
   THIEU_XND_BCVH: 'Thiếu XNĐ BD10 tại BCVH',
   KTT_SAU_XND_BCVH: 'Mốc KTT sau mốc XNĐ tại BCVH',
-  NGHI_NGO_QUA_7_NGAY: 'Nghi ngờ: thời gian từ KTT đến BCVH quá 7 ngày'
+  NGHI_NGO_QUA_7_NGAY: 'Nghi ngờ: thời gian từ KTT đến BCVH quá 7 ngày',
+  HANG_HOAN: 'Hàng hoàn: chưa có mốc về Khai thác'
 });
 
 const NGUONG_NGHI_NGO_GIAY = 7 * 86400;
@@ -100,10 +103,11 @@ function quyCacChiTieu(thuc, f13Gio) {
 }
 
 function danhGiaMotLuot(luot) {
-  const { bd10No, maBcvhNhan, ktt, xnd, nguongNghiNgoGiay = NGUONG_NGHI_NGO_GIAY, chiTieuF13Gio } = luot && typeof luot === 'object' ? luot : {};
+  const { bd10No, maBcvhNhan, ktt, xnd, nguongNghiNgoGiay = NGUONG_NGHI_NGO_GIAY, chiTieuF13Gio, hangHoan = false } = luot && typeof luot === 'object' ? luot : {};
   const f13Gio = typeof chiTieuF13Gio === 'number' && Number.isFinite(chiTieuF13Gio) && chiTieuF13Gio > 0 ? chiTieuF13Gio : Q.CHI_TIEU_GIO.F1_3;
   const nhom = phanNhomBd10(bd10No, maBcvhNhan);
   const khong = (lyDo) => ketQua(nhom, 'KHONG_DO_DUOC', lyDo, null, null, false, f13Gio, null);
+  if (hangHoan === true) return khong(LY_DO.HANG_HOAN); // QUYTG-10: hàng hoàn xét TRƯỚC mọi lý do khác (chuyến hoàn không có mốc KTT / XNĐ riêng); giữ nhóm BD10 để theo_nhom đếm đúng
   if (nhom === NHOM_BD10.LAP_DI_TAI_BCVH) return khong(LY_DO.LAP_DI_TAI_BCVH);
   if (nhom === NHOM_BD10.RONG) return khong(LY_DO.KHONG_CO_BD10);
   if (nhom === NHOM_BD10.KHONG_HOP_LE) return khong(LY_DO.BD10_KHONG_HOP_LE);

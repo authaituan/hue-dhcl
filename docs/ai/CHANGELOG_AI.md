@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-02] - QUYTG-10: Quỹ thời gian loại hàng hoàn khỏi lượt «chính» (chuyển «Không đo được», lý do `HANG_HOAN`) (backend + test + docs; KHÔNG đổi `src/`, `package.json`, công thức thời gian thực, khung 21:00–07:00, chỉ tiêu 14 giờ, ngưỡng 7 ngày / Sắp hết hạn)
+
+- **Định nghĩa mới (PO chốt, hiệu lực 02/11/2026):** SHBG trong danh sách hàng hoàn (`kttHangHoan.docDanhSachHangHoan`, cùng nguồn trang Hàng tại KTT tỉnh) → `KHONG_DO_DUOC`, `lyDo = HANG_HOAN`, `dai = null`: ra khỏi tử và mẫu mọi tỷ lệ (tổng, nhóm, BCVH, đường thư, giờ, ngày, lũy kế, xếp hạng); ưu tiên hơn các lý do «không đo được» khác. `quyThoiGianNhom.js` (lý do + đầu vào `hangHoan`), `quyThoiGianQuery.js` (`danhGiaDong`, `tatCaLuot`, `tinhTheoBcvhNgay`, `tinhNgayGop`, `metaHoanCua`), `quyThoiGianCache.js`.
+- **`meta`** 4 route thêm `hang_hoan_chua_nap`, `hang_hoan_nguon_xuat_luc`. **Cache:** chữ ký gồm `phienBanHangHoan`; `/luy-ke` bỏ số đã giữ khi phiên bản đổi.
+- **⚠ Số liệu đã báo cáo trước 02/11/2026 sẽ lệch số mới** (có hàng hoàn trong mẫu); `tong_shbg` / `den` không đổi. Phải KHỞI ĐỘNG LẠI server (và dựng lại bản NAS) sau khi merge.
+- **Test:** `tests/quy-thoi-gian-hang-hoan.test.js` (4 ca: hoàn không quá hạn / không vào mẫu / ưu tiên hơn thiếu mốc, không hoàn như cũ, tỷ lệ tổng-ngày-giờ-lũy kế + đẳng thức, cache tính lại, chưa nạp). Đổi 1 kỳ vọng có chủ đích ở `quy-thoi-gian-luy-ke-tat-ca.test.js` (meta có cờ hoàn). File test mới chưa nằm trong script `test` (cấm sửa `package.json`): PO thêm.
+- **Docs:** `35_QUYTG9A_KHOANG_NGAY_LUY_KE.md` mục 6.
+- **Nợ / chưa chắc:** giao diện (nhãn `HANG_HOAN`, dòng «Danh sách hoàn cập nhật lúc …») cần ticket riêng; hàng hoàn chưa nạp vẫn tính quá hạn; định nghĩa «hoàn» của KTT (đích 6 BCVH Huế) và của module này (mọi SHBG trong `ktt_hang_hoan`) chưa trùng hẳn; dòng đo của bưu gửi đi lại không hoàn (XNĐ sớm nhất, không giới hạn ngày) có thể lấy mốc lần đi đầu.
+
 ## [2026-11-01] - KTT-16-4 (phần 1 backend): «Đánh giá» và xuất xlsx sheet 1–6 của trang Đối chiếu (backend + test + docs; KHÔNG đổi `src/`, importer, EMPTY, KTT-14, định nghĩa hoàn, kết quả 16-2 / 16-3)
 
 - **Route mới** `GET /api/ktt/doi-chieu/danh-gia` (tám mục a–h, mục không đủ điều kiện thì không có; kèm `so_dong_sheet`, `hang_so`) và sáu route xuất `GET /api/ktt/doi-chieu/xuat/{chua-thay,chuyen-mat-dau,chuyen-tiep-chua-quet-di,thay-o-bcvh-khac,chuyen-cham,da-co-tai-dich}` (ADMIN + TTVH; `tu`, `den` ≤ 31 ngày, `ma_bcvh`). `routes/ktt.js`, `kttApi.js` (`doiChieuDanhGia`, `xuatDoiChieu`), `kttWorker.js` (tác vụ `xuatDoiChieu`).
