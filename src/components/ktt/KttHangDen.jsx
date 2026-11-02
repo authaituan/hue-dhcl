@@ -561,7 +561,7 @@ export default function KttHangDen({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="hue-h2 text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   A1 · Lượng hàng và số xe đến theo ngày
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -629,7 +629,7 @@ export default function KttHangDen({ authUser }) {
                         className="flex-1 min-w-[32px] max-w-[56px] h-full flex flex-col justify-end items-center group relative cursor-pointer focus:outline-none"
                       >
                         {/* Số trên đỉnh cột */}
-                        <div className="text-[10px] font-bold text-gray-700 tabular-nums mb-1 pointer-events-none">
+                        <div className="text-[11px] font-bold text-gray-700 tabular-nums mb-1 pointer-events-none">
                           {formatInt(d.shbg)}
                         </div>
 
@@ -651,7 +651,7 @@ export default function KttHangDen({ authUser }) {
                             {formatDdMm(d.ngay)}
                           </div>
                           <div
-                            className={`text-[10px] truncate max-w-[56px] ${
+                            className={`text-[11px] truncate max-w-[56px] ${
                               isSunday ? 'text-[#B3202A] font-semibold' : 'text-gray-500'
                             }`}
                           >
@@ -674,7 +674,7 @@ export default function KttHangDen({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="hue-h2 text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   A2 · Giờ xe Cấp 1 đến KTT theo từng đường thư
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -690,7 +690,7 @@ export default function KttHangDen({ authUser }) {
               <div className="overflow-x-auto pt-2">
                 <div className="min-w-[760px] space-y-3">
                   {/* Tiêu đề trục giờ */}
-                  <div className="flex items-center text-[10px] font-semibold text-gray-400 border-b border-gray-200 pb-1">
+                  <div className="flex items-center text-[11px] font-semibold text-gray-400 border-b border-gray-200 pb-1">
                     <div className="w-56 shrink-0 text-left pl-2">Đường thư đến</div>
                     <div className="flex-1 relative h-4">
                       <span className="absolute left-0">0h</span>
@@ -724,7 +724,7 @@ export default function KttHangDen({ authUser }) {
                           <div className="text-xs font-bold text-gray-900 truncate" title={entry.ten}>
                             {entry.ten || '(chưa có tên)'}
                           </div>
-                          <div className="text-[10px] text-gray-500 tabular-nums">
+                          <div className="text-[11px] text-gray-500 tabular-nums">
                             {entry.ma || '(không rõ mã)'} · {entry.xeList.length} xe
                           </div>
                         </div>
@@ -824,7 +824,7 @@ export default function KttHangDen({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="hue-h2 text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   A3 · Phân bổ bưu gửi đến theo giờ và nhóm đường thư
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -960,7 +960,7 @@ export default function KttHangDen({ authUser }) {
                         </div>
 
                         {/* Nhãn giờ */}
-                        <div className="mt-1.5 text-[10px] text-gray-500 tabular-nums font-semibold pointer-events-none">
+                        <div className="mt-1.5 text-[11px] text-gray-500 tabular-nums font-semibold pointer-events-none">
                           {g.gio}h
                         </div>
                       </KttTooltip>
@@ -978,7 +978,7 @@ export default function KttHangDen({ authUser }) {
           {/* ── 5. A4: BẢNG CÁC ĐƯỜNG THƯ ĐẾN ───────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
             <div>
-              <h2 className="hue-h2 text-base font-bold text-gray-900">
+              <h2 className="hue-h2 text-[17px]">
                 A4 · Danh sách các đường thư đến KTT
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -1017,7 +1017,7 @@ export default function KttHangDen({ authUser }) {
                       <tr key={row.duong_thu_ma || row.duong_thu_ten} className="hover:bg-amber-50/40">
                         <td className="py-2.5 px-3">
                           <div className="font-bold text-gray-900">{row.duong_thu_ten}</div>
-                          <div className="text-[10px] text-gray-500 tabular-nums">
+                          <div className="text-[11px] text-gray-500 tabular-nums">
                             {row.duong_thu_ma || '(không rõ mã)'}
                           </div>
                         </td>
@@ -1027,7 +1027,7 @@ export default function KttHangDen({ authUser }) {
                               ? `${formatDecimal(row.xe_tb_moi_ngay, 1)}`
                               : '—'}
                           </div>
-                          <div className="text-[10px] text-gray-500">
+                          <div className="text-[11px] text-gray-500">
                             ≈ {formatInt(row.xe)} xe / {soNgayCoDuLieu} ngày
                           </div>
                         </td>
@@ -1063,7 +1063,7 @@ export default function KttHangDen({ authUser }) {
                           ? `${formatDecimal(xeTbNgay, 1)}`
                           : '—'}
                       </div>
-                      <div className="text-[10px] text-gray-600 font-normal">
+                      <div className="text-[11px] text-gray-600 font-normal">
                         ≈ {formatInt(tongXe)} xe / {soNgayCoDuLieu} ngày
                       </div>
                     </td>
@@ -1105,7 +1105,7 @@ export default function KttHangDen({ authUser }) {
           {/* ── 6. A5: BẢN ĐỒ NHIỆT HƯỚNG HÀNG ──────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
             <div>
-              <h2 className="hue-h2 text-base font-bold text-gray-900">
+              <h2 className="hue-h2 text-[17px]">
                 A5 · Bản đồ nhiệt «Hướng hàng» theo đường thư
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -1122,7 +1122,7 @@ export default function KttHangDen({ authUser }) {
                   <tr className="border-b border-gray-200">
                     <th
                       rowSpan={2}
-                      className="py-2.5 px-3 bg-gray-100 text-gray-800 font-bold border-r border-gray-200 align-bottom min-w-[160px]"
+                      className="py-2.5 px-3 bg-[#FAF5E8] text-[#5A4A62] font-bold border-r border-gray-200 align-bottom min-w-[160px]"
                     >
                       Đường thư đến
                     </th>

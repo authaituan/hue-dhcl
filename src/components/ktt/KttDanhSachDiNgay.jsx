@@ -314,7 +314,7 @@ export default function KttDanhSachDiNgay({
                     <td className="font-mono font-semibold text-gray-800">
                       {row.shbg || '—'}
                       {row.hang_hoan && (
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FAF5E8] text-[#A87A12] border border-[#E4D5AE]">
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-[#FAF5E8] text-[#A87A12] border border-[#E4D5AE]">
                           Hoàn
                         </span>
                       )}
@@ -330,13 +330,13 @@ export default function KttDanhSachDiNgay({
                     <td className="text-gray-700">
                       <div>{row.duong_thu_ten || '—'}</div>
                       {row.duong_thu_ma && (
-                        <div className="text-[10px] text-gray-400 font-mono">{row.duong_thu_ma}</div>
+                        <div className="text-[11px] text-gray-400 font-mono">{row.duong_thu_ma}</div>
                       )}
                     </td>
                     <td className="text-gray-700">
                       <div>{row.noi_gui_ten || '—'}</div>
                       {row.noi_gui_ma && (
-                        <div className="text-[10px] text-gray-400 font-mono">{row.noi_gui_ma}</div>
+                        <div className="text-[11px] text-gray-400 font-mono">{row.noi_gui_ma}</div>
                       )}
                     </td>
                     <td className="tabular-nums text-gray-700">

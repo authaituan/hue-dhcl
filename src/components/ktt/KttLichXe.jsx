@@ -266,7 +266,7 @@ export default function KttLichXe({ authUser }) {
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <h2 className="ktt-h2 text-[17px]">
+                <h2 className="hue-h2 text-[17px]">
                   Giờ lập BD10 đi từng BCVH và xe theo lịch C2
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -311,12 +311,12 @@ export default function KttLichXe({ authUser }) {
                         <tr key={`${row.ma_bcvh}-${row.duong_thu_ma}-${row.xe_roi_ktt}-${idx}`} className="hover:bg-amber-50/40">
                           <td className="font-medium text-gray-800">
                             <div>{row.ten_bcvh || row.ma_bcvh}</div>
-                            <div className="text-[10px] text-gray-400 font-mono">{row.ma_bcvh}</div>
+                            <div className="text-[11px] text-gray-400 font-mono">{row.ma_bcvh}</div>
                           </td>
                           <td className="text-gray-700">
                             <div>{row.duong_thu_ten || '(chưa có tên)'}</div>
                             {row.duong_thu_ma && (
-                              <div className="text-[10px] text-gray-400 font-mono">{row.duong_thu_ma}</div>
+                              <div className="text-[11px] text-gray-400 font-mono">{row.duong_thu_ma}</div>
                             )}
                           </td>
                           <td className="text-center tabular-nums font-bold text-gray-800">
@@ -359,11 +359,11 @@ export default function KttLichXe({ authUser }) {
                               >
                                 <span>{formatInt(row.so_bd10_lap_sau_gio_xe)}</span>
                                 {row.ty_le_lap_sau_gio_xe !== null && (
-                                  <span className="text-[10px] text-red-500">
+                                  <span className="text-[11px] text-red-500">
                                     ({formatPercent(row.ty_le_lap_sau_gio_xe)})
                                   </span>
                                 )}
-                                <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute bottom-full mb-1 right-0 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity absolute bottom-full mb-1 right-0 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   {lateTip}
                                 </div>
                               </div>
@@ -393,7 +393,7 @@ export default function KttLichXe({ authUser }) {
           {/* ── 2. B5 BẢNG «THEO TỪNG ĐƯỜNG THƯ ĐẾN» ───────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="mb-4">
-              <h2 className="ktt-h2 text-[17px]">
+              <h2 className="hue-h2 text-[17px]">
                 Theo từng đường thư đến (Phân nhóm theo hướng hàng)
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -467,7 +467,7 @@ export default function KttLichXe({ authUser }) {
           {/* ── 3. B6 LƯỚI THẺ MỖI BCVH ────────────────────────────────────── */}
           <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none min-w-0 max-w-full">
             <div className="mb-4">
-              <h2 className="ktt-h2 text-[17px]">
+              <h2 className="hue-h2 text-[17px]">
                 Lịch xe C2 và phân bố hàng đến theo giờ tại 6 BCVH
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -494,7 +494,7 @@ export default function KttLichXe({ authUser }) {
                       <div>
                         <div className="font-bold text-gray-800 text-sm flex items-center gap-2">
                           <span>{bcvh.ten_bcvh || bcvh.ma_bcvh}</span>
-                          <span className="text-[10px] text-gray-500 font-mono">({bcvh.ma_bcvh})</span>
+                          <span className="text-[11px] text-gray-500 font-mono">({bcvh.ma_bcvh})</span>
                         </div>
                         <div className="text-[11px] text-gray-500 mt-0.5">
                           {bcvh.so_chuyen_moi_ngay} chuyến/ngày theo lịch C2
@@ -569,7 +569,7 @@ export default function KttLichXe({ authUser }) {
                                             is7Days ? 'bg-[#1F7A5C]' : 'bg-[#B3202A]'
                                           }`}
                                         />
-                                        <div className={`opacity-0 group-hover/line:opacity-100 group-focus/line:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
+                                        <div className={`opacity-0 group-hover/line:opacity-100 group-focus/line:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
                                           g.gio <= 2 ? 'left-0' : (g.gio >= 20 ? 'right-0' : 'left-1/2 -translate-x-1/2')
                                         }`}>
                                           {vachTip}
@@ -593,7 +593,7 @@ export default function KttLichXe({ authUser }) {
                                         <svg width="14" height="12" viewBox="0 0 14 12" className="drop-shadow-xs pointer-events-none">
                                           <polygon points="1,1 13,1 7,11" fill="#E0A82E" stroke="#8A6100" strokeWidth="1.2" strokeLinejoin="round" />
                                         </svg>
-                                        <div className={`opacity-0 group-hover/tri:opacity-100 group-focus/tri:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
+                                        <div className={`opacity-0 group-hover/tri:opacity-100 group-focus/tri:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
                                           g.gio <= 2 ? 'left-0' : (g.gio >= 20 ? 'right-0' : 'left-1/2 -translate-x-1/2')
                                         }`}>
                                           {triTip}
@@ -610,7 +610,7 @@ export default function KttLichXe({ authUser }) {
                                     style={{ height: `${hPct}%` }}
                                     className="w-full bg-gray-400 hover:bg-gray-600 rounded-t-[2px] transition-all cursor-pointer group/col relative z-10 focus:outline-none focus:ring-1 focus:ring-gray-700"
                                   >
-                                    <div className={`opacity-0 group-hover/col:opacity-100 group-focus/col:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
+                                    <div className={`opacity-0 group-hover/col:opacity-100 group-focus/col:opacity-100 transition-opacity absolute bottom-full mb-1 z-50 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap ${
                                       g.gio <= 2 ? 'left-0' : (g.gio >= 20 ? 'right-0' : 'left-1/2 -translate-x-1/2')
                                     }`}>
                                       {cotTip}
@@ -635,7 +635,7 @@ export default function KttLichXe({ authUser }) {
                       {lichXe.map((lx, i) => (
                         <span
                           key={i}
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold ${
                             lx.chay_chu_nhat
                               ? 'bg-emerald-50 text-[#1F7A5C] border border-emerald-200'
                               : 'bg-red-50 text-[#B3202A] border border-red-200'
@@ -750,25 +750,25 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                   >
                     <td className="text-gray-800 font-medium">
                       <div>{r.noi_gui_ten || '(chưa có tên)'}</div>
-                      {r.noi_gui_ma && <div className="text-[10px] text-gray-400 font-mono">{r.noi_gui_ma}</div>}
+                      {r.noi_gui_ma && <div className="text-[11px] text-gray-400 font-mono">{r.noi_gui_ma}</div>}
                     </td>
                     <td className="text-gray-800">
                       <div className="flex items-center gap-1.5">
                         <span>{r.duong_thu_ten || '(chưa có tên)'}</span>
                         {isHoan && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FAF5E8] text-[#A87A12] border border-[#E4D5AE]">
+                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-[#FAF5E8] text-[#A87A12] border border-[#E4D5AE]">
                             Hoàn
                           </span>
                         )}
                       </div>
-                      {r.duong_thu_ma && <div className="text-[10px] text-gray-400 font-mono">{r.duong_thu_ma}</div>}
+                      {r.duong_thu_ma && <div className="text-[11px] text-gray-400 font-mono">{r.duong_thu_ma}</div>}
                     </td>
                     <td className="text-center tabular-nums text-gray-600">
                       {r.gio_nhan_tb ? (
                         <span>
                           <strong className="text-gray-800">{r.gio_nhan_tb}</strong>
                           {r.gio_nhan_som_nhat && r.gio_nhan_muon_nhat && (
-                            <span className="text-[10px] text-gray-400 ml-1">
+                            <span className="text-[11px] text-gray-400 ml-1">
                               ({r.gio_nhan_som_nhat} – {r.gio_nhan_muon_nhat})
                             </span>
                           )}
@@ -795,7 +795,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                                 style={{ width: `${(c1 / mau) * 100}%` }}
                                 className="bg-[#1F7A5C] h-full group/p relative focus:outline-none"
                               >
-                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   Đi cùng ngày: {formatInt(c1)} bưu gửi ({formatPercent(c1 / mau)})
                                 </div>
                               </div>
@@ -808,7 +808,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                                 style={{ width: `${(c2 / mau) * 100}%` }}
                                 className="bg-[#B79BCB] h-full group/p relative focus:outline-none"
                               >
-                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   Hôm sau: {formatInt(c2)} bưu gửi ({formatPercent(c2 / mau)})
                                 </div>
                               </div>
@@ -821,7 +821,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                                 style={{ width: `${(c3 / mau) * 100}%` }}
                                 className="bg-[#E0A82E] h-full group/p relative focus:outline-none"
                               >
-                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   Từ 2 ngày: {formatInt(c3)} bưu gửi ({formatPercent(c3 / mau)})
                                 </div>
                               </div>
@@ -834,7 +834,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                                 style={{ width: `${(c4 / mau) * 100}%` }}
                                 className="bg-[#9CA3AF] h-full group/p relative focus:outline-none"
                               >
-                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   Chưa đi &lt; 24h: {formatInt(c4)} bưu gửi ({formatPercent(c4 / mau)})
                                 </div>
                               </div>
@@ -847,7 +847,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                                 style={{ width: `${(c5 / mau) * 100}%` }}
                                 className="bg-[#B3202A] h-full group/p relative focus:outline-none"
                               >
-                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[10px] rounded px-2 py-1 shadow-md whitespace-nowrap">
+                                <div className="opacity-0 group-hover/p:opacity-100 group-focus/p:opacity-100 transition-opacity absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-gray-900 text-white text-[11px] rounded px-2 py-1 shadow-md whitespace-nowrap">
                                   Chưa đi &gt; 24h: {formatInt(c5)} bưu gửi ({formatPercent(c5 / mau)})
                                 </div>
                               </div>
@@ -885,7 +885,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                         ) : (
                           <>
                             <span>{formatInt(r.hom_sau)}</span>
-                            <span className="text-[10px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
+                            <span className="text-[11px] text-purple-600 font-normal">({formatPercent(r.ty_le.hom_sau)})</span>
                           </>
                         )}
                       </button>
@@ -914,7 +914,7 @@ function BangDuongThuNhom({ tieuDe, moTa, data, huong, selectedCellFilter, onSel
                         ) : (
                           <>
                             <span>{formatInt(r.chua_di_tren_24h)}</span>
-                            <span className="text-[10px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
+                            <span className="text-[11px] text-red-600 font-normal">({formatPercent(r.ty_le.chua_di_tren_24h)})</span>
                           </>
                         )}
                       </button>

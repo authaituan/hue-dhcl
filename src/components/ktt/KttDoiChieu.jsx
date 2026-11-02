@@ -488,7 +488,7 @@ export default function KttDoiChieu({ authUser }) {
         <div className={`space-y-6 transition-opacity duration-200 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
           {/* Tiêu đề khối & dòng mô tả 3.2 (Sửa nhỏ D: Bỏ chữ kỹ thuật) */}
           <div>
-            <h2 className="text-base font-bold text-gray-900">
+            <h2 className="hue-h2 text-[17px]">
               Đối chiếu nhóm «chưa đi trên 24 giờ» với «Hàng đến BCVH»
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -727,7 +727,7 @@ export default function KttDoiChieu({ authUser }) {
             <div className="space-y-4 pt-2 border-t border-gray-200">
               {/* Tiêu đề khối 3.3 (Sửa nhỏ D: bỏ chữ kỹ thuật) */}
               <div>
-                <h2 className="text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   Hàng đi KTT rồi, bao lâu thì BCVH nhận?
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -971,7 +971,7 @@ export default function KttDoiChieu({ authUser }) {
             <div className="space-y-4 pt-2 border-t border-gray-200">
               {/* Tiêu đề khối 3.4 */}
               <div>
-                <h2 className="text-base font-bold text-gray-900">
+                <h2 className="hue-h2 text-[17px]">
                   Chuyến mất dấu và nguồn của {formatInt(thanh1Tong)} SHBG chưa thấy
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -1173,7 +1173,7 @@ export default function KttDoiChieu({ authUser }) {
                               <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
                                 <div style={{ width: `${pct}%` }} className="h-full bg-[#B3202A] rounded-full" />
                               </div>
-                              <div className="text-[10px] text-right text-gray-400 tabular-nums">
+                              <div className="text-[11px] text-right text-gray-400 tabular-nums">
                                 {formatPercent(thanh1Tong > 0 ? count / thanh1Tong : 0)}
                               </div>
                             </div>

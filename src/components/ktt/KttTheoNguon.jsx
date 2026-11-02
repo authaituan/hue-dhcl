@@ -63,7 +63,7 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
     <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
       {/* ── 1. THẺ THEO NGUỒN / ĐƯỜNG THƯ ĐẾN ───────────────────────────── */}
       <div>
-        <h2 className="ktt-h2 text-[17px]">Theo nguồn / đường thư đến</h2>
+        <h2 className="hue-h2 text-[17px]">Theo nguồn / đường thư đến</h2>
         <p className="text-xs text-gray-600 mt-1">
           Sản lượng, khối lượng kg, tỷ lệ rớt lại và trượt chuyến theo từng luồng nguồn bưu gửi đến KTT.
         </p>
@@ -238,25 +238,25 @@ export default function KttTheoNguon({ data, selectedBcvh, activeHangHoan }) {
                 <th className="text-left">Nguồn / đường thư đến</th>
                 <th className="text-right">
                   TỶ TRỌNG HÀNG ĐẾN
-                  <div className="text-[10px] font-normal normal-case text-gray-500">
+                  <div className="text-[11px] font-normal normal-case text-gray-500">
                     trong tổng {formatInt(tongDen)} hàng đến
                   </div>
                 </th>
                 <th className="text-right">
                   TỶ TRỌNG HÀNG RỚT LẠI
-                  <div className="text-[10px] font-normal normal-case text-gray-500">
+                  <div className="text-[11px] font-normal normal-case text-gray-500">
                     trong tổng {formatInt(tongRot)} hàng rớt lại
                   </div>
                 </th>
                 <th className="text-right">
                   RỚT LẠI CỦA CHÍNH NGUỒN
-                  <div className="text-[10px] font-normal normal-case text-gray-500">
+                  <div className="text-[11px] font-normal normal-case text-gray-500">
                     trong hàng đến của nguồn này
                   </div>
                 </th>
                 <th className="text-right">
                   ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)
-                  <div className="text-[10px] font-normal normal-case text-gray-500">
+                  <div className="text-[11px] font-normal normal-case text-gray-500">
                     trong hàng đến của nguồn này
                   </div>
                 </th>
