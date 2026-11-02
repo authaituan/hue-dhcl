@@ -31,7 +31,8 @@ const USERS = {
   admin: { hrm: 'KT162_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT162_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT162_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT162_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT162_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT162_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -239,6 +240,7 @@ test('ma_bcvh lọc theo BCVH đích; mã lạ / khóa lạ / khoảng > 31 ngà
   assert.equal((await goi('/api/ktt/doi-chieu/tong-hop?tu=2026-10-01&den=2026-10-31')).status, 200, 'đúng 31 ngày vẫn được');
   assert.equal((await goi('/api/ktt/doi-chieu/tong-hop?tu=2026-10-20')).body.ma, 'KTT_THIEU_THAM_SO');
   assert.equal((await goi(DEN, 'admin')).status, 200);
+  assert.equal((await goi(DEN, 'ttkt')).status, 200);
   assert.equal((await goi(DEN, 'gdvh')).status, 403);
   assert.equal((await goi(DEN, 'tivi')).status, 403);
   assert.equal((await goi(DEN, null)).status, 401);

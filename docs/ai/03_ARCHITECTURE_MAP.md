@@ -31,7 +31,7 @@ server/
   routes/arrivals.js    # API "Hàng đến" + Dashboard điều hành (chỉ GET, ADMIN + TTVH + GDVH)
   routes/napNguon.js    # API ĐỌC màn «Nạp dữ liệu nguồn» (/api/nap-nguon/*, chỉ ADMIN: 5 GET [5f-1; docs/ai/17_…] + 2 POST lay-ngay / lay-lai [5f-2; docs/ai/18_NAP_DU_LIEU_NGUON_API_LAY.md])
   routes/thamSo.js      # API «Tham số hệ thống» (/api/tham-so*, chỉ ADMIN; THAMSO-1, #94; docs/ai/34_…) — lõi server/lib/thamSo.js, danh bạ server/config/tham-so.js, mặc định server/config/tham-so-mac-dinh.js
-  routes/ktt.js         # API «Hàng tại KTT» (/api/ktt/*: meta, luu-thoat, tong-hop, chi-tiet, xuat/luu-thoat (xlsx), xuat/hom-sau-chua-di (xlsx sheet 8, KTT-8d), doi-chieu/do-phu (KTT-16-1; docs/ai/44), doi-chieu/danh-gia + doi-chieu/xuat/* (6 file xlsx sheet 1–6, KTT-16-4; docs/ai/44 mục 10); CHỈ ADMIN + TTVH; chỉ GET; KTT-8, KTT-8b; docs/ai/42)
+  routes/ktt.js         # API «Hàng tại KTT» [ADMIN, TTVH, TTKT; TTKT chỉ GET, #123] (/api/ktt/*: meta, luu-thoat, tong-hop, chi-tiet, xuat/luu-thoat (xlsx), xuat/hom-sau-chua-di (xlsx sheet 8, KTT-8d), doi-chieu/do-phu (KTT-16-1; docs/ai/44), doi-chieu/danh-gia + doi-chieu/xuat/* (6 file xlsx sheet 1–6, KTT-16-4; docs/ai/44 mục 10); CHỈ ADMIN + TTVH; chỉ GET; KTT-8, KTT-8b; docs/ai/42)
   routes/kttNap.js      # API ĐỌC trạng thái nạp KTT (GET /api/nap-nguon/ktt/trang-thai, chỉ ADMIN; KTT-6; có do_moi_hang_hoan từ KTT-17-1; docs/ai/39)
   lib/ktt*.js           # «Hàng tại KTT»: kttSchema (bảng), kttImport / kttNapCap / kttSftp (nạp, 39), kttTinh / kttCauHinh / kttQuery / kttDanhGia (tính, 37–38), kttLichChuyen / kttChuyen (lịch chuyến, 40), kttLuuThoat / kttLuuThoatQuery (lưu thoát, 41), kttApi / kttWorker (cache + chạy nền cho API, 42), kttXuat (xuất xlsx sheet 7, KTT-8b, 42 mục 10), kttDong (19 trường một dòng Lưu thoát, dùng chung chi-tiet + xlsx; xlsx 18 cột vì bỏ `dat_khong_dat`), kttNguon (kg + nhóm theo nguồn, KTT-8c, 41 mục 11)
 src/
@@ -148,10 +148,19 @@ Dashboard điều hành (`/api/arrivals/dashboard/*`): `date` (`YYYY-MM-DD`, m�
 
 
 ### Vai trò và ma trận quyền (`server/roles.js`, `04_DECISIONS.md` #49–#54)
-Bốn vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `TIVI` (#74; STAFF đã gỡ — #99). `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
+Năm vai trò (chuỗi ASCII, chữ hoa): `ADMIN`, `TTVH`, `GDVH`, `TIVI` (#74), `TTKT` (#123; STAFF đã gỡ — #99). `server/roles.js` là nơi duy nhất định nghĩa (`ROLES`, `VALID_ROLES`,
 `VIEWER_ROLES = ADMIN, TTVH, GDVH`, `isValidRole`). Middleware `authRequired` (`server/auth.js`) tra DB mỗi request: lấy `role` + `deactivated_at` từ `users`
 (không tin vai trò trong token) — khoá/không còn → 401, vai trò ngoài danh sách (vd `MANAGER` chưa chuyển đổi) → 403. `requireRoles(...roles)` nhận danh sách tường minh
 (`requireAdmin` = `requireRoles('ADMIN')`); không còn quy tắc "khác STAFF". `TIVI`: allowlist `TIVI_ALLOWED` (`server/lib/tivi.js`) kiểm ngay trong `authRequired`, ngoài danh sách → 403 (cột TIVI dưới đây); token hạn `JWT_EXPIRY_TIVI`, gắn vai trò + dấu mật khẩu (đổi vai trò / mật khẩu → 401).
+
+**Vai trò `TTKT` (#123, KTT-ROLE-1):** allowlist theo vai trò, TỪ CHỐI MẶC ĐỊNH (`ALLOWLIST_THEO_VAI_TRO` trong `server/lib/allowlistVaiTro.js`, gọi ở `authRequired`; TIVI dùng chung cơ chế, hành vi giữ nguyên). TTKT được: `GET /api/ktt/**` (khớp tiền tố đoạn đường dẫn, đã chuẩn hoá), `GET /api/auth/me`, `PUT /api/users/me/password`. Mọi route khác → 403 (kể cả `/api/dashboard/*`, `/api/organization/*` chỉ có `authRequired`). Chỉ GET; thấy đủ 6 BCVH; token 8 giờ; không có chế độ tivi; không cần gán BCVH.
+
+| Nhóm route | TTKT |
+|---|---|
+| `GET /api/ktt/**` (meta, luu-thoat, tong-hop, chi-tiet, xuat/*, doi-chieu/*, dicungngay/*, …) | ✔ |
+| POST / PUT / PATCH / DELETE trên `/api/ktt/*` | 403 |
+| `GET /api/auth/me`, `PUT /api/users/me/password` | ✔ |
+| `/api/arrivals/*`, quỹ thời gian, `/api/phat/*`, `/api/nap-nguon/*` (kể cả `/ktt/trang-thai`), `/api/tham-so*`, `/api/users*` (còn lại), `/api/network*`, `/api/dashboard/*`, `/api/organization/*` | 403 |
 
 | Nhóm route | ADMIN | TTVH | GDVH | TIVI |
 |---|---|---|---|---|
@@ -194,7 +203,7 @@ Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DE
 |---|---|---|
 | Dashboard | `DashboardView.jsx` (chế độ chỉnh sửa chỉ ADMIN) | mọi người |
 | Quản lý mạng lưới | `NetworkListView.jsx` (danh sách + Thêm/Sửa/Xoá + Import/Export Excel) | chỉ ADMIN (#95, THEME-1; menu trong khối ADMIN) |
-| Quản lý người dùng | `UserAdminView.jsx` | menu hiện cho ADMIN/TTVH/GDVH, nhưng API chỉ ADMIN (TTVH/GDVH nhận 403 — dọn menu ở ticket giao diện) |
+| Quản lý người dùng | `UserAdminView.jsx` | menu hiện cho ADMIN/TTVH/GDVH, nhưng API chỉ ADMIN (TTVH/GDVH nhận 403 — dọn menu ở ticket giao diện) ; menu chọn vai trò chưa có TTKT (ROLE-2) |
 
 ## 5. Dashboard động
 - Nguồn duy nhất: `POST_OFFICE` — nhóm theo `type`, `operational_status`, `commune`, `new_ward`, `has_computer`,

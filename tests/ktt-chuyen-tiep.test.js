@@ -19,7 +19,7 @@ const TS = require('../server/lib/thamSo');
 const PORT = 5976;
 const TH = '533140'; const HT = '535470';
 const BAY_GIO = '2026-10-23 10:00:00';
-let ctx; let db; let token; let tokenGdvh;
+let ctx; let db; let token; let tokenGdvh; let tokenTtkt;
 const khoiPhuc = [];
 
 before(async () => {
@@ -31,7 +31,9 @@ before(async () => {
   seedUser(db, { hrmCode: 'KT14_TTVH', fullName: 'KT14_TTVH', role: 'TTVH', password: 'Ttvh@123' });
   seedUser(db, { hrmCode: 'KT14_GDVH', fullName: 'KT14_GDVH', role: 'GDVH', password: 'Gdvh@123' });
   token = (await loginAs(ctx.baseUrl, 'KT14_TTVH', 'Ttvh@123')).body.token;
+  seedUser(db, { hrmCode: 'KT14_TTKT', fullName: 'KT14_TTKT', role: 'TTKT', password: 'Ttkt@123' });
   tokenGdvh = (await loginAs(ctx.baseUrl, 'KT14_GDVH', 'Gdvh@123')).body.token;
+  tokenTtkt = (await loginAs(ctx.baseUrl, 'KT14_TTKT', 'Ttkt@123')).body.token;
 });
 after(async () => {
   await Api.dongNen();
@@ -296,6 +298,7 @@ test('GDVH 403 ở các route dùng tập mới; không token 401', async () => 
   for (const u of ['/api/ktt/luu-thoat', '/api/ktt/chi-tiet', '/api/ktt/xuat/luu-thoat', '/api/ktt/dicungngay/tong-hop', '/api/ktt/danh-sach', '/api/ktt/tong-quan', '/api/ktt/rotlai/theo-duong-thu']) {
     const r = await goi(`${u}${QDAY}&loai=hom-sau`, tokenGdvh);
     assert.equal(r.status, 403, u);
+    assert.ok(![401, 403].includes((await goi(`${u}${QDAY}&loai=hom-sau`, tokenTtkt)).status), `${u}: TTKT qua cổng quyền`);
   }
   const khong = await fetch(`${ctx.baseUrl}/api/ktt/luu-thoat${QDAY}`);
   assert.equal(khong.status, 401);

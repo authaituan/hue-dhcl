@@ -25,7 +25,8 @@ const USERS = {
   admin: { hrm: 'KT8C_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT8C_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT8C_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT8C_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT8C_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT8C_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -391,6 +392,7 @@ test('quyền: luu-thoat, chi-tiet (loai mới + nguon), xuat (ma_bcvh + nguon):
     assert.equal((await goi(url, null)).status, 401, url);
     assert.equal((await goi(url, 'admin')).status, 200, url);
     assert.equal((await goi(url, 'ttvh')).status, 200, url);
+    assert.equal((await goi(url, 'ttkt')).status, 200, url);
     assert.equal((await goi(url, 'gdvh')).status, 403, url);
     assert.equal((await goi(url, 'tivi')).status, 403, url);
   }

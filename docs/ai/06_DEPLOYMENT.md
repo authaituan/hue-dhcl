@@ -70,7 +70,7 @@ Hệ quả: không có mục `ports`; chỉ chạy trên Linux/NAS.
 - `JWT_SECRET` — bắt buộc (mục 1).
 - `CMS_ALLOWED_IPS` — bắt buộc, **phải có `127.0.0.1`** (healthcheck gọi `http://127.0.0.1:<PORT>/`, thiếu thì "unhealthy").
 - `HOST_PORT` — `18060`.
-- `JWT_EXPIRY_TIVI` — không bắt buộc: hạn token của tài khoản vai trò `TIVI` (mặc định 90 ngày, #74). Hạn của các vai trò khác vẫn là `JWT_EXPIRY`.
+- `JWT_EXPIRY_TIVI` — không bắt buộc: hạn token của tài khoản vai trò `TIVI` (mặc định 90 ngày, #74). Hạn của các vai trò khác (kể cả `TTKT`, #123) vẫn là `JWT_EXPIRY` (8 giờ).
 - `PHAT_MAX_DONG` — không bắt buộc, **chỉ để HẠ** số dòng tối đa của file mẫu / file nhập module «Xử lý và tỷ lệ phát» (mặc định 20.000, không thể nâng cao hơn; dùng cho test). Bình thường KHÔNG đặt (#75).
 
 **Cài lần đầu**: chép mã nguồn vào `/volume1/docker/hue-dhcl/app/` trên NAS, tạo `.env`, rồi Container Manager → Project → Create
@@ -94,7 +94,8 @@ Hệ quả: không có mục `ports`; chỉ chạy trên Linux/NAS.
 `docker compose build` lỗi DNS → kiểm tra `build.network: host`.
 
 ## 7. Chuyển đổi vai trò MANAGER → TTVH (ticket SANLUONG-3c-2, PO tự chạy trên DB thật)
-Server chỉ nhận 4 vai trò `ADMIN`, `TTVH`, `GDVH`, `TIVI` (STAFF đã gỡ ở STAFF-1, #99). Tài khoản còn `MANAGER` (hoặc vai trò lạ) trong DB bị từ chối đăng nhập (403, không cấp token) cho đến khi chuyển đổi.
+Server chỉ nhận 5 vai trò `ADMIN`, `TTVH`, `GDVH`, `TIVI`, `TTKT` (STAFF đã gỡ ở STAFF-1, #99). Tài khoản còn `MANAGER` (hoặc vai trò lạ) trong DB bị từ chối đăng nhập (403, không cấp token) cho đến khi chuyển đổi.
+Vai trò `TTKT` (Trung tâm Khai thác, #123): chỉ module «Hàng tại Khai thác tỉnh» (GET `/api/ktt/**`), token 8 giờ. **Sau khi deploy bản có TTKT phải KHỞI ĐỘNG LẠI server.** Tạo người dùng TTKT qua màn Quản trị chỉ dùng được sau khi làm giao diện ROLE-2 (menu vai trò chưa có TTKT); trước đó chỉ tạo được qua API `POST /api/users` (ADMIN).
 Thứ tự (app đang **tắt**; bản deploy mới chạy sau bước 4):
 1. **Chạy thử** (không ghi gì): `node scripts/migrate-roles.js` — in số tài khoản theo từng giá trị `role` và số sẽ đổi (không in tên/mã HRM/hash).
    Còn tài khoản `STAFF` (vai trò đã gỡ) hoặc có giá trị `role` lạ khác thì script dừng, mã thoát 2, in danh sách id của tài khoản STAFF — chưa đổi gì, không tự đổi vai trò; báo lại để PO quyết (đổi bằng «Quản lý người dùng»).

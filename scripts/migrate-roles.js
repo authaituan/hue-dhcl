@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ==========================================
 // Chuyển đổi vai trò một lần (SANLUONG-3c-2, docs/ai/04_DECISIONS.md #49): MANAGER -> TTVH.
-// ADMIN, GDVH, TIVI giữ nguyên. STAFF đã bị gỡ: gặp tài khoản STAFF thì DỪNG (mã 2), PO tự đổi vai trò.
+// ADMIN, GDVH, TIVI, TTKT giữ nguyên. STAFF đã bị gỡ: gặp tài khoản STAFF thì DỪNG (mã 2), PO tự đổi vai trò.
 //
 //   node scripts/migrate-roles.js [--db <đường-dẫn-DB>]            # chế độ thử (dry-run), KHÔNG ghi gì
 //   node scripts/migrate-roles.js [--db <đường-dẫn-DB>] --apply    # sao lưu rồi chuyển đổi
@@ -9,7 +9,7 @@
 // DB mặc định data/hue-dhcl.db (hoặc biến môi trường ARRIVALS_DB, như các script khác).
 // - Dry-run: chỉ in số tài khoản theo từng giá trị `role` và số sẽ đổi. KHÔNG in họ tên, mã HRM, hash.
 // - --apply: nếu có gì để đổi -> sao lưu DB (cùng thư mục, tên có dấu thời gian) rồi đổi trong MỘT transaction.
-// - Giá trị `role` lạ (ngoài ADMIN, TTVH, GDVH, TIVI, MANAGER, kể cả rỗng): KHÔNG tự đổi gì cả,
+// - Giá trị `role` lạ (ngoài ADMIN, TTVH, GDVH, TIVI, TTKT, MANAGER, kể cả rỗng): KHÔNG tự đổi gì cả,
 //   in số lượng và thoát mã lỗi 2 để PO quyết.
 // - Idempotent: chạy lại khi không còn MANAGER thì không làm gì (không sao lưu, không ghi).
 // ==========================================

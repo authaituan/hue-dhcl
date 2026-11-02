@@ -25,7 +25,8 @@ const USERS = {
   admin: { hrm: 'KT8D_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT8D_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT8D_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT8D_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT8D_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT8D_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -138,6 +139,7 @@ test('quyền: không token 401; ADMIN và TTVH 200 (xlsx); GDVH 403; TIVI 403; 
     assert.equal(r.status, 200, who);
     assert.match(r.headers.get('content-type'), /spreadsheetml\.sheet/);
   }
+  assert.equal((await goi(q, 'ttkt')).status, 200);
   assert.equal((await goi(q, 'gdvh')).status, 403);
   assert.equal((await goi(q, 'tivi')).status, 403);
   assert.equal((await goi(q, 'admin', { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } })).status, 404);

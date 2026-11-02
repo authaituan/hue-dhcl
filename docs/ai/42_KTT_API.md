@@ -1,11 +1,11 @@
 # 42 · KTT-8 — API `/api/ktt/*`, cache theo ngày, tham số giờ chốt
 
-Đưa phần tính toán «Hàng tại KTT» (`tongHopKtt`, `luuThoatTheoNgay`, `chiTiet`, `taoDanhGia`) ra API **chỉ đọc**, cho **ADMIN và TTVH**, có cache theo ngày và không làm đứng máy chủ.
+Đưa phần tính toán «Hàng tại KTT» (`tongHopKtt`, `luuThoatTheoNgay`, `chiTiet`, `taoDanhGia`) ra API **chỉ đọc**, cho **ADMIN, TTVH và TTKT**, có cache theo ngày và không làm đứng máy chủ.
 Chưa có giao diện (KTT-9). Xuất xlsx sheet 7 «Lưu thoát»: KTT-8b (mục 10); sheet 8 «Hôm sau / chưa đi trên 24 giờ»: KTT-8c (chưa làm). Dữ liệu trong tài liệu này là dữ liệu giả.
 
 ## 1. Quyền và mount
-- Router `server/routes/ktt.js`, mount **riêng** `app.use('/api/ktt', kttRoutes)` ở `server/index.js`; `router.use(requireRoles(ADMIN, TTVH))` đứng đầu router nên route thêm sau này cũng bị chặn mặc định. KHÔNG đặt dưới `/api/arrivals` (đường đó mở cả GDVH).
-- Không token → 401 (lớp `authRequired` chung của `/api`); ADMIN, TTVH → 200; **GDVH → 403**; **TIVI → 403** (allowlist `server/lib/tivi.js` từ chối mặc định, không sửa `tivi.js` / `roles.js`; chỉ kiểm bằng test). ADMIN và TTVH thấy CÙNG số liệu (không lọc theo BCVH được giao). Mọi route chỉ `GET`, không ghi DB. `Cache-Control: no-store` của `/api/*` giữ nguyên.
+- Router `server/routes/ktt.js`, mount **riêng** `app.use('/api/ktt', kttRoutes)` ở `server/index.js`; `router.use(requireRoles(ADMIN, TTVH, TTKT))` đứng đầu router nên route thêm sau này cũng bị chặn mặc định. KHÔNG đặt dưới `/api/arrivals` (đường đó mở cả GDVH).
+- Không token → 401 (lớp `authRequired` chung của `/api`); ADMIN, TTVH, TTKT → 200 (TTKT chỉ GET, allowlist theo vai trò, mục 18); **GDVH → 403**; **TIVI → 403** (allowlist `server/lib/tivi.js` từ chối mặc định, không sửa `tivi.js` / `roles.js`; chỉ kiểm bằng test). ADMIN và TTVH thấy CÙNG số liệu (không lọc theo BCVH được giao). Mọi route chỉ `GET`, không ghi DB. `Cache-Control: no-store` của `/api/*` giữ nguyên.
 - Khác mẫu QUYTG: QUYTG nằm dưới `/api/arrivals/quy-thoi-gian*` (guard `viewerGuard` = ADMIN, TTVH, GDVH, TIVI qua allowlist) — không dùng được cho KTT vì cần loại GDVH.
 
 ## 2. Route
@@ -74,7 +74,7 @@ Theo mẫu `quyThoiGianCache.js` (`dauHieuDb` = `data_version` + `total_changes`
 
 ## 10. KTT-8b — Xuất xlsx sheet 7 «Hàng rớt lại / Lưu thoát»
 
-`GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]` (dưới `requireRoles(ADMIN, TTVH)` như mọi route KTT; không token 401, GDVH / TIVI 403). Trả file `.xlsx`, tên `KTT_LuuThoat_<tu>_<den>.xlsx` (ASCII), `Content-Disposition: attachment`, `Cache-Control: no-store`.
+`GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]` (dưới `requireRoles(ADMIN, TTVH, TTKT)` như mọi route KTT; không token 401, GDVH / TIVI 403). Trả file `.xlsx`, tên `KTT_LuuThoat_<tu>_<den>.xlsx` (ASCII), `Content-Disposition: attachment`, `Cache-Control: no-store`.
 Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xuất các sheet 1–6.
 
 **Tham số:** `tu`, `den` như mọi route KTT (YYYY-MM-DD, ngày có thật, ≤ 31 ngày, khóa lạ → 400). `trang_thai` tùy chọn, cùng danh sách giá trị với `chi-tiet` (nhóm lưu thoát: `t1`…`t5`, `dang_cho_chuyen`, `hang_hoan`, `dat`, `khong_dat`, `chua_di`, `chua_do_duoc`, `xnd_sau_gio_di`, `khong_ro_dich`, `ngoai_pham_vi`, `khong_co_gio_quet_den`, `khong_xep_duoc_chuyen`); bỏ trống = tất cả SHBG. KTT-8c: thêm `ma_bcvh` và `nguon` (cùng quy tắc như `chi-tiet`, dùng chung `duyetLuuThoat`); `trang_thai` nhận thêm `ro_lai`, `truot_chuyen`. Sheet «Thông tin» ghi cả ba bộ lọc; «Số dòng kiểm tra» là số dòng thật, dòng «Đối chiếu» so với ô tương ứng của `luu-thoat` (`kttXuat.soKhop`) hoặc ghi «không đối chiếu được» khi màn hình không có số cho tổ hợp lọc đó (ví dụ chỉ lọc nguồn, vì `theo_nguon` chỉ gồm SHBG đã phân loại). Không nhận các `loai` cũ của `chi-tiet` (`treo`, `nam_lau`…).
@@ -149,7 +149,7 @@ Chưa có nút trên giao diện (KTT-9); chưa có sheet 8 (KTT-8c); không xu�
 - Hiệu năng: cửa sổ 30 ngày lần nguội tăng vì số SHBG gấp hơn hai lần (xem `43` mục 12); lần cache không đổi đáng kể.
 
 ## 15. KTT-16-1 — `GET /api/ktt/doi-chieu/do-phu` (độ phủ «Hàng đến BCVH»; route mới, không đổi route cũ)
-- Cùng quyền (ADMIN + TTVH), cùng quy tắc tham số (`tu`, `den` bắt buộc, ≤ 31 ngày, khóa lạ → 400) và hình thức lỗi như các route khác. Chỉ đọc `arrival_import_files` / `arrival_items`; KHÔNG chạm bảng `ktt_*`, nên cache riêng (theo `(tu, den)` + dấu hiệu DB, ≤ 10 phút) và KHÔNG qua `dongBoPhienBan` / độ mới KTT / worker.
+- Cùng quyền (ADMIN + TTVH + TTKT), cùng quy tắc tham số (`tu`, `den` bắt buộc, ≤ 31 ngày, khóa lạ → 400) và hình thức lỗi như các route khác. Chỉ đọc `arrival_import_files` / `arrival_items`; KHÔNG chạm bảng `ktt_*`, nên cache riêng (theo `(tu, den)` + dấu hiệu DB, ≤ 10 phút) và KHÔNG qua `dongBoPhienBan` / độ mới KTT / worker.
 - Schema, quy tắc cửa sổ đối chiếu và cờ «có thể dương tính giả»: `44_KTT_DO_PHU_BCVH.md`.
 
 ## 16. KTT-8d — Xuất xlsx sheet 8 «Hôm sau / chưa đi trên 24 giờ» (route mới) và bổ sung sheet «Thông tin»
@@ -188,3 +188,12 @@ Giao diện (KTT-13d) phải gửi đúng quy ước dưới đây để số d�
 - **Nhãn «Hàng chuyển hoàn»** thay «Hàng hoàn Tổ KHHH» ở: `items[].phan_loai` của `/chi-tiet` và cột «Phân loại» xlsx sheet 7 (`kttDong.NHAN_HANG_HOAN`); tiêu đề cột «Hàng chuyển hoàn» (Có / Không) xlsx sheet 8 (`kttXuat.js`); câu bộ lọc «… hàng chuyển hoàn: chỉ hàng hoàn / không kể hàng hoàn …» ở «Thông tin» sheet 8. Tên khóa API không đổi.
 - **Cache:** `theo_bcvh[m].hang_hoan` đi cùng cache theo ngày (`congCacNgay` / `ghepKhoang` cộng khối này), nên đổi theo phiên bản danh sách hàng hoàn như phần còn lại (KTT-17-2).
 - `kttXuat.soKhop` dùng `theo_bcvh[m].hang_hoan.tong_shbg` làm số hoàn của BCVH (trước: `tong_shbg_ngay − tong_shbg`), cùng giá trị.
+
+
+## 18. KTT-ROLE-1 — vai trò TTKT (Trung tâm Khai thác, `04_DECISIONS.md` #123)
+- TTKT được **GET toàn bộ `/api/ktt/**`** (kể cả `/xuat/*`, `/doi-chieu/*`, `/doi-chieu/xuat/*`), thấy ĐỦ 6 BCVH (không lọc theo BCVH), cùng số liệu với ADMIN / TTVH. Ngoài ra chỉ `GET /api/auth/me` và `PUT /api/users/me/password`.
+- **Chỉ GET:** POST / PUT / PATCH / DELETE (và HEAD) trên `/api/ktt/*` → 403 ở `authRequired` (allowlist `server/lib/allowlistVaiTro.js`, từ chối mặc định), trước cả `requireRoles`. Khác ADMIN: ADMIN POST vào route KTT nhận 404 (không có route).
+- Mọi nhóm khác (Sản lượng `/api/arrivals/*`, Quỹ thời gian, Phát, Nạp nguồn kể cả `/nap-nguon/ktt/trang-thai`, Tham số, Người dùng, Mạng lưới, `/api/dashboard/*`, `/api/organization/*`, route thêm sau này) → 403.
+- Khớp tiền tố theo ĐOẠN đường dẫn (`/api/ktt/` khớp, `/api/kttx` không); đường dẫn được chuẩn hoá trước khi so (bỏ query, giải mã một lần — còn `%` hoặc dấu gạch chéo ngược thì từ chối, chữ thường, gộp `//`, xử lý `..`, bỏ `/` cuối).
+- Token TTKT hạn 8 giờ (`JWT_EXPIRY`, như ADMIN / TTVH / GDVH), KHÔNG dùng hạn 90 ngày của TIVI. Quyền theo vai trò trong DB, đổi vai trò có hiệu lực ngay.
+- Test: `tests/ktt-vai-tro-ttkt.test.js` (+ ca TTKT trong `roles.test.js` và các `ktt-*.test.js`).

@@ -25,7 +25,8 @@ const USERS = {
   admin: { hrm: 'KT12_ADMIN', pass: 'Admin@123', role: 'ADMIN' },
   ttvh: { hrm: 'KT12_TTVH', pass: 'Ttvh@123', role: 'TTVH' },
   gdvh: { hrm: 'KT12_GDVH', pass: 'Gdvh@123', role: 'GDVH' },
-  tivi: { hrm: 'KT12_TIVI', pass: 'Tivi@123', role: 'TIVI' }
+  tivi: { hrm: 'KT12_TIVI', pass: 'Tivi@123', role: 'TIVI' },
+  ttkt: { hrm: 'KT12_TTKT', pass: 'Ttkt@123', role: 'TTKT' }
 };
 
 before(async () => {
@@ -115,6 +116,7 @@ test('quyền: 13 endpoint KTT-12: không token 401; ADMIN và TTVH 200 (cùng s
     assert.equal(a.status, 200, `${ten}: ADMIN`);
     assert.equal(t.status, 200, `${ten}: TTVH`);
     assert.deepEqual(a.body, t.body, `${ten}: ADMIN = TTVH`);
+    assert.equal((await goi(url, 'ttkt')).status, 200, `${ten}: TTKT`);
     assert.equal((await goi(url, 'gdvh')).status, 403, `${ten}: GDVH`);
     assert.equal((await goi(url, 'tivi')).status, 403, `${ten}: TIVI`);
     assert.equal((await goi(url, 'admin', { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } })).status, 404, `${ten}: chỉ GET`);
