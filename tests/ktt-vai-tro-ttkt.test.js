@@ -11,7 +11,8 @@ const { startTestServer, waitForServer, cleanupDbFiles, closeServer } = require(
 const { seedUser, loginAs } = require('./helpers/fixtures');
 const { cachLySftpEnv } = require('./helpers/khongMang');
 const Api = require('../server/lib/kttApi');
-const { chuanHoaDuongDan, vaiTroAllows } = require('../server/lib/allowlistVaiTro');
+const { VALID_ROLES } = require('../server/roles');
+const { ALLOWLIST_THEO_VAI_TRO, VAI_TRO_TOAN_QUYEN, chuanHoaDuongDan, vaiTroAllows } = require('../server/lib/allowlistVaiTro');
 
 const PORT = 5890;
 const Q = '?tu=2026-10-20&den=2026-10-22';
@@ -130,6 +131,24 @@ test('đường dẫn lách không mở thêm quyền: .., //, %2e, %2f, mã hó
   assert.equal(vaiTroAllows('TTKT', { method: 'HEAD', originalUrl: '/api/ktt/meta' }), false);
   assert.equal(vaiTroAllows('TTKT', { method: 'GET', originalUrl: '/api/ktt/meta' }), true);
   assert.equal(vaiTroAllows('ADMIN', { method: 'DELETE', originalUrl: '/api/users' }), true, 'vai trò không có allowlist: lớp này không chặn');
+});
+
+test('cấu trúc: mọi vai trò hợp lệ ngoài nhóm toàn quyền đều có mục (không rỗng) trong ALLOWLIST_THEO_VAI_TRO', () => {
+  assert.deepEqual([...VAI_TRO_TOAN_QUYEN].sort(), ['ADMIN', 'GDVH', 'TTVH']);
+  const ngoai = VALID_ROLES.filter((r) => !VAI_TRO_TOAN_QUYEN.includes(r));
+  assert.ok(ngoai.includes('TTKT') && ngoai.includes('TIVI'));
+  for (const r of ngoai) {
+    assert.ok(Object.prototype.hasOwnProperty.call(ALLOWLIST_THEO_VAI_TRO, r), `vai trò ${r} thiếu mục trong ALLOWLIST_THEO_VAI_TRO`);
+    assert.ok(ALLOWLIST_THEO_VAI_TRO[r].length > 0, `allowlist của ${r} rỗng`);
+  }
+});
+
+test('vaiTroAllows: vai trò hợp lệ nhưng thiếu mục -> từ chối mọi request; ADMIN, TTVH, GDVH -> cho qua', () => {
+  const reqs = [['GET', '/api/ktt/meta'], ['GET', '/api/auth/me'], ['PUT', '/api/users/me/password'], ['GET', '/api/dashboard/widgets'], ['GET', '/api/organization/tree'], ['POST', '/api/users'], ['GET', '/api/ktt/../users']];
+  for (const [method, originalUrl] of reqs) {
+    assert.equal(vaiTroAllows('VAI_TRO_MOI_THIEU_MUC', { method, originalUrl }), false, `${method} ${originalUrl}`);
+    for (const r of ['ADMIN', 'TTVH', 'GDVH']) assert.equal(vaiTroAllows(r, { method, originalUrl }), true, `${r} ${method} ${originalUrl}`);
+  }
 });
 
 test('đổi vai trò trong DB: quyền đổi ngay với token cũ (server tra DB mỗi lần)', async () => {

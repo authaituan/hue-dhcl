@@ -1,14 +1,15 @@
 // ==========================================
 // Allowlist theo vai trò, TỪ CHỐI MẶC ĐỊNH (khái quát hoá cơ chế TIVI, #74; vai trò TTKT: docs/ai/04_DECISIONS.md #123).
-//  - Vai trò CÓ trong ALLOWLIST_THEO_VAI_TRO thì CHỈ được các mục khai báo; mọi request /api khác -> 403 (kể cả route chỉ có
-//    authRequired và route thêm sau này). Vai trò không có trong bảng (ADMIN, TTVH, GDVH) không bị lớp này chặn, dùng requireRoles ở từng route.
+//  - Nhóm TOÀN QUYỀN (VAI_TRO_TOAN_QUYEN = VIEWER_ROLES: ADMIN, TTVH, GDVH) không bị lớp này chặn, dùng requireRoles ở từng route.
+//  - MỌI vai trò hợp lệ khác chỉ được các mục khai báo trong ALLOWLIST_THEO_VAI_TRO; mọi request /api khác -> 403 (kể cả route chỉ có
+//    authRequired và route thêm sau này). Vai trò KHÔNG có mục trong bảng -> allowlist RỖNG (từ chối tất cả), không bao giờ được mở (KTT-ROLE-1b).
 //  - Mục dạng 'METHOD /đường-dẫn' khớp CHÍNH XÁC; mục kết thúc bằng '/**' khớp theo TIỀN TỐ ĐOẠN đường dẫn ('/api/ktt/**' khớp '/api/ktt/meta', KHÔNG khớp '/api/kttx').
 //  - authRequired (server/auth.js) gọi vaiTroAllows() ở MỌI request /api, SAU khi tra DB lấy vai trò thật và TRƯỚC mọi guard của route.
 // ==========================================
 'use strict';
 
 const path = require('path');
-const { ROLES } = require('../roles');
+const { ROLES, VIEWER_ROLES } = require('../roles');
 const { TIVI_ALLOWED } = require('./tivi');
 
 const ALLOWLIST_THEO_VAI_TRO = Object.freeze({
@@ -20,6 +21,9 @@ const ALLOWLIST_THEO_VAI_TRO = Object.freeze({
     'PUT /api/users/me/password'
   ])
 });
+
+/** Nhóm toàn quyền ở lớp allowlist (bằng nhóm xem dữ liệu của server/roles.js; mỗi route vẫn tự dùng requireRoles). */
+const VAI_TRO_TOAN_QUYEN = VIEWER_ROLES;
 
 /** Chuẩn hoá đường dẫn trước khi so: bỏ query, giải mã MỘT lần (còn '%' hoặc '\' sau đó -> null = từ chối), chữ thường, gộp '//', xử lý '.' '..', bỏ '/' cuối. */
 function chuanHoaDuongDan(originalUrl) {
@@ -45,15 +49,17 @@ function khop(muc, method, p) {
   return p === pMuc;
 }
 
-/** Vai trò có allowlist không (có -> bị từ chối mặc định). */
-const coAllowlist = (role) => Object.prototype.hasOwnProperty.call(ALLOWLIST_THEO_VAI_TRO, role);
-
-/** Request có thuộc allowlist của vai trò không (vai trò không có allowlist -> true, lớp này không chặn). */
-function vaiTroAllows(role, req) {
-  if (!coAllowlist(role)) return true;
-  const p = chuanHoaDuongDan(req.originalUrl);
-  if (p === null) return false;
-  return ALLOWLIST_THEO_VAI_TRO[role].some((m) => khop(m, req.method, p));
+/** Allowlist của vai trò ngoài nhóm toàn quyền: các mục khai báo; KHÔNG có mục -> rỗng (từ chối mọi request). */
+function allowlistCua(role) {
+  return Object.prototype.hasOwnProperty.call(ALLOWLIST_THEO_VAI_TRO, role) ? ALLOWLIST_THEO_VAI_TRO[role] : [];
 }
 
-module.exports = { ALLOWLIST_THEO_VAI_TRO, chuanHoaDuongDan, coAllowlist, vaiTroAllows };
+/** Request có thuộc allowlist của vai trò không (nhóm toàn quyền -> true; vai trò khác không có mục -> false). */
+function vaiTroAllows(role, req) {
+  if (VAI_TRO_TOAN_QUYEN.includes(role)) return true;
+  const p = chuanHoaDuongDan(req.originalUrl);
+  if (p === null) return false;
+  return allowlistCua(role).some((m) => khop(m, req.method, p));
+}
+
+module.exports = { ALLOWLIST_THEO_VAI_TRO, VAI_TRO_TOAN_QUYEN, chuanHoaDuongDan, allowlistCua, vaiTroAllows };
