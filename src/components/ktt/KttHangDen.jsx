@@ -445,17 +445,17 @@ export default function KttHangDen({ authUser }) {
             {/* Thẻ 1: Bưu gửi đến */}
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none flex flex-col justify-between min-w-0">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Bưu gửi đến
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-gray-900 tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-gray-900">
                     {formatInt(tongShbg)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">bưu gửi</span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+              <div className="mt-3 pt-3 border-t border-gray-100 text-[11px] text-gray-600">
                 TB mỗi ngày:{' '}
                 <strong className="text-gray-800 font-bold tabular-nums">
                   {shbgTbNgay !== null && shbgTbNgay !== undefined ? formatInt(shbgTbNgay) : '—'}
@@ -468,17 +468,17 @@ export default function KttHangDen({ authUser }) {
             {hasKg && (
               <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none flex flex-col justify-between min-w-0">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                  <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                     Khối lượng đến
                   </div>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <div className="text-3xl font-extrabold text-gray-900 tabular-nums">
+                  <div className="flex items-baseline gap-2 my-1.5">
+                    <div className="hue-num-lg text-gray-900">
                       {formatKg(tongKg)}
                     </div>
                     <span className="text-xs font-semibold text-gray-500">kg</span>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+                <div className="mt-3 pt-3 border-t border-gray-100 text-[11px] text-gray-600">
                   TB / bưu gửi:{' '}
                   <strong className="text-gray-800 font-bold tabular-nums">
                     {kgTbShbg !== null && kgTbShbg !== undefined ? formatDecimal(kgTbShbg, 2) : '—'}
@@ -491,17 +491,17 @@ export default function KttHangDen({ authUser }) {
             {/* Thẻ 3: Xe Cấp 1 đến */}
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none flex flex-col justify-between min-w-0">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Xe Cấp 1 đến (BD10)
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-gray-900 tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-gray-900">
                     {formatInt(tongXe)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">xe</span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+              <div className="mt-3 pt-3 border-t border-gray-100 text-[11px] text-gray-600">
                 TB mỗi ngày:{' '}
                 <strong className="text-gray-800 font-bold tabular-nums">
                   {xeTbNgay !== null && xeTbNgay !== undefined ? formatDecimal(xeTbNgay, 1) : '—'}
@@ -513,16 +513,16 @@ export default function KttHangDen({ authUser }) {
             {/* Thẻ 4: % Đích TP Huế */}
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none flex flex-col justify-between min-w-0">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   % Đích TP Huế
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-[#1F7A5C] tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-[#1F7A5C]">
                     {formatPercent(tpHueTyLe)}
                   </div>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+              <div className="mt-3 pt-3 border-t border-gray-100 text-[11px] text-gray-600">
                 <span className="tabular-nums font-bold text-gray-800">{formatInt(tpHueShbg)}</span>{' '}
                 bưu gửi (rõ BCVH:{' '}
                 <strong className="text-gray-800 font-bold tabular-nums">
@@ -535,16 +535,16 @@ export default function KttHangDen({ authUser }) {
             {/* Thẻ 5: % Đích ngoài Huế */}
             <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none flex flex-col justify-between min-w-0">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   % Đích ngoài Huế
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className="text-3xl font-extrabold text-[#B3202A] tabular-nums">
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className="hue-num-lg text-[#B3202A]">
                     {formatPercent(ngoaiHueTyLe)}
                   </div>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+              <div className="mt-3 pt-3 border-t border-gray-100 text-[11px] text-gray-600">
                 Quảng Trị:{' '}
                 <strong className="text-gray-800 font-bold tabular-nums">
                   {formatInt(quangTriShbg)}

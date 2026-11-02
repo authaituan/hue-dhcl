@@ -371,21 +371,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 1: Liên tỉnh đến → BCVH */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Liên tỉnh đến → 6 BCVH Huế
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ltBcvh?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ltBcvh?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ltBcvh?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ltBcvh?.ty_le?.hom_sau)}</strong>
                 </div>
@@ -398,21 +398,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 2: Nội tỉnh → BCVH Huế */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Nội tỉnh → 6 BCVH Huế (k.hàng hoàn)
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ntBcvhKhongHoan?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ntBcvhKhongHoan?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ntBcvhKhongHoan?.ty_le?.hom_sau)}</strong>
                 </div>
@@ -425,21 +425,21 @@ export default function KttDiCungNgay({ authUser }) {
             {/* Thẻ 3: Nội tỉnh → Liên tỉnh */}
             <div className={`bg-white rounded-[14px] p-5 border shadow-none flex flex-col justify-between min-w-0 ${getTyLeBorderColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
                   Nội tỉnh → Liên tỉnh (xe Cấp 1)
                 </div>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <div className={`text-3xl font-extrabold tabular-nums ${getTyLeColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
+                <div className="flex items-baseline gap-2 my-1.5">
+                  <div className={`hue-num-lg ${getTyLeColorClass(ntDiLienTinh?.ty_le?.cung_ngay)}`}>
                     {formatPercent(ntDiLienTinh?.ty_le?.cung_ngay)}
                   </div>
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-[11px] text-gray-600 mt-1">
                   Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntDiLienTinh?.tong_shbg)}</strong> bưu gửi
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-600">
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
                 <div>
                   Hôm sau: <strong className="text-gray-800 font-bold tabular-nums">{formatPercent(ntDiLienTinh?.ty_le?.hom_sau)}</strong>
                 </div>
