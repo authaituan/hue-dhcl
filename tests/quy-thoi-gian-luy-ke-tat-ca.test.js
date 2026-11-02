@@ -138,7 +138,7 @@ test('một BCVH: số liệu y nguyên (cộng riêng từng BCVH, khớp cách
   CACHE.xoaCache();
   for (const c of [C0, C1, C2]) {
     const kh = QQ.khungLuyKe(d, QQ.docThamSoLuyKe({ receiver_code: c }));
-    const cu = QQ.ghepLuyKe(kh, QQ.thongTinFile(d, kh.codes, kh.tu, kh.den), QQ.tinhTheoBcvhNgay(d, kh.codes, kh.tu, kh.den)); // đúng đường tính trước 9a-2
+    const cu = QQ.ghepLuyKe(kh, QQ.thongTinFile(d, kh.codes, kh.tu, kh.den), QQ.tinhTheoBcvhNgay(d, kh.codes, kh.tu, kh.den), null, QQ.metaHoanCua(d)); // đúng đường tính trước 9a-2 (QUYTG-10: thêm cờ hàng hoàn vào meta)
     const lk = QQ.luyKeQuyThoiGian(d, { receiver_code: c });
     assert.deepEqual(json(lk), json(cu), c);
     assert.deepEqual(json(CACHE.luyKe(d, { receiver_code: c })), json(cu), `${c} qua cache`);

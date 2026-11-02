@@ -7,6 +7,7 @@
 // Dòng ĐO của mỗi lượt (MỘT truy vấn gộp, không truy vấn theo từng SHBG): trong các dòng CÙNG BCVH nhận với dòng đại diện của lượt, lấy dòng có XNĐ BD10 SỚM nhất
 // (bỏ dòng XNĐ trống; hòa -> id nhỏ nhất; KHÔNG giới hạn theo ngày — lượt đến lại dùng cùng dòng đo với lần đến đầu: còn nợ, xem docs/ai/35). Mốc KTT và bd10_no lấy từ CÙNG dòng đó. Không dòng nào có XNĐ -> dùng chính dòng đại diện (xnd = null).
 // Đánh giá từng lượt bằng danhGiaMotLuot (quyThoiGianNhom.js); tổng hợp luôn từ danh sách lượt (cùng một nguồn), không có SQL đếm thứ hai.
+// QUYTG-10 (PO chốt 02/11/2026): lượt có SHBG trong danh sách hàng hoàn (kttHangHoan.docDanhSachHangHoan) KHÔNG phải lượt chính: KHONG_DO_DUOC, lyDo HANG_HOAN, dai null — ra khỏi cả tử lẫn mẫu mọi tỷ lệ.
 // Chỉ tiêu "chinh" = đo được (DO_DUOC) và KHÔNG nghi ngờ; con_quy / het_quy và trung vị tính trên lượt chinh.
 // QUYTG-7: mỗi lượt thêm duong_thu, ngay_den, nguon_moc_bat_dau, dai (QUA_HAN | SAP_HET | CON_2_6 | CON_TREN_6 theo quyConLaiGiay.F1_3; null nếu không phải lượt chinh);
 // tổng hợp thêm dải / đường thư / BCVH / khung giờ và theoNgayQuyThoiGian — vẫn từ CÙNG danh sách lượt, không SQL đếm thứ hai.
@@ -16,6 +17,7 @@ const aq = require('./arrivalsQuery');
 const Q = require('./quyThoiGian');
 const N = require('./quyThoiGianNhom');
 const CT = require('./quyThoiGianChiTieu');
+const HH = require('./kttHangHoan'); // QUYTG-10: ĐÚNG nguồn danh sách hàng hoàn của trang «Hàng tại Khai thác tỉnh» (ktt_hang_hoan)
 const { VALID_BCVH_CODES } = require('./userBcvh');
 
 const { QueryParamError } = aq;
@@ -23,7 +25,7 @@ const CHI_TIEU = Object.keys(Q.CHI_TIEU_GIO); // F1_3, F4_1, F4_2
 const TRANG_THAI = Object.freeze(['DO_DUOC', 'AM', 'KHONG_DO_DUOC']);
 const LY_DO_KHONG_DO = Object.freeze([
   N.LY_DO.LAP_DI_TAI_BCVH, N.LY_DO.KHONG_CO_BD10, N.LY_DO.BD10_KHONG_HOP_LE, N.LY_DO.NHAN_TRUC_TIEP_KHONG_QUA_KTT,
-  N.LY_DO.KHONG_QUA_KTT, N.LY_DO.THIEU_XAC_NHAN_KTT, N.LY_DO.THIEU_XND_BCVH
+  N.LY_DO.KHONG_QUA_KTT, N.LY_DO.THIEU_XAC_NHAN_KTT, N.LY_DO.THIEU_XND_BCVH, N.LY_DO.HANG_HOAN
 ]);
 const KHOA_LOC_RIENG = ['nhom', 'trang_thai', 'ly_do', 'nghi_ngo', 'duong_thu', 'dai'];
 const KHOA_LOC_CHUNG = ['from', 'to', 'receiver_code', 'ward_key'];
@@ -146,10 +148,10 @@ function layDongDo(db, f, opts) {
   return db.prepare(sql).all(params);
 }
 
-/** Đánh giá MỘT dòng đo thành lượt. `tenPhuong`: bảng dùng chung chuỗi tên phường/xã (xem tatCaLuot). */
-function danhGiaDong(d, tenPhuong) {
+/** Đánh giá MỘT dòng đo thành lượt. `tenPhuong`: bảng dùng chung chuỗi tên phường/xã (xem tatCaLuot). `hoan`: Set SHBG hàng hoàn (null = không xét). */
+function danhGiaDong(d, tenPhuong, hoan = null) {
   const gio = CT.chiTieuGio(d.receiver_code, d.ward_name); // phường/xã của CHÍNH dòng đo (chữ gốc, không phải ward_key đã bỏ dấu)
-  const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio });
+  const r = N.danhGiaMotLuot({ bd10No: d.bd10_no, maBcvhNhan: d.receiver_code, ktt: d.ktt, xnd: d.xnd, chiTieuF13Gio: gio, hangHoan: hoan !== null && hoan.has(d.shbg) });
   const chinh = r.trangThai === 'DO_DUOC' && !r.nghiNgo;
   return {
     receiver_code: d.receiver_code, shbg: d.shbg, bd10_no: d.bd10_no, nhom: r.nhom, ktt: d.ktt || null, xnd: d.xnd || null,
@@ -164,8 +166,12 @@ function danhGiaDong(d, tenPhuong) {
 /** Toàn bộ lượt đã đánh giá của bộ lọc đã chuẩn hoá `f` (không phân trang). */
 function tatCaLuot(db, f) {
   const tenPhuong = new Map(); // ~40 tên phường/xã khác nhau trên ~10^5 lượt: dùng chung một chuỗi cho mỗi tên để danh sách trong cache không giữ mỗi lượt một bản sao
-  return layDongDo(db, f).map((d) => danhGiaDong(d, tenPhuong));
+  const hoan = HH.docDanhSachHangHoan(db).set;
+  return layDongDo(db, f).map((d) => danhGiaDong(d, tenPhuong, hoan));
 }
+
+/** QUYTG-10: cờ độ mới / thiếu của danh sách hàng hoàn cho `meta` (cùng metaHangHoan của trang Hàng tại KTT tỉnh): { hang_hoan_chua_nap, hang_hoan_nguon_xuat_luc }. */
+const metaHoanCua = (db) => HH.metaHangHoan(HH.docDanhSachHangHoan(db, { chiThongTin: true }));
 
 /** meta.chi_tieu_f13 cho giao diện ghi chú: chỉ tiêu mặc định + các ngoại lệ theo BCVH / phường-xã (bản sao, không trỏ vào hằng số). */
 function metaChiTieuF13() {
@@ -198,7 +204,7 @@ function luotDaSapXep(db, f) {
 }
 
 /** Lọc (nhom / trang_thai / ly_do / nghi_ngo) và cắt trang từ danh sách đầy đủ đã sắp; không sửa `luotDay`. */
-function trangTuLuot(luotDay, f, rieng) {
+function trangTuLuot(luotDay, f, rieng, metaHoan = {}) {
   let luot = luotDay;
   if (rieng.nhom) luot = luot.filter((l) => l.nhom === rieng.nhom);
   if (rieng.trang_thai) luot = luot.filter((l) => l.trangThai === rieng.trang_thai);
@@ -212,7 +218,7 @@ function trangTuLuot(luotDay, f, rieng) {
   return {
     items,
     pagination: { total, page: f.page, page_size: f.pageSize, total_pages: Math.ceil(total / f.pageSize) },
-    meta: { from: f.from, to: f.to, date_basis: 'arrival', nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
+    meta: { from: f.from, to: f.to, date_basis: 'arrival', nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13(), ...metaHoan }
   };
 }
 
@@ -222,7 +228,7 @@ function trangTuLuot(luotDay, f, rieng) {
  */
 function layLuotQuyThoiGian(db, query) {
   const { f, rieng } = docThamSo(query, { coPhanTrang: true });
-  return trangTuLuot(luotDaSapXep(db, f), f, rieng);
+  return trangTuLuot(luotDaSapXep(db, f), f, rieng, metaHoanCua(db));
 }
 
 // ------------------------------------------
@@ -292,11 +298,11 @@ function dongXepHang(khoaTen, ten, g) {
 /** query như layLuotQuyThoiGian nhưng không có phân trang / lọc nhom, trang_thai, ly_do. Trả { tong, theo_nhom, theo_bcvh, chi_tieu, meta }. */
 function tongHopQuyThoiGian(db, query) {
   const { f } = docThamSo(query, { coPhanTrang: false });
-  return tongHopTuLuot(tatCaLuot(db, f), f);
+  return tongHopTuLuot(tatCaLuot(db, f), f, metaHoanCua(db));
 }
 
 /** Tổng hợp từ danh sách lượt đầy đủ (thứ tự bất kỳ) của khung `f`. */
-function tongHopTuLuot(luot, f) {
+function tongHopTuLuot(luot, f, metaHoan = {}) {
   const tong = demRong();
   const theoNhom = {};
   for (const k of Object.keys(N.NHOM_BD10)) theoNhom[k] = { nhom: k, nhan: N.NHAN_NHOM[k], ...demRong() };
@@ -343,7 +349,7 @@ function tongHopTuLuot(luot, f) {
     theo_bcvh: [...bcvh.values()].sort((a, b) => soSanhChuoi(a.receiver_code, b.receiver_code)),
     theo_gio: theoGio,
     chi_tieu: { tong: chiTieuCua(chinhTong), theo_nhom: chiTieuNhom, chi_tieu_gio: { ...Q.CHI_TIEU_GIO } },
-    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
+    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13(), ...metaHoan }
   };
 }
 
@@ -363,7 +369,7 @@ function cacNgayGiam(tu, den) {
 }
 
 /** Tổng hợp theo ngày đến từ danh sách lượt đầy đủ của khung `f`; đủ mọi ngày trong khoảng (kể cả ngày 0 lượt), ngày giảm dần. */
-function theoNgayTuLuot(luot, f) {
+function theoNgayTuLuot(luot, f, metaHoan = {}) {
   const gom = new Map(cacNgayGiam(f.fromDate, f.toDate).map((n) => [n, gomRong()]));
   for (const l of luot) congGom(gom.get(l.ngay_den), l);
   return {
@@ -371,14 +377,14 @@ function theoNgayTuLuot(luot, f) {
       ngay_den: ngay, den: g.den, chinh: g.chinh, truc_tiep: g.truc_tiep, lech_moc: g.lech_moc, nghi_ngo: g.nghi_ngo, khong_do_duoc: g.khong_do_duoc, dai: g.dai,
       qua_han: g.dai.QUA_HAN, ty_le_qua_han: tyLeQuaHan(g), sap_het: g.dai.SAP_HET, da_qua_trung_binh_giay: trungBinhDaQua(g)
     })),
-    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13() }
+    meta: { from: f.from, to: f.to, date_basis: 'arrival', chi_tieu: 'F1_3', nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, chi_tieu_f13: metaChiTieuF13(), ...metaHoan }
   };
 }
 
 /** query: from, to (bắt buộc, tối đa 31 ngày), receiver_code, ward_key. Trả { ngay: [...], meta }. */
 function theoNgayQuyThoiGian(db, query) {
   const { f } = docThamSoTheoNgay(query);
-  return theoNgayTuLuot(tatCaLuot(db, f), f);
+  return theoNgayTuLuot(tatCaLuot(db, f), f, metaHoanCua(db));
 }
 
 // ------------------------------------------
@@ -458,13 +464,13 @@ const CHU_KY_TRONG = '0';
  * Số đếm theo (BCVH, ngày đến) trong [tu, den] của các BCVH `codes`: Map `mã|ngày` -> demRong(). MỘT truy vấn gộp đọc theo luồng (không giữ danh sách lượt).
  * Cặp không có lượt không có trong Map. Mỗi (SHBG, BCVH, ngày) một lượt.
  */
-function tinhTheoBcvhNgay(db, codes, tu, den) {
+function tinhTheoBcvhNgay(db, codes, tu, den, hoan = HH.docDanhSachHangHoan(db).set) {
   const f = { from: `${tu} 00:00:00`, to: `${den} 23:59:59`, fromDate: tu, toDate: den, receiverCodes: codes, wardKey: null };
   const { sql, params } = sqlDongDo(f, { theoBcvh: true });
   const tenPhuong = new Map();
   const out = new Map();
   for (const d of db.prepare(sql).iterate(params)) {
-    const l = danhGiaDong(d, tenPhuong);
+    const l = danhGiaDong(d, tenPhuong, hoan);
     const k = `${l.receiver_code}|${l.ngay_den}`;
     let g = out.get(k);
     if (!g) { g = demRong(); out.set(k, g); }
@@ -490,12 +496,12 @@ function demLuotTheoBcvhNgay(db, codes, tu, den) {
  * Số đếm của MỘT ngày cho các BCVH `codes` theo đúng cách /tong-hop tính (cùng sqlDongDo / danhGiaDong / congLuot, khung ngày đó, không lọc phường/xã): SHBG đi qua nhiều BCVH
  * trong ngày là MỘT lượt. Trả demRong() hoặc null nếu ngày không có lượt. `codes` phải là các BCVH «có dữ liệu» của ngày.
  */
-function tinhNgayGop(db, codes, ngay) {
+function tinhNgayGop(db, codes, ngay, hoan = HH.docDanhSachHangHoan(db).set) {
   const f = { from: `${ngay} 00:00:00`, to: `${ngay} 23:59:59`, fromDate: ngay, toDate: ngay, receiverCodes: [...codes].sort(), wardKey: null };
   const { sql, params } = sqlDongDo(f);
   const tenPhuong = new Map();
   const g = demRong();
-  for (const d of db.prepare(sql).iterate(params)) congLuot(g, danhGiaDong(d, tenPhuong));
+  for (const d of db.prepare(sql).iterate(params)) congLuot(g, danhGiaDong(d, tenPhuong, hoan));
   return g.tong_shbg ? g : null;
 }
 
@@ -521,7 +527,7 @@ function congVaoLuyKe(tong, n, a) {
  *  - Một BCVH: agg = Map `mã|ngày` -> demRong() (thiếu = 0 lượt); số của ngày = số của cặp.
  *  - Nhiều BCVH: agg = Map `mã|ngày` -> { tong_shbg } (chỉ để xét sàn); gopNgay(ngày, các BCVH có dữ liệu) -> demRong() | null cho số của ngày.
  */
-function ghepLuyKe(kh, files, agg, gopNgay = null) {
+function ghepLuyKe(kh, files, agg, gopNgay = null, metaHoan = {}) {
   const tong = { tong_shbg: 0, do_duoc: 0, chinh: 0, truc_tiep: 0, dai: demDai(), ty_le_qua_han: null };
   const theoNgay = [];
   const dangCapNhat = new Set();
@@ -565,7 +571,7 @@ function ghepLuyKe(kh, files, agg, gopNgay = null) {
     so_ngay_co_du_lieu: soNgayCo, bcvh: kh.codes, tong, theo_ngay: theoNgay,
     meta: {
       cach_tinh: 'CONG_TUNG_NGAY', loai_trung_xuyen_bcvh_trong_ngay: gopNgay !== null, chi_tieu: 'F1_3', dang_cap_nhat: cap, bcvh_dang_cap_nhat: [...dangCapNhat].sort(), san_ngay_co_du_lieu: SAN_NGAY_CO_DU_LIEU,
-      nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY
+      nguong_sap_het_giay: NGUONG_SAP_HET_GIAY, nguong_nghi_ngo_giay: N.NGUONG_NGHI_NGO_GIAY, ...metaHoan
     }
   };
 }
@@ -575,12 +581,13 @@ function luyKeQuyThoiGian(db, query) {
   const kh = khungLuyKe(db, docThamSoLuyKe(query));
   if (!kh.den) return ghepLuyKe(kh, new Map(), new Map());
   const files = thongTinFile(db, kh.codes, kh.tu, kh.den);
-  if (!luyKeGop(kh)) return ghepLuyKe(kh, files, tinhTheoBcvhNgay(db, kh.codes, kh.tu, kh.den));
-  return ghepLuyKe(kh, files, demLuotTheoBcvhNgay(db, kh.codes, kh.tu, kh.den), (ngay, codes) => tinhNgayGop(db, codes, ngay));
+  const hoan = HH.docDanhSachHangHoan(db).set;
+  if (!luyKeGop(kh)) return ghepLuyKe(kh, files, tinhTheoBcvhNgay(db, kh.codes, kh.tu, kh.den, hoan), null, metaHoanCua(db));
+  return ghepLuyKe(kh, files, demLuotTheoBcvhNgay(db, kh.codes, kh.tu, kh.den), (ngay, codes) => tinhNgayGop(db, codes, ngay, hoan), metaHoanCua(db));
 }
 
 module.exports = {
   QueryParamError, TRANG_THAI, DAI, DAI_LOC, KHUNG_GIO, DUONG_THU_TRONG, NGUONG_SAP_HET_GIAY, NGUONG_CON_2_6_GIAY, MAX_NGAY_KHOANG, SAN_NGAY_CO_DU_LIEU, LY_DO_NGAY, daiCua,
   layLuotQuyThoiGian, tongHopQuyThoiGian, theoNgayQuyThoiGian, docThamSo, docThamSoTheoNgay, luotDaSapXep, trangTuLuot, tongHopTuLuot, theoNgayTuLuot,
-  sqlDongDo, danhGiaDong, luyKeQuyThoiGian, docThamSoLuyKe, khungLuyKe, thongTinFile, chuKyDuLieu, CHU_KY_TRONG, tinhTheoBcvhNgay, demLuotTheoBcvhNgay, tinhNgayGop, luyKeGop, ghepLuyKe
+  sqlDongDo, danhGiaDong, metaHoanCua, luyKeQuyThoiGian, docThamSoLuyKe, khungLuyKe, thongTinFile, chuKyDuLieu, CHU_KY_TRONG, tinhTheoBcvhNgay, demLuotTheoBcvhNgay, tinhNgayGop, luyKeGop, ghepLuyKe
 };
