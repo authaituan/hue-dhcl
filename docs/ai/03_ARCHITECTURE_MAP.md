@@ -203,7 +203,7 @@ Chuyển đổi vai trò cũ trên DB thật: `scripts/migrate-roles.js` (`06_DE
 |---|---|---|
 | Dashboard | `DashboardView.jsx` (chế độ chỉnh sửa chỉ ADMIN) | mọi người |
 | Quản lý mạng lưới | `NetworkListView.jsx` (danh sách + Thêm/Sửa/Xoá + Import/Export Excel) | chỉ ADMIN (#95, THEME-1; menu trong khối ADMIN) |
-| Quản lý người dùng | `UserAdminView.jsx` | menu hiện cho ADMIN/TTVH/GDVH, nhưng API chỉ ADMIN (TTVH/GDVH nhận 403 — dọn menu ở ticket giao diện) ; menu chọn vai trò chưa có TTKT (ROLE-2) |
+| Quản lý người dùng | `UserAdminView.jsx` | menu hiện cho ADMIN/TTVH/GDVH, nhưng API chỉ ADMIN (TTVH/GDVH nhận 403 — dọn menu ở ticket giao diện) ; menu chọn vai trò có đủ 5 vai trò (`ROLE_OPTIONS` ở `UserAdminView.jsx` và `AddUserModal.jsx`, TTKT hiện «TTKT (Trung tâm Khai thác)»); TTKT không cần gán BCVH, cột «BCVH được giao» hiện «Tất cả (theo vai trò)» (ROLE-2). Danh sách các điểm phải đổi khi thêm vai trò mới: `04_DECISIONS.md` #123 |
 
 ## 5. Dashboard động
 - Nguồn duy nhất: `POST_OFFICE` — nhóm theo `type`, `operational_status`, `commune`, `new_ward`, `has_computer`,
