@@ -904,5 +904,9 @@ Thêm vai trò `TTKT` (`server/roles.js`, KHÔNG thuộc `VIEWER_ROLES`). TTKT c
 
 **Nợ đã biết (chưa sửa):** (a) `ROLE_LABELS` ở `src/components/TopNav.jsx` thiếu nhãn vai trò TIVI; (b) dòng chú thích «Chỉ ADMIN và TTVH» ở `src/components/ktt/KttLuuThoat.jsx` (gần phần xuất lưu thoát) ghi sai so với quyền thực tế (TTKT cũng xuất được).
 
+### 124. Số lồng nhau «rớt lại N, trong đó trượt chuyến M» (KTT-RL-1, PO 02/11/2026, phương án B)
+
+Bảng «Rớt lại nằm ở đâu» hiện `ro_lai` (t3+t4+t5) và `truot_chuyen` (đi trượt + lỡ chuyến, gồm cả t2) tính riêng nên nhiều ô trượt > rớt lại, dễ nhầm. Thêm `ro_lai_truot_chuyen` = `truot_chuyen` − t2 (SHBG vừa rớt lại vừa trượt/lỡ chuyến), luôn M ≤ N, ở nhóm và `theo_bcvh` của `theo_nguon` (ngày và `tong_cong`). Chỉ thêm trường; không đổi `ro_lai`, `truot_chuyen`, nhóm lưu thoát. **Lưu ý:** KHÔNG phải số của thẻ «Trượt chuyến (cần xử lý)» đầu tab «Lưu thoát trong ngày» (thẻ đó dùng định nghĩa rộng, gồm t2). Giao diện sẽ đổi tên cột để khỏi trùng tên (ticket sau, `src/`). Code: `server/lib/kttNguon.js`; test: `tests/ktt-ro-lai-truot-chuyen.test.js`.
+
 ## Drift phát hiện
 _(chưa có)_

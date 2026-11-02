@@ -172,9 +172,9 @@ test('theo_nguon: nhóm đúng (NOI_TINH, đường thư, KHONG_RO_NGUON), hàng
     for (let i = 1; i < lst.length; i++) assert.ok(lst[i - 1].shbg >= lst[i].shbg);
   }
   // mẫu rút gọn của một nhóm
-  assert.deepEqual(Object.keys(a).sort(), ['dat_khong_dat', 'kg', 'ma', 'ro_lai', 'shbg', 'ten', 'theo_bcvh', 'trang_thai', 'truot_chuyen']);
+  assert.deepEqual(Object.keys(a).sort(), ['dat_khong_dat', 'kg', 'ma', 'ro_lai', 'ro_lai_truot_chuyen', 'shbg', 'ten', 'theo_bcvh', 'trang_thai', 'truot_chuyen']);
   assert.deepEqual(Object.keys(a.dat_khong_dat).sort(), ['dat', 'khong_dat', 'ty_le_dat']);
-  assert.deepEqual(Object.keys(a.theo_bcvh[TH]).sort(), ['kg', 'khong_dat', 'ro_lai', 'shbg', 'truot_chuyen']);
+  assert.deepEqual(Object.keys(a.theo_bcvh[TH]).sort(), ['kg', 'khong_dat', 'ro_lai', 'ro_lai_truot_chuyen', 'shbg', 'truot_chuyen']);
 });
 
 test('cộng khớp ở mọi cấp: Σ nhóm = khối tổng ngày (t1…t5, đang chờ chuyến, kg); Σ theo_bcvh trong nhóm = nhóm; Σ nhóm theo từng BCVH = khối BCVH; ro_lai = t3+t4+t5; truot_chuyen = trượt + lỡ; tong_cong cộng các ngày', async () => {

@@ -74,9 +74,9 @@ function ganKg(khoi, kgKq) {
 // Bộ cộng theo nguồn (một ngày)
 // ------------------------------------------
 const nhomTrong = (ma, ten) => ({
-  ma, ten, _tt: Object.fromEntries(KHOA_TT.map((t) => [t, { shbg: 0, kg: 0 }])), _truot: 0, _lo: 0, _dat: 0, _khongDat: 0, _bcvh: new Map()
+  ma, ten, _tt: Object.fromEntries(KHOA_TT.map((t) => [t, { shbg: 0, kg: 0 }])), _truot: 0, _lo: 0, _roTruot: 0, _dat: 0, _khongDat: 0, _bcvh: new Map()
 });
-const bcvhTrong = () => ({ shbg: 0, kg: 0, ro_lai: 0, truot_chuyen: 0, khong_dat: 0 });
+const bcvhTrong = () => ({ shbg: 0, kg: 0, ro_lai: 0, truot_chuyen: 0, ro_lai_truot_chuyen: 0, khong_dat: 0 });
 
 function taoNguon() {
   const m = new Map();
@@ -98,12 +98,14 @@ function taoNguon() {
       const lo = !dangCho && kq.chuyenKq === 'LO' ? 1 : 0;
       g._truot += truot; g._lo += lo;
       const roLai = t === 't3' || t === 't4' || t === 't5' ? 1 : 0;
+      const roTruot = roLai && (truot || lo) ? 1 : 0; // KTT-RL-1: vừa rớt lại vừa trượt chuyến = truot_chuyen trừ t2 (t2 đi trong ngày D nên không rớt lại)
+      g._roTruot += roTruot;
       let b = null;
       if (u.maBcvh) {
         b = g._bcvh.get(u.maBcvh);
         if (!b) { b = bcvhTrong(); g._bcvh.set(u.maBcvh, b); }
         b.khong_dat += d === S.DAT.KHONG_DAT ? 1 : 0;
-        if (!dangCho) { b.shbg++; b.kg += kg; b.ro_lai += roLai; b.truot_chuyen += truot + lo; }
+        if (!dangCho) { b.shbg++; b.kg += kg; b.ro_lai += roLai; b.truot_chuyen += truot + lo; b.ro_lai_truot_chuyen += roTruot; }
       }
     },
     ketQua() { return xuatNhom([...m.values()]); }
@@ -121,9 +123,9 @@ function xuatNhom(ds) {
     // theo_bcvh: chỉ liệt kê BCVH có SHBG; shbg / kg / ro_lai / truot_chuyen / khong_dat của BCVH cùng phạm vi với shbg của nhóm (t1…t5, không có đang chờ chuyến)
     return {
       ma: g.ma, ten: g.ten, shbg, kg, trang_thai: tt,
-      ro_lai: g._tt.t3.shbg + g._tt.t4.shbg + g._tt.t5.shbg, truot_chuyen: g._truot + g._lo,
+      ro_lai: g._tt.t3.shbg + g._tt.t4.shbg + g._tt.t5.shbg, truot_chuyen: g._truot + g._lo, ro_lai_truot_chuyen: g._roTruot,
       dat_khong_dat: { dat, khong_dat: khongDat, ty_le_dat: dat + khongDat > 0 ? dat / (dat + khongDat) : null },
-      theo_bcvh: Object.fromEntries([...g._bcvh.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([ma, b]) => [ma, { shbg: b.shbg, kg: r3(b.kg), ro_lai: b.ro_lai, truot_chuyen: b.truot_chuyen, khong_dat: b.khong_dat }]))
+      theo_bcvh: Object.fromEntries([...g._bcvh.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([ma, b]) => [ma, { shbg: b.shbg, kg: r3(b.kg), ro_lai: b.ro_lai, truot_chuyen: b.truot_chuyen, ro_lai_truot_chuyen: b.ro_lai_truot_chuyen, khong_dat: b.khong_dat }]))
     };
   }).sort(soSanhNhom);
 }
@@ -138,11 +140,11 @@ function congNguon(dsNgay) {
   for (const ds of dsNgay) for (const g of ds || []) {
     const c = m.get(g.ma);
     if (!c) { m.set(g.ma, JSON.parse(JSON.stringify(g))); continue; }
-    c.shbg += g.shbg; c.kg = r3(c.kg + g.kg); c.ro_lai += g.ro_lai; c.truot_chuyen += g.truot_chuyen;
+    c.shbg += g.shbg; c.kg = r3(c.kg + g.kg); c.ro_lai += g.ro_lai; c.truot_chuyen += g.truot_chuyen; c.ro_lai_truot_chuyen += g.ro_lai_truot_chuyen;
     for (const t of KHOA_TT) { c.trang_thai[t].shbg += g.trang_thai[t].shbg; c.trang_thai[t].kg = r3(c.trang_thai[t].kg + g.trang_thai[t].kg); }
     c.dat_khong_dat.dat += g.dat_khong_dat.dat; c.dat_khong_dat.khong_dat += g.dat_khong_dat.khong_dat;
     c.theo_bcvh = congMap(c.theo_bcvh, g.theo_bcvh, (x, y) => ({
-      shbg: x.shbg + y.shbg, kg: r3(x.kg + y.kg), ro_lai: x.ro_lai + y.ro_lai, truot_chuyen: x.truot_chuyen + y.truot_chuyen, khong_dat: x.khong_dat + y.khong_dat
+      shbg: x.shbg + y.shbg, kg: r3(x.kg + y.kg), ro_lai: x.ro_lai + y.ro_lai, truot_chuyen: x.truot_chuyen + y.truot_chuyen, ro_lai_truot_chuyen: x.ro_lai_truot_chuyen + y.ro_lai_truot_chuyen, khong_dat: x.khong_dat + y.khong_dat
     }));
   }
   const kq = [...m.values()];

@@ -2,6 +2,12 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-03] - KTT-RL-1: số lồng nhau «rớt lại, trong đó trượt chuyến» ở máy chủ (server, test, docs; KHÔNG đổi `src/`)
+
+- `server/lib/kttNguon.js`: thêm `ro_lai_truot_chuyen` ở nhóm nguồn, `theo_bcvh` trong nhóm và `congNguon` (tính trong `taoNguon().them`, cùng lượt duyệt, không truy vấn mới). = `truot_chuyen` − t2; ≤ `ro_lai`, ≤ `truot_chuyen`. Không đổi số liệu cũ; bộ nhớ đệm chỉ trong tiến trình nên không đổi phiên bản.
+- Test: `tests/ktt-ro-lai-truot-chuyen.test.js` MỚI (3 ca, đếm độc lập bằng `duyetLuuThoat`); `tests/ktt-nguon.test.js` chỉ cập nhật hai danh sách khóa. Script `test` thêm file mới. `npm test`: 1320 ca (1310 pass, 0 fail, 10 skip) ở UTC, Asia/Ho_Chi_Minh, America/Los_Angeles. Đột biến: bỏ phép trừ t2 → 2 ca đỏ; bỏ trường ở nhóm / `congNguon` → ca đỏ.
+- Docs: `41`, `42`, `04_DECISIONS.md` #124, `00_SNAPSHOT.md`. Giao diện sẽ đổi tên cột để khỏi trùng tên (ticket sau). Sau merge phải khởi động lại máy chủ.
+
 ## [2026-11-02] - KTT-ROLE-3: cập nhật tài liệu sau khi TTKT có đủ máy chủ và giao diện (chỉ `docs/ai/`)
 
 - Bỏ câu cảnh báo lỗi thời về việc tạo TTKT qua màn Quản trị (nay đã tạo được) (`00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `06_DEPLOYMENT.md`, `04_DECISIONS.md` #123): ADMIN tạo / sửa TTKT ở màn «Quản trị», không cần gán BCVH, mật khẩu do ADMIN đặt. `#123` thêm phần giao diện ROLE-2, ghi chú ROLE-1b, mục «Thêm một vai trò mới: các điểm phải đổi» và hai điểm nợ (`ROLE_LABELS` thiếu TIVI ở `TopNav.jsx`; chú thích «Chỉ ADMIN và TTVH» ở `KttLuuThoat.jsx`). `npm test`: 1317 ca (1307 đạt, 10 bỏ qua).
