@@ -197,3 +197,4 @@ Giao diện (KTT-13d) phải gửi đúng quy ước dưới đây để số d�
 - Khớp tiền tố theo ĐOẠN đường dẫn (`/api/ktt/` khớp, `/api/kttx` không); đường dẫn được chuẩn hoá trước khi so (bỏ query, giải mã một lần — còn `%` hoặc dấu gạch chéo ngược thì từ chối, chữ thường, gộp `//`, xử lý `..`, bỏ `/` cuối).
 - Token TTKT hạn 8 giờ (`JWT_EXPIRY`, như ADMIN / TTVH / GDVH), KHÔNG dùng hạn 90 ngày của TIVI. Quyền theo vai trò trong DB, đổi vai trò có hiệu lực ngay.
 - Test: `tests/ktt-vai-tro-ttkt.test.js` (+ ca TTKT trong `roles.test.js` và các `ktt-*.test.js`).
+- `/luu-thoat` (KTT-RL-1): thêm `ro_lai_truot_chuyen` vào mỗi nhóm của `theo_nguon` và mỗi `theo_bcvh[mã]` trong nhóm (ở mỗi ngày và `tong_cong`). Chỉ thêm trường, không đổi trường cũ; định nghĩa ở `41_KTT_LUU_THOAT.md`. Cần khởi động lại máy chủ sau khi triển khai (bộ nhớ đệm theo ngày nằm trong tiến trình).
