@@ -966,7 +966,7 @@ export default function KttLuuThoat({ authUser }) {
                       </div>
                     </div>
                     <div className="text-[11px] font-semibold text-[#B3202A] tabular-nums">
-                      {hasNoData ? '—' : `${formatPercent(tyLeTruotChuyen)} hàng đến`}
+                      {hasNoData ? '—' : `${formatPercent(tyLeTruotChuyen)} hàng đến · gồm cả hàng đi trong ngày`}
                     </div>
                   </div>
 

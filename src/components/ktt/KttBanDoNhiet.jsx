@@ -143,6 +143,9 @@ export default function KttBanDoNhiet({
           <p className="text-xs text-gray-600 mt-1">
             Mỗi ô: số bưu gửi rớt lại, tỷ lệ so với hàng đến của ô, và trong đó số trượt chuyến. Ô càng đỏ càng rớt nhiều. Bấm một ô để mở danh sách của ô đó.
           </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Chú giải: Rớt lại = hàng không đi trong ngày đến. Trượt chuyến = hàng đi sau giờ xuất phát của chuyến theo lịch (kể cả hàng đi trong ngày), hoặc đã quá giờ chuyến mà chưa đi. «Cũng trượt chuyến» = hàng vừa rớt lại vừa trượt chuyến.
+          </p>
         </div>
 
         {/* 3 nút công tắc tô màu */}
@@ -168,7 +171,7 @@ export default function KttBanDoNhiet({
                 : 'text-gray-700 hover:text-gray-900 hover:bg-white/60'
             }`}
           >
-            Rớt lại do trượt chuyến
+            Vừa rớt lại vừa trượt chuyến
           </button>
           <button
             type="button"
@@ -238,10 +241,10 @@ export default function KttBanDoNhiet({
                       selectedCell?.ma_bcvh === b.ma &&
                       selectedCell?.loai === colorBy;
 
-                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Rớt lại do trượt chuyến' : 'Không đạt 14 giờ';
+                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
                     const cellTip = hasNoData || shbg === 0
                       ? `${g.ten} × ${b.ten}: không có dữ liệu`
-                      : `${g.ten} × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Rớt lại do trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
+                      : `${g.ten} × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
 
                     const cellTooltipContent = !hasNoData && shbg > 0 ? (
                       <div className="space-y-1.5 min-w-[210px]">
@@ -263,7 +266,7 @@ export default function KttBanDoNhiet({
                             <span className="tabular-nums">{formatInt(roLai)} bưu gửi ({formatPercent(shbg > 0 ? roLai / shbg : 0)})</span>
                           </div>
                           <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Rớt lại do trượt chuyến:</span>
+                            <span>Vừa rớt lại vừa trượt chuyến:</span>
                             <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(shbg > 0 ? roLaiTruot / shbg : 0)})</span>
                           </div>
                           <div className="flex items-center justify-between gap-3 text-gray-300">
@@ -319,7 +322,9 @@ export default function KttBanDoNhiet({
                                 <div
                                   className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
-                                  trong đó trượt chuyến {formatInt(roLaiTruot)}
+                                  {colorBy === 'khong_dat'
+                                    ? `rớt lại ${formatInt(roLai)}`
+                                    : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
                                 </div>
                               </>
                             )}
@@ -350,10 +355,10 @@ export default function KttBanDoNhiet({
                       !selectedCell?.ma_bcvh &&
                       selectedCell?.loai === colorBy;
 
-                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Rớt lại do trượt chuyến' : 'Không đạt 14 giờ';
+                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
                     const rowTip = hasNoData || shbg === 0
                       ? `${g.ten} · Tất cả BCVH: không có dữ liệu`
-                      : `${g.ten} · Tất cả BCVH · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Rớt lại do trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
+                      : `${g.ten} · Tất cả BCVH · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
 
                     const rowTooltipContent = !hasNoData && shbg > 0 ? (
                       <div className="space-y-1.5 min-w-[210px]">
@@ -375,7 +380,7 @@ export default function KttBanDoNhiet({
                             <span className="tabular-nums">{formatInt(roLai)} bưu gửi ({formatPercent(shbg > 0 ? roLai / shbg : 0)})</span>
                           </div>
                           <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Rớt lại do trượt chuyến:</span>
+                            <span>Vừa rớt lại vừa trượt chuyến:</span>
                             <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(shbg > 0 ? roLaiTruot / shbg : 0)})</span>
                           </div>
                         </div>
@@ -424,7 +429,9 @@ export default function KttBanDoNhiet({
                                 <div
                                   className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                                 >
-                                  trong đó trượt chuyến {formatInt(roLaiTruot)}
+                                  {colorBy === 'khong_dat'
+                                    ? `rớt lại ${formatInt(roLai)}`
+                                    : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
                                 </div>
                               </>
                             )}
@@ -457,10 +464,10 @@ export default function KttBanDoNhiet({
                   selectedCell?.ma_bcvh === b.ma &&
                   selectedCell?.loai === colorBy;
 
-                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Rớt lại do trượt chuyến' : 'Không đạt 14 giờ';
+                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
                 const colTip = hasNoData || total.shbg === 0
                   ? `Tất cả nguồn × ${b.ten}: không có dữ liệu`
-                  : `Tất cả nguồn × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Rớt lại do trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
+                  : `Tất cả nguồn × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
 
                 const colTooltipContent = !hasNoData && total.shbg > 0 ? (
                   <div className="space-y-1.5 min-w-[210px]">
@@ -482,7 +489,7 @@ export default function KttBanDoNhiet({
                         <span className="tabular-nums">{formatInt(total.roLai)} bưu gửi ({formatPercent(total.shbg > 0 ? total.roLai / total.shbg : 0)})</span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Rớt lại do trượt chuyến:</span>
+                        <span>Vừa rớt lại vừa trượt chuyến:</span>
                         <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(total.shbg > 0 ? roLaiTruot / total.shbg : 0)})</span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-gray-300">
@@ -535,7 +542,9 @@ export default function KttBanDoNhiet({
                             <div
                               className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
-                              trong đó trượt chuyến {formatInt(roLaiTruot)}
+                              {colorBy === 'khong_dat'
+                                ? `rớt lại ${formatInt(total.roLai)}`
+                                : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
                             </div>
                           </>
                         )}
@@ -555,7 +564,7 @@ export default function KttBanDoNhiet({
                 } else if (colorBy === 'khong_dat') {
                   metricVal = total.khongDat;
                 }
-                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Rớt lại do trượt chuyến' : 'Không đạt 14 giờ';
+                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
 
                 const ratio = total.shbg > 0 ? metricVal / total.shbg : 0;
                 const style = getHeatmapStyle(hasNoData || total.shbg === 0 ? 0 : ratio);
@@ -564,7 +573,7 @@ export default function KttBanDoNhiet({
 
                 const grandTip = hasNoData || total.shbg === 0
                   ? 'Toàn bộ KTT: không có dữ liệu'
-                  : `Toàn bộ KTT · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Rớt lại do trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
+                  : `Toàn bộ KTT · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
 
                 const grandTooltipContent = !hasNoData && total.shbg > 0 ? (
                   <div className="space-y-1.5 min-w-[220px]">
@@ -586,7 +595,7 @@ export default function KttBanDoNhiet({
                         <span className="tabular-nums">{formatInt(total.roLai)} bưu gửi ({formatPercent(total.shbg > 0 ? total.roLai / total.shbg : 0)})</span>
                       </div>
                       <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Rớt lại do trượt chuyến:</span>
+                        <span>Vừa rớt lại vừa trượt chuyến:</span>
                         <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(total.shbg > 0 ? roLaiTruot / total.shbg : 0)})</span>
                       </div>
                     </div>
@@ -635,7 +644,9 @@ export default function KttBanDoNhiet({
                             <div
                               className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
                             >
-                              trong đó trượt chuyến {formatInt(roLaiTruot)}
+                              {colorBy === 'khong_dat'
+                                ? `rớt lại ${formatInt(total.roLai)}`
+                                : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
                             </div>
                           </>
                         )}
