@@ -57,6 +57,26 @@ function getTyLeBorderColorClass(val) {
   return 'border-[#B3202A]';
 }
 
+function renderChuaTinhTyLe(item) {
+  if (!item) return null;
+  const dangCho = item.dang_cho_chuyen || 0;
+  const khongPl = item.khong_phan_loai || 0;
+  const chenh = dangCho + khongPl;
+  if (chenh <= 0) return null;
+
+  const chiTiet = [];
+  if (dangCho > 0) chiTiet.push(`đang chờ chuyến ${formatInt(dangCho)}`);
+  if (khongPl > 0) chiTiet.push(`chưa có giờ quét túi đến ${formatInt(khongPl)}`);
+
+  const ngoac = chiTiet.length > 0 ? ` (${chiTiet.join(', ')})` : '';
+
+  return (
+    <div className="text-[11px] text-gray-500 mt-0.5">
+      Chưa tính tỷ lệ: {formatInt(chenh)} bưu gửi{ngoac}
+    </div>
+  );
+}
+
 export default function KttDiCungNgay({ authUser }) {
   // Khoảng ngày: mặc định 30 ngày kết thúc ở ngày của độ mới dữ liệu
   const [dateRange, setDateRange] = useState(null);
@@ -381,8 +401,9 @@ export default function KttDiCungNgay({ authUser }) {
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
                 <div className="text-[11px] text-gray-600 mt-1">
-                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ltBcvh?.tong_shbg)}</strong> bưu gửi
+                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ltBcvh?.mau_so)}</strong> bưu gửi
                 </div>
+                {renderChuaTinhTyLe(ltBcvh)}
               </div>
 
               <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
@@ -408,8 +429,9 @@ export default function KttDiCungNgay({ authUser }) {
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
                 <div className="text-[11px] text-gray-600 mt-1">
-                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.tong_shbg)}</strong> bưu gửi
+                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.mau_so)}</strong> bưu gửi
                 </div>
+                {renderChuaTinhTyLe(ntBcvhKhongHoan)}
               </div>
 
               <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
@@ -435,8 +457,9 @@ export default function KttDiCungNgay({ authUser }) {
                   <span className="text-xs font-semibold text-gray-500">cùng ngày</span>
                 </div>
                 <div className="text-[11px] text-gray-600 mt-1">
-                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntDiLienTinh?.tong_shbg)}</strong> bưu gửi
+                  Mẫu số: <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntDiLienTinh?.mau_so)}</strong> bưu gửi
                 </div>
+                {renderChuaTinhTyLe(ntDiLienTinh)}
               </div>
 
               <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">

@@ -319,6 +319,11 @@ export default function QuyThoiGianOverview({
                 {chuaTinhNote}
               </div>
             )}
+            {lechMoc > 0 && (
+              <div className="text-[11px] text-gray-500 mt-1 leading-tight">
+                Lệch mốc: BCVH ghi nhận nhận hàng sớm hơn giờ Khai thác ghi nhận hàng đến (thường do Khai thác xác nhận BD10 theo lô muộn), nên chưa tính được thời gian Khai thác → BCVH.
+              </div>
+            )}
             {soHangHoan > 0 && (
               <div className="mt-1 leading-tight">
                 <button
