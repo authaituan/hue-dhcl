@@ -482,14 +482,14 @@ export default function KttDiCungNgay({ authUser }) {
               <div className="flex flex-wrap items-center gap-4 text-xs">
                 <div>
                   <span>Không kể hàng hoàn: </span>
-                  <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.tong_shbg)}</strong> bưu gửi
+                  <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhKhongHoan?.mau_so)}</strong> bưu gửi
                   <span className="mx-1">·</span>
                   <span>Cùng ngày: </span>
                   <strong className="font-bold tabular-nums text-gray-800">{formatPercent(ntBcvhKhongHoan?.ty_le?.cung_ngay)}</strong>
                 </div>
                 <div>
                   <span>Có hàng hoàn: </span>
-                  <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhCoHoan?.tong_shbg)}</strong> bưu gửi
+                  <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntBcvhCoHoan?.mau_so)}</strong> bưu gửi
                   <span className="mx-1">·</span>
                   <span>Cùng ngày: </span>
                   <strong className="font-bold tabular-nums text-gray-800">{formatPercent(ntBcvhCoHoan?.ty_le?.cung_ngay)}</strong>
@@ -497,7 +497,7 @@ export default function KttDiCungNgay({ authUser }) {
                 {ntHangHoan && (
                   <div className="text-gray-600">
                     <span>Hàng chuyển hoàn: </span>
-                    <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntHangHoan?.tong_shbg)}</strong> bưu gửi
+                    <strong className="text-gray-800 font-bold tabular-nums">{formatInt(ntHangHoan?.mau_so)}</strong> bưu gửi
                     <span className="mx-1">·</span>
                     <strong className="font-bold tabular-nums text-gray-800">{formatPercent(ntHangHoan?.ty_le?.cung_ngay)}</strong>
                   </div>
