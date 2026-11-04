@@ -15,6 +15,8 @@ const KN = require('../config/ktt-nap');
 const NG = require('./kttNguon');
 const HH = require('./kttHangHoan');
 const DONG = require('./kttDong');
+const KD = require('./kttKhongDat14h');
+const BT = require('./kttBucTranh');
 
 const coBang = (db, ten) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(ten);
 const BCVH = require('./kttTinh').MA_BCVH_HUE;
@@ -43,6 +45,8 @@ function docTenPhuong(db) {
 }
 
 const khoiRong = (mocChiTieu) => NG.ganKg(S.taoKhoi({ mocChiTieu }).ketQua(), NG.kgRong());
+/** KTT-KD-1: khối rỗng CÓ `nguyen_nhan` (cho khối `tong` và `theo_bcvh`; khối hàng hoàn không có nhóm nguyên nhân). */
+const khoiRongNn = (mocChiTieu) => KD.ganGon(khoiRong(mocChiTieu), KD.nguyenNhanRong());
 
 /** KTT-10b: tham số mốc chỉ tiêu 14 giờ (`xnd` mặc định | `quet_tui_den`); thiếu -> mặc định; giá trị lạ -> LoiKtt tiếng Việt. */
 function chuanHoaMocChiTieu(m) {
@@ -71,7 +75,7 @@ function luuThoatTheoNgay(db, opts = {}) {
   const moc = { ...S.MOC, chi_tieu: S.NHAN_MOC_CHI_TIEU[mocChiTieu], chi_tieu_14h: { ...S.NHAN_MOC_CHI_TIEU, moc_mac_dinh: mocChiTieu } };
   const rong = (lyDo) => ({
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: lyDo, moc,
-    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRong(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...khoiRong(mocChiTieu), tong_shbg_ngay: 0, hang_hoan: khoiRong(mocChiTieu) }])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, ngoai_bay_chip: ngoaiBayChipRong(), theo_nguon: [], theo_nguon_hang: nguonHangRong(mocChiTieu) })),
+    theo_ngay: k.ngays.map((ngay) => ({ ngay, da_chot: false, co_du_lieu: false, tong_shbg: 0, tui_khong_co_buu_gui: 0, tong_shbg_ngay: 0, tong: khoiRongNn(mocChiTieu), theo_bcvh: Object.fromEntries(BCVH.map((m) => [m, { ...khoiRongNn(mocChiTieu), tong_shbg_ngay: 0, hang_hoan: khoiRong(mocChiTieu) }])), hang_hoan: khoiRong(mocChiTieu), khong_phan_loai: { khong_ro_dich: 0, ngoai_pham_vi: {} }, ngoai_bay_chip: ngoaiBayChipRong(), theo_nguon: [], theo_nguon_hang: nguonHangRong(mocChiTieu) })),
     tong_cong: null, meta: { nguon_xuat_luc_moi_nhat: null, moc, moc_chi_tieu: mocChiTieu, ...HH.metaHangHoan(HH.docDanhSachHangHoan(db)) }, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.']
   });
   if (bayGio === null) return rong('CHUA_CO_DU_LIEU');
@@ -83,7 +87,9 @@ function luuThoatTheoNgay(db, opts = {}) {
     ngay, hoanBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), kgHoanBcvh: new Map(BCVH.map((m) => [m, NG.taoKg()])), tong: S.taoKhoi({ mocChiTieu }), theoBcvh: new Map(BCVH.map((m) => [m, S.taoKhoi({ mocChiTieu })])), hoan: S.taoKhoi({ mocChiTieu }),
     khongRo: 0, ngoai: {}, tuiKhongBuuGui: 0, tongShbg: 0,
     kgTong: NG.taoKg(), kgBcvh: new Map(BCVH.map((m) => [m, NG.taoKg()])), kgHoan: NG.taoKg(), nguon: NG.taoNguon(), // KTT-8c: kg và nhóm theo nguồn (chỉ cộng thêm, không đụng taoKhoi)
-    nh: { [Q.NGUON_HANG.KHAI_THAC]: nguonHangMoi(mocChiTieu), [Q.NGUON_HANG.CHUYEN_TIEP]: nguonHangMoi(mocChiTieu) } // KTT-14: tách hai cờ nguồn (cộng lại = tổng)
+    nh: { [Q.NGUON_HANG.KHAI_THAC]: nguonHangMoi(mocChiTieu), [Q.NGUON_HANG.CHUYEN_TIEP]: nguonHangMoi(mocChiTieu) }, // KTT-14: tách hai cờ nguồn (cộng lại = tổng)
+    bo: KD.taoBo({ nang: opts.nang !== false }), // KTT-KD-1: nhóm nguyên nhân không đạt 14 giờ (gọn + nặng)
+    bt: opts.nang !== false ? BT.taoBo() : null // KTT-KD-1 pha 2: «Bức tranh đường thư đến» (cột số theo SHBG, cùng lượt duyệt)
   }]));
   const meta = { hang_hoan_tu_531120_dich_khac_thuan_hoa: 0 /* KTT-17-2: lỗi thời, luôn 0 */, ngoai_pham_vi: {}, khong_ro_dich: 0, khong_co_gio_quet_den: 0, khong_xep_duoc_chuyen: {}, di_truoc_khi_den: 0, co_quet_di_chua_lap_bd10: 0, tui_khong_co_buu_gui: 0, shbg_thieu_khoi_luong: 0, shbg_chuyen_tiep: 0, co_ca_hai_loai_tui: 0, chuyen_tiep_nhieu_tui: 0, chuyen_tiep_co_tui_di_khac: 0 };
 
@@ -113,6 +119,8 @@ function luuThoatTheoNgay(db, opts = {}) {
         if (kq.nhom === S.NHOM.HANG_HOAN) { n.hoanBcvh.get(kq.maBcvh).them(kq, u.tuiDenId); n.kgHoanBcvh.get(kq.maBcvh).them(kq, kgShbg); n.hoan.them(kq, u.tuiDenId); n.kgHoan.them(kq, kgShbg); nh.hoan++; return; }
         n.tong.them(kq, u.tuiDenId);
         nh.tong.them(kq, u.tuiDenId);
+        n.bo.them(u, kq, ngu); // KTT-KD-1
+        if (n.bt && kq.nhom === S.NHOM.PHAN_LOAI && kq.chiTieu14h && kq.chuyen) n.bt.them(u, kq, ngu); // KTT-KD-1 pha 2: đúng tập t1…t5 + đang chờ chuyến
         n.theoBcvh.get(kq.maBcvh).them(kq, u.tuiDenId);
         n.kgTong.them(kq, kgShbg); n.kgBcvh.get(kq.maBcvh).them(kq, kgShbg); n.nguon.them(u, kq);
         if (kq.nhom === S.NHOM.KHONG_CO_GIO_QUET_DEN) meta.khong_co_gio_quet_den++;
@@ -127,11 +135,11 @@ function luuThoatTheoNgay(db, opts = {}) {
 
   const theo_ngay = k.ngays.map((ngay) => {
     const n = theoNgay.get(ngay);
-    const tong = NG.ganKg(n.tong.ketQua(), n.kgTong.ketQua());
+    const tong = KD.ganGon(NG.ganKg(n.tong.ketQua(), n.kgTong.ketQua()), n.bo.gon('tong'));
     const hang_hoan = NG.ganKg(n.hoan.ketQua(), n.kgHoan.ketQua());
     // KTT-11b: tong_shbg_ngay của khối BCVH = số dòng xlsx khi lọc BCVH đó, không lọc trạng thái = SHBG của khối + hàng hoàn CỦA BCVH ĐÓ (từ KTT-17-2 hàng hoàn có ở cả 6 BCVH).
     const theo_bcvh = Object.fromEntries(BCVH.map((m) => {
-      const khoi = NG.ganKg(n.theoBcvh.get(m).ketQua(), n.kgBcvh.get(m).ketQua());
+      const khoi = KD.ganGon(NG.ganKg(n.theoBcvh.get(m).ketQua(), n.kgBcvh.get(m).ketQua()), n.bo.gon(`b:${m}`));
       const hoanM = NG.ganKg(n.hoanBcvh.get(m).ketQua(), n.kgHoanBcvh.get(m).ketQua()); // KTT-17-3b: khối hàng hoàn CỦA BCVH này, cùng hình dạng với hang_hoan toàn ngày
       return [m, { ...khoi, tong_shbg_ngay: khoi.tong_shbg + hoanM.tong_shbg, hang_hoan: hoanM }];
     }));
@@ -142,7 +150,7 @@ function luuThoatTheoNgay(db, opts = {}) {
       khong_phan_loai: { khong_ro_dich: n.khongRo, ngoai_pham_vi: { ...n.ngoai }, tong: n.khongRo + ngoaiTong },
       ngoai_bay_chip: ngoaiBayChip(n.khongRo, n.ngoai, tong.khong_phan_loai),
       tong_shbg_ngay: n.tongShbg, tui_khong_co_buu_gui: n.tuiKhongBuuGui, theo_nguon: n.nguon.ketQua(),
-      theo_nguon_hang: Object.fromEntries(Object.values(Q.NGUON_HANG).map((key) => [key, ketQuaNguonHang(n.nh[key])]))
+      theo_nguon_hang: Object.fromEntries(Object.values(Q.NGUON_HANG).map((key) => [key, ketQuaNguonHang(n.nh[key], n.bo.gon(`h:${key}`))]))
     };
   });
 
@@ -151,10 +159,14 @@ function luuThoatTheoNgay(db, opts = {}) {
   const canh_bao = [...ctx.canhBao];
   if (meta.khong_ro_dich > 0) canh_bao.push(`${meta.khong_ro_dich} bưu gửi không rõ đích: không vào năm trạng thái lưu thoát.`);
   const nguonXuat = doMoi ? doMoi.nguon_xuat_luc : null;
-  return {
+  const kqRa = {
     khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bay_gio: bayGio, nguon_xuat_luc_moi_nhat: nguonXuat, co_du_lieu: theo_ngay.some((x) => x.co_du_lieu), ly_do: null, moc,
     theo_ngay, tong_cong, meta: { nguon_xuat_luc_moi_nhat: nguonXuat, bay_gio: bayGio, moc, moc_chi_tieu: mocChiTieu, ...meta, ...HH.metaHangHoan(ctx.hangHoan) }, canh_bao
   };
+  // KTT-KD-1: bộ cộng NẶNG theo ngày đi kèm kết quả trong bộ nhớ (KHÔNG vào JSON): route /luu-thoat/khong-dat-14h dựng bảng từ đây.
+  Object.defineProperty(kqRa, 'nang', { value: k.ngays.map((ngay) => theoNgay.get(ngay).bo.nang()).filter(Boolean), enumerable: false });
+  Object.defineProperty(kqRa, 'tranh', { value: k.ngays.map((ngay) => theoNgay.get(ngay).bt).filter(Boolean).map((b) => b.ketQua()), enumerable: false }); // KTT-KD-1 pha 2
+  return kqRa;
 }
 
 // ---- cộng các khối ngày
@@ -209,8 +221,8 @@ function congNgoaiBayChip(ds) {
 
 // ---- KTT-14: tách theo CỜ NGUỒN (khai_thac | chuyen_tiep). Mỗi cờ có đẳng thức riêng: t1…t5 + đang chờ chuyến + hang_hoan_shbg + ngoai_bay_chip.tong = tong_shbg_ngay; hai cờ cộng lại = số của cả ngày.
 const nguonHangMoi = (mocChiTieu) => ({ tongShbg: 0, tong: S.taoKhoi({ mocChiTieu }), hoan: 0, khongRo: 0, ngoai: {} });
-function ketQuaNguonHang(a) {
-  const tong = a.tong.ketQua();
+function ketQuaNguonHang(a, gon = KD.nguyenNhanRong()) {
+  const tong = KD.ganGon(a.tong.ketQua(), gon);
   return { tong_shbg_ngay: a.tongShbg, tong, hang_hoan_shbg: a.hoan, ngoai_bay_chip: ngoaiBayChip(a.khongRo, a.ngoai, tong.khong_phan_loai) };
 }
 function nguonHangRong(mocChiTieu) { return Object.fromEntries(Object.values(Q.NGUON_HANG).map((key) => [key, ketQuaNguonHang(nguonHangMoi(mocChiTieu))])); }
@@ -259,10 +271,13 @@ function ghepKhoang(ds) {
   const canh_bao = [];
   for (const x of ds) for (const c of x.canh_bao) if (!KHONG_RO_RE.test(c) && !canh_bao.includes(c)) canh_bao.push(c);
   if (!rong && meta.khong_ro_dich > 0) canh_bao.push(`${meta.khong_ro_dich} bưu gửi không rõ đích: không vào năm trạng thái lưu thoát.`);
-  return {
+  const kq = {
     khoang_ngay: { tu_ngay: dau.khoang_ngay.tu_ngay, den_ngay: cuoi.khoang_ngay.den_ngay }, bay_gio: dau.bay_gio, nguon_xuat_luc_moi_nhat: dau.nguon_xuat_luc_moi_nhat,
     co_du_lieu: theo_ngay.some((x) => x.co_du_lieu), ly_do: dau.ly_do, moc: dau.moc, theo_ngay, tong_cong: rong ? null : congCacNgay(theo_ngay), meta, canh_bao
   };
+  Object.defineProperty(kq, 'nang', { value: ds.flatMap((x) => x.nang || []), enumerable: false }); // KTT-KD-1
+  Object.defineProperty(kq, 'tranh', { value: ds.flatMap((x) => x.tranh || []), enumerable: false }); // KTT-KD-1 pha 2
+  return kq;
 }
 
 // ------------------------------------------
@@ -293,8 +308,12 @@ const TRANG_TOI_DA = 200;
  */
 function danhSachLuuThoat(db, opts = {}) {
   const k = chuanHoaNgay(opts);
-  if (!Object.prototype.hasOwnProperty.call(NHOM_LUU_THOAT, opts.nhom)) throw new Q.LoiKtt('KTT_LOAI_SAI', `nhom phải thuộc: ${Object.keys(NHOM_LUU_THOAT).join(', ')}.`);
-  const khop = NHOM_LUU_THOAT[opts.nhom];
+  const laKd = opts.nhom === KD.LOAI_CHI_TIET; // KTT-KD-1: nhóm nguyên nhân không đạt 14 giờ (cần opts.kd), ngoài NHOM_LUU_THOAT
+  if (!laKd && !Object.prototype.hasOwnProperty.call(NHOM_LUU_THOAT, opts.nhom)) throw new Q.LoiKtt('KTT_LOAI_SAI', `nhom phải thuộc: ${Object.keys(NHOM_LUU_THOAT).join(', ')}.`);
+  if (laKd && !opts.kd) throw new Q.LoiKtt('KTT_LOAI_SAI', 'nhom khong_dat_14h cần bộ lọc kd (moc, nhom…).');
+  const khop0 = laKd ? KD.coNguyenNhan : NHOM_LUU_THOAT[opts.nhom];
+  const khopKd = laKd ? KD.taoKhop(opts.kd) : null;
+  const khop = khopKd ? (kq, u, ngu) => khop0(kq) && khopKd(kq, u, ngu) : khop0;
   const maBcvh = opts.maBcvh === undefined || opts.maBcvh === null || opts.maBcvh === '' ? null : String(opts.maBcvh).trim();
   const nguon = opts.nguon === undefined || opts.nguon === null || opts.nguon === '' ? null : String(opts.nguon);
   if (nguon !== null && !NG.RE_MA_NGUON.test(nguon)) throw new Q.LoiKtt('KTT_NGUON_SAI', 'nguon chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự.');
@@ -311,7 +330,7 @@ function danhSachLuuThoat(db, opts = {}) {
   const batDau = (trang - 1) * kichThuocTrang;
   const dong = [];
   let tong = 0;
-  duyetLuuThoat(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, maBcvh, nguon, khop }, (u, kq, tenPhuong) => {
+  duyetLuuThoat(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio, maBcvh, nguon, khop }, (u, kq, tenPhuong, ngu) => {
     if (tong >= batDau && dong.length < kichThuocTrang) {
       const d = kq.datKhongDat || null;
       dong.push({
@@ -319,7 +338,8 @@ function danhSachLuuThoat(db, opts = {}) {
         xndBd10: u.xndBd10 || null, gioLapBd10Di: u.gioBd10Di || null, maBcvh: u.maBcvh || null, nhomDich: u.nhom, nhom: kq.nhom, trangThai: kq.trangThai === undefined ? null : kq.trangThai,
         gioXuatPhat: kq.chuyen ? kq.chuyen.gio_xuat_phat : null, ngayChuyen: kq.chuyen ? kq.chuyen.ngay : null, ketQuaChuyen: kq.chuyenKq || null, lyDo: kq.lyDo || null,
         diTruocKhiDen: !!kq.diTruocKhiDen, datKhongDat: d ? d.trangThai : null, chiTieuGio: d ? d.chiTieuGio : null, thoiGianChoGiay: d ? d.thucGiay : null, tenPhuong,
-        ...DONG.dongChiTiet(u, kq) // KTT-8c: thêm 17 trường snake_case (cùng sheet 7); trường cũ giữ nguyên nghĩa
+        ...DONG.dongChiTiet(u, kq), // KTT-8c: thêm 17 trường snake_case (cùng sheet 7); trường cũ giữ nguyên nghĩa
+        ...(khopKd ? KD.dongNguyenNhan(u, kq, ngu, opts.kd.moc) : {}) // KTT-KD-1: nhóm nguyên nhân theo mốc đã chọn
       });
     }
     tong++;
@@ -343,8 +363,8 @@ function duyetLuuThoat(db, opts, cb) {
         const kq = S.phanLoaiShbg({ ...u, tenPhuong }, ngu);
         if (opts.maBcvh && u.maBcvh !== opts.maBcvh) return;
         if (opts.nguon && NG.nguonCua(u).ma !== opts.nguon) return; // KTT-8c: nhóm theo nguồn (NOI_TINH / KHONG_RO_NGUON / mã đường thư đến)
-        if (opts.khop && !opts.khop(kq)) return;
-        cb(u, kq, tenPhuong);
+        if (opts.khop && !opts.khop(kq, u, ngu)) return;
+        cb(u, kq, tenPhuong, ngu);
       }
     }];
   });

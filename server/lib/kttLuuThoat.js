@@ -211,7 +211,13 @@ function ketQuaChiTieu14h(c, mocChon) {
 function congChiTieu14h(ds) {
   const cong = (xs) => {
     const m = xs[0];
-    if (typeof m === 'number') return xs.reduce((s, x) => s + x, 0);
+    // KTT-KD-1: `kg` của khối nguyen_nhan có thể là null («không rõ»): toàn null -> null, còn lại cộng các số (bỏ null); số nguyên giữ nguyên, số thực làm tròn 3 chữ số.
+    if (xs.every((x) => x === null || typeof x === 'number')) {
+      const so = xs.filter((x) => typeof x === 'number');
+      if (so.length === 0) return null;
+      const t = so.reduce((s, x) => s + x, 0);
+      return Number.isInteger(t) ? t : Math.round(t * 1000) / 1000;
+    }
     if (m && typeof m === 'object') return Object.fromEntries(Object.keys(m).map((key) => [key, cong(xs.map((x) => x[key]))]));
     return m;
   };

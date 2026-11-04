@@ -3,6 +3,7 @@
 // (KHÔNG dưới /api/arrivals: đường đó mở cả GDVH). Mọi route đi qua `requireRoles(ADMIN, TTVH, TTKT)` ngay đầu router. ADMIN, TTVH và TTKT thấy CÙNG số liệu (không lọc theo BCVH được giao).
 //   GET /api/ktt/meta                    độ mới dữ liệu, lịch chuyến (14 dòng), hạn đến trước chuyến, giờ chốt ngày, ngưỡng
 //   GET /api/ktt/luu-thoat?tu=&den=[&moc_chi_tieu=xnd|quet_tui_den]   lưu thoát 5 trạng thái, đạt / không đạt, chỉ tiêu 14 giờ hai mốc, hàng hoàn (kttLuuThoatQuery.luuThoatTheoNgay), cache theo (mốc, ngày)
+//   GET /api/ktt/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]?tu=&den=[&moc=A|B&loai_ngay=&bcvh=]   KTT-KD-1 pha 2: «Bức tranh đường thư đến» (lib/kttBucTranh.js, doc 42 mục 20)
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
@@ -45,6 +46,12 @@ router.get('/meta', xuLy('meta', (req) => {
   return Api.meta(db);
 }));
 router.get('/luu-thoat', xuLy('luu-thoat', (req) => Api.luuThoat(db, req.query)));
+// KTT-KD-1: các bảng «Vì sao không đạt 14 giờ» (nặng hơn /luu-thoat nên tách route; dùng chung cache theo ngày).
+router.get('/luu-thoat/khong-dat-14h', xuLy('luu-thoat/khong-dat-14h', (req) => Api.khongDat14h(db, req.query)));
+// KTT-KD-1 pha 2 (bản sửa 2): «Bức tranh đường thư đến» — ba bảng, cả hai mốc ở mọi bảng (`moc` mặc định A), dùng chung cache theo ngày với /luu-thoat.
+router.get('/luu-thoat/buc-tranh-duong-thu', xuLy('luu-thoat/buc-tranh-duong-thu', (req) => Api.bucTranhCum(db, req.query)));
+router.get('/luu-thoat/buc-tranh-duong-thu/chuyen-xe', xuLy('luu-thoat/buc-tranh-duong-thu/chuyen-xe', (req) => Api.bucTranhChuyenXe(db, req.query)));
+router.get('/luu-thoat/buc-tranh-duong-thu/danh-gia', xuLy('luu-thoat/buc-tranh-duong-thu/danh-gia', (req) => Api.bucTranhDanhGia(db, req.query)));
 router.get('/tong-hop', xuLy('tong-hop', (req) => Api.tongHop(db, req.query)));
 router.get('/chi-tiet', xuLy('chi-tiet', (req) => Api.chiTiet(db, req.query)));
 
@@ -107,6 +114,9 @@ const xuatFile = (kind, chuanBi, boLoc) => async (req, res) => {
 const nguoiXuat = (req) => ({ nguoiXuat: req.user.hrm_code || null });
 router.get('/xuat/luu-thoat', xuatFile('luu-thoat', (req) => Api.xuatLuuThoat(db, req.query, nguoiXuat(req)),
   (kq) => ({ trang_thai: kq.nhom, ma_bcvh: kq.maBcvh, nguon: kq.nguon })));
+// KTT-KD-1: sheet 10 «Không đạt 14 giờ» — cùng bộ lọc với /chi-tiet?loai=khong_dat_14h.
+router.get('/xuat/khong-dat-14h', xuatFile('khong-dat-14h', (req) => Api.xuatKhongDat14h(db, req.query, nguoiXuat(req)),
+  (kq) => ({ moc_chi_tieu: kq.kd.moc, nhom_nguyen_nhan: kq.kd.nhom, ma_bcvh: kq.maBcvh, nguon: kq.nguon, gio_den: kq.kd.gio, chuyen: kq.kd.chuyen, thu: kq.kd.thu, nguon_hang: kq.kd.nguonHang })));
 // KTT-8d: sheet 8 «Hôm sau / chưa đi trên 24 giờ» — cùng tham số với /danh-sach (trừ page, page_size).
 router.get('/xuat/hom-sau-chua-di', xuatFile('hom-sau-chua-di', (req) => Api.xuatHomSauChuaDi(db, req.query, nguoiXuat(req)),
   (kq) => ({ loai: kq.loai, duong_thu: kq.loc.duongThu, noi_gui: kq.loc.noiGui, huong: kq.loc.huong, hang_hoan: kq.loc.hangHoan, ma_bcvh: kq.loc.maBcvh })));

@@ -908,5 +908,32 @@ Thêm vai trò `TTKT` (`server/roles.js`, KHÔNG thuộc `VIEWER_ROLES`). TTKT c
 
 Bảng «Rớt lại nằm ở đâu» hiện `ro_lai` (t3+t4+t5) và `truot_chuyen` (đi trượt + lỡ chuyến, gồm cả t2) tính riêng nên nhiều ô trượt > rớt lại, dễ nhầm. Thêm `ro_lai_truot_chuyen` = `truot_chuyen` − t2 (SHBG vừa rớt lại vừa trượt/lỡ chuyến), luôn M ≤ N, ở nhóm và `theo_bcvh` của `theo_nguon` (ngày và `tong_cong`). Chỉ thêm trường; không đổi `ro_lai`, `truot_chuyen`, nhóm lưu thoát. **Lưu ý:** KHÔNG phải số của thẻ «Trượt chuyến (cần xử lý)» đầu tab «Lưu thoát trong ngày» (thẻ đó dùng định nghĩa rộng, gồm t2). Giao diện sẽ đổi tên cột để khỏi trùng tên (ticket sau, `src/`). Code: `server/lib/kttNguon.js`; test: `tests/ktt-ro-lai-truot-chuyen.test.js`.
 
+### 125. «Vì sao không đạt 14 giờ»: nhóm nguyên nhân A–E, hai mức tổng, tỷ lệ chuẩn, dư địa theo giờ (KTT-KD-1, CTO 04/11/2026; bản sửa 1)
+
+Quyết định (thay các câu hỏi mở của báo cáo pha 1 và 1b):
+1. **Quy tắc nhóm P2 — A ưu tiên B.** A «Lỡ chuyến sát giờ» = `denSatGio` bất kể sau đó DUNG hay TRE chuyến; B «Trượt chuyến» = TRE không sát giờ; C = DUNG không sát giờ; D = lưới an toàn (giữ trong API, giao diện ẩn khi 0). Cờ `truot_chuyen_ke` = A mà chuyến kế là TRE (ghi trong `ly_do_xep_nhom`). Trên dữ liệu đo: mốc A 95/691/58/0 (trong đó 87 `truot_chuyen_ke`), mốc B 52/1.017/2/0 (36).
+2. **Nhóm E «Chưa đi, đã quá chỉ tiêu» là nhóm chính thức, ngang A–D**, nhưng là SỐ TUYỆT ĐỐI riêng, không vào `khong_dat` / `do_duoc`: A+B+C+D (đã đi) + E (chưa đi) = `dat_khong_dat.khong_dat` của khối cũ (3.084 ở mốc A, 3.510 ở mốc B; `dat_khong_dat` được nuôi theo tham số mốc nên mốc B cũng cho 3.510). `tong` có hai mức `da_di` và `ca_chua_di`. E chia theo số chuyến đã lỡ (0, 1, 2, ≥3) và cờ sát giờ.
+3. **B chia theo số chuyến trễ** 1, 2, ≥3 (`b_theo_so_chuyen_tre`).
+4. **Cắt ngang**: `thu` (theo NGÀY ĐẾN D), `loai_ngay`, `nguon_hang`; BCVH × loại ngày là cách cắt chính (536250 tạo 59% không đạt mốc A; Chủ nhật làm lịch hẹp ở 537015, 537220, 536250).
+5. **Hàng hoàn loại khỏi A–E** (khối `hang_hoan` riêng, không thêm số hoàn vào đây). **0 g = «không rõ»** (`shbg_thieu_kg`), ô toàn thiếu kg trả `kg: null`.
+6. **Sheet xlsx số 10** (số 9 giữ chỗ cho «gói 9 sheet» của trang Đối chiếu). **`chi-tiet` nhóm mới dựa `chiTieu14h[m]`** của mốc đã chọn, KHÔNG dùng `duyetLuuThoat` mốc A mặc định (test chống nhầm hai tập: 3.084 vs 844).
+7. **Bản sửa 1**: BỎ «vừa lỡ chuyến» khỏi API (1b: không dự báo được không đạt, 2,99% vs 3,85%, tốn ≈4 giây); giữ `sat_gio` 30/60/90 (từ biên an toàn), biên an toàn, chờ theo lịch, dư địa, cờ `lo_chuyen` thực tế. **Tỷ lệ chuẩn = không đạt ĐÃ ĐI / ĐO ĐƯỢC** (`37` mục 6); E đứng cạnh, không trộn. `dot_den[]` xếp theo SỐ KHÔNG ĐẠT ĐÃ ĐI (không xếp theo rủi ro); khóa đợt = BD10 đến. **Mọi bảng trả CẢ HAI mốc**; mốc A méo theo lô XNĐ nên giao diện mặc định mốc B để chẩn đoán; mốc chính thức (#111) KHÔNG đổi.
+
+Kết quả khảo sát 1b (nền của quyết định 7): giả thuyết «giờ đến sát hạn gây không đạt» không được số đo ủng hộ ở cấp hệ thống — 98–99% không đạt là trượt hoặc lỡ chuyến khi lịch còn dư địa; sát giờ không làm tăng tỷ lệ không đạt.
+
+Không làm ở ticket này: giao diện (KTT-KD-2), sửa lịch Chủ nhật (KTT-LICH-1), xác định nguyên nhân của nhóm E ở 536250 (BD10 đi chưa nạp / hàng không lập BD10 đi / hàng tồn thật — chỉ có bằng chứng, chưa kết luận).
+
+### 126. «Bức tranh đường thư đến» và khối «Vì sao không đạt 14 giờ»: mốc mặc định A, cờ theo ngưỡng tương đối, sát giờ chốt chỉ THEO DÕI (KTT-KD-1 pha 2, CTO 04/11/2026; bản sửa 2)
+
+Quyết định:
+1. **Mốc mặc định của khối mới = mốc A** (PO 04/11/2026), nhưng API vẫn trả CẢ HAI mốc ở mọi bảng và mọi con số kèm `do_duoc` / `mau_so` của mốc đó; **không công bố tỷ lệ chung**. Đây KHÔNG đổi #111: mốc A vẫn là mốc chính thức của chỉ tiêu 14 giờ; số của chỉ tiêu và các khối cũ không đổi. Giờ đến theo mốc A kèm cờ `meo_theo_lo` khi lệch ≥ 120 phút so với mốc B của cùng cụm (XNĐ gom theo lô).
+2. **«Chuyến thư đến»** = (đường thư, lịch BD10 đến, băng giờ); băng tách khi hai lần đến cách trên 60 phút (CTO chốt 60 phút, 04/11/2026). «Đợt» của KTT-12 gom từng ngày (120 phút); «chuyến thư đến» là khung giờ trên cả cửa sổ 30 ngày: hai khái niệm khác nhau, giao diện không dùng «đợt».1; KHÔNG sửa KTT-12; chờ CTO quyết một quy tắc dùng chung).
+3. **Cờ theo ngưỡng TƯƠNG ĐỐI, tính ở máy chủ, đọc từ tham số hệ thống** (`ktt_bt_*`): `that_thuong` và `khong_co_lich_co_dinh` = từ phân vị 80 của các cụm (mỗi cờ gắn khoảng 20%, không phải 34–67% như ngưỡng cứng của canvas); `nhieu_kien_di_ngoai` ≥ 30%; `chuyen_gom_nhieu_hang` ≥ 1,5 × mức chia đều số chuyến; `sat_gio_chot`; `sat_chi_tieu`; `mau_it` (< 100 bưu gửi). Cụm / ô mẫu ít không vào phân bố và không gắn cờ.
+4. **Cờ «sát giờ chốt» chỉ ở mức THEO DÕI** (số đo 1b chưa ủng hộ giả thuyết sát giờ gây không đạt), không bao giờ là cảnh báo.
+5. **Xếp thứ tự theo số bưu gửi bị ảnh hưởng (Pareto)**, có `luy_ke_pct`; không xếp theo tỷ lệ.
+6. **Thời gian lưu thoát theo lịch** chỉ tính từ lúc hàng đến tới giờ xe rời (đã trừ 21:00–07:00): không có giờ chốt phát, không có thời gian xe chạy đến BCVH; «còn lại so với chỉ tiêu» có thể âm.
+7. **Lịch Chủ nhật Hương Thủy** (PO 04/11/2026: chỉ có chuyến 06:30): mã hiện coi là không có chuyến nào; KHÔNG sửa ở ticket này (KTT-LICH-2). Ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật trả `luu_y_lich: true` (chưa tin cậy).
+8. **Cache theo ngày**: cột số của bức tranh nằm trong mục cache theo ngày của `/luu-thoat` (cùng lượt duyệt, cùng khóa hủy; một mục chứa cả hai mốc); `huyCacheNgay([ngày])` hủy đúng ngày.
+
 ## Drift phát hiện
 _(chưa có)_

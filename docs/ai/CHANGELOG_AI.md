@@ -2,6 +2,21 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-04] - KTT-KD-1 pha 2 (bản sửa 2): «Bức tranh đường thư đến» + `moc` cho «Vì sao không đạt 14 giờ» (server, test, docs; KHÔNG đổi `src/`, giao diện là KTT-KD-2)
+
+- `server/lib/kttBucTranh.js` MỚI (hàm thuần): cột số theo SHBG của từng ngày (cộng trong CÙNG lượt duyệt `luuThoatTheoNgay`), «chuyến thư đến» = (đường thư, lịch BD10 đến, băng giờ tách khi cách > 60 phút), cụm / ô (cụm × BCVH × loại ngày) / chuyến xe cấp 2, 7 cờ theo ngưỡng TƯƠNG ĐỐI (`that_thuong`, `khong_co_lich_co_dinh` từ phân vị 80; `nhieu_kien_di_ngoai`; `chuyen_gom_nhieu_hang`; `sat_gio_chot` = theo dõi; `sat_chi_tieu`; `mau_it`), Pareto + `luy_ke_pct`, `luu_y_lich` cho ô Chủ nhật. Không đổi quy tắc tính hay lịch chuyến.
+- `server/lib/kttQuery.js`: thêm `lichDenMa` / `lichDenTen` (định danh lịch BD10 đến; chỉ để gom cụm). `server/lib/kttLuuThoatQuery.js`: gắn bộ cộng, `kq.tranh` (không vào JSON), `ghepKhoang` ghép. `server/lib/kttApi.js` + `server/routes/ktt.js`: `GET /api/ktt/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]` (cả hai mốc, `moc` mặc định A), `huyCacheNgay`, `khong-dat-14h` thêm `moc` (mặc định A; route chưa phát hành).
+- `server/config/ktt-buc-tranh.js` MỚI + 11 tham số hệ thống `ktt_bt_*` (`tham-so-mac-dinh.js`, `tham-so.js`; nhóm «Hàng tại KTT»; sửa được, hiệu lực ngay). `tests/tham-so.test.js` chỉ cập nhật đếm khóa (39 → 50; 32 → 43 sửa được) và bảng getter.
+- Test: `tests/ktt-buc-tranh.test.js` MỚI (17 ca, dữ liệu giả; thêm vào script `test`): băng giờ, đúng 20% bị gắn cờ trên bộ giả, mẫu ít, loại ngày Chủ nhật, `luu_y_lich`, đẳng thức mẫu số hai mốc, cache theo ngày, mốc mặc định A, quyền + từ chối mặc định. `npm test`: 1353 ca (1343 pass, 0 fail, 10 skip).
+- Đo trên bản sao DB (30 ngày 05/10–03/11, 127.738 mẫu số): đẳng thức lệch 0; thêm ≈ +0,7 giây (−0,2…+1,4 giữa các lần, nhiễu máy) vào lượt nguội 30 ngày (≈10–12 giây trên máy này); ba route lúc nóng 0,2–0,5 giây. Docs: `41` mục 20, `42` mục 20, `04_DECISIONS.md` #126, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `tickets/KTT-KD-1.md`. Sau merge phải khởi động lại máy chủ.
+
+## [2026-11-04] - KTT-KD-1: «Vì sao không đạt 14 giờ» ở máy chủ (server, test, docs; KHÔNG đổi `src/`, giao diện là KTT-KD-2)
+
+- `server/lib/kttKhongDat14h.js` MỚI (hàm thuần + bộ cộng): nhóm A–E (A ưu tiên B), `truot_chuyen_ke`, E chia theo số chuyến trễ, tỷ lệ chuẩn, cắt theo giờ / thứ / nguồn hàng / BCVH × loại ngày / đường thư / chuyến / khung chờ, dư địa theo giờ (biên an toàn, chờ theo lịch, dư địa, sát giờ 30/60/90), đợt đến = BD10 đến. Chỉ ĐỌC `kq.chiTieu14h[m]` và `danhGiaChuyenLich`; không đổi quy tắc nào.
+- `server/lib/kttLuuThoatQuery.js`: `luuThoatTheoNgay` gọi bộ cộng trong cùng lượt duyệt; `chi_tieu_14h.theo_moc[m].nguyen_nhan` (chỉ thêm) ở `tong`, `theo_bcvh`, `theo_nguon_hang`; khối nặng đi kèm kết quả (`kq.nang`, không vào JSON) và được `ghepKhoang` ghép; nhóm `khong_dat_14h` trong `NHOM_LUU_THOAT`; `duyetLuuThoat` truyền `u`, `ngu` cho bộ lọc. `server/lib/kttLuuThoat.js`: `congChiTieu14h` cộng được `kg` null.
+- `server/lib/kttApi.js` + `server/routes/ktt.js`: `GET /api/ktt/luu-thoat/khong-dat-14h`, `/chi-tiet?loai=khong_dat_14h` (tham số mới, 400 tiếng Việt), `GET /api/ktt/xuat/khong-dat-14h`; `kttXuat.js`: sheet «10 Không đạt 14 giờ» (27 cột); `kttWorker.js`: tác vụ `xuatKhongDat14h`. Số 9 giữ chỗ cho «gói 9 sheet» Đối chiếu.
+- Test: `tests/ktt-khong-dat-14h.test.js` MỚI (16 ca, dữ liệu giả), thêm vào script `test`. Docs: `41` mục 19, `42` mục 19, `04_DECISIONS.md` #125, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `tickets/KTT-KD-1.md`. Sau merge phải khởi động lại máy chủ.
+
 ## [2026-11-03] - KTT-RL-1: số lồng nhau «rớt lại, trong đó trượt chuyến» ở máy chủ (server, test, docs; KHÔNG đổi `src/`)
 
 - `server/lib/kttNguon.js`: thêm `ro_lai_truot_chuyen` ở nhóm nguồn, `theo_bcvh` trong nhóm và `congNguon` (tính trong `taoNguon().them`, cùng lượt duyệt, không truy vấn mới). = `truot_chuyen` − t2; ≤ `ro_lai`, ≤ `truot_chuyen`. Không đổi số liệu cũ; bộ nhớ đệm chỉ trong tiến trình nên không đổi phiên bản.

@@ -24,6 +24,9 @@ const CT = require('./quyThoiGianChiTieu');
 const { docCauHinhKtt } = require('./kttCauHinh');
 const { TAC_VU } = require('./kttWorker');
 const X = require('./kttXuat');
+const KD = require('./kttKhongDat14h');
+const BT = require('./kttBucTranh');
+const CFG_BT = require('../config/ktt-buc-tranh');
 const S = require('./kttLuuThoat');
 const { MA_BCVH_HUE } = require('./kttTinh');
 const D = require('./kttDiNgay');
@@ -209,7 +212,7 @@ async function layNgay(db, ngay, doMoi, now, mocChiTieu = S.MOC_CHI_TIEU_MAC_DIN
     const tk = PD.dauHieuDb(db);
     const ck = chuKyNgay(db, ngay);
     dem.ngayTinh++;
-    const kq = QL.luuThoatTheoNgay(db, { tuNgay: ngay, denNgay: ngay, bayGio: doMoi, mocChiTieu });
+    const kq = QL.luuThoatTheoNgay(db, { tuNgay: ngay, denNgay: ngay, bayGio: doMoi, mocChiTieu, nang: mocChiTieu === S.MOC_CHI_TIEU_MAC_DINH }); // KTT-KD-1: bộ nặng chỉ ở mục mốc mặc định (cả hai mốc đã có trong đó)
     datMuc(boNho.ngay, NGAY_TOI_DA_TRONG_NHO, khoa, { luc: now, kq, daChot: kq.theo_ngay[0].da_chot, doMoi, token: tk, chuKy: ck });
     return kq;
   });
@@ -275,12 +278,196 @@ function docNguon(query) {
   if (!NG.RE_MA_NGUON.test(v)) throw new Q.LoiKtt('KTT_NGUON_SAI', 'Tham số "nguon" chỉ gồm chữ, số, _ . - / và khoảng trắng, tối đa 40 ký tự.');
   return v;
 }
+// ------------------------------------------
+// KTT-KD-1 pha 2 (bản sửa 2): «Bức tranh đường thư đến»
+// ------------------------------------------
+/** `moc` của khối bức tranh: A (xác nhận BD10 đến, mặc định) | B (quét túi đến); chấp nhận thêm `xnd` / `quet_tui_den`. Lạ -> LoiKtt (400). */
+function docMocBt(query) {
+  const v = mot(query, 'moc');
+  if (v === undefined || v === '') return BT.MOC_MAC_DINH;
+  const u = v.toUpperCase();
+  if (u === 'A' || v === S.MOC_CHI_TIEU.XND) return 'A';
+  if (u === 'B' || v === S.MOC_CHI_TIEU.QUET_TUI_DEN) return 'B';
+  throw new Q.LoiKtt('KTT_MOC_SAI', 'Tham số "moc" phải là A (xác nhận BD10 đến, mặc định) hoặc B (quét túi đến).');
+}
+const LOAI_NGAY_BT = ['thuong', 'chu_nhat', 'tat_ca'];
+function docLoaiNgayBt(query) {
+  const v = mot(query, 'loai_ngay');
+  if (v === undefined || v === '') return 'tat_ca';
+  if (!LOAI_NGAY_BT.includes(v)) throw new Q.LoiKtt('KTT_LOAI_NGAY_SAI', `Tham số "loai_ngay" phải là một trong: ${LOAI_NGAY_BT.join(', ')}.`);
+  return v;
+}
+/** Ngưỡng của bức tranh, đọc từ tham số hệ thống LÚC GỌI (đổi ở màn tham số có hiệu lực ngay; cột số theo ngày trong bộ nhớ đệm không chứa ngưỡng nào). */
+const nguongBt = () => ({
+  gapPhut: CFG_BT.GAP_CUM_PHUT, cumNhoShbg: CFG_BT.CUM_NHO_SHBG, mauToiThieu: CFG_BT.MAU_TOI_THIEU, phanViTuongDoi: CFG_BT.PHAN_VI_TUONG_DOI, kienDiNgoaiPct: CFG_BT.KIEN_DI_NGOAI_PCT,
+  chuyenGomHeSo: CFG_BT.CHUYEN_GOM_HE_SO, satGioChotPhut: CFG_BT.SAT_GIO_CHOT_PHUT, ngayToiThieu: CFG_BT.NGAY_TOI_THIEU, conLaiGio: CFG_BT.CON_LAI_GIO,
+  tyLeNganConLaiPct: CFG_BT.TY_LE_CON_LAI_PCT, meoTheoLoPhut: CFG_BT.MEO_THEO_LO_PHUT
+});
+const CAN_BT = Object.freeze({ cum: { o: false, chuyen: false, the: false }, chuyen: { o: true, chuyen: true, the: false }, danh_gia: { o: true, chuyen: true, the: true } });
+const PHAN_BT = Object.freeze({
+  cum: (v) => ({ mau_so: v.mau_so, do_duoc: v.do_duoc, khong_do_duoc: v.khong_do_duoc, cum: v.cum, thong_ke_co: v.thong_ke_co, nguong_ap_dung: v.nguong_ap_dung }),
+  chuyen: (v) => ({ mau_so: v.mau_so, do_duoc: v.do_duoc, khong_do_duoc: v.khong_do_duoc, chuyen: v.chuyen, o: v.o }),
+  danh_gia: (v) => ({ mau_so: v.mau_so, do_duoc: v.do_duoc, khong_do_duoc: v.khong_do_duoc, the: v.the, thong_ke_co: v.thong_ke_co, mau_it: v.mau_it, nguong_ap_dung: v.nguong_ap_dung })
+});
+
+/**
+ * Dùng chung cho ba route /luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]?tu=&den=[&moc=A|B&loai_ngay=thuong|chu_nhat|tat_ca&bcvh=<mã>]: cột số theo SHBG của từng ngày nằm trong mục cache theo ngày
+ * của /luu-thoat (cùng lượt duyệt, cùng khóa hủy: độ mới / chữ ký ngày / tham số / lịch / danh sách hàng hoàn); ở đây chỉ ghép ngày, dựng băng giờ và bảng (tính mỗi lần gọi, ~vài chục mili giây).
+ * Trả `theo_moc: { A: {...}, B: {...} }` (CẢ HAI mốc ở mọi bảng); `moc` = mốc hiển thị mặc định (A).
+ */
+async function bucTranh(db, query, phan, { now = Date.now() } = {}) {
+  const k = docKhoang(query, ['moc', 'loai_ngay', 'bcvh']);
+  const moc = docMocBt(query);
+  const loaiNgay = docLoaiNgayBt(query);
+  const bcvhS = mot(query, 'bcvh');
+  if (bcvhS !== undefined && bcvhS !== '' && !MA_BCVH_HUE.includes(bcvhS)) throw new Q.LoiKtt('KTT_BCVH_SAI', 'Tham số "bcvh" phải là một trong 6 BCVH Huế.');
+  const bcvh = bcvhS === undefined || bcvhS === '' ? null : bcvhS;
+  const ra = { khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, moc, moc_mac_dinh: BT.MOC_MAC_DINH, bo_loc: { loai_ngay: loaiNgay, bcvh } };
+  const doMoi = QL.docDoMoi(db);
+  if (!doMoi) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', theo_moc: null, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
+  dongBoPhienBan(db);
+  const ds = [];
+  for (const ngay of k.ngays) ds.push(await layNgay(db, ngay, doMoi.nguon_xuat_luc, now, S.MOC_CHI_TIEU_MAC_DINH)); // cột số của bức tranh nằm trong mục mốc mặc định (cả hai mốc cùng một mục)
+  const lt = QL.ghepKhoang(ds);
+  const R = BT.gop(lt.tranh);
+  const lichDoc = L.docLichChuyen(db);
+  const ngays = k.ngays.map((ngay) => ({ ngay, thu: BT.thuCua(ngay) }));
+  const nguong = nguongBt();
+  const theo_moc = {};
+  for (const m of BT.HAI_MOC) {
+    const v = BT.tinhMoc(R, { moc: m, loaiNgay, bcvh, nguong, lich: lichDoc.lich, ngays, can: CAN_BT[phan] });
+    theo_moc[m] = PHAN_BT[phan](v);
+  }
+  const tc = lt.tong_cong;
+  const mauSo = tc ? ['t1', 't2', 't3', 't4', 't5', 'dang_cho_chuyen'].reduce((s, t) => s + tc.trang_thai[t].shbg, 0) : 0;
+  const nhomLoai = tc ? { hang_hoan: tc.hang_hoan.tong_shbg, ngoai_6_bcvh: tc.ngoai_bay_chip.ngoai_pham_vi_tong, khong_ro_dich: tc.ngoai_bay_chip.khong_ro_dich, khong_co_gio_quet_den: tc.ngoai_bay_chip.khong_co_gio_quet_den, khong_xep_duoc_chuyen: tc.ngoai_bay_chip.khong_xep_duoc_chuyen_tong } : null;
+  const loaiTong = nhomLoai ? Object.values(nhomLoai).reduce((s, x) => s + x, 0) : 0;
+  const ct14 = (m) => (tc ? { do_duoc: tc.chi_tieu_14h.theo_moc[BT.MOC_BT[m]].do_duoc, mau_so: mauSo } : null);
+  return {
+    ...ra, bay_gio: doMoi.nguon_xuat_luc, nguon_xuat_luc_moi_nhat: doMoi.nguon_xuat_luc, co_du_lieu: lt.co_du_lieu, ly_do: null,
+    theo_moc,
+    meta: {
+      // đẳng thức (toàn cửa sổ, KHÔNG phụ thuộc bộ lọc): tổng bưu gửi = mẫu số lưu thoát + các nhóm loại; mẫu số = SHBG của bức tranh
+      dang_thuc: {
+        tong_shbg: tc ? tc.tong_shbg_ngay : 0, mau_so: mauSo, nhom_loai: nhomLoai, tong_nhom_loai: loaiTong, lech_tong: tc ? tc.tong_shbg_ngay - mauSo - loaiTong : 0,
+        shbg_trong_buc_tranh: R.n, lech_mau_so: R.n - mauSo
+      },
+      do_duoc_chi_tieu_14h: { A: ct14('A'), B: ct14('B') },
+      luu_y_lich: { bcvh_chuyen_nghi_chu_nhat: [...new Set(lichDoc.lich.filter((r) => r.ngay_chay === 'NGHI_CN' && !(r.dang_dung === 0)).map((r) => r.ma_bcvh))].sort(), ghi_chu: 'Ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật mang luu_y_lich = true: lịch Chủ nhật chưa tin cậy (KTT-LICH-2).' },
+      quy_uoc: {
+        don_vi: 'SHBG thuộc mẫu số lưu thoát (6 BCVH, không hàng hoàn, có giờ quét túi đến, xếp được chuyến)', cum: '(đường thư BD10 đến, lịch BD10 đến, băng giờ); băng tách khi hai lần đến liền nhau cách trên ktt_bt_gap_cum_phut',
+        moc_a: 'giờ xác nhận BD10 đến (bd10_den_xnd), méo theo lô', moc_b: 'giờ quét túi đến', gio_den: 'phút kể từ 00:00 ngày đến D, trình bày HH:MM; băng vắt qua nửa đêm có vat_dem = true',
+        luu_thoat_theo_lich: 'từ lúc hàng đến tới giờ xe rời (đã trừ 21:00–07:00); không gồm giờ chốt phát và thời gian xe chạy đến BCVH; còn lại = chỉ tiêu (14 hoặc 12 giờ) − lưu thoát theo lịch, có thể âm',
+        nguong_tuong_doi: 'tính trên các cụm của bộ lọc hiện tại; chỉ xét cụm không «mẫu ít»'
+      }
+    },
+    canh_bao: [
+      'Mốc A đo từ giờ xác nhận BD10 đến (gom theo lô) nên có thể méo; cụm có meo_theo_lo = true cần đọc theo mốc B. Không có tỷ lệ chung: mọi con số đi kèm «đo được x/y» của mốc đó.',
+      ...lt.canh_bao.filter((c) => !/bưu gửi không rõ đích/.test(c))
+    ]
+  };
+}
+const bucTranhCum = (db, query, opts) => bucTranh(db, query, 'cum', opts);
+const bucTranhChuyenXe = (db, query, opts) => bucTranh(db, query, 'chuyen', opts);
+const bucTranhDanhGia = (db, query, opts) => bucTranh(db, query, 'danh_gia', opts);
+
+/**
+ * Hủy cache ĐÚNG NGÀY (mọi mốc) — gọi khi một ngày bị nạp lại / thay thế / khôi phục. Trả số mục đã hủy. Các ngày khác giữ nguyên.
+ * (Cơ chế tự động ở conHanNgay vẫn là chốt chặn: độ mới đổi, chữ ký ngày đổi.)
+ */
+function huyCacheNgay(ngays) {
+  let n = 0;
+  const ds = new Set(ngays || []);
+  for (const khoa of [...boNho.ngay.keys()]) if (ds.has(khoa.split('|')[1])) { boNho.ngay.delete(khoa); n++; }
+  for (const ngay of ds) { if (boNho.ngayB.delete(ngay)) n++; if (boNho.ngayDC.delete(ngay)) n++; }
+  boNho.tongHop.clear(); boNho.chiTiet.clear();
+  return n;
+}
+
+// ------------------------------------------
+// KTT-KD-1: vì sao không đạt 14 giờ
+// ------------------------------------------
+const THAM_SO_KD = ['moc_chi_tieu', 'nhom_nguyen_nhan', 'gio_den', 'chuyen', 'thu', 'nguon_hang'];
+const RE_CHUYEN = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** Bộ lọc nhóm nguyên nhân (chi-tiet, xlsx): moc_chi_tieu (xnd mặc định | quet_tui_den), nhom_nguyen_nhan (A–E | tat_ca), gio_den 0–23, chuyen HH:MM, thu 2–7 | CN, nguon_hang. */
+function docKd(query) {
+  const moc = docMocChiTieu(query);
+  const nhom = mot(query, 'nhom_nguyen_nhan');
+  if (nhom !== undefined && nhom !== '' && nhom !== 'tat_ca' && !KD.NHOM.includes(nhom)) throw new Q.LoiKtt('KTT_NHOM_SAI', 'Tham số "nhom_nguyen_nhan" phải là một trong: A, B, C, D, E, tat_ca.');
+  const gioS = mot(query, 'gio_den');
+  let gio = null;
+  if (gioS !== undefined && gioS !== '') { gio = Number(gioS); if (!/^\d{1,2}$/.test(gioS) || gio < 0 || gio > 23) throw new Q.LoiKtt('KTT_GIO_SAI', 'Tham số "gio_den" phải là số nguyên 0..23.'); }
+  const chuyen = mot(query, 'chuyen');
+  if (chuyen !== undefined && chuyen !== '' && !RE_CHUYEN.test(chuyen)) throw new Q.LoiKtt('KTT_CHUYEN_SAI', 'Tham số "chuyen" phải có dạng HH:MM (giờ xe rời KTT).');
+  const thu = mot(query, 'thu');
+  if (thu !== undefined && thu !== '' && !KD.THU.includes(thu)) throw new Q.LoiKtt('KTT_THU_SAI', 'Tham số "thu" phải là một trong: 2, 3, 4, 5, 6, 7, CN.');
+  const nh = mot(query, 'nguon_hang');
+  if (nh !== undefined && nh !== '' && !Object.values(Q.NGUON_HANG).includes(nh)) throw new Q.LoiKtt('KTT_NGUON_HANG_SAI', `Tham số "nguon_hang" phải là một trong: ${Object.values(Q.NGUON_HANG).join(', ')}.`);
+  return { moc, nhom: nhom === undefined || nhom === '' ? 'tat_ca' : nhom, gio, chuyen: chuyen === undefined || chuyen === '' ? null : chuyen, thu: thu === undefined || thu === '' ? null : thu, nguonHang: nh === undefined || nh === '' ? null : nh };
+}
+
+/**
+ * GET /api/ktt/luu-thoat/khong-dat-14h?tu=&den=[&ma_bcvh=&nguon=&thu=&nguon_hang=&bien_sat_gio_phut=30|60|90&top=] — các bảng «Vì sao không đạt 14 giờ» của MỌI mốc (bộ nặng của từng ngày, cùng cache theo ngày với /luu-thoat).
+ * Bộ lọc ma_bcvh / nguon / thu / nguon_hang áp cho mọi bảng (riêng du_dia_theo_gio không có chiều `nguon`; dot_den không có `nguon_hang` riêng ngoài lọc chung).
+ */
+async function khongDat14h(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query, ['ma_bcvh', 'nguon', 'thu', 'nguon_hang', 'bien_sat_gio_phut', 'top', 'moc']);
+  const mocBt = docMocBt(query); // pha 2 bản sửa 2: mốc mặc định A (PO 04/11/2026); API vẫn trả cả hai mốc ở mọi bảng, `moc` chỉ chọn mốc xếp `dot_den`
+  const maBcvh = docMaBcvh(query);
+  const nguon = docNguon(query);
+  const thuS = mot(query, 'thu');
+  if (thuS !== undefined && thuS !== '' && !KD.THU.includes(thuS)) throw new Q.LoiKtt('KTT_THU_SAI', 'Tham số "thu" phải là một trong: 2, 3, 4, 5, 6, 7, CN.');
+  const nhS = mot(query, 'nguon_hang');
+  if (nhS !== undefined && nhS !== '' && !Object.values(Q.NGUON_HANG).includes(nhS)) throw new Q.LoiKtt('KTT_NGUON_HANG_SAI', `Tham số "nguon_hang" phải là một trong: ${Object.values(Q.NGUON_HANG).join(', ')}.`);
+  const bs = mot(query, 'bien_sat_gio_phut');
+  const bienSat = bs === undefined || bs === '' ? KD.SAT_GIO_MAC_DINH : Number(bs);
+  if (!KD.SAT_GIO_PHUT.includes(bienSat)) throw new Q.LoiKtt('KTT_BIEN_SAT_GIO_SAI', `Tham số "bien_sat_gio_phut" phải là một trong: ${KD.SAT_GIO_PHUT.join(', ')} (mặc định ${KD.SAT_GIO_MAC_DINH}).`);
+  const tp = mot(query, 'top');
+  const top = tp === undefined || tp === '' ? 15 : Number(tp);
+  if (!Number.isInteger(top) || top < 1 || top > 50) throw new Q.LoiKtt('KTT_TOP_SAI', 'Tham số "top" phải là số nguyên 1..50.');
+  const loc = { maBcvh, nguon, thu: thuS === undefined || thuS === '' ? null : thuS, nguonHang: nhS === undefined || nhS === '' ? null : nhS };
+  const doMoi = QL.docDoMoi(db);
+  const ra = { khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, bo_loc: { ma_bcvh: loc.maBcvh, nguon: loc.nguon, thu: loc.thu, nguon_hang: loc.nguonHang }, bien_sat_gio_phut: bienSat };
+  if (!doMoi) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
+  dongBoPhienBan(db);
+  const ds = [];
+  for (const ngay of k.ngays) ds.push(await layNgay(db, ngay, doMoi.nguon_xuat_luc, now, S.MOC_CHI_TIEU_MAC_DINH)); // cả hai mốc cùng nằm trong mục mốc mặc định
+  const nang = KD.gopNang(ds.flatMap((x) => x.nang || []));
+  const lt = QL.ghepKhoang(ds);
+  const mocTop = BT.MOC_BT[mocBt]; // dot_den xếp theo mốc `moc` (mặc định A); cả hai mốc đều có trong theo_moc của từng đợt
+  return {
+    ...ra, bay_gio: doMoi.nguon_xuat_luc, nguon_xuat_luc_moi_nhat: doMoi.nguon_xuat_luc, co_du_lieu: lt.co_du_lieu, ly_do: null,
+    moc: mocBt, moc_mac_dinh: BT.MOC_MAC_DINH, moc_goi_y_chan_doan: KD.MOC[1], moc_dot_den: mocTop,
+    nhan_nhom: KD.NHAN_NHOM, ly_do_xep_nhom: KD.LY_DO_XEP_NHOM,
+    tong: KD.tongNhom(nang, loc),
+    theo_ngay: KD.gomChieu(nang, loc, ['ngay'], true),
+    theo_thu: KD.gomChieu(nang, loc, ['thu'], true),
+    theo_nguon_hang: KD.gomChieu(nang, loc, ['nh'], true),
+    theo_bcvh: KD.gomChieu(nang, loc, ['bcvh'], true),
+    theo_bcvh_loai_ngay: KD.gomChieu(nang, loc, ['bcvh', 'loai_ngay'], true),
+    theo_duong_thu: KD.gomChieu(nang, loc, ['nguon'], true),
+    theo_gio_den: KD.gomChieu(nang, loc, ['gio'], true),
+    theo_gio_duong_thu: KD.gomChieu(nang, loc, ['gio', 'nguon'], true),
+    theo_bcvh_chuyen: KD.gomChieu(nang, loc, ['bcvh', 'chuyen'], false),
+    phan_bo_cho: KD.phanBoCho(nang, loc),
+    du_dia_theo_gio: KD.duDiaTheoGio(nang, loc),
+    dot_den: KD.dotDen(nang, loc, mocTop, bienSat, top),
+    canh_bao: [
+      'Mốc A đo từ giờ xác nhận BD10 đến chung của cả đợt nên có thể méo theo lô; mốc B (quét túi đến) phù hợp để chẩn đoán. Mốc mặc định của khối là A (PO 04/11/2026). Chỉ tiêu chính thức không đổi.',
+      ...lt.canh_bao.filter((c) => !/bưu gửi không rõ đích/.test(c)),
+      ...(loc.nguon ? ['du_dia_theo_gio không có chiều đường thư nên không áp bộ lọc `nguon`.'] : [])
+    ],
+    meta: { do_chinh_xac_phan_vi: { bien_an_toan_phut: KD.BUOC_BIEN, cho_theo_lich_gio: KD.BUOC_CHO / 60, du_dia_gio: KD.BUOC_DU / 60 }, khong_ap_loc_nguon: ['du_dia_theo_gio'] }
+  };
+}
+
 /** GET /api/ktt/chi-tiet?tu=&den=&loai=&ma_bcvh=&page=&page_size= — loai: loại của kttQuery.chiTiet HOẶC nhóm lưu thoát (QL.NHOM_LUU_THOAT). Phân trang như /api/arrivals/items (page, page_size ≤ 200). */
 async function chiTiet(db, query, { now = Date.now() } = {}) {
-  const k = docKhoang(query, ['loai', 'ma_bcvh', 'page', 'page_size', 'nguon']);
+  const laKd = query && query.loai === KD.LOAI_CHI_TIET; // KTT-KD-1: tham số nhóm nguyên nhân chỉ được nhận với loai=khong_dat_14h (loai khác: khóa lạ -> 400 như trước)
+  const k = docKhoang(query, ['loai', 'ma_bcvh', 'page', 'page_size', 'nguon', ...(laKd ? THAM_SO_KD : [])]);
   const loai = mot(query, 'loai');
-  const nhom = Object.prototype.hasOwnProperty.call(QL.NHOM_LUU_THOAT, loai) ? loai : null;
-  if (loai === undefined || (!LOAI_CU.has(loai) && nhom === null)) throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "loai" phải thuộc: ${[...Q.LOAI_CHI_TIET, ...Object.keys(QL.NHOM_LUU_THOAT)].join(', ')}.`);
+  const nhom = Object.prototype.hasOwnProperty.call(QL.NHOM_LUU_THOAT, loai) || loai === KD.LOAI_CHI_TIET ? loai : null;
+  if (loai === undefined || (!LOAI_CU.has(loai) && nhom === null)) throw new Q.LoiKtt('KTT_LOAI_SAI', `Tham số "loai" phải thuộc: ${[...Q.LOAI_CHI_TIET, ...Object.keys(QL.NHOM_LUU_THOAT), KD.LOAI_CHI_TIET].join(', ')}.`);
   const page = mot(query, 'page');
   const size = mot(query, 'page_size');
   const trang = page === undefined || page === '' ? 1 : Number(page);
@@ -290,21 +477,22 @@ async function chiTiet(db, query, { now = Date.now() } = {}) {
   const maBcvh = docMaBcvh(query);
   const nguon = docNguon(query);
   if (nguon !== null && nhom === null) throw new Q.LoiKtt('KTT_NGUON_SAI', 'Tham số "nguon" chỉ dùng với các nhóm lưu thoát (t1…t5, ro_lai, truot_chuyen…).');
+  const kd = loai === KD.LOAI_CHI_TIET ? docKd(query) : null; // KTT-KD-1
   const doMoi = QL.docDoMoi(db);
   const bayGio = doMoi ? doMoi.nguon_xuat_luc : `${k.denNgay} 00:00:00`;
   const tinh = async () => {
     dem.chiTietTinh++;
     const r = nhom
-      ? await chayNen(db, 'chiTietLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom, maBcvh, nguon, trang, kichThuocTrang, bayGio })
+      ? await chayNen(db, 'chiTietLuuThoat', { tuNgay: k.tuNgay, denNgay: k.denNgay, nhom, maBcvh, nguon, trang, kichThuocTrang, bayGio, kd })
       : await chayNen(db, 'chiTietCu', { tuNgay: k.tuNgay, denNgay: k.denNgay, loai, maBcvh, trang, kichThuocTrang, bayGio });
     return {
       items: r.dong,
       pagination: { total: r.tong, page: trang, page_size: r.kichThuocTrang, total_pages: r.soTrang },
-      meta: { loai, ma_bcvh: maBcvh, nguon, tu: k.tuNgay, den: k.denNgay, ...metaDoMoi(doMoi, bayGio, db) }
+      meta: { loai, ma_bcvh: maBcvh, nguon, tu: k.tuNgay, den: k.denNgay, ...(kd ? { moc_chi_tieu: kd.moc, nhom_nguyen_nhan: kd.nhom, gio_den: kd.gio, chuyen: kd.chuyen, thu: kd.thu, nguon_hang: kd.nguonHang } : {}), ...metaDoMoi(doMoi, bayGio, db) }
     };
   };
   if (!doMoi) return tinh();
-  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `${loai}|${maBcvh || ''}|${nguon || ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
+  return layMuc(db, boNho.chiTiet, MUC_KHAC_TOI_DA, `${loai}|${maBcvh || ''}|${nguon || ''}|${kd ? JSON.stringify(kd) : ''}|${k.tuNgay}|${k.denNgay}|${trang}|${kichThuocTrang}`, now, doMoi.nguon_xuat_luc, tinh);
 }
 
 // ------------------------------------------
@@ -338,6 +526,31 @@ async function xuatLuuThoat(db, query, { now = Date.now(), nguoiXuat = null } = 
   return { tenFile: X.tenFile(k.tuNgay, k.denNgay), thongTin, dong: r.dong, tong: r.dong.length, khoang: k, nhom: loc, maBcvh, nguon };
 }
 
+
+/**
+ * GET /api/ktt/xuat/khong-dat-14h?tu=&den=[&moc_chi_tieu=&nhom_nguyen_nhan=&ma_bcvh=&nguon=&gio_den=&chuyen=&thu=&nguon_hang=] — chuẩn bị file xlsx sheet 10 { tenFile, thongTin, dong, cot, tenSheet, khoang, ... }.
+ * Số dòng = pagination.total của /chi-tiet?loai=khong_dat_14h cùng tham số = số trên màn hình (bảng `tong`/chiều tương ứng của khongDat14h).
+ */
+async function xuatKhongDat14h(db, query, { now = Date.now(), nguoiXuat = null } = {}) {
+  const k = docKhoang(query, ['ma_bcvh', 'nguon', ...THAM_SO_KD]);
+  const maBcvh = docMaBcvh(query);
+  const nguon = docNguon(query);
+  const kd = docKd(query);
+  const doMoi = QL.docDoMoi(db);
+  const tran = X.tranDong();
+  const r = doMoi ? await chayNen(db, 'xuatKhongDat14h', { tuNgay: k.tuNgay, denNgay: k.denNgay, kd, maBcvh, nguon, bayGio: doMoi.nguon_xuat_luc, tranDong: tran }) : { tong: 0, vuotTran: false, dong: [] };
+  if (r.vuotTran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${r.tong} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc thêm bộ lọc.`);
+  let soManHinh = null;
+  if (doMoi) {
+    dongBoPhienBan(db);
+    const ds = [];
+    for (const ngay of k.ngays) ds.push(await layNgay(db, ngay, doMoi.nguon_xuat_luc, now, S.MOC_CHI_TIEU_MAC_DINH));
+    soManHinh = KD.demTheoLoc(KD.gopNang(ds.flatMap((x) => x.nang || [])), { maBcvh, nguon, thu: kd.thu, nguonHang: kd.nguonHang }, kd);
+  } else soManHinh = 0;
+  const lich = L.docLichChuyen(db);
+  const thongTin = X.dongThongTin10({ tu: k.tuNgay, den: k.denNgay, kd, maBcvh, nguon, doMoi: doMoi ? doMoi.nguon_xuat_luc : null, soDong: r.dong.length, soManHinh, nguoiXuat, xuatLuc: X.gioVietNam(now), hanPhut: lich.hanDenTruocChuyenPhut });
+  return { tenFile: X.tenFile10(k.tuNgay, k.denNgay, kd.moc), thongTin, dong: r.dong, tong: r.dong.length, khoang: k, kd, maBcvh, nguon, cot: X.COT_SHEET10, tenSheet: X.TEN_SHEET_10 };
+}
 
 // ------------------------------------------
 // KTT-12: đi cùng ngày (B1–B3), hàng rớt lại, lịch xe (B4–B6), danh sách bấm ô, hàng đến (A), tổng quan
@@ -885,7 +1098,7 @@ async function xuatDoiChieuTrong(db, query, sheet, { now = Date.now(), nguoiXuat
 }
 
 module.exports = {
-  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatHomSauChuaDi, meta, doPhuBcvh,
+  docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatKhongDat14h, khongDat14h, docKd, bucTranhCum, bucTranhChuyenXe, bucTranhDanhGia, huyCacheNgay, docMocBt, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, doiChieuDanhGia, xuatDoiChieu, TEN_SHEET_XUAT_DC, trangThaiXuat, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).
