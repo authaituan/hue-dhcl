@@ -86,9 +86,10 @@ function docKhoang(query, khoaThem = []) {
 // ------------------------------------------
 function chuKyLich(db) {
   try {
-    const a = db.prepare("SELECT COALESCE(group_concat(ma_bcvh || '@' || gio_xuat_phat || ':' || ngay_chay || ':' || dang_dung, ';'), '') AS s FROM (SELECT * FROM ktt_lich_chuyen ORDER BY ma_bcvh, gio_xuat_phat)").get().s;
+    const a = db.prepare("SELECT COALESCE(group_concat(ma_bcvh || '@' || gio_xuat_phat || ':' || ngay_chay || ':' || dang_dung || ':' || ngay_chay_xac_nhan, ';'), '') AS s FROM (SELECT * FROM ktt_lich_chuyen ORDER BY ma_bcvh, gio_xuat_phat)").get().s;
     const b = db.prepare("SELECT COALESCE(group_concat(khoa || '=' || gia_tri, ';'), '') AS s FROM (SELECT * FROM ktt_lich_cau_hinh ORDER BY khoa)").get().s;
-    return `${a}#${b}`;
+    const v = db.prepare("SELECT COALESCE(MAX(gia_tri), 0) AS v FROM ktt_lich_cau_hinh WHERE khoa = 'lich_phien_ban'").get().v; // KTT-LICH-2: phiên bản lịch chuẩn đã áp dụng vào chữ ký (đổi phiên bản = hủy mọi cache)
+    return `${a}#${b}#v${v}`;
   } catch (e) { return 'khong-doc-duoc'; }
 }
 function dongBoPhienBan(db) {
@@ -353,7 +354,7 @@ async function bucTranh(db, query, phan, { now = Date.now() } = {}) {
         shbg_trong_buc_tranh: R.n, lech_mau_so: R.n - mauSo
       },
       do_duoc_chi_tieu_14h: { A: ct14('A'), B: ct14('B') },
-      luu_y_lich: { bcvh_chuyen_nghi_chu_nhat: [...new Set(lichDoc.lich.filter((r) => r.ngay_chay === 'NGHI_CN' && !(r.dang_dung === 0)).map((r) => r.ma_bcvh))].sort(), ghi_chu: 'Ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật mang luu_y_lich = true: lịch Chủ nhật chưa tin cậy (KTT-LICH-2).' },
+      luu_y_lich: { bcvh_chuyen_nghi_chu_nhat: L.bcvhChuaXacNhanChuNhat(lichDoc.lich), bcvh_chu_nhat_chua_xac_nhan: L.bcvhChuaXacNhanChuNhat(lichDoc.lich), ghi_chu: 'KTT-LICH-2 (lịch chuẩn 05/11/2026): luu_y_lich = true chỉ khi BCVH có dòng lịch chưa xác nhận (cột ngay_chay_xac_nhan = 0); hiện không BCVH nào. Tên khóa bcvh_chuyen_nghi_chu_nhat giữ để không đổi hợp đồng, nghĩa mới = chưa xác nhận.' },
       quy_uoc: {
         don_vi: 'SHBG thuộc mẫu số lưu thoát (6 BCVH, không hàng hoàn, có giờ quét túi đến, xếp được chuyến)', cum: '(đường thư BD10 đến, lịch BD10 đến, băng giờ); băng tách khi hai lần đến liền nhau cách trên ktt_bt_gap_cum_phut',
         moc_a: 'giờ xác nhận BD10 đến (bd10_den_xnd), méo theo lô', moc_b: 'giờ quét túi đến', gio_den: 'phút kể từ 00:00 ngày đến D, trình bày HH:MM; băng vắt qua nửa đêm có vat_dem = true',
@@ -438,6 +439,7 @@ async function khongDat14h(db, query, { now = Date.now() } = {}) {
   return {
     ...ra, bay_gio: doMoi.nguon_xuat_luc, nguon_xuat_luc_moi_nhat: doMoi.nguon_xuat_luc, co_du_lieu: lt.co_du_lieu, ly_do: null,
     moc: mocBt, moc_mac_dinh: BT.MOC_MAC_DINH, moc_goi_y_chan_doan: KD.MOC[1], moc_dot_den: mocTop,
+    lap_ngay_nghi: { shbg: lt.meta.lap_ngay_nghi_shbg || 0, theo_bcvh: lt.meta.lap_ngay_nghi || {}, ghi_chu: 'Cờ phụ (KTT-LICH-2): bưu gửi có BD10 đi lập Chủ nhật sau chuyến Chủ nhật cuối còn chạy của BCVH có chuyến nghỉ; vẫn nằm trong mẫu số và nhóm nguyên nhân, chỉ đếm riêng.' },
     nhan_nhom: KD.NHAN_NHOM, ly_do_xep_nhom: KD.LY_DO_XEP_NHOM,
     tong: KD.tongNhom(nang, loc),
     theo_ngay: KD.gomChieu(nang, loc, ['ngay'], true),
@@ -858,7 +860,7 @@ function meta(db) {
     chi_tieu_gio: { mac_dinh: CT.CHI_TIEU_MAC_DINH_GIO, ngoai_le: CT.NGOAI_LE_CHI_TIEU.map((e) => ({ ma_bcvh: e.maBcvh, phuong: [...e.phuong], gio: e.gio })) },
     gioi_han: { so_ngay_toi_da: 31, trang_toi_da: QL.TRANG_TOI_DA, trang_mac_dinh: 50 },
     loai_chi_tiet: [...Q.LOAI_CHI_TIET, ...Object.keys(QL.NHOM_LUU_THOAT)],
-    canh_bao: [...lich.canhBao, ...cauHinh.canhBao]
+    canh_bao: [...lich.canhBao, ...cauHinh.canhBao.filter((c) => !/ktt_cau_hinh_chuyen/.test(c))] // KTT-LICH-2: lịch V1 không còn seed, bỏ cảnh báo «chưa có dòng»
   };
 }
 

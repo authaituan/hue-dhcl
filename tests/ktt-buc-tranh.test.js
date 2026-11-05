@@ -202,14 +202,18 @@ test('nhieu_kien_di_ngoai từ 30%; luu_y_lich; chuyen_gom_nhieu_hang theo mức
     spec.push({ dt: 'NHIEU', ngay: d, n: 28, phut: (i) => 600 + i, kien: 0 }); // 120/400 = 30%
   }
   const R = dungR(spec, 10, [0, 7]);
-  const lich = [{ ma_bcvh: TH, gio_xuat_phat: '07:00', ngay_chay: 'CA_TUAN' }, { ma_bcvh: TH, gio_xuat_phat: '12:55', ngay_chay: 'NGHI_CN' }, { ma_bcvh: TH, gio_xuat_phat: '19:45', ngay_chay: 'CA_TUAN' }, { ma_bcvh: PL, gio_xuat_phat: '06:00', ngay_chay: 'CA_TUAN' }];
+  const lich = [{ ma_bcvh: TH, gio_xuat_phat: '07:00', ngay_chay: 'CA_TUAN' }, { ma_bcvh: TH, gio_xuat_phat: '12:55', ngay_chay: 'NGHI_CN', ngay_chay_xac_nhan: 0 }, { ma_bcvh: TH, gio_xuat_phat: '19:45', ngay_chay: 'CA_TUAN' }, { ma_bcvh: PL, gio_xuat_phat: '06:00', ngay_chay: 'CA_TUAN' }];
   const v = BT.tinhMoc(R, { moc: 'B', nguong: {}, lich });
   assert.equal(v.cum.find((c) => c.duong_thu.ma === 'NHIEU').co.nhieu_kien_di_ngoai, true, 'đúng 30%: gắn cờ (từ 30%)');
   assert.equal(v.cum.find((c) => c.duong_thu.ma === 'KIEN').co.nhieu_kien_di_ngoai, false, '23%: chưa');
-  // luu_y_lich: Thuận Hóa có chuyến nghỉ Chủ nhật -> ô / chuyến Chủ nhật true, ngày thường false
-  assert.ok(v.o.some((o) => o.loai_ngay === 'chu_nhat' && o.luu_y_lich === true), 'ô Chủ nhật của Thuận Hóa');
+  // luu_y_lich (KTT-LICH-2): chỉ khi BCVH có dòng lịch CHƯA xác nhận (ngay_chay_xac_nhan = 0), không còn suy từ NGHI_CN -> ô / chuyến Chủ nhật true, ngày thường false
+  assert.ok(v.o.some((o) => o.loai_ngay === 'chu_nhat' && o.luu_y_lich === true), 'ô Chủ nhật của Thuận Hóa (dòng chưa xác nhận)');
   assert.ok(v.o.filter((o) => o.loai_ngay === 'thuong').every((o) => o.luu_y_lich === false));
   assert.ok(v.chuyen.filter((c) => c.loai_ngay === 'chu_nhat').every((c) => c.luu_y_lich === true));
+  // lịch chuẩn: có dòng NGHI_CN nhưng ĐÃ xác nhận (mặc định) -> không ô / chuyến nào gắn luu_y_lich
+  const daXacNhan = lich.map((r) => ({ ...r, ngay_chay_xac_nhan: 1 }));
+  const v2 = BT.tinhMoc(R, { moc: 'B', nguong: {}, lich: daXacNhan });
+  assert.ok(v2.o.length > 0 && v2.o.every((o) => o.luu_y_lich === false) && v2.chuyen.every((c) => c.luu_y_lich === false), 'lịch đã xác nhận: không gắn luu_y_lich dù còn dòng NGHI_CN');
   // chuyen_gom: Thuận Hóa có 2 chuyến chạy Chủ nhật / 3 ngày thường; chuyến 07:00 nhận 100% sản lượng
   const t = v.chuyen.find((c) => c.loai_ngay === 'thuong');
   assert.equal(t.so_chuyen_trong_ngay, 3);
@@ -355,23 +359,36 @@ test('API: loai_ngay đúng Chủ nhật (11/10) — chu_nhat chỉ ngày Chủ 
   assert.equal((await goi(`${BASE}${QS({ loai_ngay: 'cuoi_tuan' })}`, 'admin')).status, 400);
 });
 
-test('API chuyen-xe: ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật mang luu_y_lich = true (Hương Thủy, Thuận Hóa); BCVH không nghỉ (Hương Trà, A Lưới) và ngày thường là false; Hương Thủy Chủ nhật vẫn xếp sang 06:30 hôm sau', async () => {
+test('API chuyen-xe: lịch chuẩn 05/11 — KHÔNG BCVH nào gắn luu_y_lich; đánh dấu một BCVH «chưa xác nhận» thì chỉ ô Chủ nhật của BCVH đó gắn cờ; Hương Thủy Chủ nhật chạy 07:30 cùng ngày', async () => {
   duLieu();
   const r = await goi(`${BASE}/chuyen-xe${QS()}`, 'ttkt');
   assert.equal(r.status, 200);
-  assert.deepEqual(r.body.meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat, ['533140', '536250', '537015', '537220']);
+  assert.deepEqual(r.body.meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat, []);
+  assert.deepEqual(r.body.meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan, []);
   for (const m of ['A', 'B']) {
     const v = r.body.theo_moc[m];
     const cn = v.chuyen.filter((c) => c.loai_ngay === 'chu_nhat');
-    assert.ok(cn.length > 0 && cn.every((c) => c.luu_y_lich === true));
-    assert.ok(v.chuyen.filter((c) => c.loai_ngay === 'thuong').every((c) => c.luu_y_lich === false));
-    assert.ok(v.o.filter((o) => o.loai_ngay === 'chu_nhat').every((o) => o.luu_y_lich === true));
+    assert.ok(cn.length > 0 && cn.every((c) => c.luu_y_lich === false), 'Chủ nhật có chuyến nhưng không gắn luu_y_lich');
+    assert.ok(v.chuyen.every((c) => c.luu_y_lich === false));
+    assert.ok(v.o.every((o) => o.luu_y_lich === false));
     assert.equal(v.chuyen.reduce((s, c) => s + c.shbg, 0), v.do_duoc, `${m}: Σ chuyến = đo được`);
   }
+  // đổi dữ liệu (không đổi mã): Hương Thủy chưa xác nhận lịch Chủ nhật -> cache hủy, chỉ ô / chuyến Chủ nhật của Hương Thủy gắn cờ
+  db.exec("UPDATE ktt_lich_chuyen SET ngay_chay_xac_nhan = 0 WHERE ma_bcvh = '536250'");
+  try {
+    const r2 = await goi(`${BASE}/chuyen-xe${QS()}`, 'ttkt');
+    assert.deepEqual(r2.body.meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan, ['536250']);
+    assert.deepEqual(r2.body.meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat, ['536250']);
+    for (const m of ['A', 'B']) {
+      const v = r2.body.theo_moc[m];
+      assert.ok(v.chuyen.filter((c) => c.loai_ngay === 'chu_nhat' && c.ma_bcvh === HY).every((c) => c.luu_y_lich === true));
+      assert.ok(v.chuyen.filter((c) => !(c.loai_ngay === 'chu_nhat' && c.ma_bcvh === HY)).every((c) => c.luu_y_lich === false));
+    }
+  } finally { db.exec("UPDATE ktt_lich_chuyen SET ngay_chay_xac_nhan = 1 WHERE ma_bcvh = '536250'"); }
   const hy = r.body.theo_moc.B.chuyen.find((c) => c.ma_bcvh === HY && c.loai_ngay === 'chu_nhat');
-  assert.equal(hy.gio_xuat_phat, '06:30');
-  assert.equal(hy.hom_sau.ty_le, 1, 'lịch hiện hành: Hương Thủy Chủ nhật 100% sang 06:30 hôm sau (KTT-LICH-2 sẽ sửa lịch)');
-  // luu_thoat_theo_lich / con_lai: đến 05:00 Chủ nhật, xe 06:30 Thứ Hai: chờ theo lịch = 21:00–07:00 bị trừ -> (24h − 10h) − 5h ... số dương, còn lại = 14 − chờ
+  assert.equal(hy.gio_xuat_phat, '07:30');
+  assert.ok(hy.hom_sau.ty_le > 0 && hy.hom_sau.ty_le < 1, 'lịch chuẩn: Hương Thủy Chủ nhật có chuyến 07:30 nên hàng đến trước 06:30 đi cùng ngày, không còn 100% sang hôm sau');
+  // luu_thoat_theo_lich / con_lai: đến 05:00 Chủ nhật, xe 07:30 cùng ngày: 05:00–07:00 nằm trong khung đêm bị trừ -> chờ theo lịch = 0,5 giờ, còn lại = chỉ tiêu − chờ
   assert.ok(hy.luu_thoat_theo_lich.trung_vi_gio > 0 && hy.con_lai.trung_vi_gio !== null);
   assert.equal(hy.con_lai.nguong_gio, 3);
 });

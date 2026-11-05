@@ -129,7 +129,7 @@ function phanLoaiShbg(u, ngu) {
     else if (ngayDi === ngayKe(D)) trangThai = chuyenKq === 'DUNG' ? TRANG_THAI.T3 : TRANG_THAI.T4;
     else trangThai = TRANG_THAI.T5;
   } else if (dg.trang_thai === 'LO_CHUYEN') { trangThai = TRANG_THAI.T5; chuyenKq = 'LO'; } else { trangThai = TRANG_THAI.DANG_CHO_CHUYEN; chuyenKq = 'CHUA_DEN_GIO'; }
-  return { ...goc, nhom: nhomDich, trangThai, chuyenKq, chuyen: x.chuyen, diTruocKhiDen: !!dg.di_truoc_khi_den, datKhongDat: dat, ...chiTieu14h(u, gioDi !== null, mocChon === MOC_CHI_TIEU.XND ? dat : tinh(u.xndBd10), mocChon === MOC_CHI_TIEU.QUET_TUI_DEN ? dat : tinh(u.quetDen), tinh) };
+  return { ...goc, nhom: nhomDich, trangThai, chuyenKq, chuyen: x.chuyen, diTruocKhiDen: !!dg.di_truoc_khi_den, lapNgayNghi: gioDi !== null && L.lapNgayNghi(ngu.lich, ma, gioDi), datKhongDat: dat, ...chiTieu14h(u, gioDi !== null, mocChon === MOC_CHI_TIEU.XND ? dat : tinh(u.xndBd10), mocChon === MOC_CHI_TIEU.QUET_TUI_DEN ? dat : tinh(u.quetDen), tinh) };
 }
 
 /**

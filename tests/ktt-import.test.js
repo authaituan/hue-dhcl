@@ -77,37 +77,29 @@ const motTui = (post) => db.prepare('SELECT * FROM ktt_tui WHERE post_bag_index 
 const anh = (bang) => db.prepare(`SELECT * FROM ${bang} ORDER BY id`).all().map(({ id, nap_lan_id, cap_nhat_luc, ...r }) => r);
 
 // ---------- cấu hình mặc định + schema ----------
-test('bảng cấu hình: đúng 12 mốc chuyến và 4 khóa ngưỡng mặc định V1; chạy lại không nhân dòng', () => {
-  const chuyen = db.prepare('SELECT ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu FROM ktt_cau_hinh_chuyen ORDER BY ma_bcvh, ten_chuyen').all();
-  assert.equal(chuyen.length, 12);
-  const dang = (ma) => chuyen.filter((c) => c.ma_bcvh === ma).map((c) => `${c.ten_chuyen} ${c.gio_moc}`).sort();
-  assert.deepEqual(dang('533140'), ['SANG 07:30', 'TOI 22:30', 'TRUA 14:00']);
-  assert.deepEqual(dang('535470'), ['SANG 07:00', 'TRUA 12:30']);
-  assert.deepEqual(dang('535790'), ['SANG 08:30']);
-  assert.deepEqual(dang('536250'), ['SANG 09:30', 'TRUA 13:00']);
-  assert.deepEqual(dang('537015'), ['SANG 08:00', 'TRUA 13:30']);
-  assert.deepEqual(dang('537220'), ['SANG 08:00', 'TRUA 13:30']);
-  assert.ok(chuyen.every((c) => c.gio_chot_truoc_phut === 30 && c.ghi_chu === 'V1 ước lượng từ giờ đi thực tế, chờ PO cung cấp giờ chính xác'));
+test('bảng cấu hình: lịch V1 KHÔNG còn seed (KTT-LICH-2) và 4 khóa ngưỡng mặc định; chạy lại không nhân dòng', () => {
+  const chuyen = db.prepare('SELECT ma_bcvh, ten_chuyen, gio_moc FROM ktt_cau_hinh_chuyen').all();
+  assert.equal(chuyen.length, 0);
   const nguong = Object.fromEntries(db.prepare('SELECT khoa, gia_tri FROM ktt_cau_hinh').all().map((r) => [r.khoa, r.gia_tri]));
   assert.deepEqual(nguong, { treo_phut: 180, nam_lau_toi_da_phut: 1440, chi_tieu_f13_gio: 14, chi_tieu_f13_gio_thuan_hoa_phu_xuan: 12 });
 
   SCHEMA.ensureKttSchema(db);
   SCHEMA.ensureKttSchema(db);
-  assert.equal(dem('ktt_cau_hinh_chuyen'), 12);
+  assert.equal(dem('ktt_cau_hinh_chuyen'), 0);
   assert.equal(dem('ktt_cau_hinh'), 4);
 });
 
 test('bảng cấu hình: giá trị PO đã sửa tay KHÔNG bị ghi đè khi chạy lại ensureKttSchema', () => {
-  db.prepare("UPDATE ktt_cau_hinh_chuyen SET gio_moc = '07:45', gio_chot_truoc_phut = 45, ghi_chu = 'PO đã chỉnh' WHERE ma_bcvh = '533140' AND ten_chuyen = 'SANG'").run();
+  db.prepare("INSERT INTO ktt_cau_hinh_chuyen (ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu, cap_nhat_luc) VALUES ('533140', 'SANG', '07:45', 45, 'PO đã chỉnh', 'x')").run();
   db.prepare("UPDATE ktt_cau_hinh SET gia_tri = 200 WHERE khoa = 'treo_phut'").run();
   try {
     SCHEMA.ensureKttSchema(db);
     const c = db.prepare("SELECT gio_moc, gio_chot_truoc_phut, ghi_chu FROM ktt_cau_hinh_chuyen WHERE ma_bcvh = '533140' AND ten_chuyen = 'SANG'").get();
     assert.deepEqual({ ...c }, { gio_moc: '07:45', gio_chot_truoc_phut: 45, ghi_chu: 'PO đã chỉnh' });
     assert.equal(db.prepare("SELECT gia_tri FROM ktt_cau_hinh WHERE khoa = 'treo_phut'").get().gia_tri, 200);
-    assert.equal(dem('ktt_cau_hinh_chuyen'), 12);
+    assert.equal(dem('ktt_cau_hinh_chuyen'), 1);
   } finally {
-    db.prepare("UPDATE ktt_cau_hinh_chuyen SET gio_moc = '07:30', gio_chot_truoc_phut = 30, ghi_chu = ? WHERE ma_bcvh = '533140' AND ten_chuyen = 'SANG'").run(SCHEMA.GHI_CHU_CHUYEN_V1);
+    db.prepare("DELETE FROM ktt_cau_hinh_chuyen WHERE ma_bcvh = '533140' AND ten_chuyen = 'SANG'").run();
     db.prepare("UPDATE ktt_cau_hinh SET gia_tri = 180 WHERE khoa = 'treo_phut'").run();
   }
 });

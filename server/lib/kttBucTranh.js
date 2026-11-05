@@ -358,7 +358,7 @@ function tinhMoc(R, opts) {
     const dong = (opts.lich || []).filter((r) => r.ma_bcvh === maBcvh && !(r.dang_dung === 0 || r.dang_dung === false) && (loaiN === 'chu_nhat' ? r.ngay_chay === 'CA_TUAN' : true));
     return Math.max(1, dong.length);
   };
-  const luuY = new Set((opts.lich || []).filter((r) => r.ngay_chay === 'NGHI_CN' && !(r.dang_dung === 0 || r.dang_dung === false)).map((r) => r.ma_bcvh)); // BCVH có chuyến nghỉ Chủ nhật: lịch Chủ nhật chưa tin cậy (KTT-LICH-2)
+  const luuY = new Set(L.bcvhChuaXacNhanChuNhat(opts.lich)); // KTT-LICH-2: BCVH có dòng lịch chưa xác nhận (ngay_chay_xac_nhan = 0) -> ô Chủ nhật mang luu_y_lich; lịch chuẩn 05/11: không BCVH nào
   const tong = { o: new Map(), ch: new Map(), bcvhLoai: new Map() };
   const lamO = can.o || can.chuyen || can.the;
   const layO = (mapa, khoa, tao) => { let e = mapa.get(khoa); if (!e) { e = tao(); mapa.set(khoa, e); } return e; };

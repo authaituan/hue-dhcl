@@ -3,7 +3,7 @@
 // Tài liệu: docs/ai/40_KTT_LICH_CHUYEN.md. Lịch lưu ở ktt_lich_chuyen, tham số ở ktt_lich_cau_hinh (schema: server/lib/kttSchema.js).
 // Các hàm xepChuyen / chuyenTrongNgay / danhGiaDiChuyen KHÔNG đọc DB, KHÔNG dùng giờ máy, KHÔNG đổi đầu vào. Chỉ docLichChuyen đọc DB (không ném lỗi).
 // Giờ nghiệp vụ là chuỗi `YYYY-MM-DD HH:MM:SS` giờ VN (như DB), tự tách chuỗi; thứ trong tuần và cộng ngày bằng Date.UTC(số) nên kết quả giống nhau ở mọi múi giờ.
-// KTT-7a CHƯA nối vào kttQuery / kttTinh / kttDanhGia: các module đó vẫn dùng lịch V1 (ktt_cau_hinh_chuyen) đến KTT-7b.
+// Lịch hiện hành: LỊCH CHUẨN 05/11/2026 (KTT-LICH-2), nguồn seed / migration ở kttSchema.js (LICH_CHUYEN_MAC_DINH, lich_phien_ban).
 // ==========================================
 'use strict';
 const { DIA_BAN_PHAT_MAC_DINH } = require('./kttSchema');
@@ -52,6 +52,26 @@ function dungChuyen(r, ymd, hanPhut) {
   };
 }
 const boTam = ({ _giayHan, ...c }) => c;
+
+/**
+ * KTT-LICH-2: BD10 lập vào «ngày có chuyến nghỉ» = giờ lập rơi vào Chủ nhật, BCVH có ít nhất một dòng đang dùng nghỉ Chủ nhật (NGHI_CN),
+ * VÀ giờ lập SAU chuyến Chủ nhật cuối cùng còn chạy (BCVH không còn chuyến nào chạy Chủ nhật thì cả ngày). Hàm thuần; giờ sai dạng -> false.
+ */
+function lapNgayNghi(lich, maBcvh, gioLap) {
+  const g = giayCua(gioLap);
+  if (g === null) return false;
+  const ngay = ngayCua(g);
+  if (thuCua(ngay) !== 0) return false;
+  const dong = (lich || []).filter((r) => dongDungDuoc(r) && r.ma_bcvh === maBcvh);
+  if (!dong.some((r) => r.ngay_chay === 'NGHI_CN')) return false;
+  const chay = dong.filter((r) => r.ngay_chay === 'CA_TUAN').map((r) => gocNgay(ngay) + (Number(r.gio_xuat_phat.slice(0, 2)) * 60 + Number(r.gio_xuat_phat.slice(3, 5))) * 60);
+  return chay.length === 0 || g > Math.max(...chay);
+}
+
+/** KTT-LICH-2: các BCVH có dòng đang dùng đánh dấu lịch ngày chạy CHƯA xác nhận (ngay_chay_xac_nhan = 0; thiếu trường = đã xác nhận). Nguồn của cờ luu_y_lich. Đã sắp tăng. */
+function bcvhChuaXacNhanChuNhat(lich) {
+  return [...new Set((lich || []).filter((r) => dongDungDuoc(r) && (r.ngay_chay_xac_nhan === 0 || r.ngay_chay_xac_nhan === false)).map((r) => r.ma_bcvh))].sort();
+}
 
 /** Các chuyến của BCVH chạy trong ngày `ngay` ('YYYY-MM-DD'), đã loại dòng nghỉ Chủ nhật vào Chủ nhật và dòng tắt, sắp tăng theo giờ. Ngày sai dạng -> []. */
 function chuyenTrongNgay(lich, maBcvh, ngay, tuyChon) {
@@ -139,10 +159,11 @@ function docLichChuyen(db) {
   try {
     if (!coBang(db, 'ktt_lich_chuyen')) canhBao.push('Thiếu bảng ktt_lich_chuyen: lịch chuyến để trống.');
     else {
-      const dong = db.prepare('SELECT ma_bcvh, gio_xuat_phat, ngay_chay, nhan, dang_dung FROM ktt_lich_chuyen ORDER BY ma_bcvh, gio_xuat_phat').all();
+      const coXacNhan = !!db.prepare("SELECT 1 FROM pragma_table_info('ktt_lich_chuyen') WHERE name = 'ngay_chay_xac_nhan'").get(); // DB cũ / bảng dựng tay có thể chưa có cột
+      const dong = db.prepare(`SELECT ma_bcvh, gio_xuat_phat, ngay_chay, nhan, dang_dung${coXacNhan ? ', ngay_chay_xac_nhan' : ''} FROM ktt_lich_chuyen ORDER BY ma_bcvh, gio_xuat_phat`).all();
       for (const r of dong) {
         if (!dongDungDuoc({ ...r, dang_dung: 1 })) { canhBao.push(`Bỏ qua dòng lịch chuyến không hợp lệ của BCVH ${String(r.ma_bcvh).slice(0, 10)}.`); continue; }
-        lich.push({ ma_bcvh: r.ma_bcvh, gio_xuat_phat: r.gio_xuat_phat, ngay_chay: r.ngay_chay, nhan: r.nhan ?? null, dang_dung: Number(r.dang_dung) === 0 ? 0 : 1 });
+        lich.push({ ma_bcvh: r.ma_bcvh, gio_xuat_phat: r.gio_xuat_phat, ngay_chay: r.ngay_chay, nhan: r.nhan ?? null, dang_dung: Number(r.dang_dung) === 0 ? 0 : 1, ngay_chay_xac_nhan: Number(r.ngay_chay_xac_nhan) === 0 ? 0 : 1 });
       }
       if (!dong.length) canhBao.push('Bảng ktt_lich_chuyen chưa có dòng nào: lịch chuyến để trống.');
     }
@@ -166,5 +187,5 @@ function docLichChuyen(db) {
 
 module.exports = {
   MA_BCVH_HUE, HAN_DEN_TRUOC_CHUYEN_PHUT, SO_NGAY_TIM_TOI_DA, LY_DO, TRANG_THAI,
-  giayCua, dinhDang, xepChuyen, xepChuyenKhongDem, chuyenTrongNgay, danhGiaDiChuyen, docLichChuyen
+  giayCua, dinhDang, xepChuyen, xepChuyenKhongDem, chuyenTrongNgay, danhGiaDiChuyen, docLichChuyen, lapNgayNghi, bcvhChuaXacNhanChuNhat
 };

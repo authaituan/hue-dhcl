@@ -91,7 +91,7 @@ function luuThoatTheoNgay(db, opts = {}) {
     bo: KD.taoBo({ nang: opts.nang !== false }), // KTT-KD-1: nhóm nguyên nhân không đạt 14 giờ (gọn + nặng)
     bt: opts.nang !== false ? BT.taoBo() : null // KTT-KD-1 pha 2: «Bức tranh đường thư đến» (cột số theo SHBG, cùng lượt duyệt)
   }]));
-  const meta = { hang_hoan_tu_531120_dich_khac_thuan_hoa: 0 /* KTT-17-2: lỗi thời, luôn 0 */, ngoai_pham_vi: {}, khong_ro_dich: 0, khong_co_gio_quet_den: 0, khong_xep_duoc_chuyen: {}, di_truoc_khi_den: 0, co_quet_di_chua_lap_bd10: 0, tui_khong_co_buu_gui: 0, shbg_thieu_khoi_luong: 0, shbg_chuyen_tiep: 0, co_ca_hai_loai_tui: 0, chuyen_tiep_nhieu_tui: 0, chuyen_tiep_co_tui_di_khac: 0 };
+  const meta = { hang_hoan_tu_531120_dich_khac_thuan_hoa: 0 /* KTT-17-2: lỗi thời, luôn 0 */, ngoai_pham_vi: {}, khong_ro_dich: 0, khong_co_gio_quet_den: 0, khong_xep_duoc_chuyen: {}, di_truoc_khi_den: 0, co_quet_di_chua_lap_bd10: 0, tui_khong_co_buu_gui: 0, shbg_thieu_khoi_luong: 0, shbg_chuyen_tiep: 0, co_ca_hai_loai_tui: 0, chuyen_tiep_nhieu_tui: 0, chuyen_tiep_co_tui_di_khac: 0, lap_ngay_nghi_shbg: 0, lap_ngay_nghi: {} /* KTT-LICH-2: cờ phụ, theo BCVH */ };
 
   const { ctx } = Q.chayTapLuuThoat(db, { tuNgay: k.tuNgay, denNgay: k.denNgay, bayGio }, (c) => { // KTT-14: tập SHBG chung (gồm hàng chuyển tiếp)
     const ngu = { lich: c.lichChuyen.lich, hanPhut: c.lichChuyen.hanDenTruocChuyenPhut, bayGio: c.bayGio, mocChiTieu };
@@ -127,6 +127,7 @@ function luuThoatTheoNgay(db, opts = {}) {
         else if (kq.nhom === S.NHOM.KHONG_XEP_DUOC_CHUYEN) meta.khong_xep_duoc_chuyen[kq.lyDo] = (meta.khong_xep_duoc_chuyen[kq.lyDo] || 0) + 1;
         else {
           if (kq.diTruocKhiDen) meta.di_truoc_khi_den++;
+          if (kq.lapNgayNghi) { meta.lap_ngay_nghi_shbg++; meta.lap_ngay_nghi[kq.maBcvh] = (meta.lap_ngay_nghi[kq.maBcvh] || 0) + 1; }
           if (!u.gioBd10Di && u.gioQuetDi) meta.co_quet_di_chua_lap_bd10++;
         }
       }

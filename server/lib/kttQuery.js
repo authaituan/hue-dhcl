@@ -81,7 +81,7 @@ function taoNguCanh(db, opts) {
   const khoang = chuanHoaKhoang(opts);
   const cauHinh = opts && opts.cauHinh ? opts.cauHinh : docCauHinhKtt(db);
   const lichChuyen = opts && opts.lichChuyen ? opts.lichChuyen : docLichChuyen(db); // `opts.lichChuyen` ({ lich, hanDenTruocChuyenPhut }) cho phép test cố định lịch
-  const canhBao = [...(cauHinh.canhBao || []), ...(lichChuyen.canhBao || [])];
+  const canhBao = [...(cauHinh.canhBao || []).filter((c) => !/ktt_cau_hinh_chuyen/.test(c)), ...(lichChuyen.canhBao || [])]; // KTT-LICH-2: lịch V1 không còn seed / không dùng, bỏ cảnh báo «chưa có dòng»
   return {
     boQuaCham: !!(opts && opts.boQuaCham),
     gomChuyenTiep: !!(opts && opts.gomChuyenTiep), // KTT-14: tập SHBG gồm cả hàng chỉ có túi CHUYEN_TIEP_DI (xem chayTapLuuThoat)

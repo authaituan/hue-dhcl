@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-05] - KTT-LICH-2: lịch chuẩn 05/11/2026 (server, test, docs; nhánh `fix/ktt-lich-chuan`)
+
+- `server/lib/kttSchema.js`: `LICH_CHUYEN_MAC_DINH` = lịch chuẩn (14 dòng); cột `ngay_chay_xac_nhan` (ALTER cho DB cũ); migration MỘT lần `apDungLichChuan` theo khóa `lich_phien_ban` = `20261105` (một giao dịch, DB cũ / «lai» / mới về đúng 14 dòng, lần hai không đổi); bỏ seed lịch V1 (`CHUYEN_MAC_DINH = []`).
+- `server/lib/kttLichChuyen.js`: `docLichChuyen` đọc `ngay_chay_xac_nhan`; thêm `lapNgayNghi`, `bcvhChuaXacNhanChuNhat`. `kttBucTranh.js` / `kttApi.js`: `luu_y_lich` lấy từ `ngay_chay_xac_nhan` (hiện không BCVH nào); chữ ký cache `chuKyLich` thêm xác nhận + `lich_phien_ban`; `kttQuery.js` / `kttApi.meta` lọc cảnh báo V1 rỗng.
+- BD10 lập ngày chuyến nghỉ: phương án A ở `kttLichXe.gioLapBd10` (`lap_ngay_nghi`, loại khỏi «lập sau giờ xe»), phương án B ở `kttLuuThoat` / `kttLuuThoatQuery` / `kttApi.khongDat14h` (cờ phụ `meta.lap_ngay_nghi*`, khối `lap_ngay_nghi`). Hợp đồng: chỉ THÊM field; `luu_y_lich` đổi nghĩa (chưa xác nhận).
+- Test: `tests/ktt-lich-chuyen.test.js` (27 ca: lịch chuẩn, migration lai / lần hai / rollback, từng BCVH × thường / CN, Thuận Hóa CN đủ 5 chuyến, Hương Thủy CN chỉ 07:30, A Lưới cả tuần, sau chuyến cuối → chuyến đầu ngày kế, `lapNgayNghi`), `tests/ktt-lap-ngay-nghi.test.js` (mới, 3 ca), `tests/ktt-api.test.js` (cache hủy khi đổi lịch), `tests/helpers/lichKichBan.js` (bộ lịch giả định cho `ktt-khong-dat-14h`); cập nhật giờ ở `ktt-luu-thoat`, `ktt-query`, `ktt-buc-tranh`, `ktt-xuat`, `ktt-ro-lai-truot-chuyen`, `ktt-cau-hinh`, `ktt-import`.
+- Docs: `40` (viết lại mục 1–8), `41` (mục 21), `42` (mục 21), `43`, `36`, `38`, `03`, `00_SNAPSHOT`, `04_DECISIONS` #127 (`#112` phần lịch bị thay), hợp đồng API KTT-KD-1.
+- Đo trên bản sao DB (30 ngày, hai mốc): xem báo cáo KTT-LICH-2; số «đúng / trượt chuyến» đổi ở Thuận Hóa, Hương Trà, Hương Thủy; tổng đạt / không đạt 14 giờ không đổi.
+
 ## [2026-11-05] - KTT-KD-1d: cờ `nhieu_kien_di_ngoai` = ≥ 30% VÀ thuộc 20% cụm cao nhất (server, test, docs; nhánh `feat/ktt-kd-1-khong-dat-14h`)
 
 - `server/lib/kttBucTranh.js`: cờ `nhieu_kien_di_ngoai` thêm điều kiện ≥ phân vị `kienNgoaiPhanVi` (80) của `kien_di_ngoai.ty_le` các cụm không «mẫu ít» (cùng `nguongTuongDoi` với `that_thuong`); `nguong_ap_dung` thêm `kienNgoaiPhanVi` (camelCase) và `phan_vi_kien_ngoai` (ngưỡng đã tính); lý giải thẻ nêu cả hai điều kiện. Số đo thô, tên / đơn vị trường, cờ khác: không đổi.

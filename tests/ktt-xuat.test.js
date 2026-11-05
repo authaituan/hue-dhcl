@@ -427,21 +427,21 @@ test('đổi ktt_gio_chot_ngay hoặc lịch chuyến / hạn đến thì cột 
     assert.equal((await put('10:00')).status, 200);
     assert.equal(await chot(), '20/10/2026: đã chốt');
   } finally { db.prepare("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'").run(); TS.khoiTao(db); }
-  // lịch chuyến: A1 (quét 05:30 Thuận Hóa) đang vào chuyến 07:30 (hạn 06:00); đổi hạn sang 121 phút -> hạn 05:00 < 05:30 nên sang chuyến 12:30
+  // lịch chuyến: A1 (quét 05:30 Thuận Hóa) đang vào chuyến 07:00 (hạn 06:00); đổi hạn sang 121 phút -> hạn 05:00 < 05:30 nên sang chuyến 12:45
   const a1 = async () => dongSheet7(await docFile(await goi(`${U}?tu=2026-10-20&den=2026-10-20&trang_thai=t1`, 'admin')))[0];
   const goc = db.prepare("SELECT gia_tri FROM ktt_lich_cau_hinh WHERE khoa = 'han_den_truoc_chuyen_phut'").get().gia_tri;
   try {
     assert.equal((await a1()).chuyen, 'Thuận Hóa 07:00 (20/10/2026)');
     db.prepare("UPDATE ktt_lich_cau_hinh SET gia_tri = 121 WHERE khoa = 'han_den_truoc_chuyen_phut'").run();
     const sau = dongSheet7(await docFile(await goi(`${U}?tu=2026-10-20&den=2026-10-20`, 'admin'))).find((d) => d.shbg === 'KTT-DEMO-A1');
-    assert.equal(sau.chuyen, 'Thuận Hóa 12:30 (20/10/2026)', 'đổi hạn đến: chuyến liền kề đổi');
-    assert.equal(gioO(sau.han_den), '2026-10-20 10:29:00');
-    db.prepare("UPDATE ktt_lich_chuyen SET dang_dung = 0 WHERE ma_bcvh = ? AND gio_xuat_phat = '12:30'").run(TH);
+    assert.equal(sau.chuyen, 'Thuận Hóa 12:45 (20/10/2026)', 'đổi hạn đến: chuyến liền kề đổi');
+    assert.equal(gioO(sau.han_den), '2026-10-20 10:44:00');
+    db.prepare("UPDATE ktt_lich_chuyen SET dang_dung = 0 WHERE ma_bcvh = ? AND gio_xuat_phat = '12:45'").run(TH);
     const tat = dongSheet7(await docFile(await goi(`${U}?tu=2026-10-20&den=2026-10-20`, 'admin'))).find((d) => d.shbg === 'KTT-DEMO-A1');
     assert.equal(tat.chuyen, 'Thuận Hóa 12:55 (20/10/2026)', 'tắt chuyến: chuyến liền kề đổi');
   } finally {
     db.prepare("UPDATE ktt_lich_cau_hinh SET gia_tri = ? WHERE khoa = 'han_den_truoc_chuyen_phut'").run(goc);
-    db.prepare("UPDATE ktt_lich_chuyen SET dang_dung = 1 WHERE ma_bcvh = ? AND gio_xuat_phat = '12:30'").run(TH);
+    db.prepare("UPDATE ktt_lich_chuyen SET dang_dung = 1 WHERE ma_bcvh = ? AND gio_xuat_phat = '12:45'").run(TH);
   }
 });
 

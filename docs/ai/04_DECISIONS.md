@@ -826,6 +826,7 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. **`Gio_quet_tui_den`** là mốc **xếp chuyến** và ngày đến D của **lưu thoát** (5 trạng thái). Hai mốc lưu riêng, không gộp; mỗi chỉ số trong phản hồi ghi trường `moc`. Giờ «đã đi» = giờ LẬP BD10 đi (`bd10_di_gio_di`).
 
 ### 112. Mốc chuyến = giờ xe RỜI KTT; hạn hàng đến = mốc − 60 phút (PO chốt 26/10/2026 — KTT-7a)
+*(Phần lịch đã được thay bởi lịch chuẩn 05/11/2026 — #127; giờ trong các điểm dưới đây là lịch 26/10, giữ làm lịch sử.)*
 1. Lịch chuyến chính thức `ktt_lich_chuyen` (14 dòng, `CA_TUAN` / `NGHI_CN`) thay lịch V1 (SÁNG / TRƯA / TỐI) cho phần «chuyến»; hạn `han_den_truoc_chuyen_phut` = 60 lưu ở `ktt_lich_cau_hinh` (bảng riêng, không thêm khóa vào `ktt_cau_hinh` để không đổi test KTT-2).
 2. Chuyến thuộc = chuyến sớm nhất có `Gio_quet_tui_den ≤ giờ rời − 60 phút` (đến đúng hạn vẫn kịp), sang ngày kế khi hết chuyến, bỏ ngày không chạy. Tên chuyến trong số liệu và câu «Đánh giá» là giờ rời (`'12:30'`). Hương Trà Chủ nhật tạm tính cả tuần.
 
@@ -932,8 +933,20 @@ Quyết định:
 4. **Cờ «sát giờ chốt» chỉ ở mức THEO DÕI** (số đo 1b chưa ủng hộ giả thuyết sát giờ gây không đạt), không bao giờ là cảnh báo.
 5. **Xếp thứ tự theo số bưu gửi bị ảnh hưởng (Pareto)**, có `luy_ke_pct`; không xếp theo tỷ lệ.
 6. **Thời gian lưu thoát theo lịch** chỉ tính từ lúc hàng đến tới giờ xe rời (đã trừ 21:00–07:00): không có giờ chốt phát, không có thời gian xe chạy đến BCVH; «còn lại so với chỉ tiêu» có thể âm.
-7. **Lịch Chủ nhật Hương Thủy** (PO 04/11/2026: chỉ có chuyến 06:30): mã hiện coi là không có chuyến nào; KHÔNG sửa ở ticket này (KTT-LICH-2). Ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật trả `luu_y_lich: true` (chưa tin cậy).
+7. **Lịch Chủ nhật Hương Thủy** (PO 04/11/2026: chỉ có chuyến sáng): ĐÃ SỬA ở KTT-LICH-2 (#127): lịch chuẩn 05/11 cho Hương Thủy 07:30 chạy cả Chủ nhật, 12:45 nghỉ; `luu_y_lich` đổi nguồn sang `ngay_chay_xac_nhan` (không BCVH nào gắn cờ). Ghi chú lịch sử: lúc 04/11 mã coi Hương Thủy không có chuyến nào vào Chủ nhật.
 8. **Cache theo ngày**: cột số của bức tranh nằm trong mục cache theo ngày của `/luu-thoat` (cùng lượt duyệt, cùng khóa hủy; một mục chứa cả hai mốc); `huyCacheNgay([ngày])` hủy đúng ngày.
+
+### 127. Lịch chuẩn 05/11/2026, thay phần lịch của #112 (KTT-LICH-2, PO 05/11/2026; CTO duyệt pha 2 cùng ngày)
+
+Nguồn duy nhất: file «LỊCH CHUẨN xe cấp 2 rời Khai thác tỉnh» (`KTT-LICH-CHUAN-05-11-2026.md`, PO chốt 05/11/2026). Thay lịch KTT-7a (26/10), file lịch C2, canvas v22 B2, HANDOVER-KTT-27-10, bản nháp 04/11 và phần lịch của #112 (quy tắc «mốc = giờ rời, hạn = mốc − 60 phút» của #112 giữ nguyên).
+1. **14 dòng**: Thuận Hóa 07:00, 12:45, 12:55, 19:45, 22:00 (chạy đủ Chủ nhật); Hương Thủy 07:30 (chạy CN), 12:45 (nghỉ CN); Hương Trà 06:10, 12:00 (chạy CN, xe cấp 1); Thuận An 07:30, 13:30 (nghỉ CN); Phú Lộc 07:30, 13:00 (nghỉ CN); A Lưới 08:00 (chạy CN). Chủ nhật mô hình hóa ở **mức dòng chuyến** (cột `ngay_chay` hiện có, `CA_TUAN` | `NGHI_CN`); KHÔNG thêm cột chuyến.
+2. **Migration MỘT lần** theo khóa `lich_phien_ban` (`20261105`) ở `ktt_lich_cau_hinh`: `ensureKttSchema` đồng bộ `ktt_lich_chuyen` về lịch chuẩn trong MỘT giao dịch (xóa dòng ngoài chuẩn, ghi đè dòng trùng, thêm dòng thiếu); DB mới, DB cũ và DB «lai» đều về đúng 14 dòng; chạy lần hai không đổi gì; sửa tay SAU migration không bị ghi đè. Đổi lịch chuẩn lần sau: sửa `LICH_CHUYEN_MAC_DINH` và tăng `LICH_PHIEN_BAN`.
+3. **Lịch V1** (`ktt_cau_hinh_chuyen`, `CHUYEN_MAC_DINH`): đã kiểm, không còn nơi nào xếp chuyến theo V1 (chỉ `kttTinh.danhGiaChuyen`, hàm thuần chưa nối, và đọc cấu hình `docCauHinhKtt`); đã BỎ seed (bảng vẫn được tạo, DB cũ còn dòng thì để nguyên); cảnh báo «chưa có dòng» của V1 bị lọc khỏi `canh_bao` của API.
+4. **`luu_y_lich`** giữ trường và tên khóa (`o[]`, `chuyen[]`, `meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat`) nhưng đổi nghĩa: nguồn là cột `ngay_chay_xac_nhan` (0 = lịch ngày chạy chưa xác nhận), không còn suy từ `NGHI_CN`; lịch chuẩn đặt mọi dòng = 1 nên **không BCVH nào gắn cờ**. Thêm khóa `meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan` (cùng giá trị). Về sau chỉ cần đổi dữ liệu.
+5. **BD10 lập ngày chuyến nghỉ** (Chủ nhật, BCVH có chuyến nghỉ, giờ lập sau chuyến Chủ nhật cuối còn chạy): **phương án A** cho bảng KTT-12 (`lich-xe/gio-lap-bd10`: không gán chuyến, đếm riêng `lap_ngay_nghi`, loại khỏi «lập sau giờ xe»); **phương án B** cho `luu-thoat` và `khong-dat-14h` (chỉ cờ phụ `lap_ngay_nghi`, KHÔNG đổi «đúng chuyến» / «trượt chuyến» / mẫu số).
+6. **Cache**: chữ ký cache KTT thêm `ngay_chay_xac_nhan` và `lich_phien_ban`; đổi lịch thì hủy toàn bộ cache theo ngày (có test).
+7. **Hiệu lực**: áp cho TOÀN BỘ cửa sổ (tính lại cả quá khứ); số trước / sau ở `40_KTT_LICH_CHUYEN.md` mục 8 và báo cáo KTT-LICH-2.
+8. **«Đổi thực»** (so lịch cũ ↔ chuẩn) = bưu gửi vào khe giờ / ngày KHÁC sau khi coi 06:00→06:10, 12:30→12:45 (Thuận Hóa, Hương Thủy), 06:30→07:30 là cùng một chuyến (`40` mục 8).
 
 ## Drift phát hiện
 _(chưa có)_

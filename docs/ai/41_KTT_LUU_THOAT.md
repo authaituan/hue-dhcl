@@ -11,7 +11,7 @@ Tính toán các chỉ số của trang «Lưu thoát» theo từng ngày đến
 | `server/lib/kttLuuThoatQuery.js` | Truy vấn: `luuThoatTheoNgay(db, { tuNgay, denNgay, bayGio? })`. Dùng lại lượt đọc SHBG của `kttQuery.js`. |
 | `server/lib/kttChuyen.js` | Cầu nối lịch mới → hình dạng kết quả chuyến cũ của `kttQuery` (`danhGiaChuyenLich`). |
 | `server/lib/kttQuery.js` (sửa) | Phần «chuyến» dùng lịch mới; thêm trường đơn vị SHBG cho lưu thoát; export `chayBoDem`, `ngayHopLe`, `ngayKeTiep`; cờ `boQuaCham`. |
-| `server/lib/kttDanhGia.js` (sửa) | Câu văn «chuyến 12:30» thay «chuyến sáng / trưa / tối». |
+| `server/lib/kttDanhGia.js` (sửa) | Câu văn «chuyến 12:45» thay «chuyến sáng / trưa / tối». |
 
 ## 2. Năm trạng thái (PO chốt 25–26/10/2026)
 
@@ -87,7 +87,7 @@ Khối: `{ tong_shbg, trang_thai { t1..t5, dang_cho_chuyen: { shbg, tui } }, luu
 - «đến sát giờ» = quét đến trong (hạn, giờ rời] của một chuyến trong ngày đến; `TRUOT_CHUYEN` (KTT-7a) ↔ `TRE_CHUYEN`, `CHUA_DEN_GIO` ↔ `CHUA_DEN_MOC`;
 - `soChuyenTre` = số chuyến của BCVH có giờ rời trong [giờ rời chuyến dự kiến, giờ đi thực tế hoặc bayGio);
 - lịch V1 (`ktt_cau_hinh_chuyen`, `kttCauHinh.js`, `kttTinh.danhGiaChuyen`) **còn nguyên** nhưng không còn được `kttQuery` dùng cho chuyến (các hàm thuần cũ vẫn có test). Mất lịch của một BCVH (xóa dòng `ktt_lich_chuyen`) → `KHONG_CO_LICH` + cảnh báo như trước.
-- `kttDanhGia`: «Quét đến 7 giờ: 623 túi vào chuyến **12:30**, chỉ 20 túi kịp chuyến **07:00**» (thay «trưa / sáng»). Câu «N phút cuối trước mốc chuyến» lấy N từ `chotTruocPhut` (nay 60).
+- `kttDanhGia`: «Quét đến 7 giờ: 623 túi vào chuyến **12:45**, chỉ 20 túi kịp chuyến **07:00**» (thay «trưa / sáng»). Câu «N phút cuối trước mốc chuyến» lấy N từ `chotTruocPhut` (nay 60).
 
 ## 8. Hiệu năng (dữ liệu giả, `KTT_PERF=1`, máy dev)
 33.201 túi / 332.010 dòng bưu gửi trong 31 ngày (≈ 15.000 túi / 75.000 dòng mỗi tuần), 221.340 SHBG: **1 ngày ≈ 0,18 giây; 7 ngày ≈ 1,2 giây; 31 ngày ≈ 5,3 giây** (`luuThoatTheoNgay`, một lượt đọc). Trước khi bỏ phần chấm nằm lâu / chuyến / F1.3 thừa trong lượt đọc (`boQuaCham`): 0,39 / 2,3 / 10,2 giây.
@@ -168,7 +168,7 @@ Lõi THUẦN `server/lib/kttKhongDat14h.js` (không DB, không giờ máy) chỉ
 
 **Bộ nhớ đệm**: khối GỌN (`nguyen_nhan`) nằm trong kết quả `luuThoatTheoNgay` (JSON). Khối NẶNG (ô nhóm, ô mẫu số, ô giờ × BCVH, đợt đến) đi kèm kết quả như thuộc tính KHÔNG liệt kê (`kq.nang`, mỗi ngày một phần tử), cùng cache theo ngày với `/luu-thoat` (`kttApi.layNgay`); chỉ mục mốc mặc định (`xnd`) giữ khối nặng (mục mốc `quet_tui_den` chỉ có khối gọn, vì cả hai mốc đã nằm trong khối nặng).
 
-**Điều chưa chắc đã biết** (xem báo cáo 1b / pha 2): (a) nhóm E tập trung ở BCVH 536250 (79–80% E, rải đều cả cửa sổ; 61–66% có mặt ở dữ liệu «Hàng đến BCVH» so với 91% hàng đã đi đạt cùng BCVH): chưa phân biệt được BD10 đi chưa nạp / không lập BD10 đi / hàng tồn thật; (b) lịch 536250 chuyến 06:30 (49,5% lập BD10 đi sau giờ rời, tập trung 06:44–07:00); (c) lịch Chủ nhật (KTT-LICH-1) chưa sửa.
+**Điều chưa chắc đã biết** (xem báo cáo 1b / pha 2): (a) nhóm E tập trung ở BCVH 536250 (79–80% E, rải đều cả cửa sổ; 61–66% có mặt ở dữ liệu «Hàng đến BCVH» so với 91% hàng đã đi đạt cùng BCVH): chưa phân biệt được BD10 đi chưa nạp / không lập BD10 đi / hàng tồn thật; (b) [đo trên lịch cũ 26/10; lịch đã thay ở KTT-LICH-2] lịch 536250 chuyến sáng cũ (49,5% lập BD10 đi sau giờ rời, tập trung 06:44–07:00); (c) [XONG ở KTT-LICH-2] lịch Chủ nhật.
 - Test: `tests/ktt-khong-dat-14h.test.js` (dữ liệu giả).
 
 ## 20. KTT-KD-1 pha 2 (bản sửa 2) — «Bức tranh đường thư đến» (chỉ THÊM; không đổi số, quy tắc tính hay lịch chuyến)
@@ -195,6 +195,12 @@ Lõi THUẦN `server/lib/kttBucTranh.js` (không DB, không giờ máy). Mỗi S
 
 Ngưỡng của hai cờ đầu là TƯƠNG ĐỐI (phân vị của chính các cụm): phản hồi trả `nguong_ap_dung.phan_vi_dao_dong`, `phan_vi_do_rong_phut`, `so_cum_tinh_nguong`. Thẻ đánh giá `the[]` xếp theo SỐ BƯU GỬI BỊ ẢNH HƯỞNG (Pareto, không xếp theo tỷ lệ) kèm `luy_ke_pct` (lũy kế phần trăm của tổng số bưu gửi bị ảnh hưởng của danh sách); danh sách cụm xếp theo số bưu gửi giảm dần, `luy_ke_pct` là lũy kế phần trăm của tổng bưu gửi trong bộ lọc.
 
-**Loại ngày và lịch Chủ nhật.** `loai_ngay` = `chu_nhat` | `thuong` theo NGÀY ĐẾN D (`getUTCDay` trên chuỗi giờ VN). Dao động sản lượng Chủ nhật chỉ có 4 điểm: có số liệu nhưng KHÔNG gắn cờ riêng. Ô Chủ nhật của BCVH có chuyến nghỉ Chủ nhật (`NGHI_CN`: Hương Thủy 536250, Thuận An 537015, Phú Lộc 537220, Thuận Hóa 533140 [chuyến 12:55]) mang `luu_y_lich: true`: lịch Chủ nhật CHƯA tin cậy cho đến khi sửa (PO 04/11/2026: Chủ nhật Hương Thủy CHỈ có chuyến 06:30; mã đang coi Hương Thủy không có chuyến nào vào Chủ nhật — `kttSchema.js:133` và bộ lọc `NGHI_CN` ở `kttLichChuyen.js:61,81`; việc sửa là KTT-LICH-2, KHÔNG làm ở ticket này).
+**Loại ngày và lịch Chủ nhật.** `loai_ngay` = `chu_nhat` | `thuong` theo NGÀY ĐẾN D (`getUTCDay` trên chuỗi giờ VN). Dao động sản lượng Chủ nhật chỉ có 4 điểm: có số liệu nhưng KHÔNG gắn cờ riêng. Lịch chuẩn 05/11/2026 (KTT-LICH-2, #127): lịch Chủ nhật của cả 6 BCVH đã xác nhận (Hương Thủy 07:30 chạy CN, 12:45 nghỉ; Thuận An 13:30 và Phú Lộc 13:00 nghỉ; Thuận Hóa, Hương Trà, A Lưới chạy đủ), nên **`luu_y_lich` không còn gắn cho BCVH nào**; trường được giữ nhưng nguồn là cột `ngay_chay_xac_nhan` (0 = chưa xác nhận), xem `40_KTT_LICH_CHUYEN.md`.
 
 **Hiệu năng.** Thêm một dòng cột số mỗi SHBG vào lượt duyệt đang có; cache theo ngày (khóa `moc|ngày`: mục ngày của mốc mặc định chứa cả hai mốc, nên một mục cho cả A và B). Hủy cache đúng ngày: tự động khi độ mới đổi (ngày trong cửa sổ nạp 8 ngày) hoặc chữ ký ngày đổi (số dòng + tổng id túi quét đến); thêm `Api.huyCacheNgay([ngày])` để hủy tay đúng các ngày chỉ định (mọi mốc). «Thay thế ngày» và khôi phục là của «Hàng đến BCVH» (`arrival_*`): bức tranh chỉ đọc `ktt_*` nên không bị ảnh hưởng. Số đo: xem `CHANGELOG_AI.md`.
+
+## 21. KTT-LICH-2 — lịch chuẩn 05/11/2026 (đổi LỊCH, không đổi quy tắc tính; chỉ THÊM field)
+
+- Lịch: `40_KTT_LICH_CHUYEN.md` (mục 1, 2), quyết định #127. Mốc A / B, giờ chốt chuyến = rời − 60, khung 21:00–07:00, chỉ tiêu 14 / 12 giờ KHÔNG đổi. Số cũ đổi vì SHBG vào chuyến khác (Thuận Hóa 12:30 → 12:45 và 12:55 chạy CN; Hương Thủy 06:30 → 07:30 và có chuyến CN; Hương Trà 06:00 → 06:10).
+- Cờ phụ (phương án B): `/luu-thoat` `meta.lap_ngay_nghi_shbg` + `meta.lap_ngay_nghi` (theo BCVH), `/luu-thoat/khong-dat-14h` khối `lap_ngay_nghi`: bưu gửi có BD10 đi lập Chủ nhật sau chuyến CN cuối còn chạy của BCVH có chuyến nghỉ; vẫn nằm trong mẫu số và nhóm nguyên nhân.
+- **Vì sao Hương Thủy ngày thường đổi lớn** (trượt chuyến 8.044 → 2.352, đúng chuyến 12.765 → 18.457; bản sao DB, 30 ngày, đo bằng lịch seed thật): (1) chuyến sáng dời 06:30 → 07:30 (hạn chốt 05:30 → 06:30). Hương Thủy hay lập BD10 đi vào 06:30–07:30 (45 / 191 BD10 ngày thường, 23,6%, tập trung 06:44–07:00; KTT-KD-1 mục «Điều chưa chắc» (b)): trước đây số này lập SAU giờ xe 06:30 nên bị tính «trượt chuyến», nay lập TRƯỚC giờ xe 07:30 nên «đúng chuyến» — đây là cùng một chuyến đổi giờ (đổi nhãn), không phải hàng đổi chuyến; (2) 3.722 bưu gửi (mốc B) đến 05:30–06:30 trước đây LỠ chuyến sáng (sang 12:30 cùng ngày), nay kịp 07:30; 674 bưu gửi đến 11:30–11:45 trước đây lỡ chuyến trưa (sang 06:30 hôm sau), nay kịp 12:45 (hạn 11:45). Tổng số đạt / không đạt 14 giờ KHÔNG đổi (không phụ thuộc lịch), chỉ đổi «đúng / trượt chuyến» và chia nguyên nhân A / B / C. **Nhóm E** (chưa đi, đã quá chỉ tiêu) của Hương Thủy KHÔNG đổi: ngày thường 1.588 (mốc A) / 1.645 (mốc B), Chủ nhật 195 / 304 — E chỉ phụ thuộc «chưa có BD10 đi» và chỉ tiêu, không phụ thuộc lịch, nên vẫn cần PO xác định nguyên nhân (BD10 đi chưa nạp / không lập BD10 đi / hàng tồn thật).

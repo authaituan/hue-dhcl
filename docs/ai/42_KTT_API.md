@@ -255,7 +255,7 @@ Quyền như mọi route KTT (ADMIN, TTVH, TTKT; GDVH, TIVI 403; chỉ GET; TTKT
 **2. `GET /api/ktt/luu-thoat/buc-tranh-duong-thu/chuyen-xe`** — `theo_moc.{A,B}`: `{ mau_so, do_duoc, khong_do_duoc, chuyen[], o[] }`.
 - `chuyen[]` (BCVH × loại ngày × giờ xe rời; xếp `shbg` giảm dần): `{ ma_bcvh, loai_ngay, gio_xuat_phat, gio_chot, shbg, kg, shbg_thieu_kg, ty_le_san_luong_bcvh, so_chuyen_trong_ngay, ty_trong_chia_deu, luu_thoat_theo_lich: { trung_vi_gio, p90_gio }, con_lai: { trung_vi_gio, p10_gio, duoi_nguong, ty_le_duoi_nguong, qua_chi_tieu, ty_le_qua_chi_tieu, nguong_gio }, sat_gio_chot: { phut_trung_vi, shbg, ty_le, nguong_phut }, ngay_co_hang, hom_sau: { shbg, ty_le }, nguon_cum: [{ cum_id, ten, shbg, ty_le }], luu_y_lich, co: { chuyen_gom_nhieu_hang } }`.
 - `o[]` (cụm × BCVH × loại ngày): `{ cum_id, cum_ten, ma_bcvh, loai_ngay, shbg, kg, shbg_thieu_kg, luu_thoat_theo_lich, con_lai, sat_gio_chot, ngay_co_hang, hom_sau, luu_y_lich, co: { mau_it, sat_gio_chot, sat_chi_tieu } }`.
-- `luu_y_lich = true` cho dòng Chủ nhật của BCVH có chuyến nghỉ Chủ nhật; `meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat` liệt kê các BCVH đó. `hom_sau` = bưu gửi có chuyến kế rơi sang ngày hôm sau.
+- `luu_y_lich` (KTT-LICH-2, #127): `true` chỉ khi ô Chủ nhật của BCVH có dòng lịch CHƯA xác nhận (cột `ngay_chay_xac_nhan = 0`); lịch chuẩn 05/11 đã xác nhận cả 6 BCVH nên hiện KHÔNG đâu gắn. `meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat` (tên giữ để không đổi hợp đồng, nghĩa mới = chưa xác nhận) và `meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan` cùng liệt kê BCVH đó (hiện `[]`). `hom_sau` = bưu gửi có chuyến kế rơi sang ngày hôm sau.
 
 **3. `GET /api/ktt/luu-thoat/buc-tranh-duong-thu/danh-gia`** — `theo_moc.{A,B}`: `{ mau_so, do_duoc, khong_do_duoc, the[], thong_ke_co, mau_it[], nguong_ap_dung }`. `the[]` (xếp theo `shbg_anh_huong` giảm dần, `luy_ke_pct` lũy kế): `{ muc: canh_bao|luu_y|theo_doi|thong_tin, co, nhan, doi_tuong: { loai: cum|chuyen|o, id, ten }, shbg_anh_huong, gia_tri_do, nguong_ap_dung, ly_giai, luy_ke_pct }`. `sat_gio_chot` luôn `theo_doi`.
 
@@ -264,3 +264,11 @@ Quyền như mọi route KTT (ADMIN, TTVH, TTKT; GDVH, TIVI 403; chỉ GET; TTKT
 **Tham số hệ thống** (nhóm «Hàng tại KTT», `server/config/ktt-buc-tranh.js`, mặc định `tham-so-mac-dinh.js`): `ktt_bt_gap_cum_phut` 60 · `ktt_bt_cum_nho_shbg` 5 · `ktt_bt_mau_toi_thieu` 100 · `ktt_bt_phan_vi_tuong_doi` 80 · `ktt_bt_kien_di_ngoai_pct` 30 · `ktt_bt_chuyen_gom_he_so` 1,5 · `ktt_bt_sat_gio_chot_phut` 60 · `ktt_bt_ngay_toi_thieu` 20 · `ktt_bt_con_lai_gio` 3 · `ktt_bt_ty_le_con_lai_pct` 25 · `ktt_bt_meo_theo_lo_phut` 120. Đổi có hiệu lực ngay (cột số theo ngày trong cache không chứa ngưỡng).
 
 **Khác**: `GET /luu-thoat/khong-dat-14h` thêm `moc` (xem mục 19). Test: `tests/ktt-buc-tranh.test.js` (17 ca).
+
+## 21. KTT-LICH-2 — lịch chuẩn 05/11/2026 (chỉ THÊM field; không đổi tên / đơn vị)
+
+- `/api/ktt/meta`: `lich_chuyen[]` thêm `ngay_chay_xac_nhan` (0 | 1); `canh_bao` không còn cảnh báo «ktt_cau_hinh_chuyen chưa có dòng» (lịch V1 không còn seed).
+- `/api/ktt/luu-thoat`: `meta.lap_ngay_nghi_shbg` (số) và `meta.lap_ngay_nghi` (map mã BCVH → số); `/api/ktt/luu-thoat/khong-dat-14h`: khối `lap_ngay_nghi: { shbg, theo_bcvh, ghi_chu }`. Cờ phụ, không đổi định nghĩa «đúng chuyến» / «trượt chuyến» / mẫu số (phương án B).
+- `/api/ktt/lich-xe/gio-lap-bd10` (xem `43`): thêm `lap_ngay_nghi: { tong_bd10, theo_bcvh[{ ma_bcvh, ten_bcvh, so_bd10 }] }` (phương án A).
+- `luu_y_lich`: đổi nghĩa (xem mục 20): chưa xác nhận, hiện luôn `false`.
+- Lịch: `40_KTT_LICH_CHUYEN.md`, `04_DECISIONS.md` #127.

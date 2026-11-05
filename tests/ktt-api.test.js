@@ -253,6 +253,29 @@ test('cache theo ngày: lần 2 cùng khoảng không tính lại; khoảng mở
   assert.equal(Api.thongKe().ngayTinh, 3);
 });
 
+test('cache hủy TOÀN BỘ khi đổi lịch (giờ, ngày chạy, xác nhận, lich_phien_ban): lần gọi kế tiếp tính lại mọi ngày', async () => {
+  duLieu();
+  const goiLuu = () => goi(`/api/ktt/luu-thoat${Q20}`, 'admin');
+  await goiLuu();
+  assert.equal(Api.thongKe().ngayTinh, 3);
+  await goiLuu();
+  assert.equal(Api.thongKe().ngayTinh, 3, 'chưa đổi lịch: không tính lại');
+  const doi = [
+    ["UPDATE ktt_lich_cau_hinh SET gia_tri = gia_tri + 1 WHERE khoa = 'lich_phien_ban'", "UPDATE ktt_lich_cau_hinh SET gia_tri = gia_tri - 1 WHERE khoa = 'lich_phien_ban'"],
+    ["UPDATE ktt_lich_chuyen SET ngay_chay_xac_nhan = 0 WHERE ma_bcvh = '536250'", "UPDATE ktt_lich_chuyen SET ngay_chay_xac_nhan = 1 WHERE ma_bcvh = '536250'"],
+    ["UPDATE ktt_lich_chuyen SET ngay_chay = 'NGHI_CN' WHERE ma_bcvh = '535470' AND gio_xuat_phat = '12:00'", "UPDATE ktt_lich_chuyen SET ngay_chay = 'CA_TUAN' WHERE ma_bcvh = '535470' AND gio_xuat_phat = '12:00'"],
+    ["UPDATE ktt_lich_chuyen SET gio_xuat_phat = '06:20' WHERE ma_bcvh = '535470' AND gio_xuat_phat = '06:10'", "UPDATE ktt_lich_chuyen SET gio_xuat_phat = '06:10' WHERE ma_bcvh = '535470' AND gio_xuat_phat = '06:20'"]
+  ];
+  try {
+    for (const [sua] of doi) {
+      const truoc = Api.thongKe().ngayTinh;
+      db.exec(sua);
+      await goiLuu();
+      assert.equal(Api.thongKe().ngayTinh, truoc + 3, `đổi lịch phải hủy cache cả 3 ngày: ${sua}`);
+    }
+  } finally { for (const [, hoan] of doi.slice().reverse()) db.exec(hoan); }
+});
+
 test('cache: độ mới đổi tính lại ngày CHƯA chốt và ngày ĐÃ chốt TRONG cửa sổ nạp (lùi 8 ngày); ngày đã chốt CŨ HƠN cửa sổ giữ nguyên; đủ sau cặp 09:00 ngày kế thì ngày chuyển sang chốt', async () => {
   duLieu(); // độ mới 21/10 10:00: cửa sổ nạp từ 13/10; ngày 20 đã chốt (trong cửa sổ); 21, 22 chưa chốt
   kt('KTT-DEMO-CU', { quet: '2026-10-05 05:30:00', gioDi: '2026-10-05 06:50:00' }); // ngày 05: đã chốt, CŨ hơn cửa sổ

@@ -10,9 +10,16 @@ const { ensureKttSchema } = require('../server/lib/kttSchema');
 const { docCauHinhKtt } = require('../server/lib/kttCauHinh');
 const { NGUONG_MAC_DINH } = require('../server/lib/kttTinh');
 
+// KTT-LICH-2: ensureKttSchema không còn seed lịch V1 (ktt_cau_hinh_chuyen); đọc cấu hình vẫn hỗ trợ bảng này, nên test dựng dòng V1 giả.
+const V1_GIA = [
+  ['533140', 'SANG', '07:30'], ['533140', 'TRUA', '14:00'], ['533140', 'TOI', '22:30'], ['535470', 'SANG', '07:00'], ['535470', 'TRUA', '12:00'], ['535790', 'SANG', '08:30'],
+  ['536250', 'SANG', '09:30'], ['536250', 'TRUA', '13:00'], ['537015', 'SANG', '08:00'], ['537015', 'TRUA', '13:30'], ['537220', 'SANG', '08:00'], ['537220', 'TRUA', '13:30']
+];
 function dbMoi() {
   const db = new Database(':memory:');
   ensureKttSchema(db);
+  const them = db.prepare("INSERT INTO ktt_cau_hinh_chuyen (ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, 30, 'V1 giả cho test', '2026-10-23 00:00:00')");
+  for (const [ma, ten, gio] of V1_GIA) them.run(ma, ten, gio);
   return db;
 }
 

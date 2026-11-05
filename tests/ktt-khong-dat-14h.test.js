@@ -1,7 +1,7 @@
 // ==========================================
 // Test KTT-KD-1: «Vì sao không đạt 14 giờ» — nhóm nguyên nhân A–E, hai mức tổng, tỷ lệ chuẩn, cắt theo thứ / nguồn hàng / BCVH × loại ngày, dư địa theo giờ, đợt đến,
 // chi-tiet / xlsx dựa chiTieu14h[m] (không nhầm với khối dat_khong_dat mốc A). Dữ liệu GIẢ (SHBG KTT-DEMO-xxx), server thật trên DB tạm của harness.
-// Lịch (mặc định): Hương Thủy 536250 chạy 06:30 và 12:30 NGHI Chủ nhật; Thuận Hóa 533140 chạy 07:00, 12:30, 12:55 (nghỉ CN), 19:45, 22:00; hạn đến = giờ rời − 60 phút.
+// Lịch (GIẢ ĐỊNH của test, tests/helpers/lichKichBan.js — KHÔNG phải lịch chuẩn 05/11): Hương Thủy 536250 chạy 06:30 và 12:30 NGHI Chủ nhật; Thuận Hóa 533140 chạy 07:00, 12:30, 12:55 (nghỉ CN), 19:45, 22:00; hạn đến = giờ rời − 60 phút.
 // Ngày: 2026-10-11 là Chủ nhật; 10-12 thứ Hai; 10-17 thứ Bảy; 10-19 thứ Hai. bayGio (độ mới) = 2026-10-23 10:00:00.
 // ==========================================
 'use strict';
@@ -13,6 +13,7 @@ const { seedUser, loginAs } = require('./helpers/fixtures');
 const { cachLySftpEnv } = require('./helpers/khongMang');
 const Database = require('better-sqlite3');
 const { ensureKttSchema } = require('../server/lib/kttSchema');
+const { datLichKichBan } = require('./helpers/lichKichBan'); // KTT-LICH-2: kịch bản dựng quanh ngày nghỉ Chủ nhật dùng bộ lịch GIẢ ĐỊNH (không phải lịch chuẩn)
 const K = require('../server/lib/kttNapCap');
 const L = require('../server/lib/kttLichChuyen');
 const S = require('../server/lib/kttLuuThoat');
@@ -52,6 +53,7 @@ after(async () => {
 beforeEach(() => {
   db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
   db.exec("DELETE FROM tham_so WHERE khoa = 'ktt_gio_chot_ngay'");
+  datLichKichBan(db);
   TS.khoiTao(db);
   Api.xoaCache();
 });
@@ -139,7 +141,7 @@ test('phanNhom (P2: A ưu tiên B): sát giờ là A dù đúng hay trượt chu
 });
 
 // ---------- biên chuyến, qua đêm, Chủ nhật nghỉ chuyến, phường 12 giờ (hàm thuần + bộ cộng) ----------
-function lichMacDinh() { const d = new Database(':memory:'); ensureKttSchema(d); const r = L.docLichChuyen(d); d.close(); return r; }
+function lichMacDinh() { const d = new Database(':memory:'); ensureKttSchema(d); datLichKichBan(d); const r = L.docLichChuyen(d); d.close(); return r; }
 function cubeCua(quet, { maBcvh = HY, tenPhuong = null, gioDi = null } = {}) {
   const l = lichMacDinh();
   const ngu = { lich: l.lich, hanPhut: l.hanDenTruocChuyenPhut, bayGio: BAY_GIO };

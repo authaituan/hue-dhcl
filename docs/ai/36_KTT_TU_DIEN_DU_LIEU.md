@@ -102,7 +102,7 @@ Chỉ mục: `shbg`; 7 cột khóa túi. Không FOREIGN KEY sang `ktt_tui`.
 ## 7. Bảng cấu hình (dữ liệu mặc định V1 nạp bằng `INSERT OR IGNORE`: chạy lại không nhân dòng, không ghi đè giá trị PO đã sửa)
 
 - `ktt_cau_hinh_chuyen` — lịch mốc chuyến xuất phát từ KTT theo BCVH. Cột `ma_bcvh`, `ten_chuyen` (`SANG`/`TRUA`/`TOI`), `gio_moc` (`HH:MM`, giờ VN), `gio_chot_truoc_phut` (mặc định 30: hàng quét đến trước mốc ít nhất ngần này phút thì đi chuyến đó), `ghi_chu`, `cap_nhat_luc` (UTC). `UNIQUE (ma_bcvh, ten_chuyen)`. 12 dòng mặc định:
-  533140 SANG 07:30, TRUA 14:00, TOI 22:30; 535470 SANG 07:00, TRUA 12:30; 535790 SANG 08:30; 536250 SANG 09:30, TRUA 13:00; 537015 SANG 08:00, TRUA 13:30; 537220 SANG 08:00, TRUA 13:30. Ghi chú: «V1 ước lượng từ giờ đi thực tế, chờ PO cung cấp giờ chính xác».
+  533140 SANG 07:30, TRUA 14:00, TOI 22:30; 535470 SANG 07:00, TRUA 12:00 (seed V1 đã BỎ ở KTT-LICH-2; chỉ còn là lịch sử, lịch hiện hành ở `ktt_lich_chuyen`, `40`); 535790 SANG 08:30; 536250 SANG 09:30, TRUA 13:00; 537015 SANG 08:00, TRUA 13:30; 537220 SANG 08:00, TRUA 13:30. Ghi chú: «V1 ước lượng từ giờ đi thực tế, chờ PO cung cấp giờ chính xác».
 - `ktt_cau_hinh` — khóa / giá trị: `treo_phut` = 180 (3 giờ liên tục), `nam_lau_toi_da_phut` = 1440 (24 giờ), `chi_tieu_f13_gio` = 14, `chi_tieu_f13_gio_thuan_hoa_phu_xuan` = 12. Cột `khoa`, `gia_tri` (NUMERIC), `mo_ta`, `cap_nhat_luc`. Ý nghĩa dùng các ngưỡng này thuộc KTT-4.
 - Hệ quả của `INSERT OR IGNORE`: một dòng mặc định PO đã XÓA sẽ được tạo lại ở lần khởi động sau (sửa giá trị thì được giữ).
 

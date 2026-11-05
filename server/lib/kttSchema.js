@@ -108,16 +108,9 @@ const LOAI_FILE = {
 };
 for (const cfg of Object.values(LOAI_FILE)) cfg.khoa = cfg.cot.filter((c) => c.key).map((c) => c.db);
 
-// Dữ liệu mặc định V1 (PO chốt 23/10/2026). Nạp bằng INSERT OR IGNORE: KHÔNG ghi đè giá trị PO đã sửa.
+// Lịch V1 (ktt_cau_hinh_chuyen, ước lượng 23/10/2026): đã BỎ seed ở KTT-LICH-2 (05/11/2026). Lịch chuẩn là `ktt_lich_chuyen`; không còn nơi nào xếp chuyến theo V1. Bảng vẫn được tạo (DB cũ còn dòng thì để nguyên).
 const GHI_CHU_CHUYEN_V1 = 'V1 ước lượng từ giờ đi thực tế, chờ PO cung cấp giờ chính xác';
-const CHUYEN_MAC_DINH = [
-  ['533140', 'SANG', '07:30'], ['533140', 'TRUA', '14:00'], ['533140', 'TOI', '22:30'],
-  ['535470', 'SANG', '07:00'], ['535470', 'TRUA', '12:30'],
-  ['535790', 'SANG', '08:30'],
-  ['536250', 'SANG', '09:30'], ['536250', 'TRUA', '13:00'],
-  ['537015', 'SANG', '08:00'], ['537015', 'TRUA', '13:30'],
-  ['537220', 'SANG', '08:00'], ['537220', 'TRUA', '13:30']
-];
+const CHUYEN_MAC_DINH = [];
 const NGUONG_MAC_DINH = [
   ['treo_phut', 180, 'Túi có mã quét đến mà không có dấu hiệu đi sau bằng này phút liên tục thì xét «treo» (V1: 3 giờ)'],
   ['nam_lau_toi_da_phut', 1440, 'Hàng nằm tại KTT quá bằng này phút thì xét «nằm lâu» (V1: 24 giờ)'],
@@ -125,18 +118,22 @@ const NGUONG_MAC_DINH = [
   ['chi_tieu_f13_gio_thuan_hoa_phu_xuan', 12, 'Chỉ tiêu F1.3 cho tuyến Thuận Hóa / Phú Xuân, đơn vị giờ']
 ];
 
-// Lịch chuyến CHÍNH THỨC (KTT-7a, PO duyệt 26/10/2026): giờ xe RỜI KTT chở hàng cho BCVH. ngay_chay: CA_TUAN | NGHI_CN (nghỉ Chủ nhật).
-// Hương Trà: PO chưa rõ Chủ nhật, TẠM tính cả tuần. Không đưa vào: tuyến Sân bay, Hương Thủy 10:00 / 16:00 (xe điểm nhỏ lẻ), Phú Vang, Bình Điền, chuyến BĐTP C2 16:00.
+// Lịch chuyến CHÍNH THỨC: LỊCH CHUẨN PO chốt 05/11/2026 (KTT-LICH-2; thay lịch KTT-7a 26/10 và phần lịch của Quyết định #112): giờ xe RỜI KTT chở hàng cho BCVH.
+// ngay_chay: CA_TUAN | NGHI_CN (nghỉ Chủ nhật), đặt ở MỨC DÒNG chuyến. Không đưa vào: tuyến Sân bay, Hương Thủy 10:00 / 16:00 (xe điểm nhỏ lẻ), Phú Vang, Bình Điền, chuyến BĐTP C2 16:00.
 // [BCVH, giờ rời KTT 'HH:MM', ngày chạy, nhãn | null, ghi chú | null]
 const LICH_CHUYEN_MAC_DINH = [
-  ['535470', '06:00', 'CA_TUAN', null, 'PO chưa rõ Chủ nhật, tạm tính cả tuần'], ['535470', '12:00', 'CA_TUAN', null, 'PO chưa rõ Chủ nhật, tạm tính cả tuần'],
-  ['536250', '06:30', 'NGHI_CN', null, null], ['536250', '12:30', 'NGHI_CN', null, null],
-  ['535790', '08:00', 'CA_TUAN', null, 'một chuyến'],
+  ['533140', '07:00', 'CA_TUAN', null, null], ['533140', '12:45', 'CA_TUAN', null, null], ['533140', '12:55', 'CA_TUAN', null, 'sát 12:45, vẫn là hai mốc riêng'],
+  ['533140', '19:45', 'CA_TUAN', null, null], ['533140', '22:00', 'CA_TUAN', 'C4', 'C4, hạn đến 21:00'],
+  ['536250', '07:30', 'CA_TUAN', null, 'xe lồng lưới; Chủ nhật chỉ chuyến này'], ['536250', '12:45', 'NGHI_CN', null, 'xe lồng lưới; nghỉ Chủ nhật'],
+  ['535470', '06:10', 'CA_TUAN', null, 'xe cấp 1'], ['535470', '12:00', 'CA_TUAN', null, 'xe cấp 1'],
   ['537015', '07:30', 'CA_TUAN', null, null], ['537015', '13:30', 'NGHI_CN', null, null],
   ['537220', '07:30', 'CA_TUAN', null, null], ['537220', '13:00', 'NGHI_CN', null, null],
-  ['533140', '07:00', 'CA_TUAN', null, null], ['533140', '12:30', 'CA_TUAN', null, null], ['533140', '19:45', 'CA_TUAN', null, null],
-  ['533140', '22:00', 'CA_TUAN', 'C4', 'C4, hạn đến 21:00'], ['533140', '12:55', 'NGHI_CN', null, 'sát 12:30, vẫn là hai mốc riêng']
+  ['535790', '08:00', 'CA_TUAN', null, 'một chuyến; chạy cả Chủ nhật']
 ];
+// Phiên bản lịch (khóa `lich_phien_ban` trong ktt_lich_cau_hinh): khi nhỏ hơn số này, ensureKttSchema ĐỒNG BỘ ktt_lich_chuyen về LICH_CHUYEN_MAC_DINH MỘT LẦN (xóa dòng ngoài chuẩn, ghi đè dòng trùng, thêm dòng thiếu), trong một giao dịch.
+// Sau đó giá trị PO sửa tay không bị ghi đè nữa. Muốn đổi lịch chuẩn lần sau: sửa mảng trên và tăng số này (YYYYMMDD).
+const LICH_PHIEN_BAN = 20261105;
+const KHOA_LICH_PHIEN_BAN = 'lich_phien_ban';
 // Tham số của lịch chuyến (bảng ktt_lich_cau_hinh, TÁCH khỏi ktt_cau_hinh của KTT-2): hạn hàng đến để kịp chuyến = giờ rời KTT − chừng này phút.
 const LICH_CAU_HINH_MAC_DINH = [
   ['han_den_truoc_chuyen_phut', 60, 'Hàng quét đến chậm nhất (giờ rời KTT trừ chừng này phút) thì kịp chuyến đó']
@@ -232,6 +229,7 @@ function ensureKttSchema(db) {
       ghi_chu TEXT,
       dang_dung INTEGER NOT NULL DEFAULT 1 CHECK (dang_dung IN (0, 1)),
       cap_nhat_luc TEXT NOT NULL,
+      ngay_chay_xac_nhan INTEGER NOT NULL DEFAULT 1 CHECK (ngay_chay_xac_nhan IN (0, 1)),
       UNIQUE (ma_bcvh, gio_xuat_phat)
     );
     CREATE TABLE IF NOT EXISTS ktt_lich_cau_hinh (
@@ -303,20 +301,44 @@ function ensureKttSchema(db) {
     );
   `);
 
-  // Dữ liệu mặc định: INSERT OR IGNORE nên chạy lại không nhân dòng và không ghi đè giá trị PO đã sửa.
+  // KTT-LICH-2: DB tạo trước khi có cột ngay_chay_xac_nhan (1 = lịch ngày chạy đã xác nhận; 0 = chưa xác nhận, bật cờ luu_y_lich ở ô Chủ nhật).
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('ktt_lich_chuyen') WHERE name = 'ngay_chay_xac_nhan'").get()) {
+    db.exec('ALTER TABLE ktt_lich_chuyen ADD COLUMN ngay_chay_xac_nhan INTEGER NOT NULL DEFAULT 1 CHECK (ngay_chay_xac_nhan IN (0, 1))');
+  }
+
+  // Dữ liệu mặc định: INSERT OR IGNORE nên chạy lại không nhân dòng và không ghi đè giá trị PO đã sửa (riêng lịch chuyến: đồng bộ MỘT lần theo lich_phien_ban, xem apDungLichChuan).
   const bayGio = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const themChuyen = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh_chuyen (ma_bcvh, ten_chuyen, gio_moc, gio_chot_truoc_phut, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, 30, ?, ?)');
   const themNguong = db.prepare('INSERT OR IGNORE INTO ktt_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?)');
-  const themLich = db.prepare('INSERT OR IGNORE INTO ktt_lich_chuyen (ma_bcvh, gio_xuat_phat, ngay_chay, nhan, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, ?, ?, ?)');
   const themLichCh = db.prepare('INSERT OR IGNORE INTO ktt_lich_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?)');
   const themDiaBan = db.prepare('INSERT OR IGNORE INTO ktt_dia_ban_phat (ma_phuong_xa, ten_phuong_xa, ma_bcvh, ten_bcvh) VALUES (?, ?, ?, ?)');
   db.transaction(() => {
-    for (const [ma, gio, ngay, nhan, ghiChu] of LICH_CHUYEN_MAC_DINH) themLich.run(ma, gio, ngay, nhan, ghiChu, bayGio);
     for (const [khoa, giaTri, moTa] of LICH_CAU_HINH_MAC_DINH) themLichCh.run(khoa, giaTri, moTa, bayGio);
     for (const [maBcvh, tenBcvh, phuongXa] of DIA_BAN_PHAT_MAC_DINH) for (const [maPx, tenPx] of phuongXa) themDiaBan.run(maPx, tenPx, maBcvh, tenBcvh);
-    for (const [ma, chuyen, gio] of CHUYEN_MAC_DINH) themChuyen.run(ma, chuyen, gio, GHI_CHU_CHUYEN_V1, bayGio);
     for (const [khoa, giaTri, moTa] of NGUONG_MAC_DINH) themNguong.run(khoa, giaTri, moTa, bayGio);
+    apDungLichChuan(db, bayGio);
   })();
 }
 
-module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, FILE_HANG_HOAN, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH, LICH_CHUYEN_MAC_DINH, LICH_CAU_HINH_MAC_DINH };
+/**
+ * Đồng bộ ktt_lich_chuyen về lịch chuẩn MỘT lần (khóa lich_phien_ban < LICH_PHIEN_BAN). Gọi TRONG giao dịch của ensureKttSchema. Trả true nếu đã đồng bộ.
+ * Dòng trùng (BCVH, giờ): ghi đè ngày chạy / nhãn / ghi chú, bật lại, đặt xác nhận = 1. Dòng ngoài chuẩn: xóa. Dòng thiếu: thêm. DB «lai» (cũ + mới) về đúng 14 dòng.
+ */
+function apDungLichChuan(db, bayGio) {
+  const r = db.prepare('SELECT gia_tri FROM ktt_lich_cau_hinh WHERE khoa = ?').get(KHOA_LICH_PHIEN_BAN);
+  if (r && Number(r.gia_tri) >= LICH_PHIEN_BAN) return false;
+  const chuan = new Set(LICH_CHUYEN_MAC_DINH.map(([ma, gio]) => `${ma}|${gio}`));
+  const xoa = db.prepare('DELETE FROM ktt_lich_chuyen WHERE id = ?');
+  for (const d of db.prepare('SELECT id, ma_bcvh, gio_xuat_phat FROM ktt_lich_chuyen').all()) {
+    if (!chuan.has(`${d.ma_bcvh}|${d.gio_xuat_phat}`)) xoa.run(d.id);
+  }
+  const capNhat = db.prepare('UPDATE ktt_lich_chuyen SET ngay_chay = ?, nhan = ?, ghi_chu = ?, dang_dung = 1, ngay_chay_xac_nhan = 1, cap_nhat_luc = ? WHERE ma_bcvh = ? AND gio_xuat_phat = ?');
+  const them = db.prepare('INSERT INTO ktt_lich_chuyen (ma_bcvh, gio_xuat_phat, ngay_chay, nhan, ghi_chu, cap_nhat_luc) VALUES (?, ?, ?, ?, ?, ?)');
+  for (const [ma, gio, ngay, nhan, ghiChu] of LICH_CHUYEN_MAC_DINH) {
+    if (capNhat.run(ngay, nhan, ghiChu, bayGio, ma, gio).changes === 0) them.run(ma, gio, ngay, nhan, ghiChu, bayGio);
+  }
+  db.prepare('INSERT INTO ktt_lich_cau_hinh (khoa, gia_tri, mo_ta, cap_nhat_luc) VALUES (?, ?, ?, ?) ON CONFLICT(khoa) DO UPDATE SET gia_tri = excluded.gia_tri, cap_nhat_luc = excluded.cap_nhat_luc')
+    .run(KHOA_LICH_PHIEN_BAN, LICH_PHIEN_BAN, 'Phiên bản lịch chuẩn đã áp dụng cho ktt_lich_chuyen (YYYYMMDD); lịch chuẩn 05/11/2026', bayGio);
+  return true;
+}
+
+module.exports = { ensureKttSchema, COT_TUI, COT_BUU_GUI, LOAI_FILE, FILE_HANG_HOAN, CHUYEN_MAC_DINH, NGUONG_MAC_DINH, GHI_CHU_CHUYEN_V1, DIA_BAN_PHAT_MAC_DINH, LICH_CHUYEN_MAC_DINH, LICH_CAU_HINH_MAC_DINH, LICH_PHIEN_BAN, KHOA_LICH_PHIEN_BAN };
