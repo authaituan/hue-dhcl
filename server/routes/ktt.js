@@ -4,6 +4,7 @@
 //   GET /api/ktt/meta                    độ mới dữ liệu, lịch chuyến (14 dòng), hạn đến trước chuyến, giờ chốt ngày, ngưỡng
 //   GET /api/ktt/luu-thoat?tu=&den=[&moc_chi_tieu=xnd|quet_tui_den]   lưu thoát 5 trạng thái, đạt / không đạt, chỉ tiêu 14 giờ hai mốc, hàng hoàn (kttLuuThoatQuery.luuThoatTheoNgay), cache theo (mốc, ngày)
 //   GET /api/ktt/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]?tu=&den=[&moc=A|B&loai_ngay=&bcvh=]   KTT-KD-1 pha 2: «Bức tranh đường thư đến» (lib/kttBucTranh.js, doc 42 mục 20)
+//   GET /api/ktt/luu-thoat/buc-tranh-duong-thu/gio-den[/theo-ngay]?tu=&den=[&moc=&loai_ngay=&bcvh=&duong_thu=] và /con-lai-theo-gio[?loai_ngay=&bcvh=]   KTT-KD-3b: màn «Giờ đến trong ngày» (lib/kttGioDen.js, doc 42 mục 22)
 //   GET /api/ktt/tong-hop?tu=&den=       kttQuery.tongHopKtt + khối «Đánh giá» (danh_gia)
 //   GET /api/ktt/chi-tiet?tu=&den=&loai=[&ma_bcvh=&page=&page_size=]   danh sách SHBG chi tiết (phân trang như /api/arrivals/items)
 //   GET /api/ktt/xuat/luu-thoat?tu=&den=[&trang_thai=&ma_bcvh=&nguon=]   KTT-8b/8c: file .xlsx (sheet «Thông tin» + «7 Hàng rớt lại»), lib/kttXuat.js
@@ -52,6 +53,10 @@ router.get('/luu-thoat/khong-dat-14h', xuLy('luu-thoat/khong-dat-14h', (req) => 
 router.get('/luu-thoat/buc-tranh-duong-thu', xuLy('luu-thoat/buc-tranh-duong-thu', (req) => Api.bucTranhCum(db, req.query)));
 router.get('/luu-thoat/buc-tranh-duong-thu/chuyen-xe', xuLy('luu-thoat/buc-tranh-duong-thu/chuyen-xe', (req) => Api.bucTranhChuyenXe(db, req.query)));
 router.get('/luu-thoat/buc-tranh-duong-thu/danh-gia', xuLy('luu-thoat/buc-tranh-duong-thu/danh-gia', (req) => Api.bucTranhDanhGia(db, req.query)));
+// KTT-KD-3b: màn «Giờ đến trong ngày» — chỉ thêm (lõi lib/kttGioDen.js, doc 42 mục 22).
+router.get('/luu-thoat/buc-tranh-duong-thu/gio-den', xuLy('luu-thoat/buc-tranh-duong-thu/gio-den', (req) => Api.gioDen(db, req.query)));
+router.get('/luu-thoat/buc-tranh-duong-thu/gio-den/theo-ngay', xuLy('luu-thoat/buc-tranh-duong-thu/gio-den/theo-ngay', (req) => Api.gioDenTheoNgay(db, req.query)));
+router.get('/luu-thoat/buc-tranh-duong-thu/con-lai-theo-gio', xuLy('luu-thoat/buc-tranh-duong-thu/con-lai-theo-gio', (req) => Api.conLaiTheoGio(db, req.query)));
 router.get('/tong-hop', xuLy('tong-hop', (req) => Api.tongHop(db, req.query)));
 router.get('/chi-tiet', xuLy('chi-tiet', (req) => Api.chiTiet(db, req.query)));
 

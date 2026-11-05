@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-05] - KTT-KD-3b: API «Giờ đến trong ngày» (server, test, docs; nhánh `fix/ktt-lich-chuan`)
+
+- `server/lib/kttGioDen.js` (MỚI, hàm thuần): chuyến thư đến theo mã đường thư (`chiaBang`, ≤ 60 phút một chuyến), đường thư × 24 giờ, giờ giữa mỗi chuyến mỗi ngày, dấu hiệu cấp đường thư, «Khác» / «Tổng», từng ngày, dải còn lại theo giờ. `kttBucTranh.js`: chỉ thêm export `tod, trongBang, trai, sapTang`.
+- `server/lib/kttApi.js` + `server/routes/ktt.js`: 3 route mới `…/buc-tranh-duong-thu/gio-den`, `…/gio-den/theo-ngay`, `…/con-lai-theo-gio` (ADMIN, TTVH, TTKT; cùng cache theo ngày, không thêm lượt duyệt SHBG). Tham số hệ thống mới `ktt_bt_san_luong_lon_phan_vi` = 80 (`tham-so-mac-dinh.js`, `ktt-buc-tranh.js`, `tham-so.js`).
+- Test: `tests/ktt-gio-den.test.js` (17 ca); `tests/tham-so.test.js` (45 khóa sửa được / 52 khóa). Đã so JSON các route cũ (luu-thoat, khong-dat-14h, ba route bức tranh, meta) trước và sau trên dữ liệu giả: giống từng byte.
+- Docs: `42` mục 22; `04_DECISIONS.md` #128; `00_SNAPSHOT.md`; `03_ARCHITECTURE_MAP.md`.
+
 ## [2026-11-05] - KTT-LICH-2: lịch chuẩn 05/11/2026 (server, test, docs; nhánh `fix/ktt-lich-chuan`)
 
 - `server/lib/kttSchema.js`: `LICH_CHUYEN_MAC_DINH` = lịch chuẩn (14 dòng); cột `ngay_chay_xac_nhan` (ALTER cho DB cũ); migration MỘT lần `apDungLichChuan` theo khóa `lich_phien_ban` = `20261105` (một giao dịch, DB cũ / «lai» / mới về đúng 14 dòng, lần hai không đổi); bỏ seed lịch V1 (`CHUYEN_MAC_DINH = []`).

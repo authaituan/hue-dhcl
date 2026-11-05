@@ -66,5 +66,6 @@ module.exports = Object.freeze({
   ktt_bt_ngay_toi_thieu: 20,
   ktt_bt_con_lai_gio: 3,
   ktt_bt_ty_le_con_lai_pct: 25,
-  ktt_bt_meo_theo_lo_phut: 120
+  ktt_bt_meo_theo_lo_phut: 120,
+  ktt_bt_san_luong_lon_phan_vi: 80 // KTT-KD-3b: cờ «Sản lượng lớn» ở cấp đường thư (màn «Giờ đến trong ngày»)
 });

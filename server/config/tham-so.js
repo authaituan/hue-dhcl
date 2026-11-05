@@ -347,6 +347,13 @@ const SUA_DUOC = [
     vi_du: 'Đặt 120: mốc A 12:28, mốc B 05:39 (lệch hơn 6 giờ) → ghi chú «méo theo lô». Đặt 480: cùng chuyến đó chưa ghi chú.',
     nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
   }),
+  sua('ktt_bt_san_luong_lon_phan_vi', {
+    nhom: 'hang_tai_ktt', nhan: 'Giờ đến trong ngày: «Sản lượng lớn» khi đường thư thuộc nhóm bưu gửi cao nhất, từ phân vị', kieu: 'so_nguyen', min: 50, max: 99, don_vi: 'phân vị',
+    mo_ta: 'Đường thư có số bưu gửi trong khoảng ngày từ mức phân vị này (so với các đường thư đủ mẫu của bộ lọc hiện tại) được gắn dấu hiệu «Sản lượng lớn».',
+    anh_huong: 'Chỉ đổi dấu hiệu; có hiệu lực ngay, không đổi số bưu gửi.',
+    vi_du: 'Đặt 80: 20% đường thư lớn nhất bị gắn dấu hiệu. Đặt 90: chỉ 10% đường thư lớn nhất.',
+    nhin_thay_o: ['Hàng tại KTT: màn «Giờ đến trong ngày»']
+  }),
   sua('ktt_so_cap_toi_thieu_ngay', {
     nhom: 'nap_ktt', nhan: 'Số cặp file tối thiểu mỗi ngày', kieu: 'so_nguyen', min: 1, max: 10, don_vi: 'cặp',
     mo_ta: 'Một ngày đã qua có ít cặp (túi + bưu gửi) nạp thành công hơn mức này thì cảnh báo. Lịch hiện hành là 2 lần xuất mỗi ngày (09:00, 15:00).',

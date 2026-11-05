@@ -948,5 +948,14 @@ Nguồn duy nhất: file «LỊCH CHUẨN xe cấp 2 rời Khai thác tỉnh» (
 7. **Hiệu lực**: áp cho TOÀN BỘ cửa sổ (tính lại cả quá khứ); số trước / sau ở `40_KTT_LICH_CHUYEN.md` mục 8 và báo cáo KTT-LICH-2.
 8. **«Đổi thực»** (so lịch cũ ↔ chuẩn) = bưu gửi vào khe giờ / ngày KHÁC sau khi coi 06:00→06:10, 12:30→12:45 (Thuận Hóa, Hương Thủy), 06:30→07:30 là cùng một chuyến (`40` mục 8).
 
+### #128 — Màn «Giờ đến trong ngày» (KTT-KD-3b, CTO duyệt 05/11/2026)
+1. **Đơn vị** = mã đường thư (gộp mọi lịch, mọi cụm); hàng chưa có mã là dòng riêng, đường thư chưa có tên là dòng riêng (`ten` null), không vào «Khác».
+2. **Chuyến thư đến**: các lần đến của cùng đường thư cách nhau KHÔNG QUÁ 60 phút (`ktt_bt_gap_cum_phut`) là MỘT chuyến — cùng một xe được xác nhận trước và sau (PO 05/11/2026), không phải hai xe. **Giờ đến của một ngày = mỗi chuyến một giờ** (giờ giữa); P10 / giờ giữa / P90 của đường thư tính trên các giờ-chuyến-ngày, không trên từng bưu gửi.
+3. **Phạm vi hàng**: chỉ 6 BCVH Huế (cùng mẫu số bức tranh, không hàng hoàn); số đi ngoài / không rõ đích / không có giờ quét / hàng hoàn ở `ngoai_pham_vi`. Hàng đi tỉnh khác: ticket sau.
+4. **Mốc**: API trả cả hai mốc; A (`bd10_den_xnd`, #111) giữ giờ trong ngày vòng 24 giờ. Giao diện mặc định mốc B ở cách xem «Chỉ xem giờ đến trong ngày» (A méo theo lô), mốc A ở cách xem có tính chỉ tiêu.
+5. **Dải «còn so với chỉ tiêu» do máy chủ tính** (hàng đến phút :30, lịch chuẩn, trừ 21:00–07:00, giờ chốt = rời − 60, chỉ tiêu 14 / 12 giờ): giao diện không hard-code lịch hay chỉ tiêu; `con_lai_gio` có thể âm; không tính được = null.
+6. **Dấu hiệu cấp đường thư** (ngưỡng tương đối ở máy chủ, khóa `ktt_bt_*`): `san_luong_khong_deu`, `gio_den_khong_co_dinh`, `nhieu_kien_di_ngoai`, `mau_it` (co theo số ngày: `ktt_bt_mau_toi_thieu` × ngày / 30, làm tròn lên), `san_luong_lon` (khóa mới `ktt_bt_san_luong_lon_phan_vi` = 80). Cờ cấp cụm của route cũ giữ nguyên.
+7. Chỉ THÊM: ba route mới, `docs/ai/42` mục 22; không đổi trường nào của route cũ (đã so JSON trước / sau trên dữ liệu giả: giống từng byte).
+
 ## Drift phát hiện
 _(chưa có)_

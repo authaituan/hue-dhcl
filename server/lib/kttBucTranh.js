@@ -458,5 +458,6 @@ function tinhMoc(R, opts) {
 
 module.exports = {
   MOC_BT, HAI_MOC, MOC_MAC_DINH, NGUONG_MAC_DINH, CO, MUC_CO, NHAN_CO, KIEN, COT,
-  thuCua, loaiNgayCua, hhmm, phanVi, nguongTuongDoi, taoBo, gop, chiaBang, dungCum, tinhMoc
+  thuCua, loaiNgayCua, hhmm, phanVi, nguongTuongDoi, taoBo, gop, chiaBang, dungCum, tinhMoc,
+  tod, trongBang, trai, sapTang // KTT-KD-3b: dùng lại ở kttGioDen.js (chỉ thêm export)
 };

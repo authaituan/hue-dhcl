@@ -17,5 +17,6 @@ module.exports = T.taoDoiTuong({
   NGAY_TOI_THIEU: T.theoKhoa('ktt_bt_ngay_toi_thieu'),
   CON_LAI_GIO: T.theoKhoa('ktt_bt_con_lai_gio'),
   TY_LE_CON_LAI_PCT: T.theoKhoa('ktt_bt_ty_le_con_lai_pct'),
-  MEO_THEO_LO_PHUT: T.theoKhoa('ktt_bt_meo_theo_lo_phut')
+  MEO_THEO_LO_PHUT: T.theoKhoa('ktt_bt_meo_theo_lo_phut'),
+  SAN_LUONG_LON_PHAN_VI: T.theoKhoa('ktt_bt_san_luong_lon_phan_vi')
 });
