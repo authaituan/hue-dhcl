@@ -221,6 +221,53 @@ test('nhieu_kien_di_ngoai từ 30%; luu_y_lich; chuyen_gom_nhieu_hang theo mức
   assert.ok(v.the.every((x, i) => i === 0 || v.the[i - 1].shbg_anh_huong >= x.shbg_anh_huong), 'Pareto: xếp theo số bưu gửi bị ảnh hưởng giảm dần');
 });
 
+/** 10 cụm × 10 ngày; cụm j có `kien(j)` kiện đi ngoài trên `n` bưu gửi mỗi ngày (cùng một băng giờ, ≥ 100 bưu gửi mỗi cụm). */
+function bo10CumKien(n, kien) {
+  const spec = [];
+  for (let j = 0; j < 10; j++) {
+    for (let d = 0; d < 10; d++) {
+      spec.push({ dt: `DT${String(j).padStart(2, '0')}`, ngay: d, n: kien(j), phut: (i) => 480 + i, kien: 2 });
+      spec.push({ dt: `DT${String(j).padStart(2, '0')}`, ngay: d, n: n - kien(j), phut: (i) => 480 + i, kien: 0 });
+    }
+  }
+  return dungR(spec);
+}
+
+test('KTT-KD-1d nhieu_kien_di_ngoai = từ 30% VÀ thuộc 20% cụm có tỷ lệ cao nhất: tỷ lệ 5%…50% gắn đúng 2 cụm (45%, 50%); 30–40% ngoài top 20% KHÔNG gắn; cả hai mốc', () => {
+  const R = bo10CumKien(20, (j) => j + 1); // 5%, 10%, …, 50%
+  for (const moc of ['A', 'B']) {
+    const v = BT.tinhMoc(R, { moc, nguong: {} });
+    const co = v.cum.filter((c) => c.co.nhieu_kien_di_ngoai).map((c) => c.duong_thu.ma).sort();
+    assert.deepEqual(co, ['DT08', 'DT09'], `${moc}: đúng 2/10 cụm = 20%`);
+    for (const ma of ['DT05', 'DT06', 'DT07']) { // 30%, 35%, 40%: đạt 30% nhưng ngoài top 20%
+      const c = v.cum.find((x) => x.duong_thu.ma === ma);
+      assert.ok(c.kien_di_ngoai.ty_le >= 0.3 - 1e-9 && c.co.nhieu_kien_di_ngoai === false, `${moc} ${ma}: ≥ 30% nhưng ngoài top 20% — không gắn`);
+    }
+    assert.equal(v.cum.find((x) => x.duong_thu.ma === 'DT09').kien_di_ngoai.ty_le, 0.5, 'số đo thô vẫn trả như cũ');
+    assert.equal(v.nguong_ap_dung.kienNgoaiPhanVi, 80);
+    assert.ok(Math.abs(v.nguong_ap_dung.phan_vi_kien_ngoai - 0.45) < 1e-9);
+    assert.equal(v.nguong_ap_dung.kienDiNgoaiPct, 30, 'khóa ngưỡng cũ giữ nguyên');
+    assert.equal(v.the.filter((x) => x.co === 'nhieu_kien_di_ngoai').length, 2);
+  }
+  const p90 = BT.tinhMoc(R, { moc: 'B', nguong: { kienNgoaiPhanVi: 90 } });
+  assert.deepEqual(p90.cum.filter((c) => c.co.nhieu_kien_di_ngoai).map((c) => c.duong_thu.ma), ['DT09'], 'đổi phân vị 90: còn 1/10 cụm');
+});
+
+test('KTT-KD-1d nhieu_kien_di_ngoai: cụm trong top 20% nhưng dưới 30% KHÔNG gắn (tỷ lệ 2,5%…25%); cụm mẫu ít không vào phân bố', () => {
+  const R = bo10CumKien(40, (j) => j + 1); // 2,5% … 25%
+  const v = BT.tinhMoc(R, { moc: 'B', nguong: {} });
+  assert.equal(v.cum.length, 10);
+  assert.equal(v.cum.filter((c) => c.co.nhieu_kien_di_ngoai).length, 0, 'top 20% = 22,5% và 25%, đều dưới 30%');
+  assert.ok(v.cum.find((x) => x.duong_thu.ma === 'DT09').kien_di_ngoai.ty_le < 0.3);
+  // cụm mẫu ít 100% kiện ngoài không làm đổi ngưỡng phân vị và không bị gắn cờ
+  const R2 = bo10CumKien(20, (j) => j + 1);
+  const them = dungR([{ dt: 'DTZ', ngay: 0, n: 15, phut: (i) => 480 + i, kien: 2 }]);
+  const gop = { ...R2, n: R2.n + them.n, ngayI: [...R2.ngayI, ...them.ngayI], tu: { ...R2.tu, dt: [...R2.tu.dt, 'DTZ'], dtTen: [...R2.tu.dtTen, 'Tên DTZ'] }, cot: Object.fromEntries(COT.map((k) => [k, [...R2.cot[k], ...them.cot[k].map((x) => (k === 'dt' ? R2.tu.dt.length : x))]])) };
+  const w = BT.tinhMoc(gop, { moc: 'B', nguong: {} });
+  assert.equal(w.cum.find((c) => c.duong_thu.ma === 'DTZ').co.nhieu_kien_di_ngoai, false);
+  assert.deepEqual(w.cum.filter((c) => c.co.nhieu_kien_di_ngoai).map((c) => c.duong_thu.ma).sort(), ['DT08', 'DT09']);
+});
+
 test('sat_gio_chot luôn là mức theo dõi, chỉ gắn khi có hàng từ 20 ngày; sat_chi_tieu theo tỷ lệ bưu gửi còn dưới 3 giờ; ô dưới 100 bưu gửi là «mẫu ít» và không gắn cờ', () => {
   assert.equal(BT.MUC_CO.sat_gio_chot, 'theo_doi');
   const dung = (soNgay, nMoiNgay) => {

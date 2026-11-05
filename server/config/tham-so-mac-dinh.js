@@ -60,6 +60,7 @@ module.exports = Object.freeze({
   ktt_bt_mau_toi_thieu: 100,
   ktt_bt_phan_vi_tuong_doi: 80,
   ktt_bt_kien_di_ngoai_pct: 30,
+  ktt_bt_kien_ngoai_phan_vi: 80,
   ktt_bt_chuyen_gom_he_so: 1.5,
   ktt_bt_sat_gio_chot_phut: 60,
   ktt_bt_ngay_toi_thieu: 20,

@@ -8,7 +8,7 @@ Bản này là MANIFEST (đã thực hiện); nội dung kỹ thuật ở `docs/
 - **Pha 1b (khảo sát chỉ đọc)**: dư địa theo giờ hàng đến. Kết luận: giả thuyết «giờ đến sát hạn gây không đạt» không được số đo ủng hộ; «đợt đến» = BD10 đến.
 - **Pha 2 (bản sửa 1)**: máy chủ + xlsx + test + docs. Mục 0 của bản sửa: kiểm lại nhãn ngày Chủ nhật (11/10, 18/10, 25/10, 01/11) và khảo sát nhóm E của BCVH 536250 (chỉ đọc, không kết luận nguyên nhân).
 
-- **Pha 2 (bản sửa 2, 04/11/2026)**: «Bức tranh đường thư đến» + khối «Vì sao không đạt 14 giờ» theo mốc mặc định A: 3 route `/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]`, cờ ngưỡng tương đối (11 tham số `ktt_bt_*`), `luu_y_lich`, `moc` ở `khong-dat-14h`. Mục 0 (chỉ đọc): so «chuyến thư đến» 60 phút với «đợt» 120 phút của KTT-12; lịch Chủ nhật của 536250 / 537015 / 537220.
+- **Pha 2 (bản sửa 2, 04/11/2026)**: «Bức tranh đường thư đến» + khối «Vì sao không đạt 14 giờ» theo mốc mặc định A: 3 route `/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]`, cờ ngưỡng tương đối (12 tham số `ktt_bt_*`, trong đó `ktt_bt_kien_ngoai_phan_vi` thêm ở KTT-KD-1d), `luu_y_lich`, `moc` ở `khong-dat-14h`. Mục 0 (chỉ đọc): so «chuyến thư đến» 60 phút với «đợt» 120 phút của KTT-12; lịch Chủ nhật của 536250 / 537015 / 537220.
 
 ## Điều cấm (giữ nguyên từ ticket gốc)
 Không sửa `src/`; không đổi số cũ, tên field, đẳng thức (chỉ THÊM field / route); không đổi quy tắc tính (KTT-4, 7b, 10b, 14, 17-2) và lịch chuyến (lỗi Chủ nhật KTT-LICH-1 để sau); không đụng `.env`, `data/`, DB thật; không đưa SHBG / BD10 / ItemCode / mã nơi gửi thật vào repo, test, docs; không `git add` / commit / push / stash / reset, không `npm install`; `npm test` chạy tuần tự từng múi giờ.

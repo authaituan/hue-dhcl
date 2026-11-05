@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-05] - KTT-KD-1d: cờ `nhieu_kien_di_ngoai` = ≥ 30% VÀ thuộc 20% cụm cao nhất (server, test, docs; nhánh `feat/ktt-kd-1-khong-dat-14h`)
+
+- `server/lib/kttBucTranh.js`: cờ `nhieu_kien_di_ngoai` thêm điều kiện ≥ phân vị `kienNgoaiPhanVi` (80) của `kien_di_ngoai.ty_le` các cụm không «mẫu ít» (cùng `nguongTuongDoi` với `that_thuong`); `nguong_ap_dung` thêm `kienNgoaiPhanVi` (camelCase) và `phan_vi_kien_ngoai` (ngưỡng đã tính); lý giải thẻ nêu cả hai điều kiện. Số đo thô, tên / đơn vị trường, cờ khác: không đổi.
+- Tham số hệ thống MỚI `ktt_bt_kien_ngoai_phan_vi` (mặc định 80, 50–99; `tham-so-mac-dinh.js`, `tham-so.js`, `ktt-buc-tranh.js`, `kttApi.js` `nguongBt`); khóa `ktt_bt_kien_di_ngoai_pct` (30) giữ nguyên, mô tả sửa. `tests/tham-so.test.js`: đếm khóa 50 → 51, sửa được 43 → 44.
+- Test: `tests/ktt-buc-tranh.test.js` thêm 2 ca (bộ giả 10 cụm tỷ lệ 5…50%: đúng 2 cụm bị gắn, 30–40% ngoài top 20% không gắn; bộ 2,5…25%: top 20% dưới 30% không gắn; phân vị 90 → 1 cụm; mẫu ít không vào phân bố).
+- Đo trên bản sao DB (30 ngày): cụm không «mẫu ít» bị gắn trước → sau: mốc A 33/93 (35,5%) → 19/93 (20,4%), mốc B 21/69 (30,4%) → 14/69 (20,3%). Docs: 41 mục 20, 42 mục 20, 04 #126, 00_SNAPSHOT, 03, ticket KTT-KD-1.
+
 ## [2026-11-04] - KTT-KD-1 pha 2 (bản sửa 2): «Bức tranh đường thư đến» + `moc` cho «Vì sao không đạt 14 giờ» (server, test, docs; KHÔNG đổi `src/`, giao diện là KTT-KD-2)
 
 - `server/lib/kttBucTranh.js` MỚI (hàm thuần): cột số theo SHBG của từng ngày (cộng trong CÙNG lượt duyệt `luuThoatTheoNgay`), «chuyến thư đến» = (đường thư, lịch BD10 đến, băng giờ tách khi cách > 60 phút), cụm / ô (cụm × BCVH × loại ngày) / chuyến xe cấp 2, 7 cờ theo ngưỡng TƯƠNG ĐỐI (`that_thuong`, `khong_co_lich_co_dinh` từ phân vị 80; `nhieu_kien_di_ngoai`; `chuyen_gom_nhieu_hang`; `sat_gio_chot` = theo dõi; `sat_chi_tieu`; `mau_it`), Pareto + `luy_ke_pct`, `luu_y_lich` cho ô Chủ nhật. Không đổi quy tắc tính hay lịch chuyến.

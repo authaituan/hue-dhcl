@@ -11,6 +11,7 @@ module.exports = T.taoDoiTuong({
   MAU_TOI_THIEU: T.theoKhoa('ktt_bt_mau_toi_thieu'),
   PHAN_VI_TUONG_DOI: T.theoKhoa('ktt_bt_phan_vi_tuong_doi'),
   KIEN_DI_NGOAI_PCT: T.theoKhoa('ktt_bt_kien_di_ngoai_pct'),
+  KIEN_NGOAI_PHAN_VI: T.theoKhoa('ktt_bt_kien_ngoai_phan_vi'),
   CHUYEN_GOM_HE_SO: T.theoKhoa('ktt_bt_chuyen_gom_he_so'),
   SAT_GIO_CHOT_PHUT: T.theoKhoa('ktt_bt_sat_gio_chot_phut'),
   NGAY_TOI_THIEU: T.theoKhoa('ktt_bt_ngay_toi_thieu'),

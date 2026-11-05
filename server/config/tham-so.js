@@ -293,9 +293,16 @@ const SUA_DUOC = [
   }),
   sua('ktt_bt_kien_di_ngoai_pct', {
     nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Nhiều kiện đi ngoài» từ', kieu: 'phan_tram_nguyen', min: 1, max: 100, don_vi: '%',
-    mo_ta: 'Chuyến thư đến có từ mức % bưu gửi trở lên là kiện đi ngoài thì gắn cờ «Nhiều kiện đi ngoài».',
+    mo_ta: 'Chuyến thư đến có từ mức % bưu gửi trở lên là kiện đi ngoài VÀ thuộc nhóm có tỷ lệ cao nhất (xem khóa phân vị kiện đi ngoài) thì gắn cờ «Nhiều kiện đi ngoài». Cả hai điều kiện cùng đúng mới gắn.',
     anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay, không đổi số bưu gửi và các con số lưu thoát.',
-    vi_du: 'Đặt 30%: chuyến có 35% kiện đi ngoài bị gắn cờ. Đặt 40%: chưa gắn.',
+    vi_du: 'Đặt 30%: chuyến có 35% kiện đi ngoài và nằm trong nhóm cao nhất bị gắn cờ. Đặt 40%: chuyến 35% chưa gắn.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_kien_ngoai_phan_vi', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Nhiều kiện đi ngoài» chỉ gắn cho phần trên cùng của phân bố (phân vị)', kieu: 'so_nguyen', min: 50, max: 99, don_vi: 'phân vị',
+    mo_ta: 'Tỷ lệ kiện đi ngoài của một chuyến thư đến được so với các chuyến khác (không tính chuyến «mẫu ít») trong cùng cửa sổ; chỉ chuyến từ phân vị này trở lên (và đạt ngưỡng % ở khóa kiện đi ngoài) mới bị gắn cờ. Phân vị 80 nghĩa là tối đa khoảng 20% chuyến.',
+    anh_huong: 'Ngưỡng tự đổi theo dữ liệu; đổi phân vị chỉ đổi tỷ lệ chuyến bị gắn cờ. Có hiệu lực ngay.',
+    vi_du: 'Đặt 80: tối đa khoảng 1 trong 5 chuyến bị gắn cờ. Đặt 90: tối đa khoảng 1 trong 10.',
     nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
   }),
   sua('ktt_bt_chuyen_gom_he_so', {

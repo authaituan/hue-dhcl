@@ -187,7 +187,7 @@ Lõi THUẦN `server/lib/kttBucTranh.js` (không DB, không giờ máy). Mỗi S
 |---|---|---|---|
 | `that_thuong` | cụm | dao động sản lượng ngày (độ lệch chuẩn / trung bình, chỉ ngày thường CÓ hàng) ≥ phân vị `ktt_bt_phan_vi_tuong_doi` (80) của các cụm không «mẫu ít» trong bộ lọc hiện tại; cụm ≥ `ktt_bt_mau_toi_thieu` (100) bưu gửi | `luu_y` |
 | `khong_co_lich_co_dinh` | cụm | độ rộng giờ đến (P90 − P10) ≥ phân vị 80 của các cụm; số ngày có hàng chỉ là số kèm theo | `luu_y` |
-| `nhieu_kien_di_ngoai` | cụm | kiện đi ngoài (luồng `DI_NGOAI` hoặc BD8 = SHBG) ≥ `ktt_bt_kien_di_ngoai_pct` (30%) | `thong_tin` |
+| `nhieu_kien_di_ngoai` | cụm | kiện đi ngoài (luồng `DI_NGOAI` hoặc BD8 = SHBG) ≥ `ktt_bt_kien_di_ngoai_pct` (30%) **VÀ** thuộc nhóm cao nhất: ≥ phân vị `ktt_bt_kien_ngoai_phan_vi` (80) của tỷ lệ kiện đi ngoài các cụm không «mẫu ít» trong bộ lọc hiện tại (KTT-KD-1d, 05/11; cả hai điều kiện cùng đúng mới gắn; số đo thô `kien_di_ngoai.ty_le` không đổi) | `thong_tin` |
 | `chuyen_gom_nhieu_hang` | chuyến xe cấp 2 (BCVH × loại ngày × giờ rời) | tỷ trọng sản lượng ≥ `ktt_bt_chuyen_gom_he_so` (1,5) × mức chia đều (1 / số chuyến của BCVH trong ngày; Chủ nhật chỉ đếm chuyến chạy Chủ nhật, tối thiểu 1); BCVH một chuyến không bao giờ bị gắn cờ | `luu_y` |
 | `sat_gio_chot` | ô (cụm × BCVH × loại ngày) | trung vị cách giờ chốt chuyến < `ktt_bt_sat_gio_chot_phut` (60) VÀ có hàng ≥ `ktt_bt_ngay_toi_thieu` (20) ngày | **`theo_doi` — luôn** (số đo 1b chưa ủng hộ) |
 | `sat_chi_tieu` | ô | từ `ktt_bt_ty_le_con_lai_pct` (25%) bưu gửi của ô còn dưới `ktt_bt_con_lai_gio` (3) giờ so với chỉ tiêu nếu xe đi đúng lịch (dùng tỷ lệ thay trung vị để không bỏ sót đuôi xấu) | `canh_bao` |

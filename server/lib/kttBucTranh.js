@@ -29,7 +29,7 @@ const NGAY_PHUT = 1440;
 
 /** Ngưỡng mặc định (khớp server/config/tham-so-mac-dinh.js; `nguong` thật đọc từ tham số hệ thống ở kttApi). */
 const NGUONG_MAC_DINH = Object.freeze({
-  gapPhut: 60, cumNhoShbg: 5, mauToiThieu: 100, phanViTuongDoi: 80, kienDiNgoaiPct: 30, chuyenGomHeSo: 1.5, satGioChotPhut: 60, ngayToiThieu: 20,
+  gapPhut: 60, cumNhoShbg: 5, mauToiThieu: 100, phanViTuongDoi: 80, kienDiNgoaiPct: 30, kienNgoaiPhanVi: 80, chuyenGomHeSo: 1.5, satGioChotPhut: 60, ngayToiThieu: 20,
   conLaiGio: 3, tyLeNganConLaiPct: 25, meoTheoLoPhut: 120
 });
 const CO = Object.freeze({
@@ -339,6 +339,7 @@ function tinhMoc(R, opts) {
   const dd = cumKq.filter((c) => c.shbg >= ng.mauToiThieu);
   const nguongDaoDong = nguongTuongDoi(dd.map((c) => c.so_do.dao_dong), ng.phanViTuongDoi);
   const nguongDoRong = nguongTuongDoi(dd.map((c) => c.so_do.do_rong_gio_den_phut), ng.phanViTuongDoi);
+  const nguongKienNgoai = nguongTuongDoi(dd.map((c) => c.kien_di_ngoai.ty_le), ng.kienNgoaiPhanVi); // KTT-KD-1d: cờ nhiều kiện đi ngoài = vượt ngưỡng tuyệt đối VÀ thuộc nhóm trên cùng
   for (const c of cumKq) {
     const mauIt = c.shbg < ng.mauToiThieu;
     c.co = {
@@ -346,6 +347,7 @@ function tinhMoc(R, opts) {
       [CO.THAT_THUONG]: !mauIt && nguongDaoDong !== null && c.so_do.dao_dong !== null && c.so_do.dao_dong >= nguongDaoDong,
       [CO.KHONG_CO_LICH]: !mauIt && nguongDoRong !== null && c.so_do.do_rong_gio_den_phut !== null && c.so_do.do_rong_gio_den_phut >= nguongDoRong,
       [CO.NHIEU_KIEN]: !mauIt && c.kien_di_ngoai.ty_le !== null && c.kien_di_ngoai.ty_le >= ng.kienDiNgoaiPct / 100
+        && nguongKienNgoai !== null && c.kien_di_ngoai.ty_le >= nguongKienNgoai
     };
   }
   const cumTheoI = new Map(cumKq.map((c) => [c._i, c]));
@@ -426,7 +428,7 @@ function tinhMoc(R, opts) {
   for (const c of cumKq) {
     if (c.co[CO.THAT_THUONG]) dua(CO.THAT_THUONG, 'cum', c.id, c.ten, c.shbg, c.so_do.dao_dong, nguongDaoDong, `Sản lượng ngày thường dao động ${(c.so_do.dao_dong * 100).toFixed(0)}% so với mức trung bình (từ phân vị ${ng.phanViTuongDoi} của các cụm: ${(nguongDaoDong * 100).toFixed(0)}%)`);
     if (c.co[CO.KHONG_CO_LICH]) dua(CO.KHONG_CO_LICH, 'cum', c.id, c.ten, c.shbg, c.so_do.do_rong_gio_den_phut, nguongDoRong, `Giờ đến trải ${c.so_do.do_rong_gio_den_phut} phút (từ phân vị ${ng.phanViTuongDoi} của các cụm: ${nguongDoRong} phút)`);
-    if (c.co[CO.NHIEU_KIEN]) dua(CO.NHIEU_KIEN, 'cum', c.id, c.ten, c.kien_di_ngoai.shbg, c.kien_di_ngoai.ty_le, ng.kienDiNgoaiPct / 100, `Kiện đi ngoài chiếm ${(c.kien_di_ngoai.ty_le * 100).toFixed(0)}% (từ ${ng.kienDiNgoaiPct}%)`);
+    if (c.co[CO.NHIEU_KIEN]) dua(CO.NHIEU_KIEN, 'cum', c.id, c.ten, c.kien_di_ngoai.shbg, c.kien_di_ngoai.ty_le, ng.kienDiNgoaiPct / 100, `Kiện đi ngoài chiếm ${(c.kien_di_ngoai.ty_le * 100).toFixed(0)}% (từ ${ng.kienDiNgoaiPct}% và thuộc nhóm cao nhất, từ phân vị ${ng.kienNgoaiPhanVi}: ${(nguongKienNgoai * 100).toFixed(0)}%)`);
   }
   for (const e of chuyenKq) if (e.co[CO.CHUYEN_GOM]) dua(CO.CHUYEN_GOM, 'chuyen', `${e.ma_bcvh}|${e.loai_ngay}|${e.gio_xuat_phat}`, `${e.ma_bcvh} · chuyến ${e.gio_xuat_phat}`, e.shbg, e.ty_le_san_luong_bcvh, ng.chuyenGomHeSo / e.so_chuyen_trong_ngay, `Chuyến nhận ${(e.ty_le_san_luong_bcvh * 100).toFixed(0)}% sản lượng của BCVH trong ngày (từ ${ng.chuyenGomHeSo} lần mức chia đều ${(100 / e.so_chuyen_trong_ngay).toFixed(0)}%)`);
   for (const o of oKq) {
@@ -449,7 +451,7 @@ function tinhMoc(R, opts) {
   return {
     moc, mau_so: mau.tong, do_duoc: mau.coMoc, khong_do_duoc: mau.tong - mau.coMoc,
     cum: cumKq, o: can.o ? oKq : [], chuyen: can.chuyen ? chuyenKq : [], the: can.the ? the : [],
-    nguong_ap_dung: { ...ng, phan_vi_dao_dong: nguongDaoDong, phan_vi_do_rong_phut: nguongDoRong, so_cum_tinh_nguong: dd.length },
+    nguong_ap_dung: { ...ng, phan_vi_dao_dong: nguongDaoDong, phan_vi_do_rong_phut: nguongDoRong, phan_vi_kien_ngoai: nguongKienNgoai, so_cum_tinh_nguong: dd.length },
     thong_ke_co: thongKeCo, mau_it: cumKq.filter((c) => c.co[CO.MAU_IT]).map((c) => ({ id: c.id, ten: c.ten, shbg: c.shbg, ghi_chu: 'mẫu ít, chưa kết luận' }))
   };
 }

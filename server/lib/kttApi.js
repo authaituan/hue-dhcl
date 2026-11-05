@@ -299,7 +299,7 @@ function docLoaiNgayBt(query) {
 }
 /** Ngưỡng của bức tranh, đọc từ tham số hệ thống LÚC GỌI (đổi ở màn tham số có hiệu lực ngay; cột số theo ngày trong bộ nhớ đệm không chứa ngưỡng nào). */
 const nguongBt = () => ({
-  gapPhut: CFG_BT.GAP_CUM_PHUT, cumNhoShbg: CFG_BT.CUM_NHO_SHBG, mauToiThieu: CFG_BT.MAU_TOI_THIEU, phanViTuongDoi: CFG_BT.PHAN_VI_TUONG_DOI, kienDiNgoaiPct: CFG_BT.KIEN_DI_NGOAI_PCT,
+  gapPhut: CFG_BT.GAP_CUM_PHUT, cumNhoShbg: CFG_BT.CUM_NHO_SHBG, mauToiThieu: CFG_BT.MAU_TOI_THIEU, phanViTuongDoi: CFG_BT.PHAN_VI_TUONG_DOI, kienDiNgoaiPct: CFG_BT.KIEN_DI_NGOAI_PCT, kienNgoaiPhanVi: CFG_BT.KIEN_NGOAI_PHAN_VI,
   chuyenGomHeSo: CFG_BT.CHUYEN_GOM_HE_SO, satGioChotPhut: CFG_BT.SAT_GIO_CHOT_PHUT, ngayToiThieu: CFG_BT.NGAY_TOI_THIEU, conLaiGio: CFG_BT.CON_LAI_GIO,
   tyLeNganConLaiPct: CFG_BT.TY_LE_CON_LAI_PCT, meoTheoLoPhut: CFG_BT.MEO_THEO_LO_PHUT
 });
