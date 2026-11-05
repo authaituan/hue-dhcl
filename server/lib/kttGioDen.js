@@ -30,6 +30,12 @@ const THU_CN = 'CN';
 const khoaCua = (ma) => (ma ? ma : KHOA_CHUA_CO_MA);
 const loaiCua = (d) => (d.thu === THU_CN ? 'chu_nhat' : 'thuong');
 const phanViHhmm = (v) => (v === null ? null : BT.hhmm(v));
+const SO_NGAY_TOI_THIEU_CHUYEN = 5; // KTT-KD-3b2: chuyến phải có hàng từ chừng này ngày mới được đo độ ổn định giờ đến
+/** Khoảng giờ trải liền [p10, p90] (phút; giờ của băng vắt đêm đã cộng 1440): vat = khoảng đi qua nửa đêm; rong = độ rộng theo vòng 24 giờ, luôn ≥ 0 và ≤ 1440. */
+function khoangGio(p10, p90) {
+  if (p10 === null || p90 === null) return { vat: false, rong: null };
+  return { vat: p10 < 1440 && p90 >= 1440, rong: Math.min(1440, Math.max(0, Math.round(p90 - p10))) };
+}
 
 // ------------------------------------------
 // Chuyến thư đến theo MÃ đường thư
@@ -131,13 +137,21 @@ function tinhGioDen(R, opts) {
     const gia = [...h.cn.values()].map((c) => BT.phanVi(BT.sapTang(c.v), 0.5)); // giờ giữa mỗi (chuyến, ngày), trải liền
     const sx = BT.sapTang(gia);
     const p10 = BT.phanVi(sx, 0.1); const p50 = BT.phanVi(sx, 0.5); const p90 = BT.phanVi(sx, 0.9);
+    // KTT-KD-3b2: độ ổn định TỪNG CHUYẾN giữa các ngày (không đo khoảng cách giữa các chuyến)
+    const gioChuyen = new Map(); // j -> giờ giữa mỗi ngày có hàng của chuyến (trải liền)
+    for (const c of h.cn.values()) { let a = gioChuyen.get(c.j); if (!a) { a = []; gioChuyen.set(c.j, a); } a.push(BT.phanVi(BT.sapTang(c.v), 0.5)); }
+    const rongChuyen = new Map(); // j -> độ rộng P90−P10 (chuyến đủ SO_NGAY_TOI_THIEU_CHUYEN ngày có hàng)
+    for (const [j, a] of gioChuyen) if (a.length >= SO_NGAY_TOI_THIEU_CHUYEN) { const s = BT.sapTang(a); rongChuyen.set(j, Math.round(BT.phanVi(s, 0.9) - BT.phanVi(s, 0.1))); }
+    let tuSo = 0; let mauSo = 0;
+    for (const [j, w] of rongChuyen) { const tr = h.bangShbg.get(j) || 0; tuSo += w * tr; mauSo += tr; }
+    const doRongChuyen = mauSo > 0 ? Math.round(tuSo / mauSo) : null;
     const ngayThuong = thongKeNgay(h.demNgay, cuaSo, 'thuong');
     const chuNhat = thongKeNgay(h.demNgay, cuaSo, 'chu_nhat');
     const ngayCoHang = new Set([...h.demNgay.keys()]).size;
     const bangCua = chuyen.get(d);
     const meo = moc !== 'A' ? null : (h.meo.size ? [...h.meo.values()].some((m) => Math.abs(BT.phanVi(BT.sapTang(m.a), 0.5) - BT.phanVi(BT.sapTang(m.b), 0.5)) >= ng.meoTheoLoPhut) : null);
     const daoDong = loai === 'chu_nhat' ? chuNhat.dao_dong : ngayThuong.dao_dong;
-    const doRong = p10 === null ? null : Math.round(p90 - p10);
+    const kh = khoangGio(p10, p90);
     const ma = R.tu.dt[d] || null;
     const mauIt = h.shbg < mauToiThieu;
     const r = {
@@ -146,12 +160,12 @@ function tinhGioDen(R, opts) {
       san_luong_ngay: { ngay_thuong: ngayThuong, chu_nhat: chuNhat, so_ngay_co_hang: ngayCoHang },
       gio_den_ngay: {
         moc, so_mau: sx.length, p10: phanViHhmm(p10), trung_vi: phanViHhmm(p50), p90: phanViHhmm(p90), p10_phut: p10 === null ? null : BT.tod(p10), trung_vi_phut: p50 === null ? null : BT.tod(p50), p90_phut: p90 === null ? null : BT.tod(p90),
-        do_rong_phut: doRong, so_chuyen: h.bangShbg.size, so_chuyen_ngay: ngayCoHang > 0 ? r1(sx.length / ngayCoHang) : null
+        vat_nua_dem: kh.vat, do_rong_phut: kh.rong, do_rong_chuyen_phut: doRongChuyen, so_chuyen_du_ngay: rongChuyen.size, so_chuyen: h.bangShbg.size, so_chuyen_ngay: ngayCoHang > 0 ? r1(sx.length / ngayCoHang) : null
       },
       kien_di_ngoai: { shbg: h.kien, ...kgRa(h.kienKg, h.kienThieu, h.kien), ty_le: h.shbg > 0 ? h.kien / h.shbg : null },
       trong_tui: { shbg: h.shbg - h.kien, ty_le: h.shbg > 0 ? (h.shbg - h.kien) / h.shbg : null, chia_san: h.chiaSan, mo: h.mo },
-      chuyen: [...h.bangShbg.entries()].sort((x, y) => x[0] - y[0]).map(([j, n]) => ({ thu_tu: j + 1, bang_gio: { tu: BT.hhmm(bangCua.bang[j].dau), den: BT.hhmm(bangCua.bang[j].cuoi), vat_dem: bangCua.bang[j].vat }, shbg: n })),
-      co: {}, co_gia_tri_do: { dao_dong: daoDong, do_rong_gio_den_phut: doRong, ty_le_kien_di_ngoai: h.shbg > 0 ? h.kien / h.shbg : null, shbg: h.shbg },
+      chuyen: [...h.bangShbg.entries()].sort((x, y) => x[0] - y[0]).map(([j, n]) => ({ thu_tu: j + 1, bang_gio: { tu: BT.hhmm(bangCua.bang[j].dau), den: BT.hhmm(bangCua.bang[j].cuoi), vat_dem: bangCua.bang[j].vat }, shbg: n, so_ngay_co_hang: (gioChuyen.get(j) || []).length, do_rong_phut: rongChuyen.has(j) ? rongChuyen.get(j) : null })),
+      co: {}, co_gia_tri_do: { dao_dong: daoDong, do_rong_gio_den_phut: doRongChuyen, ty_le_kien_di_ngoai: h.shbg > 0 ? h.kien / h.shbg : null, shbg: h.shbg },
       meo_theo_lo: meo, _mauIt: mauIt, _h: h
     };
     dong.push(r); if (!mauIt) dd.push(r);
@@ -255,7 +269,7 @@ function tinhTheoNgay(R, opts) {
   const tongLoai = ra.filter((x) => x.co_hang && (loai === 'tat_ca' || (x.la_chu_nhat ? 'chu_nhat' : 'thuong') === loai)).reduce((s, x) => s + x.shbg, 0);
   return {
     moc, ngay: ra,
-    dai_thuong_gap: { so_mau: sx.length, p10: phanViHhmm(p10), trung_vi: phanViHhmm(p50), p90: phanViHhmm(p90), do_rong_phut: p10 === null ? null : Math.round(p90 - p10) },
+    dai_thuong_gap: { so_mau: sx.length, p10: phanViHhmm(p10), trung_vi: phanViHhmm(p50), p90: phanViHhmm(p90), vat_nua_dem: khoangGio(p10, p90).vat, do_rong_phut: khoangGio(p10, p90).rong },
     so_ngay_cua_so: tongNgayLoai, so_ngay_co_hang: coHangLoai, tb_ngay_co_hang: coHangLoai > 0 ? r1(tongLoai / coHangLoai) : null,
     chuyen_cua_duong_thu: chuyen.bang.map((b, j) => ({ thu_tu: j + 1, bang_gio: { tu: BT.hhmm(b.dau), den: BT.hhmm(b.cuoi), vat_dem: b.vat }, shbg: b.shbg }))
   };
@@ -303,4 +317,4 @@ function conLaiTheoGio(lich, hanPhut, opts = {}) {
   });
 }
 
-module.exports = { KHOA_CHUA_CO_MA, SO_DONG_MAC_DINH, SO_DONG_TOI_DA, NGAY_MAU, dungChuyen, tinhGioDen, tinhTheoNgay, khoaDuongThuCoTrong, conLaiTheoGio, khoaCua };
+module.exports = { khoangGio, SO_NGAY_TOI_THIEU_CHUYEN, KHOA_CHUA_CO_MA, SO_DONG_MAC_DINH, SO_DONG_TOI_DA, NGAY_MAU, dungChuyen, tinhGioDen, tinhTheoNgay, khoaDuongThuCoTrong, conLaiTheoGio, khoaCua };

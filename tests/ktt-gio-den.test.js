@@ -453,3 +453,70 @@ test('không đổi route cũ: ba route bức tranh vẫn đủ khóa, nguong_ap
   assert.equal(r.status, 200);
   assert.deepEqual(Object.keys(r.body.theo_moc.A.nguong_ap_dung).sort(), ['chuyenGomHeSo', 'conLaiGio', 'cumNhoShbg', 'gapPhut', 'kienDiNgoaiPct', 'kienNgoaiPhanVi', 'mauToiThieu', 'meoTheoLoPhut', 'ngayToiThieu', 'phan_vi_dao_dong', 'phan_vi_do_rong_phut', 'phan_vi_kien_ngoai', 'phanViTuongDoi', 'satGioChotPhut', 'so_cum_tinh_nguong', 'tyLeNganConLaiPct'].sort());
 });
+
+// ---------- KTT-KD-3b2: cờ «giờ đến không cố định» đo độ ổn định TỪNG CHUYẾN; khoảng vắt nửa đêm ----------
+test('KTT-KD-3b2: đường thư 3 chuyến ổn định (lệch ≤ 10 phút giữa các ngày) KHÔNG bị gắn cờ dù các chuyến cách nhau nhiều giờ; đường thư một chuyến lệch ~3 giờ giữa các ngày BỊ gắn cờ', () => {
+  const spec = [];
+  for (let d = 0; d < 8; d++) for (const goc of [300, 720, 1140]) spec.push({ dt: 'ST', ngay: d, n: 10, phut: () => goc + (d % 3) * 5 }); // 3 chuyến cách 7 giờ, mỗi chuyến lệch tối đa 10 phút
+  for (let d = 0; d < 10; d++) spec.push({ dt: 'LE', ngay: d, n: 10, phut: () => 480 + d * 20 }); // một chuyến, giờ giữa lệch 0..180 phút
+  for (let d = 0; d < 10; d++) spec.push({ dt: 'TB', ngay: d, n: 10, phut: () => 480 + d * 11 }); // lệch vừa
+  for (let j = 0; j < 7; j++) for (let d = 0; d < 10; d++) spec.push({ dt: `F${j}`, ngay: d, n: 10, phut: () => 480 + (d % 2) * (2 + j) });
+  const R = dungR(spec);
+  const v = GD.tinhGioDen(R, { moc: 'B', nguong: { ...NG_TEST, mauToiThieu: 30 }, ngays: NGAYS10(R), nSong: 30, chon: R.tu.dt }).duong_thu;
+  const x = (k) => v.find((r) => r.khoa === k);
+  assert.equal(v.length, 10);
+  assert.equal(x('ST').chuyen.length, 3);
+  assert.ok(x('ST').gio_den_ngay.do_rong_phut > 600, 'khoảng thường gặp gộp mọi chuyến vẫn rộng (hiển thị)');
+  assert.ok(x('ST').gio_den_ngay.do_rong_chuyen_phut <= 10, 'độ rộng dùng cho cờ chỉ đo từng chuyến');
+  assert.equal(x('ST').co.gio_den_khong_co_dinh, false);
+  assert.ok(x('ST').chuyen.every((c) => c.so_ngay_co_hang === 8 && c.do_rong_phut <= 10));
+  assert.equal(x('LE').co.gio_den_khong_co_dinh, true);
+  assert.equal(x('LE').gio_den_ngay.do_rong_chuyen_phut, 160);
+  assert.equal(x('LE').co_gia_tri_do.do_rong_gio_den_phut, 160);
+  assert.equal(v.filter((r) => r.co.gio_den_khong_co_dinh).length, 2, 'đúng 2/10 (LE và TB)');
+  assert.equal(x('TB').co.gio_den_khong_co_dinh, true);
+});
+
+test('KTT-KD-3b2: chuyến dưới 5 ngày có hàng không tính; đường thư không chuyến nào đủ 5 ngày: do_rong_gio_den_phut null, không gắn cờ; trung bình các chuyến có trọng số bưu gửi', () => {
+  const spec = [];
+  for (let d = 0; d < 4; d++) spec.push({ dt: 'IT', ngay: d, n: 10, phut: () => 480 + d * 50 }); // 4 ngày
+  for (let d = 0; d < 8; d++) { spec.push({ dt: 'HON', ngay: d, n: 30, phut: () => 300 + d * 10 }); } // chuyến 1: 8 ngày, 30/ngày, lệch 0..70 (P90−P10 = 6 bước × 10 = 60?) tính bên dưới
+  for (let d = 0; d < 5; d++) spec.push({ dt: 'HON', ngay: d, n: 10, phut: () => 900 + d * 40 }); // chuyến 2: 5 ngày (vừa đủ), 10/ngày
+  for (let d = 0; d < 4; d++) spec.push({ dt: 'HON', ngay: d, n: 10, phut: () => 1300 + d * 20 }); // chuyến 3: chỉ 4 ngày -> bỏ khi tính độ rộng
+  const R = dungR(spec);
+  const v = GD.tinhGioDen(R, { moc: 'B', nguong: { ...NG_TEST, mauToiThieu: 1 }, ngays: NGAYS10(R), nSong: 30, chon: ['IT', 'HON'] }).duong_thu;
+  const it = v.find((r) => r.khoa === 'IT'); const hon = v.find((r) => r.khoa === 'HON');
+  assert.equal(it.gio_den_ngay.do_rong_chuyen_phut, null);
+  assert.equal(it.co_gia_tri_do.do_rong_gio_den_phut, null);
+  assert.equal(it.co.gio_den_khong_co_dinh, false);
+  assert.equal(it.gio_den_ngay.so_chuyen_du_ngay, 0);
+  assert.equal(it.chuyen[0].so_ngay_co_hang, 4);
+  assert.equal(it.chuyen[0].do_rong_phut, null);
+  const dai = hon.chuyen.find((c) => c.so_ngay_co_hang === 8);
+  assert.equal(dai.do_rong_phut, 70, 'giờ giữa 300,310…370: P10 = x[0] = 300, P90 = x[7] = 370');
+  assert.equal(hon.chuyen.find((c) => c.so_ngay_co_hang === 5).do_rong_phut, 160, 'giờ giữa 900…1060');
+  assert.equal(hon.chuyen.find((c) => c.so_ngay_co_hang === 4).do_rong_phut, null);
+  assert.equal(hon.gio_den_ngay.so_chuyen_du_ngay, 2);
+  assert.equal(hon.gio_den_ngay.do_rong_chuyen_phut, Math.round((70 * 240 + 160 * 50) / 290), 'trung bình trọng số bưu gửi (240 và 50) của hai chuyến đủ 5 ngày; chuyến 4 ngày bị bỏ');
+});
+
+test('KTT-KD-3b2: khoảng vắt nửa đêm — vat_nua_dem true, độ rộng theo vòng 24 giờ luôn ≥ 0 (route gio-den và theo-ngay); khoảng thường: false', () => {
+  assert.deepEqual(GD.khoangGio(1410, 1470), { vat: true, rong: 60 });
+  assert.deepEqual(GD.khoangGio(443, 1482), { vat: true, rong: 1039 });
+  assert.deepEqual(GD.khoangGio(300, 680), { vat: false, rong: 380 });
+  assert.deepEqual(GD.khoangGio(1450, 1470), { vat: false, rong: 20 }, 'cả hai đã qua nửa đêm: không vắt');
+  assert.deepEqual(GD.khoangGio(null, null), { vat: false, rong: null });
+  assert.equal(GD.khoangGio(0, 5000).rong, 1440, 'tối đa một vòng 24 giờ');
+  const spec = [];
+  for (let d = 0; d < 10; d++) spec.push({ dt: 'DEM', ngay: d, n: 6, phut: () => (d % 2 === 0 ? 1410 : 30) }); // 23:30 hoặc 00:30, cách đúng 60 phút qua nửa đêm: một chuyến vắt đêm
+  const R = dungR(spec);
+  const g = GD.tinhGioDen(R, { moc: 'B', nguong: NG_TEST, ngays: NGAYS10(R), nSong: 30, chon: ['DEM'] }).duong_thu[0];
+  assert.equal(g.chuyen.length, 1);
+  assert.equal(g.chuyen[0].bang_gio.vat_dem, true);
+  assert.deepEqual([g.gio_den_ngay.p10, g.gio_den_ngay.p90, g.gio_den_ngay.vat_nua_dem, g.gio_den_ngay.do_rong_phut], ['23:30', '00:30', true, 60]);
+  assert.equal(g.gio_den_ngay.do_rong_chuyen_phut, 60, 'từng chuyến cũng đo đúng khi vắt đêm (trải liền)');
+  const n = GD.tinhTheoNgay(R, { moc: 'B', khoa: 'DEM', ngays: R.ngays });
+  assert.deepEqual([n.dai_thuong_gap.p10, n.dai_thuong_gap.p90, n.dai_thuong_gap.vat_nua_dem, n.dai_thuong_gap.do_rong_phut], ['23:30', '00:30', true, 60]);
+  const th = GD.tinhGioDen(dungR([{ dt: 'X', ngay: 0, n: 6, phut: () => 480 }, { dt: 'X', ngay: 1, n: 6, phut: () => 500 }]), { moc: 'B', nguong: NG_TEST, ngays: R.ngays, nSong: 30, chon: ['X'] }).duong_thu[0];
+  assert.equal(th.gio_den_ngay.vat_nua_dem, false);
+});

@@ -2,6 +2,13 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-05] - KTT-KD-3b2: sửa cờ «Giờ đến không cố định» và khoảng giờ vắt nửa đêm (server, test, docs; nhánh `feat/ktt-kd-3-gio-den-api`)
+
+- `server/lib/kttGioDen.js`: cờ `gio_den_khong_co_dinh` đo độ ổn định TỪNG CHUYẾN (chuyến từ 5 ngày có hàng; P90−P10 giờ giữa qua các ngày; trung bình trọng số bưu gửi; ≥ P80; không đủ chuyến: null, không cờ). Thêm `gio_den_ngay.do_rong_chuyen_phut`, `so_chuyen_du_ngay`, `vat_nua_dem` (cả `dai_thuong_gap` ở route theo-ngay), `chuyen[].so_ngay_co_hang`, `chuyen[].do_rong_phut`; `do_rong_phut` theo vòng 24 giờ, ≥ 0. Không đổi trường cũ khác.
+- `package.json`: thêm `tests/ktt-lap-ngay-nghi.test.js` vào script `test`.
+- Test: `tests/ktt-gio-den.test.js` 20 ca (+3). JSON route cũ (so với `c392fc7`) giống từng byte.
+- Docs: `42` mục 22, `04_DECISIONS.md` #128.
+
 ## [2026-11-05] - KTT-KD-3b: API «Giờ đến trong ngày» (server, test, docs; nhánh `fix/ktt-lich-chuan`)
 
 - `server/lib/kttGioDen.js` (MỚI, hàm thuần): chuyến thư đến theo mã đường thư (`chiaBang`, ≤ 60 phút một chuyến), đường thư × 24 giờ, giờ giữa mỗi chuyến mỗi ngày, dấu hiệu cấp đường thư, «Khác» / «Tổng», từng ngày, dải còn lại theo giờ. `kttBucTranh.js`: chỉ thêm export `tod, trongBang, trai, sapTang`.
