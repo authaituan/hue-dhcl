@@ -16,9 +16,13 @@ import { formatKg } from './kttFormatters';
 import { fetchKttMeta, fetchKttLuuThoat, downloadKttLuuThoat } from './kttApi';
 import KttTheoNguon from './KttTheoNguon';
 import KttBanDoNhiet from './KttBanDoNhiet';
+import KttBucTranhDuongThu from './KttBucTranhDuongThu';
+import KttLuuThoatTheoGio from './KttLuuThoatTheoGio';
+import KttKhongDat14h from './KttKhongDat14h';
 import KttChiTiet from './KttChiTiet';
 import KttErrorBoundary from './KttErrorBoundary';
 import KttTooltip from './KttTooltip';
+import KttGioDenTrongNgay from './KttGioDenTrongNgay';
 
 // Thứ trong tuần tiếng Việt
 function getThuTiengViet(ymd) {
@@ -60,6 +64,9 @@ export default function KttLuuThoat({ authUser }) {
   const [mocChiTieu, setMocChiTieu] = useState('xnd');
   const [validationError, setValidationError] = useState(null);
 
+  // Công tắc «Xem theo»: 'gio_den' («Chỉ xem giờ đến trong ngày (không tính chỉ tiêu)») | 'chi_tieu' («Có tính chỉ tiêu (xe cấp 2)»)
+  const [xemTheo, setXemTheo] = useState('gio_den');
+
   // Dữ liệu từ API
   const [meta, setMeta] = useState(null);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -78,6 +85,9 @@ export default function KttLuuThoat({ authUser }) {
 
   // Ô bản đồ nhiệt đang chọn (lọc danh sách chi tiết + xuất)
   const [selectedCell, setSelectedCell] = useState(null);
+
+  // Lọc đường thư từ Bức tranh đường thư đến xuống khối Vì sao không đạt 14 giờ (KTT-KD-2)
+  const [filterDuongThuBucTranh, setFilterDuongThuBucTranh] = useState(null);
 
   // Reset selectedCell khi đổi BCVH hoặc đổi khoảng ngày ở đầu trang
   useEffect(() => {
@@ -180,14 +190,26 @@ export default function KttLuuThoat({ authUser }) {
   }, [dateRange, mocChiTieu, validateRange]);
 
   useEffect(() => {
-    if (dateRange?.from && dateRange?.to) {
+    if (xemTheo === 'chi_tieu' && dateRange?.from && dateRange?.to) {
       loadData();
     }
-  }, [dateRange, mocChiTieu, loadData]);
+  }, [xemTheo, dateRange, mocChiTieu, loadData]);
 
   // Xử lý đổi khoảng ngày
   const handleDateRangeChange = (newRange) => {
     setDateRange(newRange);
+  };
+
+  // Đổi khoảng ngày nhanh theo số ngày (7 ngày / 30 ngày)
+  const handleQuickRangeChange = (days) => {
+    const rawLuc = meta?.nguon_xuat_luc_moi_nhat;
+    const latestDay = (rawLuc && typeof rawLuc === 'string' && rawLuc.length >= 10)
+      ? rawLuc.slice(0, 10)
+      : (dateRange?.to || getTodayVnYmd());
+    setDateRange({
+      from: shiftDay(latestDay, -(days - 1)),
+      to: latestDay,
+    });
   };
 
   // 4. Xử lý tải Excel Sheet 7
@@ -362,38 +384,69 @@ export default function KttLuuThoat({ authUser }) {
           </p>
         </div>
 
-        {/* Hàng bộ lọc: Mốc chỉ tiêu, BCVH & Khoảng ngày */}
+        {/* Hàng bộ lọc: Xem theo, Mốc chỉ tiêu, BCVH & Khoảng ngày */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Bộ chọn mốc chỉ tiêu 14 giờ (A/B) */}
+          {/* Công tắc «Xem theo» */}
           <div className="flex items-center bg-white px-2 py-1 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs gap-1">
-            <span className="font-semibold text-gray-600 pl-1 mr-1 whitespace-nowrap">Mốc 14 giờ:</span>
+            <span className="font-semibold text-gray-600 pl-1 mr-1 whitespace-nowrap">Xem theo:</span>
             <button
               type="button"
-              id="ktt-moc-xnd-btn"
-              onClick={() => setMocChiTieu('xnd')}
+              id="ktt-xem-theo-gio-den-btn"
+              onClick={() => setXemTheo('gio_den')}
               className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
-                mocChiTieu === 'xnd'
+                xemTheo === 'gio_den'
                   ? 'bg-[#4A1D6E] text-white shadow-xs'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
               }`}
-              title="Mốc A: Xác nhận BD10 đến (ConfirmDate) → Giờ lập BD10 đi"
             >
-              Mốc A (XNĐ)
+              Chỉ xem giờ đến trong ngày (không tính chỉ tiêu)
             </button>
             <button
               type="button"
-              id="ktt-moc-quet-btn"
-              onClick={() => setMocChiTieu('quet_tui_den')}
+              id="ktt-xem-theo-chi-tieu-btn"
+              onClick={() => setXemTheo('chi_tieu')}
               className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
-                mocChiTieu === 'quet_tui_den'
+                xemTheo === 'chi_tieu'
                   ? 'bg-[#4A1D6E] text-white shadow-xs'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
               }`}
-              title="Mốc B: Quét túi đến KTT → Giờ lập BD10 đi"
             >
-              Mốc B (Quét túi đến)
+              Có tính chỉ tiêu (xe cấp 2)
             </button>
           </div>
+
+          {/* Bộ chọn mốc chỉ tiêu 14 giờ (A/B) - Chỉ hiện khi xem theo xe cấp 2 */}
+          {xemTheo === 'chi_tieu' && (
+            <div className="flex items-center bg-white px-2 py-1 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs gap-1">
+              <span className="font-semibold text-gray-600 pl-1 mr-1 whitespace-nowrap">Mốc 14 giờ:</span>
+              <button
+                type="button"
+                id="ktt-moc-xnd-btn"
+                onClick={() => setMocChiTieu('xnd')}
+                className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
+                  mocChiTieu === 'xnd'
+                    ? 'bg-[#4A1D6E] text-white shadow-xs'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
+                }`}
+                title="Mốc A: Xác nhận BD10 đến (ConfirmDate) → Giờ lập BD10 đi"
+              >
+                Mốc A (XNĐ)
+              </button>
+              <button
+                type="button"
+                id="ktt-moc-quet-btn"
+                onClick={() => setMocChiTieu('quet_tui_den')}
+                className={`px-2.5 py-1 rounded-[6px] font-bold transition-all cursor-pointer ${
+                  mocChiTieu === 'quet_tui_den'
+                    ? 'bg-[#4A1D6E] text-white shadow-xs'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
+                }`}
+                title="Mốc B: Quét túi đến KTT → Giờ lập BD10 đi"
+              >
+                Mốc B (Quét túi đến)
+              </button>
+            </div>
+          )}
 
           {/* Dropdown BCVH */}
           <div className="flex items-center bg-white px-2.5 py-1.5 rounded-[10px] border border-[#D9CBA8] shadow-none text-xs">
@@ -423,10 +476,25 @@ export default function KttLuuThoat({ authUser }) {
         </div>
       </div>
 
-      {/* Dòng ghi chú định hướng như canvas */}
-      <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] px-3.5 py-2 text-xs text-[#5A4A62]">
-        Trang này dùng để điều hành từng ngày. Tối đa 31 ngày theo đúng bộ chọn ngày của hệ thống.
-      </div>
+      {/* ── CÁCH XEM 1: CHỈ XEM GIỜ ĐẾN TRONG NGÀY (KHÔNG TÍNH CHỈ TIÊU) ─────── */}
+      {xemTheo === 'gio_den' && (
+        <KttErrorBoundary>
+          <KttGioDenTrongNgay
+            dateRange={dateRange}
+            selectedBcvh={selectedBcvh}
+            authUser={authUser}
+            onQuickRangeChange={handleQuickRangeChange}
+          />
+        </KttErrorBoundary>
+      )}
+
+      {/* ── CÁCH XEM 2: CÓ TÍNH CHỈ TIÊU (XE CẤP 2) ─────────────────────────── */}
+      {xemTheo === 'chi_tieu' && (
+        <div className="space-y-5">
+          {/* Dòng ghi chú định hướng như canvas */}
+          <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] px-3.5 py-2 text-xs text-[#5A4A62]">
+            Trang này dùng để điều hành từng ngày. Tối đa 31 ngày theo đúng bộ chọn ngày của hệ thống.
+          </div>
 
       {/* Cảnh báo validate ngày nếu người dùng chọn sai khoảng */}
       {validationError && (
@@ -1771,6 +1839,37 @@ export default function KttLuuThoat({ authUser }) {
             exportLoading={exportLoading}
           />
 
+          {/* ── KTT-KD-2: 1. BỨC TRANH ĐƯỜNG THƯ ĐẾN ────────────────────────── */}
+          <KttErrorBoundary>
+            <KttBucTranhDuongThu
+              dateRange={dateRange}
+              selectedBcvh={selectedBcvh}
+              mocChiTieu={mocChiTieu}
+              onSelectDuongThu={(dt) => setFilterDuongThuBucTranh(dt)}
+            />
+          </KttErrorBoundary>
+
+          {/* ── KTT-KD-2: 2. THỜI GIAN LƯU THOÁT THEO GIỜ HÀNG ĐẾN ──────────── */}
+          <KttErrorBoundary>
+            <KttLuuThoatTheoGio
+              dateRange={dateRange}
+              selectedBcvh={selectedBcvh}
+              mocChiTieu={mocChiTieu}
+              onSelectDuongThu={(dt) => setFilterDuongThuBucTranh(dt)}
+            />
+          </KttErrorBoundary>
+
+          {/* ── KTT-KD-2: 3. VÌ SAO KHÔNG ĐẠT 14 GIỜ ────────────────────────── */}
+          <KttErrorBoundary>
+            <KttKhongDat14h
+              dateRange={dateRange}
+              selectedBcvh={selectedBcvh}
+              mocChiTieu={mocChiTieu}
+              filterDuongThu={filterDuongThuBucTranh}
+              onClearDuongThu={() => setFilterDuongThuBucTranh(null)}
+            />
+          </KttErrorBoundary>
+
           {/* ── 8. DANH SÁCH CHI TIẾT THEO TRẠNG THÁI ───────────────────────── */}
           <KttChiTiet
             dateRange={dateRange}
@@ -1842,6 +1941,8 @@ export default function KttLuuThoat({ authUser }) {
               </table>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>
