@@ -76,6 +76,32 @@ function thongKeNgay(demNgay, cuaSo, loai) {
   const sd = n >= 2 ? Math.sqrt(co.reduce((s, x) => s + (x - tb) * (x - tb), 0) / (n - 1)) : null;
   return { so_ngay_cua_so: cua.length, so_ngay_co_hang: n, tong, tb_moi_ngay: r1(tong / cua.length), tb_ngay_co_hang: r1(tb), do_lech_chuan: sd === null ? null : r1(sd), dao_dong: sd !== null && tb > 0 ? r3(sd / tb) : null };
 }
+/**
+ * KTT-KD-3b3: sản lượng theo ĐÚNG loại ngày đang lọc (`tat_ca` = mọi ngày của khoảng). Hai cách chia, KHÁC NHAU:
+ *  - `*_tb_ngay_co_hang` = tổng ÷ số ngày CÓ hàng; - `*_tb_moi_ngay_cua_so` = tổng ÷ số ngày của loại ngày (ngày không hàng tính 0).
+ * Không có ngày nào có hàng -> các số trung bình là null (không trả 0); kg null khi không bưu gửi nào có kg.
+ */
+function khoiSanLuongLoc(loai, soNgay, soCoHang, shbg, kg, thieu) {
+  const co = soCoHang > 0;
+  const kgDo = co && !(shbg > 0 && thieu === shbg);
+  return {
+    loai_ngay: loai, so_ngay_cua_so: soNgay, so_ngay_co_hang: soCoHang, shbg, shbg_thieu_kg: thieu, kg: kgDo ? r3(kg) : null,
+    shbg_tb_ngay_co_hang: co ? r1(shbg / soCoHang) : null, shbg_tb_moi_ngay_cua_so: co && soNgay > 0 ? r1(shbg / soNgay) : null,
+    kg_tb_ngay_co_hang: kgDo ? r3(kg / soCoHang) : null, kg_tb_moi_ngay_cua_so: kgDo && soNgay > 0 ? r3(kg / soNgay) : null
+  };
+}
+/** `hs` = các bộ cộng (một đường thư, hoặc nhiều đường thư cho «Khác» / «Tổng»): cộng theo từng ngày rồi đếm ngày có hàng của loại ngày `loai`. */
+function sanLuongLoc(hs, cuaSo, loai) {
+  let soNgay = 0; let co = 0; let shbg = 0; let kg = 0; let thieu = 0;
+  for (const d of cuaSo) {
+    if (loai !== 'tat_ca' && d.loai !== loai) continue;
+    soNgay++;
+    let n = 0;
+    for (const h of hs) { n += h.demNgay.get(d.i) || 0; kg += h.kgNgay.get(d.i) || 0; thieu += h.thieuNgay.get(d.i) || 0; }
+    if (n > 0) { co++; shbg += n; }
+  }
+  return khoiSanLuongLoc(loai, soNgay, co, shbg, kg, thieu);
+}
 const theoGioRong = () => Array.from({ length: 24 }, () => ({ shbg: 0, kg: 0, kien_di_ngoai: 0 }));
 const congGio = (dich, nguon) => { for (let h = 0; h < 24; h++) { dich[h].shbg += nguon[h].shbg; dich[h].kg += nguon[h].kg; dich[h].kien_di_ngoai += nguon[h].kien_di_ngoai; } };
 const gioRa = (g) => g.map((x, h) => ({ gio: h, shbg: x.shbg, kg: r3(x.kg), kien_di_ngoai: x.kien_di_ngoai }));
@@ -103,7 +129,7 @@ function tinhGioDen(R, opts) {
 
   const mau = { tong: 0, coMoc: 0 };
   const hang = new Map(); // dtI -> bộ cộng
-  const moiHang = () => ({ shbg: 0, kg: 0, thieu: 0, kien: 0, kienKg: 0, kienThieu: 0, chiaSan: 0, mo: 0, gio: theoGioRong(), demNgay: new Map(), cn: new Map(), cx: new Map(), bangShbg: new Map(), meo: new Map() });
+  const moiHang = () => ({ shbg: 0, kg: 0, thieu: 0, kien: 0, kienKg: 0, kienThieu: 0, chiaSan: 0, mo: 0, gio: theoGioRong(), demNgay: new Map(), kgNgay: new Map(), thieuNgay: new Map(), cn: new Map(), cx: new Map(), bangShbg: new Map(), meo: new Map() });
   for (let i = 0; i < R.n; i++) {
     if (bcvhLoc >= 0 && R.cot.bcvh[i] !== bcvhLoc) continue;
     if (loai !== 'tat_ca' && loaiDuLieu[R.ngayI[i]] !== loai) continue;
@@ -119,6 +145,7 @@ function tinhGioDen(R, opts) {
     h.gio[g].shbg++; if (coKg) h.gio[g].kg += kg;
     if (k === KIEN.DI_NGOAI) { h.kien++; h.gio[g].kien_di_ngoai++; if (coKg) h.kienKg += kg; else h.kienThieu++; } else if (k === KIEN.CHIA_SAN) h.chiaSan++; else if (k === KIEN.MO_TUI) h.mo++;
     h.demNgay.set(R.ngayI[i], (h.demNgay.get(R.ngayI[i]) || 0) + 1);
+    if (coKg) h.kgNgay.set(R.ngayI[i], (h.kgNgay.get(R.ngayI[i]) || 0) + kg); else h.thieuNgay.set(R.ngayI[i], (h.thieuNgay.get(R.ngayI[i]) || 0) + 1);
     const cu = chuyen.get(d); const j = cu ? cu.tra[p] : -1;
     if (j >= 0) {
       const b = cu.bang[j];
@@ -158,6 +185,7 @@ function tinhGioDen(R, opts) {
       khoa: khoaCua(ma), ma, ten: R.tu.dtTen[d] || null, thu_hang: 0, shbg: h.shbg, ...kgRa(h.kg, h.thieu, h.shbg), ty_le_shbg: null,
       theo_gio: gioRa(h.gio),
       san_luong_ngay: { ngay_thuong: ngayThuong, chu_nhat: chuNhat, so_ngay_co_hang: ngayCoHang },
+      san_luong_loc: sanLuongLoc([h], cuaSo, loai),
       gio_den_ngay: {
         moc, so_mau: sx.length, p10: phanViHhmm(p10), trung_vi: phanViHhmm(p50), p90: phanViHhmm(p90), p10_phut: p10 === null ? null : BT.tod(p10), trung_vi_phut: p50 === null ? null : BT.tod(p50), p90_phut: p90 === null ? null : BT.tod(p90),
         vat_nua_dem: kh.vat, do_rong_phut: kh.rong, do_rong_chuyen_phut: doRongChuyen, so_chuyen_du_ngay: rongChuyen.size, so_chuyen: h.bangShbg.size, so_chuyen_ngay: ngayCoHang > 0 ? r1(sx.length / ngayCoHang) : null
@@ -195,11 +223,11 @@ function tinhGioDen(R, opts) {
   const hien = chon ? dong.filter((r) => chon.has(r.khoa)) : dong.slice(0, SO_DONG_MAC_DINH);
   const hienKhoa = new Set(hien.map((r) => r.khoa));
   const cong = (ds) => {
-    const o = { shbg: 0, kg: 0, thieu: 0, kien: 0, kienKg: 0, kienThieu: 0, gio: theoGioRong() };
-    for (const r of ds) { const h = r._h; o.shbg += h.shbg; o.kg += h.kg; o.thieu += h.thieu; o.kien += h.kien; o.kienKg += h.kienKg; o.kienThieu += h.kienThieu; congGio(o.gio, h.gio); }
+    const o = { shbg: 0, kg: 0, thieu: 0, kien: 0, kienKg: 0, kienThieu: 0, chiaSan: 0, mo: 0, gio: theoGioRong() };
+    for (const r of ds) { const h = r._h; o.shbg += h.shbg; o.kg += h.kg; o.thieu += h.thieu; o.kien += h.kien; o.kienKg += h.kienKg; o.kienThieu += h.kienThieu; o.chiaSan += h.chiaSan; o.mo += h.mo; congGio(o.gio, h.gio); }
     return o;
   };
-  const gom = (ds) => { const o = cong(ds); return { so_duong_thu: ds.length, shbg: o.shbg, ...kgRa(o.kg, o.thieu, o.shbg), kien_di_ngoai: { shbg: o.kien, ...kgRa(o.kienKg, o.kienThieu, o.kien), ty_le: o.shbg > 0 ? o.kien / o.shbg : null }, theo_gio: gioRa(o.gio) }; };
+  const gom = (ds) => { const o = cong(ds); return { so_duong_thu: ds.length, shbg: o.shbg, ...kgRa(o.kg, o.thieu, o.shbg), kien_di_ngoai: { shbg: o.kien, ...kgRa(o.kienKg, o.kienThieu, o.kien), ty_le: o.shbg > 0 ? o.kien / o.shbg : null }, trong_tui: { shbg: o.shbg - o.kien, ty_le: o.shbg > 0 ? (o.shbg - o.kien) / o.shbg : null, chia_san: o.chiaSan, mo: o.mo }, san_luong_loc: sanLuongLoc(ds.map((r) => r._h), cuaSo, loai), theo_gio: gioRa(o.gio) }; };
   const khac = gom(dong.filter((r) => !hienKhoa.has(r.khoa)));
   const tong = { ...gom(dong), so_ngay_cua_so: soNgay };
   const sach = (r) => { const { _mauIt, _h, ...x } = r; return x; };
@@ -208,7 +236,7 @@ function tinhGioDen(R, opts) {
   return {
     moc, mau_so: mau.tong, do_duoc: mau.coMoc, khong_do_duoc: mau.tong - mau.coMoc,
     duong_thu: hienRa, khac, tong,
-    danh_sach: dong.map((r) => ({ khoa: r.khoa, ma: r.ma, ten: r.ten, thu_hang: r.thu_hang, shbg: r.shbg, kg: r.kg, co: r.co })),
+    danh_sach: dong.map((r) => ({ khoa: r.khoa, ma: r.ma, ten: r.ten, thu_hang: r.thu_hang, shbg: r.shbg, kg: r.kg, co: r.co, meo_theo_lo: r.meo_theo_lo })),
     nguong_ap_dung: {
       gap_cum_phut: ng.gapPhut, cum_nho_shbg: ng.cumNhoShbg, mau_toi_thieu_30_ngay: ng.mauToiThieu, so_ngay_khoang: opts.nSong || soNgay, mau_toi_thieu_ap_dung: mauToiThieu,
       phan_vi_tuong_doi: ng.phanViTuongDoi, kien_di_ngoai_pct: ng.kienDiNgoaiPct, kien_ngoai_phan_vi: ng.kienNgoaiPhanVi, san_luong_lon_phan_vi: ng.sanLuongLonPhanVi, meo_theo_lo_phut: ng.meoTheoLoPhut,
@@ -249,7 +277,7 @@ function tinhTheoNgay(R, opts) {
   }
   const ra = [];
   const giaTri = []; // giờ giữa trải liền của các (chuyến, ngày) thuộc loại ngày đang xem
-  let tongNgayLoai = 0; let coHangLoai = 0;
+  let tongNgayLoai = 0; let coHangLoai = 0; let kgLoai = 0; let thieuLoai = 0;
   for (const d of ngays) {
     const ni = chiSoNgay.has(d.ngay) ? chiSoNgay.get(d.ngay) : -1;
     const e = ni >= 0 ? theoNgay.get(ni) : undefined;
@@ -261,7 +289,7 @@ function tinhTheoNgay(R, opts) {
         if (loai === 'tat_ca' || loaiCua(d) === loai) giaTri.push(gm);
       }
     }
-    if (loai === 'tat_ca' || loaiCua(d) === loai) { tongNgayLoai++; if (e) coHangLoai++; }
+    if (loai === 'tat_ca' || loaiCua(d) === loai) { tongNgayLoai++; if (e) { coHangLoai++; kgLoai += e.kg; thieuLoai += e.thieu; } }
     ra.push(dong);
   }
   const sx = BT.sapTang(giaTri);
@@ -271,6 +299,7 @@ function tinhTheoNgay(R, opts) {
     moc, ngay: ra,
     dai_thuong_gap: { so_mau: sx.length, p10: phanViHhmm(p10), trung_vi: phanViHhmm(p50), p90: phanViHhmm(p90), vat_nua_dem: khoangGio(p10, p90).vat, do_rong_phut: khoangGio(p10, p90).rong },
     so_ngay_cua_so: tongNgayLoai, so_ngay_co_hang: coHangLoai, tb_ngay_co_hang: coHangLoai > 0 ? r1(tongLoai / coHangLoai) : null,
+    san_luong_loc: khoiSanLuongLoc(loai, tongNgayLoai, coHangLoai, tongLoai, kgLoai, thieuLoai),
     chuyen_cua_duong_thu: chuyen.bang.map((b, j) => ({ thu_tu: j + 1, bang_gio: { tu: BT.hhmm(b.dau), den: BT.hhmm(b.cuoi), vat_dem: b.vat }, shbg: b.shbg }))
   };
 }

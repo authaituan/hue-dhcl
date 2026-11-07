@@ -520,3 +520,138 @@ test('KTT-KD-3b2: khoảng vắt nửa đêm — vat_nua_dem true, độ rộng 
   const th = GD.tinhGioDen(dungR([{ dt: 'X', ngay: 0, n: 6, phut: () => 480 }, { dt: 'X', ngay: 1, n: 6, phut: () => 500 }]), { moc: 'B', nguong: NG_TEST, ngays: R.ngays, nSong: 30, chon: ['X'] }).duong_thu[0];
   assert.equal(th.gio_den_ngay.vat_nua_dem, false);
 });
+
+// ---------- KTT-KD-3b3: chốt tên trường, bổ sung trường thiếu (chỉ thêm) ----------
+/** 10 ngày (ngày 0 và 7 là Chủ nhật). X: CN 3 + thường 4 / 6 / 2 (2 kiện đi ngoài); Y: thường 5 + CN 5; Z: 1 thường, KHÔNG có kg. */
+function bo3b3() {
+  const R = dungR([
+    { dt: 'X', ngay: 0, n: 3, phut: () => 480 }, { dt: 'X', ngay: 1, n: 4, phut: () => 480 }, { dt: 'X', ngay: 2, n: 6, phut: () => 480 }, { dt: 'X', ngay: 3, n: 2, phut: () => 480, kien: 2 },
+    { dt: 'Y', ngay: 1, n: 5, phut: () => 600 }, { dt: 'Y', ngay: 7, n: 5, phut: () => 600 },
+    { dt: 'Z', ngay: 9, n: 1, phut: () => 700 }
+  ], 10, [0, 7]);
+  const z = R.tu.dt.indexOf('Z');
+  for (let i = 0; i < R.n; i++) if (R.cot.dt[i] === z) R.cot.kg[i] = NaN;
+  return R;
+}
+const sanLuongNull = (s) => ['shbg_tb_ngay_co_hang', 'shbg_tb_moi_ngay_cua_so', 'kg_tb_ngay_co_hang', 'kg_tb_moi_ngay_cua_so', 'kg'].every((k) => s[k] === null);
+const gd3 = (R, o) => GD.tinhGioDen(R, { moc: 'B', nguong: NG_TEST, ngays: NGAYS10(R), nSong: 10, ...o });
+
+test('KTT-KD-3b3: san_luong_loc theo loại ngày đang lọc — hai cách chia khác nhau (÷ ngày có hàng, ÷ ngày của loại ngày); kg tương tự; không hàng -> null', () => {
+  const R = bo3b3();
+  const x = (loai) => gd3(R, { loaiNgay: loai, chon: ['X'] }).duong_thu[0].san_luong_loc;
+  assert.deepEqual(x('thuong'), { loai_ngay: 'thuong', so_ngay_cua_so: 8, so_ngay_co_hang: 3, shbg: 12, shbg_thieu_kg: 0, kg: 12, shbg_tb_ngay_co_hang: 4, shbg_tb_moi_ngay_cua_so: 1.5, kg_tb_ngay_co_hang: 4, kg_tb_moi_ngay_cua_so: 1.5 });
+  assert.deepEqual(x('chu_nhat'), { loai_ngay: 'chu_nhat', so_ngay_cua_so: 2, so_ngay_co_hang: 1, shbg: 3, shbg_thieu_kg: 0, kg: 3, shbg_tb_ngay_co_hang: 3, shbg_tb_moi_ngay_cua_so: 1.5, kg_tb_ngay_co_hang: 3, kg_tb_moi_ngay_cua_so: 1.5 });
+  const tc = x('tat_ca');
+  assert.deepEqual([tc.so_ngay_cua_so, tc.so_ngay_co_hang, tc.shbg, tc.shbg_tb_ngay_co_hang, tc.shbg_tb_moi_ngay_cua_so], [10, 4, 15, 3.8, 1.5]);
+  const v = gd3(R, { loaiNgay: 'thuong', chon: ['X'] }).duong_thu[0];
+  assert.equal(v.san_luong_loc.so_ngay_co_hang, v.san_luong_ngay.ngay_thuong.so_ngay_co_hang);
+  assert.equal(v.san_luong_loc.shbg_tb_ngay_co_hang, v.san_luong_ngay.ngay_thuong.tb_ngay_co_hang);
+  // Z không có kg: số kg null (không 0); bưu gửi vẫn có
+  const z = gd3(R, { loaiNgay: 'thuong', chon: ['Z'] }).duong_thu[0].san_luong_loc;
+  assert.deepEqual([z.shbg, z.shbg_thieu_kg, z.kg, z.kg_tb_ngay_co_hang, z.kg_tb_moi_ngay_cua_so, z.shbg_tb_ngay_co_hang], [1, 1, null, null, null, 1]);
+  // Khác không có đường thư nào trong loại ngày: null, không 0
+  const khacRong = gd3(R, { loaiNgay: 'chu_nhat', chon: ['X', 'Y'] }).khac;
+  assert.equal(khacRong.so_duong_thu, 0);
+  assert.ok(sanLuongNull(khacRong.san_luong_loc));
+  assert.equal(khacRong.san_luong_loc.so_ngay_co_hang, 0);
+  assert.equal(khacRong.san_luong_loc.so_ngay_cua_so, 2);
+  assert.equal(khacRong.trong_tui.ty_le, null);
+});
+
+test('KTT-KD-3b3: Σ đường thư + Khác = Tổng cho bưu gửi, kg, trong túi, kiện đi ngoài và san_luong_loc; ngày có hàng ≤ ngày của loại ngày', () => {
+  const R = bo3b3();
+  for (const loai of ['thuong', 'chu_nhat', 'tat_ca']) for (const moc of ['A', 'B']) {
+    const v = gd3(R, { moc, loaiNgay: loai, chon: ['X'] });
+    const hien = v.duong_thu;
+    const tong = (f) => hien.reduce((s, r) => s + f(r), 0) + f(v.khac);
+    const t = `${loai}/${moc}`;
+    assert.equal(tong((r) => r.shbg), v.tong.shbg, t);
+    assert.equal(tong((r) => r.trong_tui.shbg), v.tong.trong_tui.shbg, t);
+    assert.equal(tong((r) => r.trong_tui.chia_san + r.trong_tui.mo), v.tong.trong_tui.chia_san + v.tong.trong_tui.mo, t);
+    assert.equal(tong((r) => r.kien_di_ngoai.shbg), v.tong.kien_di_ngoai.shbg, t);
+    assert.equal(tong((r) => r.san_luong_loc.shbg), v.tong.san_luong_loc.shbg, t);
+    assert.equal(tong((r) => r.san_luong_loc.shbg_thieu_kg), v.tong.san_luong_loc.shbg_thieu_kg, t);
+    assert.equal(tong((r) => r.san_luong_loc.kg || 0), v.tong.san_luong_loc.kg || 0, t);
+    assert.equal(tong((r) => r.kg || 0), v.tong.kg || 0, t);
+    assert.equal(v.tong.trong_tui.shbg + v.tong.kien_di_ngoai.shbg, v.tong.shbg, t);
+    assert.equal(v.tong.san_luong_loc.shbg, v.tong.shbg, t);
+    for (const s of [...hien.map((r) => r.san_luong_loc), v.khac.san_luong_loc, v.tong.san_luong_loc]) {
+      assert.ok(s.so_ngay_co_hang <= s.so_ngay_cua_so, t);
+      assert.equal(s.loai_ngay, loai);
+    }
+    assert.ok(v.tong.san_luong_loc.so_ngay_co_hang >= Math.max(...hien.map((r) => r.san_luong_loc.so_ngay_co_hang)), t);
+  }
+  const th = gd3(R, { loaiNgay: 'thuong', chon: ['X'] });
+  assert.deepEqual([th.khac.san_luong_loc.so_ngay_co_hang, th.khac.san_luong_loc.shbg, th.khac.san_luong_loc.shbg_tb_ngay_co_hang], [2, 6, 3], 'Khác = Y (5, ngày 1) + Z (1, ngày 9)');
+  assert.deepEqual([th.tong.san_luong_loc.so_ngay_co_hang, th.tong.san_luong_loc.shbg], [4, 18], 'Tổng: hợp các ngày 1, 2, 3, 9 (ngày 1 có cả X và Y)');
+});
+
+test('KTT-KD-3b3: danh_sach[] có meo_theo_lo ở MỌI dòng (mốc B null; mốc A đúng giá trị của đường thư)', () => {
+  const R = dungR([{ dt: 'P', ngay: 0, n: 5, phut: () => 480 }, { dt: 'Q', ngay: 0, n: 5, phut: () => 500 }]);
+  const A = gd3(R, { moc: 'A', chon: ['P'] });
+  const B = gd3(R, { moc: 'B', chon: ['P'] });
+  assert.equal(A.danh_sach.length, 2);
+  for (const d of A.danh_sach) assert.ok(d.meo_theo_lo === true || d.meo_theo_lo === false, `A ${d.khoa}`);
+  for (const d of B.danh_sach) assert.ok('meo_theo_lo' in d && d.meo_theo_lo === null, `B ${d.khoa}`);
+  assert.equal(A.danh_sach.find((d) => d.khoa === 'P').meo_theo_lo, A.duong_thu[0].meo_theo_lo);
+  const R2 = dungR([{ dt: 'P', ngay: 0, n: 5, phut: () => 480 }]);
+  R2.cot.tB = R2.cot.tB.map((p) => p + 400); // mốc B lệch 400 phút so với A (ngưỡng 120): méo theo lô
+  assert.equal(gd3(R2, { moc: 'A' }).danh_sach[0].meo_theo_lo, true);
+});
+
+test('KTT-KD-3b3: theo-ngay có san_luong_loc (theo loại ngày) khớp so_ngay_*, tb_ngay_co_hang; không hàng -> null', () => {
+  const R = bo3b3();
+  const t = (khoa, loai) => GD.tinhTheoNgay(R, { moc: 'B', loaiNgay: loai, khoa, nguong: NG_TEST, ngays: NGAYS10(R) });
+  const x = t('X', 'thuong');
+  assert.deepEqual(x.san_luong_loc, { loai_ngay: 'thuong', so_ngay_cua_so: 8, so_ngay_co_hang: 3, shbg: 12, shbg_thieu_kg: 0, kg: 12, shbg_tb_ngay_co_hang: 4, shbg_tb_moi_ngay_cua_so: 1.5, kg_tb_ngay_co_hang: 4, kg_tb_moi_ngay_cua_so: 1.5 });
+  assert.equal(x.san_luong_loc.so_ngay_co_hang, x.so_ngay_co_hang);
+  assert.equal(x.san_luong_loc.shbg_tb_ngay_co_hang, x.tb_ngay_co_hang);
+  const rong = t('Z', 'chu_nhat');
+  assert.equal(rong.san_luong_loc.so_ngay_co_hang, 0);
+  assert.ok(sanLuongNull(rong.san_luong_loc));
+  assert.equal(t('Z', 'thuong').san_luong_loc.kg, null, 'không bưu gửi nào có kg');
+});
+
+test('KTT-KD-3b3: API — san_luong_loc / trong_tui theo loại ngày, danh_sach.meo_theo_lo, canh_bao_ma; Σ đường thư + Khác = Tổng; trường cũ còn nguyên', async () => {
+  duLieu();
+  const thuong = await goi(`${BASE}/gio-den${QS({ loai_ngay: 'thuong', duong_thu: 'DT-A' })}`, 'admin');
+  assert.equal(thuong.status, 200);
+  const B = thuong.body.theo_moc.B;
+  const a = B.duong_thu.find((x) => x.khoa === 'DT-A');
+  assert.deepEqual([a.san_luong_loc.loai_ngay, a.san_luong_loc.so_ngay_cua_so, a.san_luong_loc.so_ngay_co_hang, a.san_luong_loc.shbg, a.san_luong_loc.shbg_tb_ngay_co_hang, a.san_luong_loc.shbg_tb_moi_ngay_cua_so], ['thuong', 6, 3, 30, 10, 5]);
+  assert.deepEqual([a.san_luong_loc.kg, a.san_luong_loc.kg_tb_ngay_co_hang, a.san_luong_loc.kg_tb_moi_ngay_cua_so], [30, 10, 5]);
+  assert.equal(a.san_luong_loc.shbg, a.shbg);
+  assert.equal(a.san_luong_ngay.ngay_thuong.tb_ngay_co_hang, 10, 'trường cũ còn nguyên');
+  for (const m of ['A', 'B']) {
+    const v = thuong.body.theo_moc[m];
+    assert.equal(v.duong_thu.reduce((s, x) => s + x.trong_tui.shbg, 0) + v.khac.trong_tui.shbg, v.tong.trong_tui.shbg);
+    assert.equal(v.duong_thu.reduce((s, x) => s + x.kien_di_ngoai.shbg, 0) + v.khac.kien_di_ngoai.shbg, v.tong.kien_di_ngoai.shbg);
+    assert.equal(v.duong_thu.reduce((s, x) => s + x.san_luong_loc.shbg, 0) + v.khac.san_luong_loc.shbg, v.tong.san_luong_loc.shbg);
+    assert.equal(v.tong.trong_tui.shbg + v.tong.kien_di_ngoai.shbg, v.tong.shbg);
+    assert.equal(v.tong.san_luong_loc.so_ngay_cua_so, 6);
+    assert.ok(v.tong.san_luong_loc.so_ngay_co_hang <= 6);
+    for (const d of v.danh_sach) assert.ok('meo_theo_lo' in d, `${m} ${d.khoa}`);
+  }
+  assert.equal(B.tong.so_ngay_cua_so, 7, 'tong.so_ngay_cua_so giữ nghĩa cũ (mọi ngày của khoảng)');
+  const A = thuong.body.theo_moc.A;
+  assert.equal(A.danh_sach.find((d) => d.khoa === 'DT-A').meo_theo_lo, A.duong_thu.find((d) => d.khoa === 'DT-A').meo_theo_lo);
+  assert.ok(B.danh_sach.every((d) => d.meo_theo_lo === null));
+  const cn = await goi(`${BASE}/gio-den${QS({ loai_ngay: 'chu_nhat', duong_thu: 'DT-A' })}`, 'admin');
+  const sCn = cn.body.theo_moc.B.duong_thu[0].san_luong_loc;
+  assert.deepEqual([sCn.so_ngay_cua_so, sCn.so_ngay_co_hang, sCn.shbg], [1, 1, 10]);
+  // mã cảnh báo
+  const MA = ['MOC_A_CO_THE_MEO', 'CANH_BAO_HE_THONG', 'CHUA_CO_DU_LIEU'];
+  assert.ok(Array.isArray(thuong.body.canh_bao_ma) && thuong.body.canh_bao_ma.includes('MOC_A_CO_THE_MEO'));
+  assert.ok(thuong.body.canh_bao_ma.every((c) => MA.includes(c)));
+  assert.ok(Array.isArray(thuong.body.canh_bao), 'canh_bao cũ còn');
+  const tn = await goi(`${BASE}/gio-den/theo-ngay${QS({ duong_thu: 'DT-A', loai_ngay: 'thuong' })}`, 'admin');
+  assert.deepEqual(tn.body.canh_bao_ma, ['MOC_A_CO_THE_MEO']);
+  const sl = tn.body.theo_moc.B.san_luong_loc;
+  assert.deepEqual([sl.so_ngay_cua_so, sl.so_ngay_co_hang, sl.shbg, sl.shbg_tb_ngay_co_hang], [6, 3, 30, 10]);
+  db.exec('DELETE FROM ktt_hang_hoan; DELETE FROM ktt_buu_gui; DELETE FROM ktt_tui; DELETE FROM ktt_nap_cap;');
+  Api.xoaCache();
+  const rong = await goi(`${BASE}/gio-den${QS()}`, 'admin');
+  assert.deepEqual(rong.body.canh_bao_ma, ['CHUA_CO_DU_LIEU']);
+  const rong2 = await goi(`${BASE}/gio-den/theo-ngay${QS({ duong_thu: 'DT-A' })}`, 'admin');
+  assert.deepEqual(rong2.body.canh_bao_ma, ['CHUA_CO_DU_LIEU']);
+});

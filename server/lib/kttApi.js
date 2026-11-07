@@ -415,6 +415,9 @@ function ngoaiPhamVi(lt) {
   if (!tc) return { di_ngoai_6_bcvh: 0, khong_ro_dich: 0, khong_co_gio_quet: 0, hang_hoan: 0, tong_shbg: 0, ghi_chu: 'Chưa có dữ liệu.' };
   return { di_ngoai_6_bcvh: tc.ngoai_bay_chip.ngoai_pham_vi_tong, khong_ro_dich: tc.ngoai_bay_chip.khong_ro_dich, khong_co_gio_quet: tc.ngoai_bay_chip.khong_co_gio_quet_den, hang_hoan: tc.hang_hoan.tong_shbg, tong_shbg: tc.tong_shbg_ngay, ghi_chu: 'Chỉ gồm hàng đến 6 BCVH Huế (cùng mẫu số bức tranh, không hàng hoàn); các nhóm này nằm NGOÀI số liệu của màn.' };
 }
+/** KTT-KD-3b3: mã cảnh báo cho giao diện (giao diện KHÔNG in `canh_bao` thô: chuỗi đó có chữ nội bộ). Mã có thể có: xem docs/ai/42_KTT_API.md mục 22. */
+const CANH_BAO_MA = Object.freeze({ CHUA_CO_DU_LIEU: 'CHUA_CO_DU_LIEU', MOC_A_CO_THE_MEO: 'MOC_A_CO_THE_MEO', CANH_BAO_HE_THONG: 'CANH_BAO_HE_THONG' });
+const canhBaoMaGioDen = (ltCanhBao) => [CANH_BAO_MA.MOC_A_CO_THE_MEO, ...(ltCanhBao.some((c) => !/bưu gửi không rõ đích/.test(c)) ? [CANH_BAO_MA.CANH_BAO_HE_THONG] : [])];
 const QUY_UOC_GIO_DEN = Object.freeze({
   duong_thu: 'gộp theo MÃ đường thư (mọi lịch, mọi cụm); hàng chưa có mã là một dòng riêng (khoa __RONG__, ma null); đường thư chưa có tên: ten null',
   chuyen: 'chuyến thư đến = băng giờ của đường thư: các lần đến cách nhau không quá ktt_bt_gap_cum_phut (60) phút là một chuyến (một xe được xác nhận trước và sau), băng dưới ktt_bt_cum_nho_shbg gộp vào băng gần nhất, vắt đêm nối thành một',
@@ -433,7 +436,7 @@ async function gioDen(db, query, { now = Date.now() } = {}) {
   const ngays = k.ngays.map((ngay) => ({ ngay, thu: BT.thuCua(ngay) }));
   const ra = { khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, so_ngay: soNgayCua(ngays), moc, moc_mac_dinh: BT.MOC_MAC_DINH, bo_loc: { loai_ngay: loaiNgay, bcvh, duong_thu: chon } };
   const bo = await layBoGioDen(db, k, now);
-  if (!bo) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', theo_moc: null, ngoai_pham_vi: ngoaiPhamVi({}), canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
+  if (!bo) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', theo_moc: null, ngoai_pham_vi: ngoaiPhamVi({}), canh_bao_ma: [CANH_BAO_MA.CHUA_CO_DU_LIEU], canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
   const co = GD.khoaDuongThuCoTrong(bo.R);
   for (const c of chon) if (!co.has(c)) throw new Q.LoiKtt('KTT_DUONG_THU_LA', 'Tham số "duong_thu": không có đường thư này trong khoảng ngày đã chọn.');
   const nguong = nguongGioDen();
@@ -444,6 +447,7 @@ async function gioDen(db, query, { now = Date.now() } = {}) {
     ...ra, bay_gio: bo.doMoi.nguon_xuat_luc, nguon_xuat_luc_moi_nhat: bo.doMoi.nguon_xuat_luc, co_du_lieu: bo.lt.co_du_lieu, ly_do: null,
     theo_moc, ngoai_pham_vi: np,
     meta: { dang_thuc: { tong_shbg: np.tong_shbg, mau_so: bo.R.n, shbg_trong_buc_tranh: bo.R.n }, quy_uoc: QUY_UOC_GIO_DEN },
+    canh_bao_ma: canhBaoMaGioDen(bo.lt.canh_bao),
     canh_bao: ['Mốc A đo từ giờ xác nhận BD10 đến (gom theo lô) nên có thể méo; đường thư có meo_theo_lo = true cần đọc theo mốc B.', ...bo.lt.canh_bao.filter((c) => !/bưu gửi không rõ đích/.test(c))]
   };
 }
@@ -458,7 +462,7 @@ async function gioDenTheoNgay(db, query, { now = Date.now() } = {}) {
   const ngays = k.ngays.map((ngay) => ({ ngay, thu: BT.thuCua(ngay) }));
   const ra = { khoang_ngay: { tu_ngay: k.tuNgay, den_ngay: k.denNgay }, so_ngay: soNgayCua(ngays), moc, moc_mac_dinh: BT.MOC_MAC_DINH, bo_loc: { loai_ngay: loaiNgay, bcvh, duong_thu: khoa } };
   const bo = await layBoGioDen(db, k, now);
-  if (!bo) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', duong_thu: null, theo_moc: null, canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
+  if (!bo) return { ...ra, bay_gio: null, nguon_xuat_luc_moi_nhat: null, co_du_lieu: false, ly_do: 'CHUA_CO_DU_LIEU', duong_thu: null, theo_moc: null, canh_bao_ma: [CANH_BAO_MA.CHUA_CO_DU_LIEU], canh_bao: ['Chưa có dữ liệu «Hàng tại KTT» (chưa nạp cặp file nào): chưa tính được.'] };
   if (!GD.khoaDuongThuCoTrong(bo.R).has(khoa)) throw new Q.LoiKtt('KTT_DUONG_THU_LA', 'Tham số "duong_thu": không có đường thư này trong khoảng ngày đã chọn.');
   const dtI = bo.R.tu.dt.findIndex((m) => GD.khoaCua(m) === khoa);
   const nguong = nguongGioDen();
@@ -468,6 +472,7 @@ async function gioDenTheoNgay(db, query, { now = Date.now() } = {}) {
     ...ra, bay_gio: bo.doMoi.nguon_xuat_luc, nguon_xuat_luc_moi_nhat: bo.doMoi.nguon_xuat_luc, co_du_lieu: bo.lt.co_du_lieu, ly_do: null,
     duong_thu: { khoa, ma: bo.R.tu.dt[dtI] || null, ten: bo.R.tu.dtTen[dtI] || null }, theo_moc,
     meta: { quy_uoc: { ...QUY_UOC_GIO_DEN, ngay: 'mọi ngày của khoảng đều có dòng (co_hang false khi không có hàng), không phụ thuộc loai_ngay; loai_ngay chỉ quyết định các ngày được tính vào dai_thuong_gap, so_ngay_* và tb_ngay_co_hang' } },
+    canh_bao_ma: [CANH_BAO_MA.MOC_A_CO_THE_MEO],
     canh_bao: ['Mốc A đo từ giờ xác nhận BD10 đến (gom theo lô) nên có thể méo; xem thêm mốc B.']
   };
 }
