@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Download, AlertCircle, Filter, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, Layers, Calendar, BarChart2, Clock } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import { formatInt, formatPercent, formatDdMm } from '../quythoigian/quyThoiGianFormatters';
@@ -55,7 +55,7 @@ export default function KttKhongDat14h({
   filterDuongThu,
   onClearDuongThu,
 }) {
-  const [moc, setMoc] = useState('A');
+  const [moc, setMoc] = useState(mocChiTieu === 'quet_tui_den' ? 'B' : 'A');
   const [unit, setUnit] = useState('shbg'); // 'shbg' | 'kg'
   const [selectedNhom, setSelectedNhom] = useState('tat_ca'); // 'tat_ca' | 'A' | 'B' | 'C' | 'D' | 'E'
   const [selectedHour, setSelectedHour] = useState(null);
@@ -76,6 +76,10 @@ export default function KttKhongDat14h({
   // Xuất file xlsx
   const [exportLoading, setExportLoading] = useState(false);
 
+  // Mã yêu cầu tuần tự chống chạy đua (3.6)
+  const dataRequestIdRef = useRef(0);
+  const itemsRequestIdRef = useRef(0);
+
   // Đồng bộ mốc từ ngoài
   useEffect(() => {
     if (mocChiTieu === 'quet_tui_den') {
@@ -85,9 +89,10 @@ export default function KttKhongDat14h({
     }
   }, [mocChiTieu]);
 
-  // Tải dữ liệu chính của khối
+  // Tải dữ liệu chính của khối (chống chạy đua bằng dataRequestIdRef)
   const loadData = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
+    const reqId = ++dataRequestIdRef.current;
     setLoading(true);
     setError(null);
 
@@ -101,15 +106,21 @@ export default function KttKhongDat14h({
 
     try {
       const res = await fetchKttKhongDat14h(params);
+      if (reqId !== dataRequestIdRef.current) return;
       if (res.ok) {
         setData(res.data);
       } else {
         setError(res.error || 'Lỗi tải dữ liệu Không đạt 14 giờ');
+        setData(null);
       }
     } catch (err) {
+      if (reqId !== dataRequestIdRef.current) return;
       setError('Lỗi kết nối khi tải dữ liệu Không đạt 14 giờ.');
+      setData(null);
     } finally {
-      setLoading(false);
+      if (reqId === dataRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [dateRange, moc, selectedBcvh, filterDuongThu]);
 
@@ -117,9 +128,10 @@ export default function KttKhongDat14h({
     loadData();
   }, [loadData]);
 
-  // Tải danh sách kiểm chứng chi tiết bưu gửi
+  // Tải danh sách kiểm chứng chi tiết bưu gửi (chống chạy đua bằng itemsRequestIdRef)
   const loadItems = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
+    const reqId = ++itemsRequestIdRef.current;
     setItemsLoading(true);
     setItemsError(null);
 
@@ -137,6 +149,8 @@ export default function KttKhongDat14h({
         page_size: pageSize,
       });
 
+      if (reqId !== itemsRequestIdRef.current) return;
+
       if (res.ok) {
         setItems(res.data.items || []);
         setPagination(res.data.pagination || { total: 0, page: 1, page_size: pageSize, total_pages: 1 });
@@ -145,10 +159,13 @@ export default function KttKhongDat14h({
         setItems([]);
       }
     } catch (err) {
+      if (reqId !== itemsRequestIdRef.current) return;
       setItemsError('Lỗi kết nối khi tải danh sách kiểm chứng.');
       setItems([]);
     } finally {
-      setItemsLoading(false);
+      if (reqId === itemsRequestIdRef.current) {
+        setItemsLoading(false);
+      }
     }
   }, [dateRange, moc, selectedNhom, selectedBcvh, filterDuongThu, selectedHour, selectedChuyen, page, pageSize]);
 
@@ -210,13 +227,13 @@ export default function KttKhongDat14h({
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Bóc tách nguồn gốc phát sinh không đạt chỉ tiêu theo nhóm nguyên nhân, đợt đến, khung giờ và chuyến xe
+            Bóc tách nguồn gốc phát sinh không đạt chỉ tiêu theo nhóm nguyên nhân, chuyến thư đến, khung giờ và chuyến xe
           </p>
         </div>
 
         {/* Các nút bấm chuyển mốc & đơn vị */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Mốc A / B */}
+          {/* Giờ xác nhận BD10 đến / Giờ quét túi đến */}
           <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50 text-xs">
             <button
               type="button"
@@ -227,7 +244,7 @@ export default function KttKhongDat14h({
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Mốc A (Xác nhận BD10 đến)
+              Giờ xác nhận BD10 đến (chính thức)
             </button>
             <button
               type="button"
@@ -238,7 +255,7 @@ export default function KttKhongDat14h({
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Mốc B (Quét túi đến)
+              Giờ quét túi đến
             </button>
           </div>
 
@@ -283,11 +300,11 @@ export default function KttKhongDat14h({
               </span>
               <span className="text-gray-400">·</span>
               <span className="text-gray-700">
-                (đo được {formatInt(tongMoc.khong_dat_da_di)} / {formatInt(tongMoc.do_duoc)} bưu gửi)
+                (đo được {tongMoc.khong_dat_da_di != null ? formatInt(tongMoc.khong_dat_da_di) : '—'} / {tongMoc.do_duoc != null ? formatInt(tongMoc.do_duoc) : '—'} bưu gửi)
               </span>
             </div>
             <div className="text-[11px] text-gray-600">
-              * Tỷ lệ chuẩn = Không đạt đã đi (nhóm A+B+C+D) chia cho Tổng đo được mốc {moc}. Nhóm E (chưa đi, đã quá chỉ tiêu) có {formatInt(tongMoc.chua_di_qua_chi_tieu)} bưu gửi, không nằm trong mẫu số tỷ lệ đã đi.
+              * Tỷ lệ chuẩn = Không đạt đã đi (nhóm A+B+C+D) chia cho Tổng đo được ({moc === 'B' ? 'giờ quét túi đến' : 'giờ xác nhận BD10 đến (chính thức)'}). Nhóm E (chưa đi, đã quá chỉ tiêu) có {tongMoc.chua_di_qua_chi_tieu != null ? formatInt(tongMoc.chua_di_qua_chi_tieu) : '—'} bưu gửi, không nằm trong tổng đo được của tỷ lệ đã đi.
             </div>
           </div>
 
@@ -439,13 +456,13 @@ export default function KttKhongDat14h({
                           {renderValue(rowMoc.khong_dat_da_di, row.kg)}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums font-medium text-purple-700">
-                          {formatInt(rowMoc.chua_di_qua_chi_tieu || 0)}
+                          {rowMoc.chua_di_qua_chi_tieu != null ? formatInt(rowMoc.chua_di_qua_chi_tieu) : '—'}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-gray-700 font-medium">
-                          {formatInt(rowMoc.do_duoc || 0)}
+                          {rowMoc.do_duoc != null ? formatInt(rowMoc.do_duoc) : '—'}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums font-bold text-gray-900">
-                          {rowMoc.ty_le_khong_dat !== null ? formatPercent(rowMoc.ty_le_khong_dat) : '—'}
+                          {rowMoc.ty_le_khong_dat != null ? formatPercent(rowMoc.ty_le_khong_dat) : '—'}
                         </td>
                       </tr>
                     );
@@ -477,7 +494,7 @@ export default function KttKhongDat14h({
                           {dt.nguon_ten || dt.nguon}
                         </span>
                         <span className="tabular-nums font-semibold text-red-700">
-                          {formatInt(totalKd)} ({formatPercent(dtm.ty_le_khong_dat)})
+                          {dtm.khong_dat_da_di != null ? formatInt(dtm.khong_dat_da_di) : '—'} ({formatPercent(dtm.ty_le_khong_dat)})
                         </span>
                       </div>
                       <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
@@ -511,7 +528,7 @@ export default function KttKhongDat14h({
                       <div className="flex justify-between text-xs text-gray-800 font-medium">
                         <span>{bcvhObj ? bcvhObj.ten : b.ma_bcvh} ({b.ma_bcvh})</span>
                         <span className="tabular-nums font-semibold text-red-700">
-                          {formatInt(totalKd)} ({formatPercent(bm.ty_le_khong_dat)})
+                          {bm.khong_dat_da_di != null ? formatInt(bm.khong_dat_da_di) : '—'} ({formatPercent(bm.ty_le_khong_dat)})
                         </span>
                       </div>
                       <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
@@ -567,19 +584,19 @@ export default function KttKhongDat14h({
                           Chuyến {row.chuyen}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-amber-800 font-medium">
-                          {formatInt(nhomObj.A?.shbg || 0)}
+                          {nhomObj.A?.shbg != null ? formatInt(nhomObj.A.shbg) : '—'}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-red-700 font-medium">
-                          {formatInt(nhomObj.B?.shbg || 0)}
+                          {nhomObj.B?.shbg != null ? formatInt(nhomObj.B.shbg) : '—'}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-blue-700 font-medium">
-                          {formatInt(nhomObj.C?.shbg || 0)}
+                          {nhomObj.C?.shbg != null ? formatInt(nhomObj.C.shbg) : '—'}
                         </td>
                         <td className="py-2.5 px-2 text-right tabular-nums text-purple-700 font-medium">
-                          {formatInt(nhomObj.E?.shbg || 0)}
+                          {nhomObj.E?.shbg != null ? formatInt(nhomObj.E.shbg) : '—'}
                         </td>
                         <td className="py-2.5 px-3 text-right tabular-nums font-bold text-red-800">
-                          {formatInt(rowMoc.khong_dat_da_di || 0)}
+                          {rowMoc.khong_dat_da_di != null ? formatInt(rowMoc.khong_dat_da_di) : '—'}
                         </td>
                       </tr>
                     );
@@ -648,15 +665,15 @@ export default function KttKhongDat14h({
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-red-700 font-semibold tabular-nums">
-                          {formatInt(ngm.khong_dat_da_di || 0)} không đạt
+                          {ngm.khong_dat_da_di != null ? formatInt(ngm.khong_dat_da_di) : '—'} không đạt
                         </span>
                         <span className="text-gray-400">/</span>
                         <span className="text-gray-600 tabular-nums">
-                          {formatInt(ngm.do_duoc || 0)} đo được
+                          {ngm.do_duoc != null ? formatInt(ngm.do_duoc) : '—'} đo được
                         </span>
                       </div>
                       <span className="font-bold text-gray-900 tabular-nums w-12 text-right">
-                        {ngm.ty_le_khong_dat !== null ? formatPercent(ngm.ty_le_khong_dat) : '—'}
+                        {ngm.ty_le_khong_dat != null ? formatPercent(ngm.ty_le_khong_dat) : '—'}
                       </span>
                     </div>
                   );

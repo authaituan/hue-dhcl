@@ -12,8 +12,12 @@ import {
   X,
   RotateCcw,
 } from 'lucide-react';
-import { formatInt, formatPercent, formatDdMm } from '../quythoigian/quyThoiGianFormatters';
-import { formatKg, formatDecimal } from './kttFormatters';
+import {
+  formatInt,
+  formatPercent,
+  formatDdMm,
+} from '../quythoigian/quyThoiGianFormatters';
+import { formatKg, formatDecimal, getQuickDateRange } from './kttFormatters';
 import { fetchKttGioDen, fetchKttGioDenTheoNgay } from './kttApi';
 import KttTooltip from './KttTooltip';
 
@@ -56,15 +60,33 @@ export default function KttGioDenTrongNgay({
   selectedBcvh,
   authUser,
   onQuickRangeChange,
+  meta,
+  activeMoc: controlledMoc,
+  onActiveMocChange,
+  unit: controlledUnit,
+  onUnitChange,
+  loaiNgay: controlledLoaiNgay,
+  onLoaiNgayChange,
+  selectedDuongThu: controlledSelectedDuongThu,
+  onSelectedDuongThuChange,
 }) {
   // Mốc giờ đến: 'B' (Giờ quét túi đến - mặc định) hoặc 'A' (Giờ xác nhận BD10 đến)
-  const [activeMoc, setActiveMoc] = useState('B');
+  const [localActiveMoc, setLocalActiveMoc] = useState('B');
   // Đơn vị đo: 'shbg' (Bưu gửi) | 'kg' (Khối lượng (kg))
-  const [unit, setUnit] = useState('shbg');
+  const [localUnit, setLocalUnit] = useState('shbg');
   // Loại ngày: 'thuong' (Ngày thường) | 'chu_nhat' (Chủ nhật) | 'tat_ca'
-  const [loaiNgay, setLoaiNgay] = useState('thuong');
+  const [localLoaiNgay, setLocalLoaiNgay] = useState('thuong');
   // Lọc đường thư: mảng các khóa đường thư được chọn (tối đa 8)
-  const [selectedDuongThu, setSelectedDuongThu] = useState([]);
+  const [localSelectedDuongThu, setLocalSelectedDuongThu] = useState([]);
+
+  const activeMoc = controlledMoc ?? localActiveMoc;
+  const setActiveMoc = onActiveMocChange || setLocalActiveMoc;
+  const unit = controlledUnit ?? localUnit;
+  const setUnit = onUnitChange || setLocalUnit;
+  const loaiNgay = controlledLoaiNgay ?? localLoaiNgay;
+  const setLoaiNgay = onLoaiNgayChange || setLocalLoaiNgay;
+  const selectedDuongThu = controlledSelectedDuongThu ?? localSelectedDuongThu;
+  const setSelectedDuongThu = onSelectedDuongThuChange || setLocalSelectedDuongThu;
   // Dropdown chọn đường thư
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
@@ -279,17 +301,17 @@ export default function KttGioDenTrongNgay({
     return activeMoc === 'A' || hasMeoTheoLo;
   }, [data, activeMoc, hasMeoTheoLo]);
 
-  // Xác định số ngày hiện tại: ưu tiên từ API, fallback tính từ dateRange khi chưa có dữ liệu (N6, N8)
-  const soNgayHienTai = useMemo(() => {
-    if (data?.so_ngay?.tong != null) return data.so_ngay.tong;
-    if (dateRange?.from && dateRange?.to) {
-      const d1 = new Date(dateRange.from);
-      const d2 = new Date(dateRange.to);
-      const diffTime = Math.abs(d2.getTime() - d1.getTime());
-      return Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    }
-    return null;
-  }, [data?.so_ngay?.tong, dateRange?.from, dateRange?.to]);
+  // Nhãn và trạng thái sáng cho 2 nút chọn nhanh (dùng MỘT hàm getQuickDateRange) (3.7)
+  const quickRange7 = useMemo(() => getQuickDateRange(7, meta), [meta]);
+  const quickRange30 = useMemo(() => getQuickDateRange(30, meta), [meta]);
+  const isQuick7Active = Boolean(
+    dateRange?.from && dateRange?.to &&
+    dateRange.from === quickRange7.from && dateRange.to === quickRange7.to
+  );
+  const isQuick30Active = Boolean(
+    dateRange?.from && dateRange?.to &&
+    dateRange.from === quickRange30.from && dateRange.to === quickRange30.to
+  );
 
   return (
     <div className="space-y-4">
@@ -303,23 +325,23 @@ export default function KttGioDenTrongNgay({
               type="button"
               onClick={() => onQuickRangeChange && onQuickRangeChange(7)}
               className={`px-3 py-1 rounded-[6px] text-xs font-bold transition-all cursor-pointer ${
-                soNgayHienTai === 7
+                isQuick7Active
                   ? 'bg-[#4A1D6E] text-white shadow-xs'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-white/60'
               }`}
             >
-              7 ngày {data?.khoang_ngay?.tu_ngay ? `(${formatDdMm(data.khoang_ngay.tu_ngay)} – ${formatDdMm(data.khoang_ngay.den_ngay)})` : ''}
+              7 ngày ({formatDdMm(quickRange7.from)} – {formatDdMm(quickRange7.to)})
             </button>
             <button
               type="button"
               onClick={() => onQuickRangeChange && onQuickRangeChange(30)}
               className={`px-3 py-1 rounded-[6px] text-xs font-bold transition-all cursor-pointer ${
-                soNgayHienTai >= 28 && soNgayHienTai <= 31
+                isQuick30Active
                   ? 'bg-[#4A1D6E] text-white shadow-xs'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-white/60'
               }`}
             >
-              30 ngày {data?.khoang_ngay?.tu_ngay && soNgayHienTai > 7 ? `(${formatDdMm(data.khoang_ngay.tu_ngay)} – ${formatDdMm(data.khoang_ngay.den_ngay)})` : ''}
+              30 ngày ({formatDdMm(quickRange30.from)} – {formatDdMm(quickRange30.to)})
             </button>
           </div>
         </div>
@@ -588,7 +610,7 @@ export default function KttGioDenTrongNgay({
                 ) : (
                   <>Đang xem giờ xác nhận BD10 đến (giờ chính thức).</>
                 )}{' '}
-                Đo được <strong className="font-bold tabular-nums text-gray-900">{formatInt(currentMocData.do_duoc)}</strong> / <span className="tabular-nums">{formatInt(currentMocData.mau_so)}</span> bưu gửi.
+                Đo được <strong className="font-bold tabular-nums text-gray-900">{currentMocData.do_duoc != null ? formatInt(currentMocData.do_duoc) : '—'}</strong> / <span className="tabular-nums">{currentMocData.mau_so != null ? formatInt(currentMocData.mau_so) : '—'}</span> bưu gửi.
                 {shouldShowCanhBaoMocA && (
                   <span className="text-amber-800 ml-1 font-medium">
                     · Giờ xác nhận BD10 bị dồn (nhiều túi được xác nhận cùng một lúc), nên xem giờ quét túi đến để sát giờ xe thật
@@ -604,7 +626,7 @@ export default function KttGioDenTrongNgay({
             <div className="text-[11px] text-gray-600 pl-0 sm:pl-0.5">
               Phạm vi: Chỉ gồm hàng đến 6 BCVH Huế; chưa gồm{' '}
               <strong className="font-semibold text-gray-800 tabular-nums">
-                {formatInt(data?.ngoai_pham_vi?.di_ngoai_6_bcvh)}
+                {data?.ngoai_pham_vi?.di_ngoai_6_bcvh != null ? formatInt(data.ngoai_pham_vi.di_ngoai_6_bcvh) : '—'}
               </strong>{' '}
               bưu gửi đi ngoài 6 BCVH.
             </div>
@@ -699,6 +721,15 @@ export default function KttGioDenTrongNgay({
               <div className="text-[11px] text-gray-500">
                 {currentMocData.thong_ke_co?.nhieu_kien_di_ngoai?.so_bi_gan_co ?? '—'} đường thư nhiều kiện đi ngoài
               </div>
+              {unit === 'kg' && (
+                currentMocData.tong?.kien_di_ngoai?.kg == null ? (
+                  <div className="text-[10px] text-amber-700">chưa có số kg</div>
+                ) : currentMocData.tong?.kien_di_ngoai?.shbg_thieu_kg > 0 ? (
+                  <div className="text-[10px] text-amber-700">
+                    {formatInt(currentMocData.tong.kien_di_ngoai.shbg_thieu_kg)} bưu gửi chưa có số kg
+                  </div>
+                ) : null
+              )}
             </div>
 
             {/* Thẻ 4: Trong túi */}
@@ -756,7 +787,7 @@ export default function KttGioDenTrongNgay({
             </div>
           </div>
 
-          {/* ── 3 Ô NHẬN XÉT (L3: không ép 0 khi ngưỡng null) ──────────────── */}
+          {/* ── 3 Ô NHẬN XÉT (L3: không ép 0 khi ngưỡng null; 3.6: bỏ cụm ngoặc khi ngưỡng null) ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Nhận xét 1: Giờ xe đến */}
             <div className="bg-[#FAF6EC] rounded-[12px] p-3.5 border border-[#E4D5AE] space-y-1">
@@ -773,11 +804,17 @@ export default function KttGioDenTrongNgay({
                 <span className="tabular-nums">
                   {currentMocData.thong_ke_co?.gio_den_khong_co_dinh?.so_duong_thu_du_mau ?? '—'}
                 </span>{' '}
-                đường thư có giờ xe đến lệch nhau nhiều giữa các ngày (chênh lệch từ{' '}
-                <span className="font-semibold tabular-nums">
-                  {currentMocData.nguong_ap_dung?.muc_gio_den_khong_co_dinh_phut ?? '—'}
-                </span>{' '}
-                phút trở lên).
+                đường thư có giờ xe đến lệch nhau nhiều giữa các ngày
+                {currentMocData.nguong_ap_dung?.muc_gio_den_khong_co_dinh_phut != null ? (
+                  <>
+                    {' '}(chênh lệch từ{' '}
+                    <span className="font-semibold tabular-nums">
+                      {currentMocData.nguong_ap_dung.muc_gio_den_khong_co_dinh_phut}
+                    </span>{' '}
+                    phút trở lên)
+                  </>
+                ) : null}
+                .
               </p>
             </div>
 
@@ -792,13 +829,17 @@ export default function KttGioDenTrongNgay({
                 <strong className="font-bold text-gray-900 tabular-nums">
                   {currentMocData.thong_ke_co?.san_luong_lon?.so_bi_gan_co ?? '—'}
                 </strong>{' '}
-                đường thư có sản lượng lớn (từ{' '}
-                <span className="font-semibold tabular-nums">
-                  {currentMocData.nguong_ap_dung?.muc_san_luong_lon_shbg != null
-                    ? formatInt(currentMocData.nguong_ap_dung.muc_san_luong_lon_shbg)
-                    : '—'}
-                </span>{' '}
-                bưu gửi trở lên);{' '}
+                đường thư có sản lượng lớn
+                {currentMocData.nguong_ap_dung?.muc_san_luong_lon_shbg != null ? (
+                  <>
+                    {' '}(từ{' '}
+                    <span className="font-semibold tabular-nums">
+                      {formatInt(currentMocData.nguong_ap_dung.muc_san_luong_lon_shbg)}
+                    </span>{' '}
+                    bưu gửi trở lên)
+                  </>
+                ) : null}
+                ;{' '}
                 <strong className="font-bold text-gray-900 tabular-nums">
                   {currentMocData.thong_ke_co?.san_luong_khong_deu?.so_bi_gan_co ?? '—'}
                 </strong>
@@ -825,17 +866,21 @@ export default function KttGioDenTrongNgay({
                 <span className="tabular-nums">
                   {currentMocData.thong_ke_co?.nhieu_kien_di_ngoai?.so_duong_thu_du_mau ?? '—'}
                 </span>{' '}
-                đường thư có nhiều kiện đi ngoài (từ{' '}
-                {currentMocData.nguong_ap_dung?.kien_di_ngoai_pct != null
-                  ? `${currentMocData.nguong_ap_dung.kien_di_ngoai_pct}%`
-                  : '—'}{' '}
-                và từ{' '}
-                <span className="font-semibold tabular-nums">
-                  {currentMocData.nguong_ap_dung?.muc_nhieu_kien_di_ngoai != null
-                    ? `${Math.round(currentMocData.nguong_ap_dung.muc_nhieu_kien_di_ngoai * 100)}%`
-                    : '—'}
-                </span>{' '}
-                trở lên).
+                đường thư có nhiều kiện đi ngoài
+                {currentMocData.nguong_ap_dung?.muc_nhieu_kien_di_ngoai != null ? (
+                  <>
+                    {' '}(từ{' '}
+                    {currentMocData.nguong_ap_dung?.kien_di_ngoai_pct != null
+                      ? `${currentMocData.nguong_ap_dung.kien_di_ngoai_pct}%`
+                      : '30%'}{' '}
+                    và từ{' '}
+                    <span className="font-semibold tabular-nums">
+                      {Math.round(currentMocData.nguong_ap_dung.muc_nhieu_kien_di_ngoai * 100)}%
+                    </span>{' '}
+                    trở lên)
+                  </>
+                ) : null}
+                .
               </p>
             </div>
           </div>
@@ -1215,7 +1260,7 @@ export default function KttGioDenTrongNgay({
                                                 {unit === 'kg' ? formatKg(d.kg, { withUnit: true }) : `${formatInt(d.shbg)} bưu gửi`}
                                               </span>
                                               <span className="text-[10px] text-gray-400">
-                                                (túi: {formatInt(d.trong_tui?.shbg)} · kiện: {formatInt(d.kien_di_ngoai?.shbg)})
+                                                (túi: {d.trong_tui?.shbg != null ? formatInt(d.trong_tui.shbg) : '—'} · kiện: {d.kien_di_ngoai?.shbg != null ? formatInt(d.kien_di_ngoai.shbg) : '—'})
                                               </span>
                                             </div>
                                           </div>
@@ -1436,43 +1481,65 @@ export default function KttGioDenTrongNgay({
                 <div className="p-2 rounded bg-white border border-[#E4D5AE]">
                   <strong className="text-gray-900 block">Sản lượng không đều:</strong>
                   <span>
-                    mức chênh lệch sản lượng ngày thường từ{' '}
-                    <span className="font-semibold tabular-nums text-[#4A1D6E]">
-                      {currentMocData.nguong_ap_dung?.muc_san_luong_khong_deu != null
-                        ? formatDecimal(currentMocData.nguong_ap_dung.muc_san_luong_khong_deu, 2)
-                        : '—'}
-                    </span>{' '}
-                    trở lên.
+                    {currentMocData.nguong_ap_dung?.muc_san_luong_khong_deu != null ? (
+                      <>
+                        mức chênh lệch sản lượng ngày thường từ{' '}
+                        <span className="font-semibold tabular-nums text-[#4A1D6E]">
+                          {formatDecimal(currentMocData.nguong_ap_dung.muc_san_luong_khong_deu, 2)}
+                        </span>{' '}
+                        trở lên.
+                      </>
+                    ) : (
+                      'chưa đủ số liệu tính ngưỡng.'
+                    )}
                   </span>
                 </div>
                 <div className="p-2 rounded bg-white border border-[#E4D5AE]">
                   <strong className="text-gray-900 block">Giờ đến không cố định:</strong>
                   <span>
-                    độ chênh lệch giữa các ngày từ{' '}
-                    <span className="font-semibold tabular-nums text-[#4A1D6E]">
-                      {currentMocData.nguong_ap_dung?.muc_gio_den_khong_co_dinh_phut ?? '—'}
-                    </span>{' '}
-                    phút trở lên.
+                    {currentMocData.nguong_ap_dung?.muc_gio_den_khong_co_dinh_phut != null ? (
+                      <>
+                        độ chênh lệch giữa các ngày từ{' '}
+                        <span className="font-semibold tabular-nums text-[#4A1D6E]">
+                          {currentMocData.nguong_ap_dung.muc_gio_den_khong_co_dinh_phut}
+                        </span>{' '}
+                        phút trở lên.
+                      </>
+                    ) : (
+                      'chưa đủ số liệu tính ngưỡng.'
+                    )}
                   </span>
                 </div>
                 <div className="p-2 rounded bg-white border border-[#E4D5AE]">
                   <strong className="text-gray-900 block">Nhiều kiện đi ngoài:</strong>
                   <span>
-                    tỷ lệ kiện đi ngoài từ {currentMocData.nguong_ap_dung?.kien_di_ngoai_pct != null ? `${currentMocData.nguong_ap_dung.kien_di_ngoai_pct}%` : '—'} và từ{' '}
-                    <span className="font-semibold tabular-nums text-[#4A1D6E]">
-                      {currentMocData.nguong_ap_dung?.muc_nhieu_kien_di_ngoai != null ? `${Math.round(currentMocData.nguong_ap_dung.muc_nhieu_kien_di_ngoai * 100)}%` : '—'}
-                    </span>{' '}
-                    trở lên.
+                    {currentMocData.nguong_ap_dung?.muc_nhieu_kien_di_ngoai != null ? (
+                      <>
+                        tỷ lệ kiện đi ngoài từ {currentMocData.nguong_ap_dung?.kien_di_ngoai_pct != null ? `${currentMocData.nguong_ap_dung.kien_di_ngoai_pct}%` : '30%'} và từ{' '}
+                        <span className="font-semibold tabular-nums text-[#4A1D6E]">
+                          {Math.round(currentMocData.nguong_ap_dung.muc_nhieu_kien_di_ngoai * 100)}%
+                        </span>{' '}
+                        trở lên.
+                      </>
+                    ) : (
+                      'chưa đủ số liệu tính ngưỡng.'
+                    )}
                   </span>
                 </div>
                 <div className="p-2 rounded bg-white border border-[#E4D5AE]">
                   <strong className="text-gray-900 block">Sản lượng lớn:</strong>
                   <span>
-                    sản lượng từ{' '}
-                    <span className="font-semibold tabular-nums text-[#4A1D6E]">
-                      {currentMocData.nguong_ap_dung?.muc_san_luong_lon_shbg != null ? formatInt(currentMocData.nguong_ap_dung.muc_san_luong_lon_shbg) : '—'}
-                    </span>{' '}
-                    bưu gửi trở lên.
+                    {currentMocData.nguong_ap_dung?.muc_san_luong_lon_shbg != null ? (
+                      <>
+                        sản lượng từ{' '}
+                        <span className="font-semibold tabular-nums text-[#4A1D6E]">
+                          {formatInt(currentMocData.nguong_ap_dung.muc_san_luong_lon_shbg)}
+                        </span>{' '}
+                        bưu gửi trở lên.
+                      </>
+                    ) : (
+                      'chưa đủ số liệu tính ngưỡng.'
+                    )}
                   </span>
                 </div>
                 <div className="p-2 rounded bg-white border border-[#E4D5AE]">

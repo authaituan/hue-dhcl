@@ -1,4 +1,24 @@
-import { formatInt } from '../quythoigian/quyThoiGianFormatters';
+import { formatInt, getTodayVnYmd, shiftDay } from '../quythoigian/quyThoiGianFormatters';
+
+/**
+ * Tính khoảng ngày cho các nút chọn nhanh (7 ngày / 30 ngày).
+ * Dùng chung cho nhãn nút, hành vi khi bấm nút và kiểm tra nút đang sáng.
+ * «Hôm nay» (ngày cuối khoảng) lấy từ độ mới dữ liệu (`meta.nguon_xuat_luc_moi_nhat`),
+ * nếu chưa có hoặc lỗi meta thì lấy `getTodayVnYmd()` theo múi giờ Việt Nam.
+ * @param {number} days
+ * @param {Object|null|undefined} meta
+ * @returns {{ from: string, to: string }}
+ */
+export function getQuickDateRange(days, meta) {
+  const rawLuc = meta?.nguon_xuat_luc_moi_nhat;
+  const endYmd = (rawLuc && typeof rawLuc === 'string' && rawLuc.length >= 10)
+    ? rawLuc.slice(0, 10)
+    : getTodayVnYmd();
+  return {
+    from: shiftDay(endYmd, -(days - 1)),
+    to: endYmd,
+  };
+}
 
 /**
  * Định dạng khối lượng (kg) với dấu chấm hàng nghìn kiểu vi-VN.

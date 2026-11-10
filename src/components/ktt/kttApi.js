@@ -453,3 +453,15 @@ export async function fetchKttGioDenTheoNgay({ tu, den, duong_thu, moc, loai_nga
   return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/gio-den/theo-ngay${query ? `?${query}` : ''}`);
 }
 
+/**
+ * KTT-KD-3d: Dải «còn so với chỉ tiêu» theo giờ đến (phút :30) × BCVH × loại ngày
+ * @param {Object} params { loai_ngay, bcvh }
+ */
+export async function fetchKttConLaiTheoGio({ loai_ngay = 'tat_ca', bcvh } = {}) {
+  const usp = new URLSearchParams();
+  if (loai_ngay && loai_ngay !== 'tat_ca') usp.set('loai_ngay', String(loai_ngay));
+  if (bcvh && bcvh !== 'all') usp.set('bcvh', String(bcvh));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/con-lai-theo-gio${query ? `?${query}` : ''}`);
+}
+
