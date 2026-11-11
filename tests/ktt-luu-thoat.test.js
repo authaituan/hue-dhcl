@@ -17,9 +17,9 @@ const S = require('../server/lib/kttLuuThoat');
 const QL = require('../server/lib/kttLuuThoatQuery');
 const Q = require('../server/lib/kttQuery');
 
-const TH = '533140'; // Thuận Hóa: 07:00, 12:30, 12:55 (nghỉ CN), 19:45, 22:00 — hạn đến = giờ rời − 60 phút
-const HT = '535470'; // Hương Trà: 06:00, 12:00
-const HTHUY = '536250'; // Hương Thủy: 06:30, 12:30 (nghỉ CN)
+const TH = '533140'; // Thuận Hóa: 07:00, 12:45, 12:55, 19:45, 22:00 (chạy cả Chủ nhật; lịch chuẩn 05/11) — hạn đến = giờ rời − 60 phút
+const HT = '535470'; // Hương Trà: 06:10, 12:00
+const HTHUY = '536250'; // Hương Thủy: 07:30, 12:45 (12:45 nghỉ CN)
 const LICH = (() => { const db = new Database(':memory:'); ensureKttSchema(db); try { return L.docLichChuyen(db).lich; } finally { db.close(); } })();
 const NGU = (bayGio = '2026-10-23 10:00:00') => ({ lich: LICH, hanPhut: 60, bayGio });
 const D = '2026-10-20';
@@ -37,14 +37,14 @@ test('năm trạng thái: đi trong ngày D đúng / trượt chuyến (T1, T2),
   assert.equal(tt({ quetDen: '2026-10-20 21:30:00', gioBd10Di: '2026-10-21 09:00:00' }), 'T4');
   assert.equal(tt({ gioBd10Di: '2026-10-22 10:00:00' }), 'T5', 'đi từ D+2');
   assert.equal(tt({ gioBd10Di: '2026-10-22 06:00:00' }), 'T5', 'đi từ D+2 dù đúng chuyến');
-  assert.equal(tt({ quetDen: '2026-10-20 11:00:00' }), 'T5', 'chưa đi, đã quá giờ xuất phát 12:30 (bayGio 23/10)');
+  assert.equal(tt({ quetDen: '2026-10-20 11:00:00' }), 'T5', 'chưa đi, đã quá giờ xuất phát 12:45 (bayGio 23/10)');
   assert.equal(pl({ quetDen: '2026-10-20 11:00:00' }).chuyenKq, 'LO');
 });
 
 test('«đang chờ chuyến»: chưa đi và chưa tới giờ xuất phát của chuyến thuộc — KHÔNG vào trạng thái 5; đổi bayGio thì đổi kết quả', () => {
   const o = { quetDen: '2026-10-20 11:00:00' };
-  assert.equal(tt(o, '2026-10-20 12:30:00'), 'DANG_CHO_CHUYEN', 'đúng giờ xuất phát: chưa lỡ');
-  assert.equal(tt(o, '2026-10-20 12:30:01'), 'T5');
+  assert.equal(tt(o, '2026-10-20 12:45:00'), 'DANG_CHO_CHUYEN', 'đúng giờ xuất phát: chưa lỡ');
+  assert.equal(tt(o, '2026-10-20 12:45:01'), 'T5');
   assert.equal(tt(o, '2026-10-20 09:00:00'), 'DANG_CHO_CHUYEN');
   assert.equal(pl(o, '2026-10-20 09:00:00').chuyenKq, 'CHUA_DEN_GIO');
 });
@@ -73,11 +73,11 @@ test('đến 21:30 (chuyến thuộc 07:00 hôm sau), BD10 đi 23:00 cùng ngày
   assert.deepEqual([r.trangThai, r.chuyenKq, r.chuyen.ngay, r.chuyen.gio_xuat_phat], ['T1', 'DUNG', '2026-10-21', '07:00']);
 });
 
-test('Chủ nhật và thứ Bảy: hàng đến Chủ nhật đi chuyến đầu tiên liền kề có xe (qua xepChuyen); Hương Thủy thứ Bảy 13:00 -> thứ Hai 06:30 (T5, đúng chuyến)', () => {
-  const cn = S.phanLoaiShbg({ ngayDen: '2026-10-25', nhom: 'BCVH_HUE', maBcvh: TH, quetDen: '2026-10-25 11:40:00', gioBd10Di: '2026-10-25 19:30:00', xndBd10: '2026-10-25 11:40:00' }, NGU());
-  assert.deepEqual([cn.trangThai, cn.chuyen.gio_xuat_phat], ['T1', '19:45'], 'Chủ nhật 12:55 nghỉ, 12:30 quá hạn -> 19:45');
-  const t7 = S.phanLoaiShbg({ ngayDen: '2026-10-24', nhom: 'BCVH_HUE', maBcvh: HTHUY, quetDen: '2026-10-24 13:00:00', gioBd10Di: '2026-10-26 06:00:00', xndBd10: '2026-10-24 13:00:00' }, NGU());
-  assert.deepEqual([t7.trangThai, t7.chuyenKq, t7.chuyen.ngay, t7.chuyen.gio_xuat_phat], ['T5', 'DUNG', '2026-10-26', '06:30']);
+test('Chủ nhật và thứ Bảy: hàng đến Chủ nhật đi chuyến đầu tiên liền kề có xe (qua xepChuyen); Hương Thủy thứ Bảy 13:00 -> Chủ nhật 07:30 (T3, đúng chuyến)', () => {
+  const cn = S.phanLoaiShbg({ ngayDen: '2026-10-25', nhom: 'BCVH_HUE', maBcvh: TH, quetDen: '2026-10-25 11:40:00', gioBd10Di: '2026-10-25 12:40:00', xndBd10: '2026-10-25 11:40:00' }, NGU());
+  assert.deepEqual([cn.trangThai, cn.chuyen.gio_xuat_phat], ['T1', '12:45'], 'Chủ nhật Thuận Hóa chạy đủ: 11:40 -> 12:45 cùng ngày (lịch chuẩn 05/11)');
+  const t7 = S.phanLoaiShbg({ ngayDen: '2026-10-24', nhom: 'BCVH_HUE', maBcvh: HTHUY, quetDen: '2026-10-24 13:00:00', gioBd10Di: '2026-10-25 06:00:00', xndBd10: '2026-10-24 13:00:00' }, NGU());
+  assert.deepEqual([t7.trangThai, t7.chuyenKq, t7.chuyen.ngay, t7.chuyen.gio_xuat_phat], ['T3', 'DUNG', '2026-10-25', '07:30']);
 });
 
 test('nhóm riêng: đích không rõ / ngoài phạm vi (530900, KHAC, KTT) / thiếu giờ quét đến / không xếp được chuyến — không vào năm trạng thái', () => {
@@ -185,7 +185,7 @@ function duLieuNamTrangThai(db) {
   kt(db, 'KTT-DEMO-T3', { quet: '2026-10-20 21:30:00', gioDi: '2026-10-21 06:30:00' });
   kt(db, 'KTT-DEMO-T4', { quet: '2026-10-20 21:30:00', gioDi: '2026-10-21 09:00:00' });
   kt(db, 'KTT-DEMO-T5A', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-22 10:00:00' });
-  kt(db, 'KTT-DEMO-T5B', { quet: '2026-10-20 11:00:00', nhan: null }); // chưa đi, chuyến 12:30
+  kt(db, 'KTT-DEMO-T5B', { quet: '2026-10-20 11:00:00', nhan: null }); // chưa đi, chuyến 12:45
 }
 
 test('luuThoatTheoNgay: mỗi trạng thái 1–5 có SHBG; tổng năm trạng thái + đang chờ + nhóm riêng = số SHBG của ngày; mỗi SHBG đúng một trạng thái', () => {
@@ -354,10 +354,10 @@ test('«bây giờ» = độ mới dữ liệu (cặp OK gần nhất), không p
   ok('2026-10-20 12:00:00');
   const a = QL.luuThoatTheoNgay(db, o);
   assert.equal(a.nguon_xuat_luc_moi_nhat, '2026-10-20 12:00:00'); assert.equal(a.meta.nguon_xuat_luc_moi_nhat, '2026-10-20 12:00:00');
-  assert.equal(sl(ngayCua(a, D).tong).dang_cho_chuyen, 1, 'độ mới 12:00 < 12:30: đang chờ chuyến');
+  assert.equal(sl(ngayCua(a, D).tong).dang_cho_chuyen, 1, 'độ mới 12:00 < 12:45: đang chờ chuyến');
   ok('2026-10-20 13:00:00');
   const b = QL.luuThoatTheoNgay(db, o);
-  assert.equal(sl(ngayCua(b, D).tong).t5, 1, 'độ mới 13:00 > 12:30: lỡ chuyến');
+  assert.equal(sl(ngayCua(b, D).tong).t5, 1, 'độ mới 13:00 > 12:45: lỡ chuyến');
   assert.equal(b.theo_ngay[0].da_chot, false);
   ok('2026-10-21 09:00:00');
   assert.equal(QL.luuThoatTheoNgay(db, o).theo_ngay[0].da_chot, true);
@@ -396,7 +396,7 @@ test('kttQuery dùng lịch CHÍNH THỨC: chuyến mang tên giờ xe rời KTT
   db.exec("UPDATE ktt_lich_cau_hinh SET gia_tri = 30 WHERE khoa = 'han_den_truoc_chuyen_phut'"); // hạn 06:30: quét 05:30 vẫn chuyến 07:00; đổi quét sang 06:45 -> sát giờ
   assert.deepEqual(Q.chuyenTheoBcvh(db, OPT).chotTruocPhut, [30]);
   db.exec("UPDATE ktt_lich_chuyen SET dang_dung = 0 WHERE ma_bcvh = '533140' AND gio_xuat_phat = '07:00'");
-  assert.deepEqual(Q.chuyenTheoBcvh(db, OPT).theoBcvhChuyen.map((x) => x.chuyen), ['12:30'], 'tắt chuyến 07:00: hàng quét 05:30 vào chuyến 12:30 (đi 06:50 vẫn đúng)');
+  assert.deepEqual(Q.chuyenTheoBcvh(db, OPT).theoBcvhChuyen.map((x) => x.chuyen), ['12:45'], 'tắt chuyến 07:00: hàng quét 05:30 vào chuyến 12:45 (đi 06:50 vẫn đúng)');
   db.close();
 });
 

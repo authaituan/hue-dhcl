@@ -52,5 +52,20 @@ module.exports = Object.freeze({
   ktt_so_cap_toi_thieu_ngay: 2,
 
   // ---- Hàng tại KTT: trang Lưu thoát (KTT-8; đọc qua server/config/ktt-nap.js) ----
-  ktt_gio_chot_ngay: '09:00'
+  ktt_gio_chot_ngay: '09:00',
+
+  // ---- Hàng tại KTT: «Bức tranh đường thư đến» (KTT-KD-1 pha 2; đọc qua server/config/ktt-buc-tranh.js) ----
+  ktt_bt_gap_cum_phut: 60,
+  ktt_bt_cum_nho_shbg: 5,
+  ktt_bt_mau_toi_thieu: 100,
+  ktt_bt_phan_vi_tuong_doi: 80,
+  ktt_bt_kien_di_ngoai_pct: 30,
+  ktt_bt_kien_ngoai_phan_vi: 80,
+  ktt_bt_chuyen_gom_he_so: 1.5,
+  ktt_bt_sat_gio_chot_phut: 60,
+  ktt_bt_ngay_toi_thieu: 20,
+  ktt_bt_con_lai_gio: 3,
+  ktt_bt_ty_le_con_lai_pct: 25,
+  ktt_bt_meo_theo_lo_phut: 120,
+  ktt_bt_san_luong_lon_phan_vi: 80 // KTT-KD-3b: cờ «Sản lượng lớn» ở cấp đường thư (màn «Giờ đến trong ngày»)
 });

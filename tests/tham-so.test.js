@@ -16,6 +16,7 @@ const { importArrivalFile, EXPECTED_HEADER } = require('../server/lib/arrivalsIm
 const { VALID_BCVH_CODES } = require('../server/lib/userBcvh');
 const TS = require('../server/lib/thamSo');
 const KN = require('../server/config/ktt-nap');
+const BT = require('../server/config/ktt-buc-tranh');
 const DB_TS = require('../server/config/tham-so');
 const MD = require('../server/config/tham-so-mac-dinh');
 const CF = require('../server/lib/phatConfig');
@@ -177,13 +178,16 @@ const GETTER_THEO_KHOA = {
   gio_mong_doi_sang: () => NN.GIO_MONG_DOI_SANG, gio_mong_doi_chieu: () => NN.GIO_MONG_DOI_CHIEU, an_han_phut: () => NN.AN_HAN_PHUT,
   nguong_it: () => NN.NGUONG_IT, nguong_nhieu: () => NN.NGUONG_NHIEU, so_tuan_mau: () => NN.SO_TUAN_MAU, toi_thieu_ngay_mau: () => NN.TOI_THIEU_NGAY_MAU,
   ktt_chu_ky_quet_phut: () => KN.CHU_KY_QUET_PHUT, ktt_cho_cap_phut: () => KN.CHO_CAP_PHUT, ktt_cu_gio: () => KN.CU_GIO, ktt_khung_gio_tu: () => KN.KHUNG_GIO_TU,
-  ktt_khung_gio_den: () => KN.KHUNG_GIO_DEN, ktt_so_cap_toi_thieu_ngay: () => KN.SO_CAP_TOI_THIEU_NGAY, ktt_gio_chot_ngay: () => KN.GIO_CHOT_NGAY
+  ktt_khung_gio_den: () => KN.KHUNG_GIO_DEN, ktt_so_cap_toi_thieu_ngay: () => KN.SO_CAP_TOI_THIEU_NGAY, ktt_gio_chot_ngay: () => KN.GIO_CHOT_NGAY,
+  ktt_bt_gap_cum_phut: () => BT.GAP_CUM_PHUT, ktt_bt_cum_nho_shbg: () => BT.CUM_NHO_SHBG, ktt_bt_mau_toi_thieu: () => BT.MAU_TOI_THIEU, ktt_bt_phan_vi_tuong_doi: () => BT.PHAN_VI_TUONG_DOI,
+  ktt_bt_kien_di_ngoai_pct: () => BT.KIEN_DI_NGOAI_PCT, ktt_bt_kien_ngoai_phan_vi: () => BT.KIEN_NGOAI_PHAN_VI, ktt_bt_chuyen_gom_he_so: () => BT.CHUYEN_GOM_HE_SO, ktt_bt_sat_gio_chot_phut: () => BT.SAT_GIO_CHOT_PHUT, ktt_bt_ngay_toi_thieu: () => BT.NGAY_TOI_THIEU,
+  ktt_bt_con_lai_gio: () => BT.CON_LAI_GIO, ktt_bt_ty_le_con_lai_pct: () => BT.TY_LE_CON_LAI_PCT, ktt_bt_meo_theo_lo_phut: () => BT.MEO_THEO_LO_PHUT, ktt_bt_san_luong_lon_phan_vi: () => BT.SAN_LUONG_LON_PHAN_VI // KTT-KD-1 pha 2: 11 khóa; KTT-KD-3b: +1
 };
 const CHI_DOC = ['nguong_du_so_lieu', 'ranh_gioi_dot', 'khung_gio_den', 'nhom_cho', 'rang_ngay_nap_truoc', 'rang_ngay_nap_sau', 'ty_le_ngoai_khoang_toi_da'];
 
 test('danh bạ: mọi `mac_dinh` khớp hằng số mặc định VÀ giá trị hiệu lực của 4 file hằng số (khi chưa ai chỉnh)', () => {
   const sua = DB_TS.DANH_BA.filter((x) => !x.chi_doc);
-  assert.deepEqual(sua.map((x) => x.khoa).sort(), Object.keys(GETTER_THEO_KHOA).sort(), 'đúng 32 khóa sửa được');
+  assert.deepEqual(sua.map((x) => x.khoa).sort(), Object.keys(GETTER_THEO_KHOA).sort(), 'đúng 45 khóa sửa được (32 + 13 khóa ktt_bt_* của KTT-KD-1 pha 2, 1d và KTT-KD-3b)');
   for (const x of sua) {
     assert.deepEqual(x.mac_dinh, MD[x.khoa], x.khoa);
     assert.deepEqual(GETTER_THEO_KHOA[x.khoa](), x.mac_dinh, `getter ${x.khoa}`);
@@ -267,11 +271,11 @@ test('lớp đọc tải riêng (chưa khoiTao, không DB): trả mặc định 
 // =====================================================================
 // 2. API đọc, quyền
 // =====================================================================
-test('GET /api/tham-so: hình dạng — nhóm, tham_so[39 khóa: 32 sửa được + 7 chỉ-đọc], phien_ban; chưa sửa thì la_mac_dinh true, cap_nhat_* null', async () => {
+test('GET /api/tham-so: hình dạng — nhóm, tham_so[52 khóa: 45 sửa được + 7 chỉ-đọc], phien_ban; chưa sửa thì la_mac_dinh true, cap_nhat_* null', async () => {
   const g = await get();
   assert.equal(g.status, 200);
   assert.deepEqual(Object.keys(g.body), ['nhom', 'tham_so', 'phien_ban']);
-  assert.equal(g.body.tham_so.length, 39);
+  assert.equal(g.body.tham_so.length, 52);
   assert.deepEqual(Object.keys(g.body.tham_so[0]), ['khoa', 'nhom', 'nhan', 'mo_ta', 'anh_huong', 'vi_du', 'nhin_thay_o', 'kieu', 'don_vi', 'min', 'max', 'rang_buoc', 'mac_dinh', 'gia_tri', 'la_mac_dinh', 'chi_doc', 'cap_nhat_luc', 'cap_nhat_boi']);
   for (const x of g.body.tham_so) { assert.equal(x.la_mac_dinh, true, x.khoa); assert.equal(x.cap_nhat_luc, null); assert.equal(x.cap_nhat_boi, null); assert.deepEqual(x.gia_tri, x.mac_dinh); }
   assert.deepEqual(g.body.tham_so.filter((x) => x.chi_doc).map((x) => x.khoa).sort(), [...CHI_DOC].sort());

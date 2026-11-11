@@ -20,6 +20,7 @@ const TAC_VU = Object.freeze({
   chiTietCu: (db, a) => Q.chiTiet(db, a),
   chiTietLuuThoat: (db, a) => QL.danhSachLuuThoat(db, a),
   xuatLuuThoat: (db, a) => X.xuatLuuThoat(db, a), // KTT-8b: toàn bộ SHBG (không phân trang) cho file xlsx
+  xuatKhongDat14h: (db, a) => X.xuatKhongDat14h(db, a), // KTT-KD-1: sheet 10, toàn bộ SHBG nhóm nguyên nhân A–E của một mốc
   xuatHomSauChuaDi: (db, a) => X.xuatHomSauChuaDi(db, a), // KTT-8d: sheet 8, toàn bộ SHBG của một ô (cùng lượt duyệt với danhSachDiNgay)
   danhSachDiNgay: (db, a) => DQ.danhSach(db, a), // KTT-12: danh sách bấm ô «hôm sau» / «chưa đi trên 24 giờ»
   hangDen: (db, a) => HD.tinh(db, a), // KTT-12: trang A «Hàng đến từ xe Cấp 1»

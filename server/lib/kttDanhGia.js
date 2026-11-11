@@ -35,7 +35,7 @@ const NGUONG_DANH_GIA = Object.freeze({
 
 const MUC_DO = Object.freeze({ THONG_TIN: 'THONG_TIN', LUU_Y: 'LUU_Y', CANH_BAO: 'CANH_BAO' });
 const TEN_BCVH = new Map(DIA_BAN_PHAT_MAC_DINH.map(([ma, ten]) => [ma, ten]));
-// KTT-7b: tên chuyến là GIỜ XE RỜI KTT dạng 'HH:MM' (lịch chính thức ktt_lich_chuyen), câu văn nói «chuyến 12:30»; thứ tự chuyến = thứ tự chuỗi giờ.
+// KTT-7b: tên chuyến là GIỜ XE RỜI KTT dạng 'HH:MM' (lịch chính thức ktt_lich_chuyen), câu văn nói «chuyến 12:45»; thứ tự chuyến = thứ tự chuỗi giờ.
 const tenChuyen = (c) => String(c);
 const truocChuyen = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const DON_VI = { TUI: 'túi', SHBG: 'bưu gửi' };

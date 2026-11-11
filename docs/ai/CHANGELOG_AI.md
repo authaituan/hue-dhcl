@@ -2,6 +2,67 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-11] - KTT-KD-3e → 3e6: bảng «Giờ đến × Đường thư» gọn, sửa tiếp theo các lần kiểm, xuất xlsx (chỉ giao diện `src/components/ktt/`; nhánh `feat/ktt-kd-3-gio-den-api`, commit đầu `f1106be`)
+
+- `KttKhongDat14h.jsx`: thay bảng lưới «Giờ đến × Đường thư» bằng bảng 5 cột mỗi đường thư một dòng (xếp theo «Không đạt (đã đi)», «Ít mẫu» khi đo được < 20 không tính %, lưới 24 giờ mở khi bấm dòng, dấu ▼ giờ chốt khi chọn một BCVH); bấm ô giờ lọc danh sách kiểm chứng theo ĐÚNG đường thư (`nguon`) và giờ (`gio_den`), chip ghi «… · giờ quét túi đến: X giờ» + ghi chú «Danh sách gồm cả hàng chưa đi đã quá chỉ tiêu, nên có thể nhiều hơn số trong ô.»; tiêu đề lưới «…theo giờ quét túi đến» (+ dòng «Lưới này luôn tính theo giờ quét túi đến.» ở mốc «Giờ xác nhận BD10 đến»); «Giờ đến nhiều nhất» cố định theo bưu gửi; khối Top không in % cho «Ít mẫu»; `null` → «chưa đủ số liệu», 0 thật → 0 / «0 kg»; câu chỉ tiêu đọc từ API `con-lai-theo-gio` (bỏ vế «riêng phường …» khi API không trả); lỗi route chính có nút «Tải lại»; danh sách kiểm chứng đọc đúng tên trường thật (`duong_thu_den_ten/ma`, `gio_xac_nhan_bd10_den`, `gio_quet_tui_den`, `ten_bcvh`, `gio_xuat_phat`), «Ngày đến» theo mốc đang chọn; chống chạy đua bằng mã yêu cầu.
+- `kttApi.js:370`: nút xuất xlsx gửi `moc_chi_tieu` (trước gửi `moc` nên route luôn trả 400).
+- `KttGioDenTrongNgay.jsx`: cửa sổ «Lọc đường thư» neo mép trái nút, tính theo `clientWidth` (không làm trang rộng thêm), Esc đóng và trả con trỏ về nút.
+- `KttCoTinhChiTieu.jsx`: thêm `chiTieuInfo` (chỉ tiêu, ngoại lệ, giờ chốt, hạn đến) và truyền `unit`, `onUnitChange`, `chiTieuInfo` cho khối.
+- Kiểm: 3e2/3e4/3e6 (Claude Code, chỉ đọc, JSON từ lõi thật); xuất xlsx 15 tổ hợp qua router thật + `authRequired` thật: HTTP 200, số dòng = danh sách, GDVH/TIVI 403. `npm test` 1392 / 1382 pass / 0 fail / 10 skipped; build ✓. Không đụng `server/`, `tests/`, `docs/` (trừ mục này), `KttLuuThoat.jsx`.
+- Còn nợ / cần server: lưới 24 giờ và `gio_den` luôn theo giờ QUÉT túi đến kể cả mốc A (`kttKhongDat14h.js:127,271`); `chi-tiet?loai=khong_dat_14h` chưa có bộ lọc «đã đi A–D» (danh sách có thể nhiều hơn ô khi có hàng nhóm E); giờ chốt theo đường thư, tần suất chuyến, `do_duoc_kg`, `chi_tieu_gio`/`chi_tieu_gio_ngoai_le` trong `khong-dat-14h`. Chữ «14 giờ» còn ở tên khối/nhãn khung chờ (PO giữ nguyên).
+
+## [2026-11-07] - KTT-KD-3b3: chốt tên trường và bổ sung trường thiếu cho API «Giờ đến trong ngày» (server, test, docs; nhánh `feat/ktt-kd-3-gio-den-api`, commit đầu `adf9f2f`)
+
+- `server/lib/kttGioDen.js`: THÊM `san_luong_loc` (sản lượng theo loại ngày đang lọc: số ngày của loại ngày / có hàng, bưu gửi và kg trung bình ÷ ngày có hàng và ÷ ngày của loại ngày; null khi không hàng) ở mỗi đường thư, `khac`, `tong` và `tinhTheoNgay`; `trong_tui` ở `khac` / `tong`; `meo_theo_lo` ở mọi dòng `danh_sach`.
+- `server/lib/kttApi.js`: THÊM `canh_bao_ma` (`MOC_A_CO_THE_MEO`, `CANH_BAO_HE_THONG`, `CHUA_CO_DU_LIEU`) ở `gio-den` và `gio-den/theo-ngay`; `canh_bao` cũ giữ nguyên.
+- Test: `tests/ktt-gio-den.test.js` 25 ca (+5). JSON các route / trường cũ so trước / sau trên dữ liệu giả: giống (chỉ thêm khóa).
+- Docs: `42_KTT_API.md` mục 22 (BẢNG TÊN CHUẨN + bảng mã `canh_bao_ma`), `04_DECISIONS.md` #128 mục 8. Không đụng `src/`.
+
+## [2026-11-05] - KTT-KD-3b2: sửa cờ «Giờ đến không cố định» và khoảng giờ vắt nửa đêm (server, test, docs; nhánh `feat/ktt-kd-3-gio-den-api`)
+
+- `server/lib/kttGioDen.js`: cờ `gio_den_khong_co_dinh` đo độ ổn định TỪNG CHUYẾN (chuyến từ 5 ngày có hàng; P90−P10 giờ giữa qua các ngày; trung bình trọng số bưu gửi; ≥ P80; không đủ chuyến: null, không cờ). Thêm `gio_den_ngay.do_rong_chuyen_phut`, `so_chuyen_du_ngay`, `vat_nua_dem` (cả `dai_thuong_gap` ở route theo-ngay), `chuyen[].so_ngay_co_hang`, `chuyen[].do_rong_phut`; `do_rong_phut` theo vòng 24 giờ, ≥ 0. Không đổi trường cũ khác.
+- `package.json`: thêm `tests/ktt-lap-ngay-nghi.test.js` vào script `test`.
+- Test: `tests/ktt-gio-den.test.js` 20 ca (+3). JSON route cũ (so với `c392fc7`) giống từng byte.
+- Docs: `42` mục 22, `04_DECISIONS.md` #128.
+
+## [2026-11-05] - KTT-KD-3b: API «Giờ đến trong ngày» (server, test, docs; nhánh `fix/ktt-lich-chuan`)
+
+- `server/lib/kttGioDen.js` (MỚI, hàm thuần): chuyến thư đến theo mã đường thư (`chiaBang`, ≤ 60 phút một chuyến), đường thư × 24 giờ, giờ giữa mỗi chuyến mỗi ngày, dấu hiệu cấp đường thư, «Khác» / «Tổng», từng ngày, dải còn lại theo giờ. `kttBucTranh.js`: chỉ thêm export `tod, trongBang, trai, sapTang`.
+- `server/lib/kttApi.js` + `server/routes/ktt.js`: 3 route mới `…/buc-tranh-duong-thu/gio-den`, `…/gio-den/theo-ngay`, `…/con-lai-theo-gio` (ADMIN, TTVH, TTKT; cùng cache theo ngày, không thêm lượt duyệt SHBG). Tham số hệ thống mới `ktt_bt_san_luong_lon_phan_vi` = 80 (`tham-so-mac-dinh.js`, `ktt-buc-tranh.js`, `tham-so.js`).
+- Test: `tests/ktt-gio-den.test.js` (17 ca); `tests/tham-so.test.js` (45 khóa sửa được / 52 khóa). Đã so JSON các route cũ (luu-thoat, khong-dat-14h, ba route bức tranh, meta) trước và sau trên dữ liệu giả: giống từng byte.
+- Docs: `42` mục 22; `04_DECISIONS.md` #128; `00_SNAPSHOT.md`; `03_ARCHITECTURE_MAP.md`.
+
+## [2026-11-05] - KTT-LICH-2: lịch chuẩn 05/11/2026 (server, test, docs; nhánh `fix/ktt-lich-chuan`)
+
+- `server/lib/kttSchema.js`: `LICH_CHUYEN_MAC_DINH` = lịch chuẩn (14 dòng); cột `ngay_chay_xac_nhan` (ALTER cho DB cũ); migration MỘT lần `apDungLichChuan` theo khóa `lich_phien_ban` = `20261105` (một giao dịch, DB cũ / «lai» / mới về đúng 14 dòng, lần hai không đổi); bỏ seed lịch V1 (`CHUYEN_MAC_DINH = []`).
+- `server/lib/kttLichChuyen.js`: `docLichChuyen` đọc `ngay_chay_xac_nhan`; thêm `lapNgayNghi`, `bcvhChuaXacNhanChuNhat`. `kttBucTranh.js` / `kttApi.js`: `luu_y_lich` lấy từ `ngay_chay_xac_nhan` (hiện không BCVH nào); chữ ký cache `chuKyLich` thêm xác nhận + `lich_phien_ban`; `kttQuery.js` / `kttApi.meta` lọc cảnh báo V1 rỗng.
+- BD10 lập ngày chuyến nghỉ: phương án A ở `kttLichXe.gioLapBd10` (`lap_ngay_nghi`, loại khỏi «lập sau giờ xe»), phương án B ở `kttLuuThoat` / `kttLuuThoatQuery` / `kttApi.khongDat14h` (cờ phụ `meta.lap_ngay_nghi*`, khối `lap_ngay_nghi`). Hợp đồng: chỉ THÊM field; `luu_y_lich` đổi nghĩa (chưa xác nhận).
+- Test: `tests/ktt-lich-chuyen.test.js` (27 ca: lịch chuẩn, migration lai / lần hai / rollback, từng BCVH × thường / CN, Thuận Hóa CN đủ 5 chuyến, Hương Thủy CN chỉ 07:30, A Lưới cả tuần, sau chuyến cuối → chuyến đầu ngày kế, `lapNgayNghi`), `tests/ktt-lap-ngay-nghi.test.js` (mới, 3 ca), `tests/ktt-api.test.js` (cache hủy khi đổi lịch), `tests/helpers/lichKichBan.js` (bộ lịch giả định cho `ktt-khong-dat-14h`); cập nhật giờ ở `ktt-luu-thoat`, `ktt-query`, `ktt-buc-tranh`, `ktt-xuat`, `ktt-ro-lai-truot-chuyen`, `ktt-cau-hinh`, `ktt-import`.
+- Docs: `40` (viết lại mục 1–8), `41` (mục 21), `42` (mục 21), `43`, `36`, `38`, `03`, `00_SNAPSHOT`, `04_DECISIONS` #127 (`#112` phần lịch bị thay), hợp đồng API KTT-KD-1.
+- Đo trên bản sao DB (30 ngày, hai mốc): xem báo cáo KTT-LICH-2; số «đúng / trượt chuyến» đổi ở Thuận Hóa, Hương Trà, Hương Thủy; tổng đạt / không đạt 14 giờ không đổi.
+
+## [2026-11-05] - KTT-KD-1d: cờ `nhieu_kien_di_ngoai` = ≥ 30% VÀ thuộc 20% cụm cao nhất (server, test, docs; nhánh `feat/ktt-kd-1-khong-dat-14h`)
+
+- `server/lib/kttBucTranh.js`: cờ `nhieu_kien_di_ngoai` thêm điều kiện ≥ phân vị `kienNgoaiPhanVi` (80) của `kien_di_ngoai.ty_le` các cụm không «mẫu ít» (cùng `nguongTuongDoi` với `that_thuong`); `nguong_ap_dung` thêm `kienNgoaiPhanVi` (camelCase) và `phan_vi_kien_ngoai` (ngưỡng đã tính); lý giải thẻ nêu cả hai điều kiện. Số đo thô, tên / đơn vị trường, cờ khác: không đổi.
+- Tham số hệ thống MỚI `ktt_bt_kien_ngoai_phan_vi` (mặc định 80, 50–99; `tham-so-mac-dinh.js`, `tham-so.js`, `ktt-buc-tranh.js`, `kttApi.js` `nguongBt`); khóa `ktt_bt_kien_di_ngoai_pct` (30) giữ nguyên, mô tả sửa. `tests/tham-so.test.js`: đếm khóa 50 → 51, sửa được 43 → 44.
+- Test: `tests/ktt-buc-tranh.test.js` thêm 2 ca (bộ giả 10 cụm tỷ lệ 5…50%: đúng 2 cụm bị gắn, 30–40% ngoài top 20% không gắn; bộ 2,5…25%: top 20% dưới 30% không gắn; phân vị 90 → 1 cụm; mẫu ít không vào phân bố).
+- Đo trên bản sao DB (30 ngày): cụm không «mẫu ít» bị gắn trước → sau: mốc A 33/93 (35,5%) → 19/93 (20,4%), mốc B 21/69 (30,4%) → 14/69 (20,3%). Docs: 41 mục 20, 42 mục 20, 04 #126, 00_SNAPSHOT, 03, ticket KTT-KD-1.
+
+## [2026-11-04] - KTT-KD-1 pha 2 (bản sửa 2): «Bức tranh đường thư đến» + `moc` cho «Vì sao không đạt 14 giờ» (server, test, docs; KHÔNG đổi `src/`, giao diện là KTT-KD-2)
+
+- `server/lib/kttBucTranh.js` MỚI (hàm thuần): cột số theo SHBG của từng ngày (cộng trong CÙNG lượt duyệt `luuThoatTheoNgay`), «chuyến thư đến» = (đường thư, lịch BD10 đến, băng giờ tách khi cách > 60 phút), cụm / ô (cụm × BCVH × loại ngày) / chuyến xe cấp 2, 7 cờ theo ngưỡng TƯƠNG ĐỐI (`that_thuong`, `khong_co_lich_co_dinh` từ phân vị 80; `nhieu_kien_di_ngoai`; `chuyen_gom_nhieu_hang`; `sat_gio_chot` = theo dõi; `sat_chi_tieu`; `mau_it`), Pareto + `luy_ke_pct`, `luu_y_lich` cho ô Chủ nhật. Không đổi quy tắc tính hay lịch chuyến.
+- `server/lib/kttQuery.js`: thêm `lichDenMa` / `lichDenTen` (định danh lịch BD10 đến; chỉ để gom cụm). `server/lib/kttLuuThoatQuery.js`: gắn bộ cộng, `kq.tranh` (không vào JSON), `ghepKhoang` ghép. `server/lib/kttApi.js` + `server/routes/ktt.js`: `GET /api/ktt/luu-thoat/buc-tranh-duong-thu[/chuyen-xe|/danh-gia]` (cả hai mốc, `moc` mặc định A), `huyCacheNgay`, `khong-dat-14h` thêm `moc` (mặc định A; route chưa phát hành).
+- `server/config/ktt-buc-tranh.js` MỚI + 11 tham số hệ thống `ktt_bt_*` (`tham-so-mac-dinh.js`, `tham-so.js`; nhóm «Hàng tại KTT»; sửa được, hiệu lực ngay). `tests/tham-so.test.js` chỉ cập nhật đếm khóa (39 → 50; 32 → 43 sửa được) và bảng getter.
+- Test: `tests/ktt-buc-tranh.test.js` MỚI (17 ca, dữ liệu giả; thêm vào script `test`): băng giờ, đúng 20% bị gắn cờ trên bộ giả, mẫu ít, loại ngày Chủ nhật, `luu_y_lich`, đẳng thức mẫu số hai mốc, cache theo ngày, mốc mặc định A, quyền + từ chối mặc định. `npm test`: 1353 ca (1343 pass, 0 fail, 10 skip).
+- Đo trên bản sao DB (30 ngày 05/10–03/11, 127.738 mẫu số): đẳng thức lệch 0; thêm ≈ +0,7 giây (−0,2…+1,4 giữa các lần, nhiễu máy) vào lượt nguội 30 ngày (≈10–12 giây trên máy này); ba route lúc nóng 0,2–0,5 giây. Docs: `41` mục 20, `42` mục 20, `04_DECISIONS.md` #126, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `tickets/KTT-KD-1.md`. Sau merge phải khởi động lại máy chủ.
+
+## [2026-11-04] - KTT-KD-1: «Vì sao không đạt 14 giờ» ở máy chủ (server, test, docs; KHÔNG đổi `src/`, giao diện là KTT-KD-2)
+
+- `server/lib/kttKhongDat14h.js` MỚI (hàm thuần + bộ cộng): nhóm A–E (A ưu tiên B), `truot_chuyen_ke`, E chia theo số chuyến trễ, tỷ lệ chuẩn, cắt theo giờ / thứ / nguồn hàng / BCVH × loại ngày / đường thư / chuyến / khung chờ, dư địa theo giờ (biên an toàn, chờ theo lịch, dư địa, sát giờ 30/60/90), đợt đến = BD10 đến. Chỉ ĐỌC `kq.chiTieu14h[m]` và `danhGiaChuyenLich`; không đổi quy tắc nào.
+- `server/lib/kttLuuThoatQuery.js`: `luuThoatTheoNgay` gọi bộ cộng trong cùng lượt duyệt; `chi_tieu_14h.theo_moc[m].nguyen_nhan` (chỉ thêm) ở `tong`, `theo_bcvh`, `theo_nguon_hang`; khối nặng đi kèm kết quả (`kq.nang`, không vào JSON) và được `ghepKhoang` ghép; nhóm `khong_dat_14h` trong `NHOM_LUU_THOAT`; `duyetLuuThoat` truyền `u`, `ngu` cho bộ lọc. `server/lib/kttLuuThoat.js`: `congChiTieu14h` cộng được `kg` null.
+- `server/lib/kttApi.js` + `server/routes/ktt.js`: `GET /api/ktt/luu-thoat/khong-dat-14h`, `/chi-tiet?loai=khong_dat_14h` (tham số mới, 400 tiếng Việt), `GET /api/ktt/xuat/khong-dat-14h`; `kttXuat.js`: sheet «10 Không đạt 14 giờ» (27 cột); `kttWorker.js`: tác vụ `xuatKhongDat14h`. Số 9 giữ chỗ cho «gói 9 sheet» Đối chiếu.
+- Test: `tests/ktt-khong-dat-14h.test.js` MỚI (16 ca, dữ liệu giả), thêm vào script `test`. Docs: `41` mục 19, `42` mục 19, `04_DECISIONS.md` #125, `00_SNAPSHOT.md`, `03_ARCHITECTURE_MAP.md`, `tickets/KTT-KD-1.md`. Sau merge phải khởi động lại máy chủ.
+
 ## [2026-11-03] - KTT-RL-1: số lồng nhau «rớt lại, trong đó trượt chuyến» ở máy chủ (server, test, docs; KHÔNG đổi `src/`)
 
 - `server/lib/kttNguon.js`: thêm `ro_lai_truot_chuyen` ở nhóm nguồn, `theo_bcvh` trong nhóm và `congNguon` (tính trong `taoNguon().them`, cùng lượt duyệt, không truy vấn mới). = `truot_chuyen` − t2; ≤ `ro_lai`, ≤ `truot_chuyen`. Không đổi số liệu cũ; bộ nhớ đệm chỉ trong tiến trình nên không đổi phiên bản.

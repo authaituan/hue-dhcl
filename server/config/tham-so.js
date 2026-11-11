@@ -262,6 +262,98 @@ const SUA_DUOC = [
     vi_du: 'Đặt 09:00: dữ liệu cập nhật đến 08:59 ngày 21/10 thì ngày 20/10 chưa chốt, đến 09:00 là chốt. Đặt 15:00: phải đến 15:00 ngày 21/10 mới chốt.',
     nhin_thay_o: ['Hàng tại KTT: trang «Lưu thoát» (API /api/ktt/luu-thoat, /meta): nhãn «đã chốt / đang cập nhật»']
   }),
+  // ---------------- Hàng tại KTT: «Bức tranh đường thư đến» (KTT-KD-1 pha 2) ----------------
+  sua('ktt_bt_gap_cum_phut', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: hai lần đến cách nhau quá bao lâu thì tách «chuyến thư đến»', kieu: 'so_nguyen', min: 10, max: 240, don_vi: 'phút',
+    mo_ta: 'Các lần hàng đến của cùng một đường thư và cùng một lịch được xếp theo giờ trong ngày; hai lần đến liền nhau cách nhau quá chừng này thì tách thành hai «chuyến thư đến».',
+    anh_huong: 'Đổi cách chia «chuyến thư đến» của bức tranh (số chuyến, giờ đến, các cờ); không đổi số bưu gửi và các con số lưu thoát. Có hiệu lực ngay.',
+    vi_du: 'Đặt 60: hàng đến 05:30 và 07:00 thuộc hai chuyến. Đặt 120: cùng hai lần đến đó gộp thành một chuyến.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến» (API /api/ktt/luu-thoat/buc-tranh-duong-thu)']
+  }),
+  sua('ktt_bt_cum_nho_shbg', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: chuyến thư đến nhỏ hơn bao nhiêu bưu gửi thì gộp vào chuyến gần nhất', kieu: 'so_nguyen', min: 1, max: 50, don_vi: 'bưu gửi',
+    mo_ta: 'Một chuyến thư đến chỉ có vài bưu gửi trong cả cửa sổ ngày coi là lẻ và được gộp vào chuyến gần nhất của cùng đường thư và lịch.',
+    anh_huong: 'Chỉ đổi cách chia «chuyến thư đến»; có hiệu lực ngay.',
+    vi_du: 'Đặt 5: chuyến chỉ có 3 bưu gửi gộp vào chuyến kề. Đặt 1: không gộp chuyến nào.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_mau_toi_thieu', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: số bưu gửi tối thiểu để kết luận', kieu: 'so_nguyen', min: 10, max: 10000, don_vi: 'bưu gửi',
+    mo_ta: 'Chuyến thư đến (hoặc ô BCVH) có ít bưu gửi hơn mức này trong cửa sổ ngày thì ghi «mẫu ít, chưa kết luận» và không gắn các cờ cần nhiều số liệu.',
+    anh_huong: 'Đổi số chuyến được xét cờ và nhóm dùng để tính ngưỡng tương đối; có hiệu lực ngay.',
+    vi_du: 'Đặt 100: chuyến 60 bưu gửi / 30 ngày ghi «mẫu ít». Đặt 50: chuyến đó được xét cờ.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_phan_vi_tuong_doi', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Thất thường», «Không có lịch cố định» gắn cho phần trên cùng của phân bố (phân vị)', kieu: 'so_nguyen', min: 50, max: 99, don_vi: 'phân vị',
+    mo_ta: 'Mức dao động sản lượng ngày và độ rộng giờ đến của một chuyến thư đến được so với các chuyến khác trong cùng cửa sổ; từ phân vị này trở lên thì gắn cờ. Phân vị 80 nghĩa là khoảng 20% chuyến bị gắn cờ.',
+    anh_huong: 'Ngưỡng là con số tương đối, tự đổi theo dữ liệu; đổi phân vị chỉ đổi tỷ lệ chuyến bị gắn cờ. Có hiệu lực ngay.',
+    vi_du: 'Đặt 80: khoảng 1 trong 5 chuyến bị gắn cờ. Đặt 90: khoảng 1 trong 10.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_kien_di_ngoai_pct', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Nhiều kiện đi ngoài» từ', kieu: 'phan_tram_nguyen', min: 1, max: 100, don_vi: '%',
+    mo_ta: 'Chuyến thư đến có từ mức % bưu gửi trở lên là kiện đi ngoài VÀ thuộc nhóm có tỷ lệ cao nhất (xem khóa phân vị kiện đi ngoài) thì gắn cờ «Nhiều kiện đi ngoài». Cả hai điều kiện cùng đúng mới gắn.',
+    anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay, không đổi số bưu gửi và các con số lưu thoát.',
+    vi_du: 'Đặt 30%: chuyến có 35% kiện đi ngoài và nằm trong nhóm cao nhất bị gắn cờ. Đặt 40%: chuyến 35% chưa gắn.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_kien_ngoai_phan_vi', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Nhiều kiện đi ngoài» chỉ gắn cho phần trên cùng của phân bố (phân vị)', kieu: 'so_nguyen', min: 50, max: 99, don_vi: 'phân vị',
+    mo_ta: 'Tỷ lệ kiện đi ngoài của một chuyến thư đến được so với các chuyến khác (không tính chuyến «mẫu ít») trong cùng cửa sổ; chỉ chuyến từ phân vị này trở lên (và đạt ngưỡng % ở khóa kiện đi ngoài) mới bị gắn cờ. Phân vị 80 nghĩa là tối đa khoảng 20% chuyến.',
+    anh_huong: 'Ngưỡng tự đổi theo dữ liệu; đổi phân vị chỉ đổi tỷ lệ chuyến bị gắn cờ. Có hiệu lực ngay.',
+    vi_du: 'Đặt 80: tối đa khoảng 1 trong 5 chuyến bị gắn cờ. Đặt 90: tối đa khoảng 1 trong 10.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_chuyen_gom_he_so', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Chuyến gom nhiều hàng» từ (lần mức chia đều số chuyến)', kieu: 'thap_phan', min: 1.1, max: 5, don_vi: 'lần',
+    mo_ta: 'Một chuyến xe cấp 2 nhận từ chừng này lần mức «chia đều số chuyến» của BCVH trong ngày thì gắn cờ. BCVH chỉ có một chuyến mỗi ngày không bao giờ bị gắn cờ.',
+    anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay, không đổi số bưu gửi và các con số lưu thoát.',
+    vi_du: 'Đặt 1,5: BCVH có 3 chuyến (mức chia đều 33%), chuyến nhận từ 50% bị gắn cờ. Đặt 2: phải từ 67%.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_sat_gio_chot_phut', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Sát giờ chốt chuyến» khi cách giờ chốt dưới', kieu: 'so_nguyen', min: 5, max: 240, don_vi: 'phút',
+    mo_ta: 'Hàng của một ô (chuyến thư đến × BCVH) thường đến cách giờ chốt chuyến xe dưới chừng này phút thì gắn cờ «Sát giờ chốt chuyến». Cấp độ luôn là «theo dõi» vì số đo chưa cho thấy sát giờ làm tăng tỷ lệ không đạt.',
+    anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay, không đổi số bưu gửi và các con số lưu thoát.',
+    vi_du: 'Đặt 60: hàng đến cách giờ chốt 45 phút bị tính sát giờ. Đặt 30: chưa.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_ngay_toi_thieu', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: số ngày có hàng tối thiểu để gắn cờ «Sát giờ chốt chuyến»', kieu: 'so_nguyen', min: 1, max: 31, don_vi: 'ngày',
+    mo_ta: 'Ô chỉ bị gắn cờ «Sát giờ chốt chuyến» khi có hàng ít nhất chừng này ngày trong cửa sổ (tránh gắn cờ cho ô thỉnh thoảng mới có hàng).',
+    anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay. Cửa sổ ngắn hơn số này thì không ô nào bị gắn cờ.',
+    vi_du: 'Đặt 20: ô có hàng 12 ngày trong 30 ngày chưa gắn cờ. Đặt 10: gắn cờ.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_con_lai_gio', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: «Sát chỉ tiêu» khi còn lại so với chỉ tiêu dưới', kieu: 'so_nguyen', min: 1, max: 12, don_vi: 'giờ',
+    mo_ta: 'Thời gian còn lại so với chỉ tiêu (14 giờ; 12 giờ cho phường Thuận Hóa, Phú Xuân), nếu xe đi đúng lịch, dưới chừng này giờ thì bưu gửi được tính «sát chỉ tiêu».',
+    anh_huong: 'Chỉ đổi cờ và số «dưới ngưỡng»; có hiệu lực ngay.',
+    vi_du: 'Đặt 3: bưu gửi còn 2,5 giờ là sát chỉ tiêu. Đặt 2: chưa.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_ty_le_con_lai_pct', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: cờ «Sát chỉ tiêu» khi tỷ lệ bưu gửi của ô còn dưới ngưỡng từ', kieu: 'phan_tram_nguyen', min: 1, max: 100, don_vi: '%',
+    mo_ta: 'Ô (chuyến thư đến × BCVH × loại ngày) bị gắn cờ «Sát chỉ tiêu» khi từ mức % bưu gửi của ô còn dưới ngưỡng giờ ở trên. Dùng tỷ lệ chứ không dùng trung vị để không bỏ sót ô có đuôi xấu.',
+    anh_huong: 'Chỉ đổi cờ; có hiệu lực ngay, không đổi số bưu gửi và các con số lưu thoát.',
+    vi_du: 'Đặt 25%: ô có 30% bưu gửi còn dưới 3 giờ bị gắn cờ. Đặt 50%: chưa.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_meo_theo_lo_phut', {
+    nhom: 'hang_tai_ktt', nhan: 'Bức tranh đường thư: giờ đến theo mốc A «méo theo lô» khi lệch mốc B từ', kieu: 'so_nguyen', min: 30, max: 600, don_vi: 'phút',
+    mo_ta: 'Giờ xác nhận BD10 đến (mốc A) thường được xác nhận gom theo lô nên có thể lệch xa giờ quét túi đến (mốc B). Trung vị hai mốc của cùng một chuyến thư đến lệch từ chừng này phút thì ghi chú «méo theo lô».',
+    anh_huong: 'Chỉ đổi cờ ghi chú; có hiệu lực ngay.',
+    vi_du: 'Đặt 120: mốc A 12:28, mốc B 05:39 (lệch hơn 6 giờ) → ghi chú «méo theo lô». Đặt 480: cùng chuyến đó chưa ghi chú.',
+    nhin_thay_o: ['Hàng tại KTT: «Bức tranh đường thư đến»']
+  }),
+  sua('ktt_bt_san_luong_lon_phan_vi', {
+    nhom: 'hang_tai_ktt', nhan: 'Giờ đến trong ngày: «Sản lượng lớn» khi đường thư thuộc nhóm bưu gửi cao nhất, từ phân vị', kieu: 'so_nguyen', min: 50, max: 99, don_vi: 'phân vị',
+    mo_ta: 'Đường thư có số bưu gửi trong khoảng ngày từ mức phân vị này (so với các đường thư đủ mẫu của bộ lọc hiện tại) được gắn dấu hiệu «Sản lượng lớn».',
+    anh_huong: 'Chỉ đổi dấu hiệu; có hiệu lực ngay, không đổi số bưu gửi.',
+    vi_du: 'Đặt 80: 20% đường thư lớn nhất bị gắn dấu hiệu. Đặt 90: chỉ 10% đường thư lớn nhất.',
+    nhin_thay_o: ['Hàng tại KTT: màn «Giờ đến trong ngày»']
+  }),
   sua('ktt_so_cap_toi_thieu_ngay', {
     nhom: 'nap_ktt', nhan: 'Số cặp file tối thiểu mỗi ngày', kieu: 'so_nguyen', min: 1, max: 10, don_vi: 'cặp',
     mo_ta: 'Một ngày đã qua có ít cặp (túi + bưu gửi) nạp thành công hơn mức này thì cảnh báo. Lịch hiện hành là 2 lần xuất mỗi ngày (09:00, 15:00).',

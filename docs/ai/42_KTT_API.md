@@ -198,3 +198,158 @@ Giao diện (KTT-13d) phải gửi đúng quy ước dưới đây để số d�
 - Token TTKT hạn 8 giờ (`JWT_EXPIRY`, như ADMIN / TTVH / GDVH), KHÔNG dùng hạn 90 ngày của TIVI. Quyền theo vai trò trong DB, đổi vai trò có hiệu lực ngay.
 - Test: `tests/ktt-vai-tro-ttkt.test.js` (+ ca TTKT trong `roles.test.js` và các `ktt-*.test.js`).
 - `/luu-thoat` (KTT-RL-1): thêm `ro_lai_truot_chuyen` vào mỗi nhóm của `theo_nguon` và mỗi `theo_bcvh[mã]` trong nhóm (ở mỗi ngày và `tong_cong`). Chỉ thêm trường, không đổi trường cũ; định nghĩa ở `41_KTT_LUU_THOAT.md`. Cần khởi động lại máy chủ sau khi triển khai (bộ nhớ đệm theo ngày nằm trong tiến trình).
+
+## 19. KTT-KD-1 — «Vì sao không đạt 14 giờ» (route mới, chi-tiet mới, xlsx sheet 10; chỉ THÊM)
+
+Quyền như mọi route KTT (ADMIN, TTVH, TTKT; GDVH, TIVI 403; chỉ GET). Mọi JSON dưới đây là **dữ liệu giả**. Định nghĩa nhóm: `41_KTT_LUU_THOAT.md` mục 19.
+
+**1. `GET /api/ktt/luu-thoat`** — mỗi khối `chi_tieu_14h.theo_moc.{xnd,quet_tui_den}` của `tong`, `theo_bcvh[mã]`, `theo_nguon_hang.*.tong` (mỗi ngày và `tong_cong`) có thêm `nguyen_nhan` (khối hàng hoàn KHÔNG có):
+```json
+"nguyen_nhan": {
+  "A": { "shbg": 9, "kg": 12.5, "shbg_thieu_kg": 0 }, "B": { "shbg": 70, "kg": 210.0, "shbg_thieu_kg": 1 },
+  "C": { "shbg": 6, "kg": 31.2, "shbg_thieu_kg": 0 }, "D": { "shbg": 0, "kg": 0, "shbg_thieu_kg": 0 },
+  "E": { "shbg": 200, "kg": null, "shbg_thieu_kg": 200 },
+  "tong": { "da_di": { "shbg": 85, "kg": 253.7, "shbg_thieu_kg": 1 }, "ca_chua_di": { "shbg": 285, "kg": 253.7, "shbg_thieu_kg": 201 } },
+  "truot_chuyen_ke": 4, "b_theo_so_chuyen_tre": { "1": 5, "2": 25, "3_tro_len": 40 },
+  "e_theo_so_chuyen_tre": { "0": 0, "1": 0, "2": 1, "3_tro_len": 199 }, "e_sat_gio": 20
+}
+```
+(`kg` có thể là `null` khi mọi SHBG của ô thiếu kg.) Số cũ không đổi. Thêm khoảng 250 KB (≈ +22%) cho 30 ngày.
+
+**2. `GET /api/ktt/luu-thoat/khong-dat-14h?tu=&den=[&ma_bcvh=&nguon=&thu=&nguon_hang=&bien_sat_gio_phut=30|60|90&top=1..50&moc=A|B]`** — các bảng của cả hai mốc (bộ lọc áp cho MỌI bảng; `du_dia_theo_gio` không có chiều `nguon`). Khóa lạ → 400; `thu` ∈ 2…7, CN. Khóa chính:
+- `tong`: `{ shbg, kg, shbg_thieu_kg, theo_moc: { xnd|quet_tui_den: { nhom: {A..E: {shbg,kg,shbg_thieu_kg}}, tong: {da_di, ca_chua_di}, khong_dat_da_di, chua_di_qua_chi_tieu, do_duoc, ty_le_khong_dat, truot_chuyen_ke, b_theo_so_chuyen_tre, e_theo_so_chuyen_tre, e_sat_gio } } }`. `ty_le_khong_dat` = `khong_dat_da_di / do_duoc` (E không vào).
+- Bảng cùng hình dạng dòng `{ <chiều>, shbg, kg, shbg_thieu_kg, theo_moc: { <mốc>: { nhom, tong, khong_dat_da_di, chua_di_qua_chi_tieu, do_duoc, ty_le_khong_dat, truot_chuyen_ke } } }`: `theo_ngay` (`ngay`), `theo_thu` (`thu`), `theo_nguon_hang` (`nguon_hang`), `theo_bcvh` (`ma_bcvh`), `theo_bcvh_loai_ngay` (`ma_bcvh`, `loai_ngay`), `theo_duong_thu` (`nguon`, `nguon_ten`), `theo_gio_den` (`gio` 0–23), `theo_gio_duong_thu` (`gio`, `nguon`), `theo_bcvh_chuyen` (`ma_bcvh`, `chuyen` 'HH:MM'; KHÔNG có mẫu số: `do_duoc` null).
+- `phan_bo_cho`: [{ `khung_cho` (`den_14h`, `14_16h`, `16_20h`, `20_24h`, `24_36h`, `36_48h`, `tren_48h`), `theo_moc` }] — khung thời gian chờ thực tế (trừ 21:00–07:00) của SHBG không đạt / chưa đi quá chỉ tiêu.
+- `du_dia_theo_gio[]`: `{ gio, ma_bcvh, loai_ngay, shbg, kg, shbg_thieu_kg, theo_moc: {khong_dat_da_di, chua_di_qua_chi_tieu, do_duoc, ty_le_khong_dat}, lo_chuyen: {shbg, mau_so, ty_le}, sat_gio: {"30","60","90"}, bien_an_toan_phut: {tb, p10}, cho_theo_lich_gio: {tb, p90, max}, du_dia_gio: {min, p10} }`.
+- `dot_den[]` (xếp theo `khong_dat_da_di` của mốc `moc`; mặc định `A`, xem mục 20): `{ bd10_den, duong_thu, duong_thu_ten, ngay, gio_dau, gio_cuoi, nhan, chuyen_ke: {ma_bcvh, gio_xuat_phat}, shbg, kg, shbg_thieu_kg, khong_dat_da_di, chua_di_qua_chi_tieu, do_duoc, ty_le_khong_dat, theo_moc, sat_gio: {bien_sat_gio_phut, shbg, ty_le}, bien_an_toan_phut, cho_theo_lich_gio, du_dia_gio }`.
+- `moc` (A mặc định | B) + `moc_mac_dinh` + `moc_dot_den` (`xnd` | `quet_tui_den`: mốc xếp `dot_den`; pha 2 bản sửa 2: mặc định đổi B → A theo PO 04/11/2026; route chưa phát hành, số các bảng không đổi) + `moc_goi_y_chan_doan` = `quet_tui_den` (gợi ý chẩn đoán giữ nguyên), `nhan_nhom`, `ly_do_xep_nhom`, `canh_bao`, `meta.do_chinh_xac_phan_vi`. Chưa có dữ liệu: `co_du_lieu: false`, `ly_do: 'CHUA_CO_DU_LIEU'`.
+
+**3. `GET /api/ktt/chi-tiet?tu=&den=&loai=khong_dat_14h[&moc_chi_tieu=xnd|quet_tui_den&nhom_nguyen_nhan=A..E|tat_ca&gio_den=0..23&chuyen=HH:MM&thu=&nguon_hang=&ma_bcvh=&nguon=&page=&page_size=]`** — dựa `chiTieu14h[m]` của mốc đã chọn (mặc định `xnd`), KHÔNG dựa khối `dat_khong_dat` mốc A (nhóm `khong_dat` cũ luôn là mốc A). `tat_ca` = A–E (3.084 ở mốc A, khác 844 của `khong_dat`). Dòng thêm: `nhom_nguyen_nhan`, `ten_nhom_nguyen_nhan`, `ly_do_xep_nhom` (+ `mo_ta_ly_do_xep_nhom`), `truot_chuyen_ke`, `so_chuyen_tre`, `sat_gio`, `thu`, `moc_chi_tieu`, `nhom_nguyen_nhan_xnd`, `nhom_nguyen_nhan_quet_tui_den`; `kg` null khi thiếu hoặc 0 g. `meta` có các bộ lọc đã dùng. Tham số nhóm nguyên nhân chỉ dùng với `loai=khong_dat_14h` (khác → 400 `KTT_THAM_SO_LA`).
+
+**4. `GET /api/ktt/xuat/khong-dat-14h?tu=&den=`** + cùng bộ lọc mục 3 — file .xlsx hai sheet «Thông tin» + **«10 Không đạt 14 giờ»** (27 cột = 18 cột sheet 7 + 9 cột nhóm nguyên nhân). Số 9 giữ chỗ cho «gói 9 sheet» của trang Đối chiếu (`43_KTT_DI_CUNG_NGAY_API.md` dòng đầu; sheet 1–6 Đối chiếu, 7, 8 hiện có) nên dùng số kế tiếp còn trống là 10. Số dòng = `pagination.total` của chi-tiet cùng tham số = số trên bảng; «Thông tin» ghi đối chiếu màn hình, cảnh báo mốc A, kg không rõ. Trần số dòng, nhật ký, lỗi 400/429/500 như sheet 7. Tên file `KTT_KhongDat14h_MocA|MocB_<tu>_<den>.xlsx`.
+
+Chi phí (bản sao DB, 30 ngày, nguội, xem báo cáo pha 2): xem `CHANGELOG_AI.md`. Test: `tests/ktt-khong-dat-14h.test.js`.
+
+## 20. KTT-KD-1 pha 2 (bản sửa 2) — «Bức tranh đường thư đến» (3 route mới; chỉ THÊM)
+
+Quyền như mọi route KTT (ADMIN, TTVH, TTKT; GDVH, TIVI 403; chỉ GET; TTKT theo allowlist `GET /api/ktt/**`). Định nghĩa cụm, cờ, mốc: `41_KTT_LUU_THOAT.md` mục 20, `04_DECISIONS.md` #126. Mọi JSON dưới đây là **dữ liệu giả**; phản hồi KHÔNG chứa số hiệu bưu gửi / BD10.
+
+**Tham số chung** (khóa lạ hoặc lặp → 400 tiếng Việt): `tu`, `den` (YYYY-MM-DD, ≤ 31 ngày, bắt buộc); `moc` = `A` (mặc định; xác nhận BD10 đến) | `B` (quét túi đến) — chấp nhận thêm `xnd` / `quet_tui_den`; `loai_ngay` = `thuong` | `chu_nhat` | `tat_ca` (mặc định); `bcvh` = một trong 6 mã BCVH (tùy chọn). Băng giờ (định danh cụm) KHÔNG phụ thuộc `loai_ngay` / `bcvh`.
+
+**Hình dạng chung**: `{ khoang_ngay, moc, moc_mac_dinh: "A", bo_loc: { loai_ngay, bcvh }, bay_gio, nguon_xuat_luc_moi_nhat, co_du_lieu, ly_do, theo_moc: { A: {...}, B: {...} }, meta, canh_bao }`. Mỗi mốc có `mau_so` (SHBG thuộc mẫu số theo bộ lọc), `do_duoc` (có giờ đến của mốc), `khong_do_duoc`. Chưa có dữ liệu: `co_du_lieu: false`, `ly_do: "CHUA_CO_DU_LIEU"`, `theo_moc: null`.
+
+**1. `GET /api/ktt/luu-thoat/buc-tranh-duong-thu`** — `theo_moc.{A,B}`: `{ mau_so, do_duoc, khong_do_duoc, cum[], thong_ke_co, nguong_ap_dung }`. Mỗi `cum` (xếp theo `shbg` giảm dần):
+```json
+{ "id": "DT-A|L1|1", "duong_thu": { "ma": "DT-A", "ten": "Đà Nẵng - Huế" }, "lich": { "ma": "L1", "ten": "Đà Nẵng - Huế Chuyến 1" }, "ten": "Đà Nẵng - Huế Chuyến 1 · 05:07–10:46",
+  "thu_tu_bang": 1, "so_bang_cua_nhom": 2, "bang_gio": { "tu": "05:07", "den": "10:46", "vat_dem": false },
+  "shbg": 1200, "kg": 3100.5, "shbg_thieu_kg": 0, "ty_le_shbg": 0.21, "luy_ke_pct": 21.0, "ngay_co_hang": 30,
+  "san_luong_ngay": { "ngay_thuong": { "so_ngay_cua_so": 26, "so_ngay_co_hang": 26, "tb": 40.1, "do_lech_chuan": 9.8, "dao_dong": 0.244 }, "chu_nhat": { "so_ngay_cua_so": 4, "so_ngay_co_hang": 4, "tb": 38, "do_lech_chuan": 5.1, "dao_dong": 0.134 } },
+  "gio_den": { "moc": "A", "do_duoc": 1150, "mau_so": 1200, "trung_vi_phut": 756, "trung_vi": "12:36", "p10": "09:10", "p90": "13:20", "do_rong_phut": 250, "trung_vi_moc_kia": { "moc": "B", "trung_vi": "05:39", "do_duoc": 1200 }, "meo_theo_lo": true },
+  "lech_so_voi_trung_vi": { "trong_30p": { "shbg": 700, "ty_le": 0.61 }, "trong_60p": { "shbg": 900, "ty_le": 0.78 }, "trong_90p": { "shbg": 1000, "ty_le": 0.87 } },
+  "kien_di_ngoai": { "shbg": 400, "kg": 2900.2, "shbg_thieu_kg": 0, "ty_le": 0.33 }, "trong_tui": { "chia_san": 500, "mo": 300, "khac": 0 }, "nguon_hang": { "khai_thac": 1000, "chuyen_tiep": 200 },
+  "co": { "mau_it": false, "that_thuong": false, "khong_co_lich_co_dinh": true, "nhieu_kien_di_ngoai": true },
+  "so_do": { "dao_dong": 0.244, "do_rong_gio_den_phut": 250, "ty_le_kien_di_ngoai": 0.33 } }
+```
+(`gio_den.meo_theo_lo` chỉ có ở mốc A, mốc B là `null`; giờ đến tính theo phút kể từ 00:00 ngày đến D, trình bày HH:MM.) `thong_ke_co`: `{ <cờ>: { don_vi, so_doi_tuong, so_bi_gan_co, ty_le } }`; `nguong_ap_dung`: các ngưỡng đang dùng + `phan_vi_dao_dong`, `phan_vi_do_rong_phut`, `phan_vi_kien_ngoai` (tỷ lệ kiện đi ngoài tại phân vị `ktt_bt_kien_ngoai_phan_vi`; KTT-KD-1d), `so_cum_tinh_nguong`. Cờ `nhieu_kien_di_ngoai` = `kien_di_ngoai.ty_le` ≥ `kienDiNgoaiPct`/100 VÀ ≥ `phan_vi_kien_ngoai`; khóa mới `kienNgoaiPhanVi` (camelCase như khóa cũ); số đo thô không đổi.
+
+**2. `GET /api/ktt/luu-thoat/buc-tranh-duong-thu/chuyen-xe`** — `theo_moc.{A,B}`: `{ mau_so, do_duoc, khong_do_duoc, chuyen[], o[] }`.
+- `chuyen[]` (BCVH × loại ngày × giờ xe rời; xếp `shbg` giảm dần): `{ ma_bcvh, loai_ngay, gio_xuat_phat, gio_chot, shbg, kg, shbg_thieu_kg, ty_le_san_luong_bcvh, so_chuyen_trong_ngay, ty_trong_chia_deu, luu_thoat_theo_lich: { trung_vi_gio, p90_gio }, con_lai: { trung_vi_gio, p10_gio, duoi_nguong, ty_le_duoi_nguong, qua_chi_tieu, ty_le_qua_chi_tieu, nguong_gio }, sat_gio_chot: { phut_trung_vi, shbg, ty_le, nguong_phut }, ngay_co_hang, hom_sau: { shbg, ty_le }, nguon_cum: [{ cum_id, ten, shbg, ty_le }], luu_y_lich, co: { chuyen_gom_nhieu_hang } }`.
+- `o[]` (cụm × BCVH × loại ngày): `{ cum_id, cum_ten, ma_bcvh, loai_ngay, shbg, kg, shbg_thieu_kg, luu_thoat_theo_lich, con_lai, sat_gio_chot, ngay_co_hang, hom_sau, luu_y_lich, co: { mau_it, sat_gio_chot, sat_chi_tieu } }`.
+- `luu_y_lich` (KTT-LICH-2, #127): `true` chỉ khi ô Chủ nhật của BCVH có dòng lịch CHƯA xác nhận (cột `ngay_chay_xac_nhan = 0`); lịch chuẩn 05/11 đã xác nhận cả 6 BCVH nên hiện KHÔNG đâu gắn. `meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat` (tên giữ để không đổi hợp đồng, nghĩa mới = chưa xác nhận) và `meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan` cùng liệt kê BCVH đó (hiện `[]`). `hom_sau` = bưu gửi có chuyến kế rơi sang ngày hôm sau.
+
+**3. `GET /api/ktt/luu-thoat/buc-tranh-duong-thu/danh-gia`** — `theo_moc.{A,B}`: `{ mau_so, do_duoc, khong_do_duoc, the[], thong_ke_co, mau_it[], nguong_ap_dung }`. `the[]` (xếp theo `shbg_anh_huong` giảm dần, `luy_ke_pct` lũy kế): `{ muc: canh_bao|luu_y|theo_doi|thong_tin, co, nhan, doi_tuong: { loai: cum|chuyen|o, id, ten }, shbg_anh_huong, gia_tri_do, nguong_ap_dung, ly_giai, luy_ke_pct }`. `sat_gio_chot` luôn `theo_doi`.
+
+**`meta`** (cả ba route): `dang_thuc: { tong_shbg, mau_so, nhom_loai: { hang_hoan, ngoai_6_bcvh, khong_ro_dich, khong_co_gio_quet_den, khong_xep_duoc_chuyen }, tong_nhom_loai, lech_tong, shbg_trong_buc_tranh, lech_mau_so }` (đẳng thức toàn cửa sổ, KHÔNG phụ thuộc bộ lọc: `lech_tong` và `lech_mau_so` = 0); `do_duoc_chi_tieu_14h: { A, B }` (`{ do_duoc, mau_so }` của chỉ tiêu 14 giờ); `luu_y_lich`; `quy_uoc`.
+
+**Tham số hệ thống** (nhóm «Hàng tại KTT», `server/config/ktt-buc-tranh.js`, mặc định `tham-so-mac-dinh.js`): `ktt_bt_gap_cum_phut` 60 · `ktt_bt_cum_nho_shbg` 5 · `ktt_bt_mau_toi_thieu` 100 · `ktt_bt_phan_vi_tuong_doi` 80 · `ktt_bt_kien_di_ngoai_pct` 30 · `ktt_bt_chuyen_gom_he_so` 1,5 · `ktt_bt_sat_gio_chot_phut` 60 · `ktt_bt_ngay_toi_thieu` 20 · `ktt_bt_con_lai_gio` 3 · `ktt_bt_ty_le_con_lai_pct` 25 · `ktt_bt_meo_theo_lo_phut` 120. Đổi có hiệu lực ngay (cột số theo ngày trong cache không chứa ngưỡng).
+
+**Khác**: `GET /luu-thoat/khong-dat-14h` thêm `moc` (xem mục 19). Test: `tests/ktt-buc-tranh.test.js` (17 ca).
+
+## 21. KTT-LICH-2 — lịch chuẩn 05/11/2026 (chỉ THÊM field; không đổi tên / đơn vị)
+
+- `/api/ktt/meta`: `lich_chuyen[]` thêm `ngay_chay_xac_nhan` (0 | 1); `canh_bao` không còn cảnh báo «ktt_cau_hinh_chuyen chưa có dòng» (lịch V1 không còn seed).
+- `/api/ktt/luu-thoat`: `meta.lap_ngay_nghi_shbg` (số) và `meta.lap_ngay_nghi` (map mã BCVH → số); `/api/ktt/luu-thoat/khong-dat-14h`: khối `lap_ngay_nghi: { shbg, theo_bcvh, ghi_chu }`. Cờ phụ, không đổi định nghĩa «đúng chuyến» / «trượt chuyến» / mẫu số (phương án B).
+- `/api/ktt/lich-xe/gio-lap-bd10` (xem `43`): thêm `lap_ngay_nghi: { tong_bd10, theo_bcvh[{ ma_bcvh, ten_bcvh, so_bd10 }] }` (phương án A).
+- `luu_y_lich`: đổi nghĩa (xem mục 20): chưa xác nhận, hiện luôn `false`.
+- Lịch: `40_KTT_LICH_CHUYEN.md`, `04_DECISIONS.md` #127.
+
+## 22. KTT-KD-3b — màn «Giờ đến trong ngày» (3 route mới; chỉ THÊM, không đổi trường hiện có; quyết định #128)
+
+Ba route dưới tiền tố `/api/ktt/luu-thoat/buc-tranh-duong-thu/`, quyền như router KTT (ADMIN, TTVH, TTKT 200; GDVH, TIVI 403; chỉ GET). Lõi thuần `server/lib/kttGioDen.js` (không DB, không giờ máy), nối ở `kttApi.js` (`gioDen`, `gioDenTheoNgay`, `conLaiTheoGio`). Hai route đầu đọc CÙNG mục cache theo ngày (`layNgay`) với ba route bức tranh: không thêm lượt duyệt SHBG. Route 3 không đọc dữ liệu hàng.
+
+**Phạm vi**: chỉ hàng đến 6 BCVH Huế (cùng mẫu số bức tranh, không hàng hoàn). Số ngoài phạm vi ở `ngoai_pham_vi`.
+
+### Quy ước
+- **Đường thư** = MÃ đường thư (gộp mọi lịch, mọi cụm). `khoa` = mã; hàng chưa có mã là một dòng riêng `khoa = "__RONG__"` (`ma` null). Đường thư chưa có tên: `ten` null (dòng riêng, không vào «Khác»).
+- **Chuyến thư đến** = băng giờ của đường thư dựng bằng `chiaBang` của bức tranh: hai lần đến cách nhau KHÔNG QUÁ `ktt_bt_gap_cum_phut` (60) phút là một chuyến (cùng một xe được xác nhận trước và sau); băng dưới `ktt_bt_cum_nho_shbg` (5) gộp vào băng gần nhất; băng sát nửa đêm nối thành vắt đêm. Khác bức tranh ở một điểm: nhóm theo MÃ đường thư (không tách theo lịch). Dựng trên mọi ngày / BCVH của cửa sổ, riêng cho từng mốc.
+- **Giờ đến của một ngày** = mỗi chuyến một giờ (giờ giữa = trung vị các lần đến của chuyến trong ngày). `gio_den_ngay` (P10, giờ giữa, P90, độ rộng) tính trên các giờ-chuyến-ngày này, KHÔNG trên từng bưu gửi.
+- **Mốc**: cả hai mốc ở mọi bảng (`theo_moc.A`, `theo_moc.B`). A = giờ xác nhận BD10 đến (`bd10_den_xnd`, chính thức, #111; giờ trong ngày vòng 24 giờ, méo theo lô), B = giờ quét túi đến. `moc_mac_dinh` của API vẫn `A`; giao diện mặc định B ở cách xem «Chỉ xem giờ đến trong ngày».
+- Số bưu gửi của đường thư theo mốc = SHBG của mẫu số có mốc đó (A: bỏ SHBG không có xác nhận BD10 đến; B: không bỏ). `mau_so` hai mốc bằng nhau.
+
+### Route 1: `GET …/gio-den?tu=&den=[&moc=A|B&loai_ngay=thuong|chu_nhat|tat_ca&bcvh=<mã>&duong_thu=<khoa>…]`
+`duong_thu` lặp tối đa 8 lần (trùng mã được gộp); không truyền thì hiện 5 đường lớn nhất. Mã không có trong khoảng ngày → 400 `KTT_DUONG_THU_LA`; quá 8 → 400 `KTT_DUONG_THU_QUA_NHIEU`.
+- Đầu: `khoang_ngay`, `so_ngay {tong, thuong, chu_nhat}`, `moc`, `moc_mac_dinh`, `bo_loc {loai_ngay, bcvh, duong_thu[]}`, `bay_gio`, `nguon_xuat_luc_moi_nhat`, `co_du_lieu`, `ly_do`, `ngoai_pham_vi {di_ngoai_6_bcvh, khong_ro_dich, khong_co_gio_quet, hang_hoan, tong_shbg, ghi_chu}`, `meta {dang_thuc, quy_uoc}`, `canh_bao`. Chưa có dữ liệu: `co_du_lieu false`, `theo_moc null`.
+- `theo_moc.<A|B>`: `mau_so`, `do_duoc`, `khong_do_duoc`, `duong_thu[]` (được chọn / 5 lớn nhất), `khac`, `tong`, `danh_sach[]` (MỌI đường thư của bộ lọc: `khoa, ma, ten, thu_hang, shbg, kg, co` — cho ô «Lọc đường thư»), `nguong_ap_dung`, `thong_ke_co`.
+- Mỗi đường thư: `khoa, ma, ten, thu_hang, shbg, kg (null nếu không bưu gửi nào có kg), shbg_thieu_kg, ty_le_shbg`, `theo_gio[24] {gio, shbg, kg, kien_di_ngoai}` (Σ `shbg` = `shbg`), `san_luong_ngay {ngay_thuong, chu_nhat {so_ngay_cua_so, so_ngay_co_hang, tong, tb_moi_ngay, tb_ngay_co_hang, do_lech_chuan (chia N−1), dao_dong}, so_ngay_co_hang}`, `gio_den_ngay {moc, so_mau, p10, trung_vi, p90 (HH:MM), p10_phut, trung_vi_phut, p90_phut, vat_nua_dem, do_rong_phut, do_rong_chuyen_phut, so_chuyen_du_ngay, so_chuyen, so_chuyen_ngay}` (KTT-KD-3b2: `p10` / `trung_vi` / `p90` / `do_rong_phut` = khoảng THƯỜNG GẶP để HIỂN THỊ, tính trên mọi giờ-chuyến-ngày; `vat_nua_dem` = khoảng đi qua nửa đêm, khi đó `do_rong_phut` tính theo vòng 24 giờ, luôn ≥ 0 (≤ 1440), giao diện hiện «07:23 – 00:42 (qua nửa đêm)»; `do_rong_chuyen_phut` = độ rộng DÙNG CHO CỜ, đừng nhầm với `do_rong_phut`), `kien_di_ngoai {shbg, kg, shbg_thieu_kg, ty_le}`, `trong_tui {shbg, ty_le, chia_san, mo}`, `chuyen[] {thu_tu, bang_gio {tu, den, vat_dem}, shbg, so_ngay_co_hang, do_rong_phut (null khi dưới 5 ngày)}`, `co`, `co_gia_tri_do {dao_dong, do_rong_gio_den_phut, ty_le_kien_di_ngoai, shbg}`, `meo_theo_lo` (mốc A: có chuyến mà trung vị A lệch B từ `ktt_bt_meo_theo_lo_phut`; mốc B: null).
+- `khac`: `{so_duong_thu, shbg, kg, shbg_thieu_kg, kien_di_ngoai, trong_tui, san_luong_loc, theo_gio[24]}` = các đường thư của bộ lọc ngoài bộ chọn; `tong`: cùng dạng + `so_ngay_cua_so` (mọi ngày của khoảng). Σ đường thư + `khac` = `tong`. `trong_tui`, `san_luong_loc` (và `san_luong_loc` ở mỗi đường thư, `meo_theo_lo` ở mỗi dòng `danh_sach`, `canh_bao_ma` ở gốc) THÊM ở KTT-KD-3b3: xem BẢNG TÊN CHUẨN bên dưới.
+- **Dấu hiệu cấp đường thư** (`co`; ngưỡng tương đối tính ở máy chủ trên các đường thư ĐỦ MẪU của bộ lọc, không phụ thuộc đường thư đang hiển thị; `nguong_ap_dung` trả cả ngưỡng đã tính):
+
+| Cờ | Nhãn | Định nghĩa | Khóa |
+|---|---|---|---|
+| `san_luong_khong_deu` | Sản lượng không đều | độ lệch chuẩn (chia N−1) / trung bình sản lượng ngày (ngày thường; Chủ nhật khi `loai_ngay=chu_nhat`) từ phân vị 80 | `ktt_bt_phan_vi_tuong_doi` |
+| `gio_den_khong_co_dinh` | Giờ đến không cố định | **KTT-KD-3b2**: độ ổn định TỪNG CHUYẾN giữa các ngày, không đo khoảng cách giữa các chuyến. Mỗi chuyến có từ 5 ngày có hàng: độ rộng P90−P10 của giờ giữa chuyến đó qua các ngày (trải liền, đúng khi vắt nửa đêm); độ rộng đường thư (`co_gia_tri_do.do_rong_gio_den_phut` = `gio_den_ngay.do_rong_chuyen_phut`) = trung bình các chuyến đủ ngày, trọng số bưu gửi của chuyến; cờ khi từ phân vị 80 các đường thư đủ mẫu. Không chuyến nào đủ 5 ngày: `null`, không gắn cờ | `ktt_bt_phan_vi_tuong_doi` |
+| `nhieu_kien_di_ngoai` | Nhiều kiện đi ngoài | tỷ lệ kiện đi ngoài từ 30% VÀ thuộc nhóm phân vị 80 | `ktt_bt_kien_di_ngoai_pct`, `ktt_bt_kien_ngoai_phan_vi` |
+| `mau_it` | Ít số liệu | `shbg` < `ktt_bt_mau_toi_thieu` × (số ngày của khoảng / 30), làm tròn lên (`nguong_ap_dung.mau_toi_thieu_ap_dung`) | `ktt_bt_mau_toi_thieu` |
+| `san_luong_lon` | Sản lượng lớn | `shbg` thuộc nhóm phân vị 80 cao nhất các đường thư đủ mẫu | `ktt_bt_san_luong_lon_phan_vi` (MỚI, 80, 50–99) |
+
+Đường thư «mẫu ít» không gắn ba cờ tương đối đầu và `san_luong_lon`. Cờ cấp cụm của ba route bức tranh (`that_thuong`, `khong_co_lich_co_dinh`, `nhieu_kien_di_ngoai`, `mau_it` với ngưỡng 100 cố định) GIỮ NGUYÊN, chỉ route mới dùng cờ này. `nguong_ap_dung` của route mới thêm `san_luong_lon_phan_vi`, `muc_*` (ngưỡng đã tính), `mau_toi_thieu_ap_dung`, `so_ngay_khoang`; `nguong_ap_dung` của route cũ KHÔNG đổi.
+
+### Route 2: `GET …/gio-den/theo-ngay?tu=&den=&duong_thu=<khoa>[&moc=&loai_ngay=&bcvh=]`
+`duong_thu` BẮT BUỘC, một lần; thiếu → 400 `KTT_THIEU_THAM_SO`; lạ → 400 `KTT_DUONG_THU_LA`. Trả `duong_thu {khoa, ma, ten}` và `theo_moc.<A|B>`: `ngay[]` (MỌI ngày của khoảng, không phụ thuộc `loai_ngay`): `{ngay, la_chu_nhat, co_hang, shbg, kg, shbg_thieu_kg, kien_di_ngoai {shbg, kg}, trong_tui {shbg}, chuyen[] {thu_tu, gio_giua (HH:MM), gio_giua_phut, shbg, kg, shbg_thieu_kg, kien_di_ngoai {shbg, kg, shbg_thieu_kg}}}` (ngày không hàng: `co_hang false`, `chuyen []`); `dai_thuong_gap {so_mau, p10, trung_vi, p90, vat_nua_dem, do_rong_phut}`, `so_ngay_cua_so`, `so_ngay_co_hang`, `tb_ngay_co_hang` (ba số này, `san_luong_loc` (KTT-KD-3b3, cùng dạng với route 1) và dải chỉ tính các ngày thuộc `loai_ngay`), `canh_bao_ma`, `chuyen_cua_duong_thu[]`.
+
+### Route 3: `GET …/con-lai-theo-gio[?loai_ngay=&bcvh=]` (không có `tu` / `den`)
+Dải «còn so với chỉ tiêu» theo giờ, do MÁY CHỦ tính (giao diện không hard-code lịch hay chỉ tiêu). Hàng đến giờ g coi như đến phút :30 của giờ g; xếp chuyến bằng `xepChuyen` trên lịch `ktt_lich_chuyen` hiện hành (lịch chuẩn 05/11; giờ chốt = giờ rời − 60 phút, #112); lưu thoát theo lịch = `thoiGianThucGiay` (đã trừ 21:00–07:00); chỉ tiêu `chiTieuGio` (14 giờ; Thuận Hóa 533140: 12 giờ cho phường / xã trong `chi_tieu_gio_ngoai_le`). Ngày mẫu chỉ để định thứ (thứ Ba 03/11/2026, Chủ nhật 01/11/2026).
+- `theo_bcvh[] {ma_bcvh, ten_bcvh, chi_tieu_gio, chi_tieu_gio_ngoai_le {gio, phuong_xa[]} | null, loai_ngay[] {loai_ngay ('thuong' | 'chu_nhat'), gio[24] {gio, gio_den ('HH:30'), con_lai_gio (có thể ÂM), cho_theo_lich_gio, chi_tieu_gio, gio_xe_ke_tiep, gio_chot, sang_ngay_sau, con_lai_12h}}}`. Không tính được (không xếp được chuyến): các trường là `null`, không trả 0. `con_lai_12h` chỉ có ở BCVH có ngoại lệ 12 giờ (Thuận Hóa), còn lại `null`.
+- `meta`: `han_den_truoc_chuyen_phut`, `quy_uoc`, `canh_bao_lich`. Không đệm (rẻ); đổi lịch có hiệu lực ngay.
+
+### BẢNG TÊN CHUẨN (KTT-KD-3b3, 07/11/2026) — nguồn DUY NHẤT cho giao diện; chỉ THÊM, không đổi trường đã có
+Giao diện chỉ đọc đúng tên ở bảng này, KHÔNG tự đoán tên, KHÔNG tự cộng / chia lại số mà bảng đã có. Loại **a** = server đã có (tên đúng ở cột «tên trường»; giao diện sửa tên ở KTT-KD-3c5, không thêm trường trùng nghĩa); **b** = đã THÊM ở KTT-KD-3b3; **c** = phép chia hiển thị từ số đã có (công thức ở cột «nghĩa», giao diện tự làm).
+Mọi số trung bình / tỷ lệ không tính được là `null` (không trả 0). «Loại ngày đang lọc» = `bo_loc.loai_ngay` (`thuong`, `chu_nhat`, `tat_ca`).
+
+| Route | Khối | Tên trường | Nghĩa | Đơn vị | Khi null | Loại |
+|---|---|---|---|---|---|---|
+| gio-den | `theo_moc.<m>.duong_thu[]`, `khac`, `tong` | `san_luong_loc` | khối sản lượng theo ĐÚNG loại ngày đang lọc (các trường dưới); `khac` / `tong` cộng theo từng ngày rồi đếm ngày có hàng (ngày có hàng của `tong` = HỢP các ngày, không phải tổng số ngày có hàng của từng đường thư) | — | không bao giờ null (các số bên trong có thể null) | b |
+| gio-den, theo-ngay | `san_luong_loc` | `loai_ngay` | loại ngày của khối (= `bo_loc.loai_ngay`) | chuỗi | — | b |
+| gio-den, theo-ngay | `san_luong_loc` | `so_ngay_cua_so` | số ngày của loại ngày đang lọc trong khoảng (mẫu số «÷ ngày của loại ngày»). KHÔNG dùng `tong.so_ngay_cua_so`: số đó là MỌI ngày của khoảng (giữ nghĩa cũ) | ngày | — | b |
+| gio-den, theo-ngay | `san_luong_loc` | `so_ngay_co_hang` | số ngày thuộc loại ngày đang lọc có ít nhất một bưu gửi; luôn ≤ `so_ngay_cua_so` | ngày | — (0 khi không có hàng) | b |
+| gio-den, theo-ngay | `san_luong_loc` | `shbg`, `shbg_thieu_kg` | bưu gửi trong loại ngày đang lọc (= `shbg` của dòng); số bưu gửi chưa có khối lượng | bưu gửi | — | b |
+| gio-den, theo-ngay | `san_luong_loc` | `kg` | kg trong loại ngày đang lọc (= `kg` của dòng) | kg | `null` khi không bưu gửi nào có kg | b |
+| gio-den, theo-ngay | `san_luong_loc` | `shbg_tb_ngay_co_hang` | bưu gửi ÷ số ngày CÓ hàng: bình quân của ngày có chạy hàng | bưu gửi/ngày | `null` khi không ngày nào có hàng | b |
+| gio-den, theo-ngay | `san_luong_loc` | `shbg_tb_moi_ngay_cua_so` | bưu gửi ÷ số ngày của loại ngày (ngày không hàng tính 0). Khác `shbg_tb_ngay_co_hang` khi có ngày không hàng; bằng nhau khi mọi ngày đều có hàng | bưu gửi/ngày | `null` khi không ngày nào có hàng (không trả 0) | b |
+| gio-den, theo-ngay | `san_luong_loc` | `kg_tb_ngay_co_hang`, `kg_tb_moi_ngay_cua_so` | như hai trường trên nhưng theo kg (bưu gửi chưa có khối lượng tính 0 kg; xem `shbg_thieu_kg`) | kg/ngày | `null` khi `kg` null | b |
+| gio-den | `khac`, `tong` | `trong_tui {shbg, ty_le, chia_san, mo}` | = `shbg − kien_di_ngoai.shbg`; `ty_le` = `trong_tui.shbg ÷ shbg`; cùng dạng với `trong_tui` của đường thư. Σ đường thư + `khac` = `tong` | bưu gửi; tỷ lệ 0–1 | `ty_le` null khi `shbg` = 0 | b |
+| gio-den | `khac`, `tong` | `kien_di_ngoai {shbg, kg, shbg_thieu_kg, ty_le}` | đã có | — | `ty_le` null khi `shbg` = 0 | a |
+| gio-den | `duong_thu[]` | `trong_tui {shbg, ty_le, chia_san, mo}`, `kien_di_ngoai.ty_le` | đã có (giao diện đọc đúng) | — | như trên | a |
+| gio-den | `duong_thu[].san_luong_ngay.ngay_thuong` / `.chu_nhat` | `so_ngay_cua_so`, `so_ngay_co_hang`, `tb_moi_ngay`, `tb_ngay_co_hang`, `tong`, `do_lech_chuan`, `dao_dong` | đã có, THEO loại ngày cố định (không theo bộ lọc). `tb_moi_ngay` ở khối này là 0 khi không hàng (giữ nghĩa cũ); khối `san_luong_loc` thì null | bưu gửi/ngày | `tb_ngay_co_hang` null khi không hàng | a |
+| gio-den | `duong_thu[]` | `tb_kg_ngay` (giao diện đang đọc) | KHÔNG có và không thêm. Dùng `san_luong_loc.kg_tb_ngay_co_hang` hoặc `kg_tb_moi_ngay_cua_so` | kg/ngày | — | b (tên đúng ở các dòng trên) |
+| gio-den | `khac`, `tong` | `tb_ngay`, `tb_kg_ngay`, `so_ngay_co_hang` (giao diện đang đọc) | KHÔNG có và không thêm. Dùng `san_luong_loc.shbg_tb_ngay_co_hang` / `shbg_tb_moi_ngay_cua_so` / `kg_tb_*` / `so_ngay_co_hang` | — | — | b (tên đúng ở các dòng trên) |
+| gio-den | `tong` | `so_ngay_cua_so` | GIỮ NGHĨA CŨ: mọi ngày của khoảng (không theo loại ngày). Không dùng làm mẫu số trung bình; dùng `tong.san_luong_loc.so_ngay_cua_so` | ngày | — | a |
+| gio-den | `khac`, `tong` | tỷ lệ bưu gửi trong tổng | không có `ty_le_shbg`; công thức: `khac.shbg ÷ tong.shbg` | 0–1 | null khi `tong.shbg` = 0 | c |
+| gio-den | `danh_sach[]` | `meo_theo_lo` | cùng giá trị với `meo_theo_lo` của đường thư (mốc A: true / false; mốc B: null) ở MỌI dòng, kể cả đường thư không được hiển thị — để cảnh báo «mốc A méo theo lô» xét đủ cả bộ lọc | boolean | mốc B, hoặc đường thư không có chuyến đo được | b |
+| gio-den, theo-ngay | gốc phản hồi | `canh_bao_ma` | mảng MÃ cảnh báo để giao diện tự viết câu chữ. `canh_bao` (chuỗi thô, có chữ nội bộ) GIỮ để không đổi trường đã có, giao diện KHÔNG in nó | mảng chuỗi | không bao giờ null (mảng không rỗng khi có cảnh báo) | b |
+| gio-den, theo-ngay | gốc phản hồi | `ly_do` | `'CHUA_CO_DU_LIEU'` khi chưa nạp cặp file nào (khi đó `theo_moc` null, `canh_bao_ma = ['CHUA_CO_DU_LIEU']`); ngược lại null | chuỗi | null | a |
+| gio-den, theo-ngay | `theo_moc.<m>` | `gio_den_ngay.{p10,trung_vi,p90,p10_phut,trung_vi_phut,p90_phut,vat_nua_dem,do_rong_phut,do_rong_chuyen_phut,so_chuyen_du_ngay,so_chuyen,so_chuyen_ngay,so_mau}`; `dai_thuong_gap.*` (theo-ngay) | đã có, đúng tên | giờ HH:MM / phút | như mục 22 | a |
+| gio-den | `theo_moc.<m>.nguong_ap_dung` | `gap_cum_phut`, `cum_nho_shbg`, `mau_toi_thieu_30_ngay`, `so_ngay_khoang`, `mau_toi_thieu_ap_dung`, `phan_vi_tuong_doi`, `kien_di_ngoai_pct`, `kien_ngoai_phan_vi`, `san_luong_lon_phan_vi`, `meo_theo_lo_phut`, `muc_*`, `so_duong_thu_tinh_nguong` | đã có, đúng tên; giao diện không ghi cứng 60 / 30 / 20 / 100 | — | `muc_*` null khi không đủ đường thư | a |
+| gio-den | gốc | `so_ngay {tong, thuong, chu_nhat}`, `khoang_ngay {tu_ngay, den_ngay}`, `ngoai_pham_vi.di_ngoai_6_bcvh`, `bo_loc` | đã có | — | — | a |
+
+**Mã trong `canh_bao_ma`** (đủ mọi mã có thể có; giao diện tự viết câu chữ, không in `canh_bao`):
+
+| Mã | Khi nào | Gợi ý nội dung giao diện |
+|---|---|---|
+| `MOC_A_CO_THE_MEO` | luôn có khi có dữ liệu (mốc A đo từ xác nhận BD10 đến, gom theo lô) | «Mốc xác nhận có thể lệch theo lô; xem thêm mốc quét túi» (không dùng chữ «Mốc A», «méo», `meo_theo_lo`) |
+| `CANH_BAO_HE_THONG` | có thêm cảnh báo cấu hình dữ liệu của máy chủ (ví dụ thiếu bảng địa bàn, lịch chuyến); chi tiết nằm ở `canh_bao`, chỉ dành cho quản trị | «Có cảnh báo cấu hình dữ liệu, báo quản trị» (không in chuỗi thô) |
+| `CHUA_CO_DU_LIEU` | chưa nạp cặp file nào; `theo_moc` null, `ly_do = 'CHUA_CO_DU_LIEU'` | «Chưa có dữ liệu» |
+
+Ghi chú: `san_luong_loc` dùng cùng bộ lọc (`loai_ngay`, `bcvh`) và cùng ngày của khoảng với `shbg`, nên `san_luong_loc.shbg` = `shbg` của dòng. Đẳng thức đã có test: Σ đường thư + `khac` = `tong` cho `shbg`, `kg`, `trong_tui.shbg`, `kien_di_ngoai.shbg`, `san_luong_loc.shbg`, `san_luong_loc.kg`; `so_ngay_co_hang` ≤ `so_ngay_cua_so`; `tong.san_luong_loc.so_ngay_co_hang` ≥ số ngày có hàng của từng đường thư (hợp các ngày).
+
+**Tham số hệ thống mới**: `ktt_bt_san_luong_lon_phan_vi` (nhóm «Hàng tại KTT», 80, 50–99, đọc qua `server/config/ktt-buc-tranh.js` `SAN_LUONG_LON_PHAN_VI`). **Test**: `tests/ktt-gio-den.test.js` (25 ca); `tests/tham-so.test.js` (45 khóa sửa được, 52 khóa).

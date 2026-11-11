@@ -229,7 +229,7 @@ export default function KttChiTiet({
               <th className="text-left">GIỜ LẬP BD10 ĐI</th>
               <th className="text-right">CHỜ TÍNH CHỈ TIÊU (GIỜ)</th>
               <th className="text-center whitespace-nowrap">
-                CHỈ TIÊU 14 GIỜ ({mocChiTieu === 'quet_tui_den' ? 'MỐC B' : 'MỐC A'})
+                CHỈ TIÊU 14 GIỜ ({mocChiTieu === 'quet_tui_den' ? 'GIỜ QUÉT TÚI ĐẾN' : 'GIỜ XÁC NHẬN BD10 ĐẾN'})
               </th>
               <th className="text-left">PHÂN LOẠI</th>
             </tr>

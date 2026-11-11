@@ -61,18 +61,22 @@ function capOk(nguon) {
   const khoa = `${nguon.slice(0, 10).replace(/-/g, '')}_${nguon.slice(11, 13)}${nguon.slice(14, 16)}00`;
   K.ghiCap(db, { khoa_cap: khoa, ket_qua: 'OK', nguon_xuat_luc: nguon, thay_dau_luc: '2026-10-01 00:00:00', nap_luc: '2026-10-01 00:00:00', cap_nhat_luc: '2026-10-01 00:00:00' });
 }
-/** Lịch mặc định: Thuận Hóa 07:00 / 12:30 …; Hương Trà 06:00 / 12:00. Độ mới 27/10 10:00. Mỗi loại một hoặc hai SHBG, trải trên hai đường thư và hai BCVH. */
+/**
+ * Lịch chuẩn 05/11: Thuận Hóa 07:00 / 12:45 …; Hương Trà 06:10 / 12:00. Độ mới 27/10 10:00. Mỗi loại một hoặc hai SHBG, trải trên hai đường thư và hai BCVH.
+ * Ca A6 cần chuyến cách ngày đến ≥ 2 ngày; lịch chuẩn không còn BCVH nào như vậy, nên test GIẢ ĐỊNH Hương Thủy nghỉ cả Chủ nhật (đổi dòng 07:30 thành NGHI_CN trong DB tạm của file này).
+ */
 function duLieu() {
+  db.exec("UPDATE ktt_lich_chuyen SET ngay_chay = 'NGHI_CN' WHERE ma_bcvh = '536250' AND gio_xuat_phat = '07:30'");
   kt('KTT-DEMO-A1', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 06:50:00' }); // t1
   kt('KTT-DEMO-A2', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 08:00:00' }); // t2: đi trong ngày D, trượt chuyến (KHÔNG rớt lại)
   kt('KTT-DEMO-A3', { quet: '2026-10-20 23:00:00', gioDi: '2026-10-21 06:50:00' }); // t3: đi hôm sau, đúng chuyến
   kt('KTT-DEMO-A4', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-21 08:00:00' }); // t4: đi hôm sau, trượt chuyến
   kt('KTT-DEMO-A5', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-23 10:00:00' }); // t5 đi trượt chuyến
-  kt('KTT-DEMO-A6', { quet: '2026-10-24 14:00:00', gioDi: '2026-10-26 06:20:00', nhan: '536250' }); // t5 đi ĐÚNG chuyến: thứ Bảy sau chuyến 12:30, tuyến nghỉ Chủ nhật -> chuyến thứ Hai 06:30
-  kt('KTT-DEMO-A7', { quet: '2026-10-20 11:00:00', nhan: null }); // t5 chưa đi, lỡ chuyến
+  kt('KTT-DEMO-A6', { quet: '2026-10-24 14:00:00', gioDi: '2026-10-26 06:20:00', nhan: '536250' }); // t5 đi ĐÚNG chuyến: thứ Bảy sau chuyến 12:45, (giả định) Hương Thủy nghỉ cả Chủ nhật -> chuyến thứ Hai 07:30
+  kt('KTT-DEMO-A7', { quet: '2026-10-20 11:00:00', nhan: null }); // t5 chưa đi, lỡ chuyến (chuyến 12:45)
   kt('KTT-DEMO-B1', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-21 06:30:00', nhan: HT, duong: ['DT-B', 'Đường thư B'] }); // HT, D+1 trượt chuyến 12:00 -> t4
   kt('KTT-DEMO-B2', { quet: '2026-10-20 05:30:00', gioDi: '2026-10-20 12:30:00', nhan: HT, duong: ['DT-B', 'Đường thư B'] }); // HT, đi trong ngày D, trượt -> t2
-  kt('KTT-DEMO-B3', { quet: '2026-10-27 08:00:00', nhan: null, duong: ['DT-B', 'Đường thư B'] }); // đang chờ chuyến 12:30 (độ mới 27/10 10:00): không rớt lại, không trượt
+  kt('KTT-DEMO-B3', { quet: '2026-10-27 08:00:00', nhan: null, duong: ['DT-B', 'Đường thư B'] }); // đang chờ chuyến 12:45 (độ mới 27/10 10:00): không rớt lại, không trượt
   kt('KTT-DEMO-N1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-23 10:00:00', nhan: HT, diemGui: '533999' }); // NOI_TINH, HT, đi muộn -> t5 trượt (ngày 21)
   kt('KTT-DEMO-H1', { quet: '2026-10-21 05:30:00', gioDi: '2026-10-22 10:00:00', diemGui: '531120' }); // hàng hoàn: không vào theo_nguon
   hoan('KTT-DEMO-H1');

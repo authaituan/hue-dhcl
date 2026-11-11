@@ -284,6 +284,184 @@ export async function taiExcelDoiChieu(route, { tu, den, maBcvh, ma_bcvh }) {
   return res;
 }
 
+/**
+ * KTT-KD-1 / KTT-KD-2: Lấy dữ liệu Bức tranh đường thư đến (cụm / chuyến thư đến)
+ * @param {Object} params { tu, den, moc, loai_ngay, bcvh }
+ */
+export async function fetchKttBucTranhCum({ tu, den, moc = 'A', loai_ngay = 'tat_ca', bcvh }) {
+  const params = { tu, den };
+  if (moc) params.moc = String(moc);
+  if (loai_ngay && loai_ngay !== 'tat_ca') params.loai_ngay = String(loai_ngay);
+  if (bcvh && bcvh !== 'all') params.bcvh = String(bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu?${query}`);
+}
 
+/**
+ * KTT-KD-1 / KTT-KD-2: Lấy dữ liệu chuyến xe cấp 2 và ô
+ * @param {Object} params { tu, den, moc, loai_ngay, bcvh }
+ */
+export async function fetchKttBucTranhChuyenXe({ tu, den, moc = 'A', loai_ngay = 'tat_ca', bcvh }) {
+  const params = { tu, den };
+  if (moc) params.moc = String(moc);
+  if (loai_ngay && loai_ngay !== 'tat_ca') params.loai_ngay = String(loai_ngay);
+  if (bcvh && bcvh !== 'all') params.bcvh = String(bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/chuyen-xe?${query}`);
+}
 
+/**
+ * KTT-KD-1 / KTT-KD-2: Lấy dữ liệu thẻ đánh giá (Pareto) và mẫu ít
+ * @param {Object} params { tu, den, moc, loai_ngay, bcvh }
+ */
+export async function fetchKttBucTranhDanhGia({ tu, den, moc = 'A', loai_ngay = 'tat_ca', bcvh }) {
+  const params = { tu, den };
+  if (moc) params.moc = String(moc);
+  if (loai_ngay && loai_ngay !== 'tat_ca') params.loai_ngay = String(loai_ngay);
+  if (bcvh && bcvh !== 'all') params.bcvh = String(bcvh);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/danh-gia?${query}`);
+}
+
+/**
+ * KTT-KD-1 / KTT-KD-2: Lấy dữ liệu khối «Vì sao không đạt 14 giờ»
+ * @param {Object} params { tu, den, moc, ma_bcvh, nguon, thu, nguon_hang, bien_sat_gio_phut, top }
+ */
+export async function fetchKttKhongDat14h({
+  tu,
+  den,
+  moc = 'A',
+  ma_bcvh,
+  nguon,
+  thu,
+  nguon_hang,
+  bien_sat_gio_phut,
+  top = 15,
+}) {
+  const params = { tu, den };
+  if (moc) params.moc = String(moc);
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  if (nguon) params.nguon = String(nguon);
+  if (thu) params.thu = String(thu);
+  if (nguon_hang) params.nguon_hang = String(nguon_hang);
+  if (bien_sat_gio_phut) params.bien_sat_gio_phut = String(bien_sat_gio_phut);
+  if (top) params.top = String(top);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/khong-dat-14h?${query}`);
+}
+
+/**
+ * KTT-KD-1 / KTT-KD-2: Tải file Excel Sheet 10 Không đạt 14 giờ
+ * @param {Object} params { tu, den, moc, nhom, ma_bcvh, nguon, gio_den, chuyen, thu, nguon_hang }
+ */
+export async function downloadKttKhongDat14h({
+  tu,
+  den,
+  moc = 'A',
+  nhom,
+  ma_bcvh,
+  nguon,
+  gio_den,
+  chuyen,
+  thu,
+  nguon_hang,
+}) {
+  const params = { tu, den };
+  if (moc) params.moc_chi_tieu = moc === 'B' || moc === 'quet_tui_den' ? 'quet_tui_den' : 'xnd';
+  if (nhom && nhom !== 'tat_ca') params.nhom_nguyen_nhan = String(nhom);
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  if (nguon) params.nguon = String(nguon);
+  if (gio_den !== undefined && gio_den !== null && gio_den !== '') params.gio_den = String(gio_den);
+  if (chuyen) params.chuyen = String(chuyen);
+  if (thu) params.thu = String(thu);
+  if (nguon_hang) params.nguon_hang = String(nguon_hang);
+  const query = new URLSearchParams(params).toString();
+  const url = `/api/ktt/xuat/khong-dat-14h?${query}`;
+  const mocTen = moc === 'B' || moc === 'quet_tui_den' ? 'MocB' : 'MocA';
+  const defaultFilename = `KTT_KhongDat14h_${mocTen}_${tu}_${den}.xlsx`;
+  return apiDownloadExcel(url, defaultFilename);
+}
+
+/**
+ * KTT-KD-1 / KTT-KD-2: Lấy chi tiết bưu gửi không đạt 14 giờ (phục vụ danh sách kiểm chứng)
+ * @param {Object} params { tu, den, moc, nhom, ma_bcvh, nguon, gio_den, chuyen, thu, nguon_hang, page, page_size }
+ */
+export async function fetchKttChiTietKhongDat14h({
+  tu,
+  den,
+  moc = 'A',
+  nhom,
+  ma_bcvh,
+  nguon,
+  gio_den,
+  chuyen,
+  thu,
+  nguon_hang,
+  page = 1,
+  page_size = 50,
+}) {
+  const params = { tu, den, loai: 'khong_dat_14h' };
+  if (moc) params.moc_chi_tieu = moc === 'B' || moc === 'quet_tui_den' ? 'quet_tui_den' : 'xnd';
+  if (nhom && nhom !== 'tat_ca') params.nhom_nguyen_nhan = String(nhom);
+  if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
+  if (nguon) params.nguon = String(nguon);
+  if (gio_den !== undefined && gio_den !== null && gio_den !== '') params.gio_den = String(gio_den);
+  if (chuyen) params.chuyen = String(chuyen);
+  if (thu) params.thu = String(thu);
+  if (nguon_hang) params.nguon_hang = String(nguon_hang);
+  if (page) params.page = String(page);
+  if (page_size) params.page_size = String(page_size);
+  const query = new URLSearchParams(params).toString();
+  return apiFetchJson(`/api/ktt/chi-tiet?${query}`);
+}
+
+/**
+ * KTT-KD-3c: Lấy dữ liệu Giờ đến trong ngày (khung bảng đường thư × 0-23 giờ)
+ * @param {Object} params { tu, den, moc, loai_ngay, bcvh, duong_thu }
+ */
+export async function fetchKttGioDen({ tu, den, moc, loai_ngay = 'tat_ca', bcvh, duong_thu = [] }) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (moc) usp.set('moc', String(moc));
+  if (loai_ngay && loai_ngay !== 'tat_ca') usp.set('loai_ngay', String(loai_ngay));
+  if (bcvh && bcvh !== 'all') usp.set('bcvh', String(bcvh));
+  if (Array.isArray(duong_thu)) {
+    for (const dt of duong_thu) {
+      if (dt) usp.append('duong_thu', String(dt));
+    }
+  } else if (duong_thu) {
+    usp.append('duong_thu', String(duong_thu));
+  }
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/gio-den${query ? `?${query}` : ''}`);
+}
+
+/**
+ * KTT-KD-3c: Lấy chi tiết giờ đến từng ngày của một đường thư
+ * @param {Object} params { tu, den, duong_thu, moc, loai_ngay, bcvh }
+ */
+export async function fetchKttGioDenTheoNgay({ tu, den, duong_thu, moc, loai_ngay = 'tat_ca', bcvh }) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (duong_thu) usp.set('duong_thu', String(duong_thu));
+  if (moc) usp.set('moc', String(moc));
+  if (loai_ngay && loai_ngay !== 'tat_ca') usp.set('loai_ngay', String(loai_ngay));
+  if (bcvh && bcvh !== 'all') usp.set('bcvh', String(bcvh));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/gio-den/theo-ngay${query ? `?${query}` : ''}`);
+}
+
+/**
+ * KTT-KD-3d: Dải «còn so với chỉ tiêu» theo giờ đến (phút :30) × BCVH × loại ngày
+ * @param {Object} params { loai_ngay, bcvh }
+ */
+export async function fetchKttConLaiTheoGio({ loai_ngay = 'tat_ca', bcvh } = {}) {
+  const usp = new URLSearchParams();
+  if (loai_ngay && loai_ngay !== 'tat_ca') usp.set('loai_ngay', String(loai_ngay));
+  if (bcvh && bcvh !== 'all') usp.set('bcvh', String(bcvh));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/con-lai-theo-gio${query ? `?${query}` : ''}`);
+}
 

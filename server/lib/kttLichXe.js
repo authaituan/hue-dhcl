@@ -56,11 +56,13 @@ function gioLapBd10(db, { tuNgay, denNgay, minBd10 = MIN_BD10_MAC_DINH } = {}) {
   let tong = 0;
   let ngayDau = null;
   let ngayCuoi = null;
+  const lapNghi = new Map(); // KTT-LICH-2 (phương án A): BD10 lập «ngày có chuyến nghỉ» không gán chuyến, đếm riêng
   for (const b of docBd10Di(db, tuNgay, denNgay)) {
     tong++;
     const ng = b.gio.slice(0, 10);
     if (ngayDau === null || ng < ngayDau) ngayDau = ng;
     if (ngayCuoi === null || ng > ngayCuoi) ngayCuoi = ng;
+    if (L.lapNgayNghi(lichDoc.lich, b.nhan, b.gio)) { lapNghi.set(b.nhan, (lapNghi.get(b.nhan) || 0) + 1); continue; }
     const g = chuyenGanNhat(lichDoc.lich, b.nhan, b.gio, lichDoc.hanDenTruocChuyenPhut);
     const gioXe = g ? g.chuyen.gio_xuat_phat : null;
     const khoa = `${b.nhan}|${b.dtMa || ''}|${gioXe || ''}`;
@@ -86,8 +88,9 @@ function gioLapBd10(db, { tuNgay, denNgay, minBd10 = MIN_BD10_MAC_DINH } = {}) {
     };
   }).sort((a, b) => (THU_TU_BCVH_B6.indexOf(a.ma_bcvh) - THU_TU_BCVH_B6.indexOf(b.ma_bcvh)) || String(a.duong_thu_ma).localeCompare(String(b.duong_thu_ma)) || String(a.xe_roi_ktt).localeCompare(String(b.xe_roi_ktt)));
   return {
-    dong, tong_bd10: tong, cua_so_thuc_te: { tu_ngay: ngayDau, den_ngay: ngayCuoi }, so_nhom_bi_loc: nhom.size - dong.length, min_bd10: minBd10,
-    quy_uoc: 'Mỗi BD10 đi được gán cho chuyến của lịch chính thức có giờ xuất phát gần giờ lập nhất (hòa thì chuyến sau); CSV không có số thứ tự chuyến trong ngày của hệ thống.',
+    dong, tong_bd10: tong, // tổng mọi BD10 đi = số trong các nhóm (kể cả nhóm bị lọc) + lap_ngay_nghi.tong_bd10
+    lap_ngay_nghi: { tong_bd10: [...lapNghi.values()].reduce((a, n) => a + n, 0), theo_bcvh: THU_TU_BCVH_B6.filter((m) => lapNghi.has(m)).map((m) => ({ ma_bcvh: m, ten_bcvh: TEN_BCVH[m] || null, so_bd10: lapNghi.get(m) })) }, cua_so_thuc_te: { tu_ngay: ngayDau, den_ngay: ngayCuoi }, so_nhom_bi_loc: nhom.size - dong.length, min_bd10: minBd10,
+    quy_uoc: 'Mỗi BD10 đi được gán cho chuyến của lịch chính thức có giờ xuất phát gần giờ lập nhất (hòa thì chuyến sau); CSV không có số thứ tự chuyến trong ngày của hệ thống. Ngoại lệ (KTT-LICH-2): BD10 lập Chủ nhật sau chuyến Chủ nhật cuối còn chạy của BCVH có chuyến nghỉ Chủ nhật KHÔNG gán chuyến, đếm riêng ở lap_ngay_nghi và không vào «lập sau giờ xe».',
     canh_bao: [...lichDoc.canhBao]
   };
 }

@@ -129,7 +129,7 @@ function phanLoaiShbg(u, ngu) {
     else if (ngayDi === ngayKe(D)) trangThai = chuyenKq === 'DUNG' ? TRANG_THAI.T3 : TRANG_THAI.T4;
     else trangThai = TRANG_THAI.T5;
   } else if (dg.trang_thai === 'LO_CHUYEN') { trangThai = TRANG_THAI.T5; chuyenKq = 'LO'; } else { trangThai = TRANG_THAI.DANG_CHO_CHUYEN; chuyenKq = 'CHUA_DEN_GIO'; }
-  return { ...goc, nhom: nhomDich, trangThai, chuyenKq, chuyen: x.chuyen, diTruocKhiDen: !!dg.di_truoc_khi_den, datKhongDat: dat, ...chiTieu14h(u, gioDi !== null, mocChon === MOC_CHI_TIEU.XND ? dat : tinh(u.xndBd10), mocChon === MOC_CHI_TIEU.QUET_TUI_DEN ? dat : tinh(u.quetDen), tinh) };
+  return { ...goc, nhom: nhomDich, trangThai, chuyenKq, chuyen: x.chuyen, diTruocKhiDen: !!dg.di_truoc_khi_den, lapNgayNghi: gioDi !== null && L.lapNgayNghi(ngu.lich, ma, gioDi), datKhongDat: dat, ...chiTieu14h(u, gioDi !== null, mocChon === MOC_CHI_TIEU.XND ? dat : tinh(u.xndBd10), mocChon === MOC_CHI_TIEU.QUET_TUI_DEN ? dat : tinh(u.quetDen), tinh) };
 }
 
 /**
@@ -211,7 +211,13 @@ function ketQuaChiTieu14h(c, mocChon) {
 function congChiTieu14h(ds) {
   const cong = (xs) => {
     const m = xs[0];
-    if (typeof m === 'number') return xs.reduce((s, x) => s + x, 0);
+    // KTT-KD-1: `kg` của khối nguyen_nhan có thể là null («không rõ»): toàn null -> null, còn lại cộng các số (bỏ null); số nguyên giữ nguyên, số thực làm tròn 3 chữ số.
+    if (xs.every((x) => x === null || typeof x === 'number')) {
+      const so = xs.filter((x) => typeof x === 'number');
+      if (so.length === 0) return null;
+      const t = so.reduce((s, x) => s + x, 0);
+      return Number.isInteger(t) ? t : Math.round(t * 1000) / 1000;
+    }
     if (m && typeof m === 'object') return Object.fromEntries(Object.keys(m).map((key) => [key, cong(xs.map((x) => x[key]))]));
     return m;
   };

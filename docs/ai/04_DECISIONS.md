@@ -826,6 +826,7 @@ R #4A1D6E, C #E0A82E, E #1F7A5C, M #6B2F94, B #D8BDEB, Chưa tên #9A8AA0; xen k
 2. **`Gio_quet_tui_den`** là mốc **xếp chuyến** và ngày đến D của **lưu thoát** (5 trạng thái). Hai mốc lưu riêng, không gộp; mỗi chỉ số trong phản hồi ghi trường `moc`. Giờ «đã đi» = giờ LẬP BD10 đi (`bd10_di_gio_di`).
 
 ### 112. Mốc chuyến = giờ xe RỜI KTT; hạn hàng đến = mốc − 60 phút (PO chốt 26/10/2026 — KTT-7a)
+*(Phần lịch đã được thay bởi lịch chuẩn 05/11/2026 — #127; giờ trong các điểm dưới đây là lịch 26/10, giữ làm lịch sử.)*
 1. Lịch chuyến chính thức `ktt_lich_chuyen` (14 dòng, `CA_TUAN` / `NGHI_CN`) thay lịch V1 (SÁNG / TRƯA / TỐI) cho phần «chuyến»; hạn `han_den_truoc_chuyen_phut` = 60 lưu ở `ktt_lich_cau_hinh` (bảng riêng, không thêm khóa vào `ktt_cau_hinh` để không đổi test KTT-2).
 2. Chuyến thuộc = chuyến sớm nhất có `Gio_quet_tui_den ≤ giờ rời − 60 phút` (đến đúng hạn vẫn kịp), sang ngày kế khi hết chuyến, bỏ ngày không chạy. Tên chuyến trong số liệu và câu «Đánh giá» là giờ rời (`'12:30'`). Hương Trà Chủ nhật tạm tính cả tuần.
 
@@ -907,6 +908,55 @@ Thêm vai trò `TTKT` (`server/roles.js`, KHÔNG thuộc `VIEWER_ROLES`). TTKT c
 ### 124. Số lồng nhau «rớt lại N, trong đó trượt chuyến M» (KTT-RL-1, PO 02/11/2026, phương án B)
 
 Bảng «Rớt lại nằm ở đâu» hiện `ro_lai` (t3+t4+t5) và `truot_chuyen` (đi trượt + lỡ chuyến, gồm cả t2) tính riêng nên nhiều ô trượt > rớt lại, dễ nhầm. Thêm `ro_lai_truot_chuyen` = `truot_chuyen` − t2 (SHBG vừa rớt lại vừa trượt/lỡ chuyến), luôn M ≤ N, ở nhóm và `theo_bcvh` của `theo_nguon` (ngày và `tong_cong`). Chỉ thêm trường; không đổi `ro_lai`, `truot_chuyen`, nhóm lưu thoát. **Lưu ý:** KHÔNG phải số của thẻ «Trượt chuyến (cần xử lý)» đầu tab «Lưu thoát trong ngày» (thẻ đó dùng định nghĩa rộng, gồm t2). Giao diện sẽ đổi tên cột để khỏi trùng tên (ticket sau, `src/`). Code: `server/lib/kttNguon.js`; test: `tests/ktt-ro-lai-truot-chuyen.test.js`.
+
+### 125. «Vì sao không đạt 14 giờ»: nhóm nguyên nhân A–E, hai mức tổng, tỷ lệ chuẩn, dư địa theo giờ (KTT-KD-1, CTO 04/11/2026; bản sửa 1)
+
+Quyết định (thay các câu hỏi mở của báo cáo pha 1 và 1b):
+1. **Quy tắc nhóm P2 — A ưu tiên B.** A «Lỡ chuyến sát giờ» = `denSatGio` bất kể sau đó DUNG hay TRE chuyến; B «Trượt chuyến» = TRE không sát giờ; C = DUNG không sát giờ; D = lưới an toàn (giữ trong API, giao diện ẩn khi 0). Cờ `truot_chuyen_ke` = A mà chuyến kế là TRE (ghi trong `ly_do_xep_nhom`). Trên dữ liệu đo: mốc A 95/691/58/0 (trong đó 87 `truot_chuyen_ke`), mốc B 52/1.017/2/0 (36).
+2. **Nhóm E «Chưa đi, đã quá chỉ tiêu» là nhóm chính thức, ngang A–D**, nhưng là SỐ TUYỆT ĐỐI riêng, không vào `khong_dat` / `do_duoc`: A+B+C+D (đã đi) + E (chưa đi) = `dat_khong_dat.khong_dat` của khối cũ (3.084 ở mốc A, 3.510 ở mốc B; `dat_khong_dat` được nuôi theo tham số mốc nên mốc B cũng cho 3.510). `tong` có hai mức `da_di` và `ca_chua_di`. E chia theo số chuyến đã lỡ (0, 1, 2, ≥3) và cờ sát giờ.
+3. **B chia theo số chuyến trễ** 1, 2, ≥3 (`b_theo_so_chuyen_tre`).
+4. **Cắt ngang**: `thu` (theo NGÀY ĐẾN D), `loai_ngay`, `nguon_hang`; BCVH × loại ngày là cách cắt chính (536250 tạo 59% không đạt mốc A; Chủ nhật làm lịch hẹp ở 537015, 537220, 536250).
+5. **Hàng hoàn loại khỏi A–E** (khối `hang_hoan` riêng, không thêm số hoàn vào đây). **0 g = «không rõ»** (`shbg_thieu_kg`), ô toàn thiếu kg trả `kg: null`.
+6. **Sheet xlsx số 10** (số 9 giữ chỗ cho «gói 9 sheet» của trang Đối chiếu). **`chi-tiet` nhóm mới dựa `chiTieu14h[m]`** của mốc đã chọn, KHÔNG dùng `duyetLuuThoat` mốc A mặc định (test chống nhầm hai tập: 3.084 vs 844).
+7. **Bản sửa 1**: BỎ «vừa lỡ chuyến» khỏi API (1b: không dự báo được không đạt, 2,99% vs 3,85%, tốn ≈4 giây); giữ `sat_gio` 30/60/90 (từ biên an toàn), biên an toàn, chờ theo lịch, dư địa, cờ `lo_chuyen` thực tế. **Tỷ lệ chuẩn = không đạt ĐÃ ĐI / ĐO ĐƯỢC** (`37` mục 6); E đứng cạnh, không trộn. `dot_den[]` xếp theo SỐ KHÔNG ĐẠT ĐÃ ĐI (không xếp theo rủi ro); khóa đợt = BD10 đến. **Mọi bảng trả CẢ HAI mốc**; mốc A méo theo lô XNĐ nên giao diện mặc định mốc B để chẩn đoán; mốc chính thức (#111) KHÔNG đổi.
+
+Kết quả khảo sát 1b (nền của quyết định 7): giả thuyết «giờ đến sát hạn gây không đạt» không được số đo ủng hộ ở cấp hệ thống — 98–99% không đạt là trượt hoặc lỡ chuyến khi lịch còn dư địa; sát giờ không làm tăng tỷ lệ không đạt.
+
+Không làm ở ticket này: giao diện (KTT-KD-2), sửa lịch Chủ nhật (KTT-LICH-1), xác định nguyên nhân của nhóm E ở 536250 (BD10 đi chưa nạp / hàng không lập BD10 đi / hàng tồn thật — chỉ có bằng chứng, chưa kết luận).
+
+### 126. «Bức tranh đường thư đến» và khối «Vì sao không đạt 14 giờ»: mốc mặc định A, cờ theo ngưỡng tương đối, sát giờ chốt chỉ THEO DÕI (KTT-KD-1 pha 2, CTO 04/11/2026; bản sửa 2)
+
+Quyết định:
+1. **Mốc mặc định của khối mới = mốc A** (PO 04/11/2026), nhưng API vẫn trả CẢ HAI mốc ở mọi bảng và mọi con số kèm `do_duoc` / `mau_so` của mốc đó; **không công bố tỷ lệ chung**. Đây KHÔNG đổi #111: mốc A vẫn là mốc chính thức của chỉ tiêu 14 giờ; số của chỉ tiêu và các khối cũ không đổi. Giờ đến theo mốc A kèm cờ `meo_theo_lo` khi lệch ≥ 120 phút so với mốc B của cùng cụm (XNĐ gom theo lô).
+2. **«Chuyến thư đến»** = (đường thư, lịch BD10 đến, băng giờ); băng tách khi hai lần đến cách trên 60 phút (CTO chốt 60 phút, 04/11/2026). «Đợt» của KTT-12 gom từng ngày (120 phút); «chuyến thư đến» là khung giờ trên cả cửa sổ 30 ngày: hai khái niệm khác nhau, giao diện không dùng «đợt».1; KHÔNG sửa KTT-12; chờ CTO quyết một quy tắc dùng chung).
+3. **Cờ theo ngưỡng TƯƠNG ĐỐI, tính ở máy chủ, đọc từ tham số hệ thống** (`ktt_bt_*`, 12 khóa): `that_thuong` và `khong_co_lich_co_dinh` = từ phân vị 80 của các cụm (mỗi cờ gắn khoảng 20%, không phải 34–67% như ngưỡng cứng của canvas); `nhieu_kien_di_ngoai` ≥ 30% **VÀ** thuộc 20% cụm có tỷ lệ kiện đi ngoài cao nhất (tham số `ktt_bt_kien_ngoai_phan_vi` = 80; PO Tân chốt 05/11/2026 phương án B, ticket KTT-KD-1d — thay quy tắc «chỉ ≥ 30%» từng gắn 30–36% số cụm); `chuyen_gom_nhieu_hang` ≥ 1,5 × mức chia đều số chuyến; `sat_gio_chot`; `sat_chi_tieu`; `mau_it` (< 100 bưu gửi). Cụm / ô mẫu ít không vào phân bố và không gắn cờ.
+4. **Cờ «sát giờ chốt» chỉ ở mức THEO DÕI** (số đo 1b chưa ủng hộ giả thuyết sát giờ gây không đạt), không bao giờ là cảnh báo.
+5. **Xếp thứ tự theo số bưu gửi bị ảnh hưởng (Pareto)**, có `luy_ke_pct`; không xếp theo tỷ lệ.
+6. **Thời gian lưu thoát theo lịch** chỉ tính từ lúc hàng đến tới giờ xe rời (đã trừ 21:00–07:00): không có giờ chốt phát, không có thời gian xe chạy đến BCVH; «còn lại so với chỉ tiêu» có thể âm.
+7. **Lịch Chủ nhật Hương Thủy** (PO 04/11/2026: chỉ có chuyến sáng): ĐÃ SỬA ở KTT-LICH-2 (#127): lịch chuẩn 05/11 cho Hương Thủy 07:30 chạy cả Chủ nhật, 12:45 nghỉ; `luu_y_lich` đổi nguồn sang `ngay_chay_xac_nhan` (không BCVH nào gắn cờ). Ghi chú lịch sử: lúc 04/11 mã coi Hương Thủy không có chuyến nào vào Chủ nhật.
+8. **Cache theo ngày**: cột số của bức tranh nằm trong mục cache theo ngày của `/luu-thoat` (cùng lượt duyệt, cùng khóa hủy; một mục chứa cả hai mốc); `huyCacheNgay([ngày])` hủy đúng ngày.
+
+### 127. Lịch chuẩn 05/11/2026, thay phần lịch của #112 (KTT-LICH-2, PO 05/11/2026; CTO duyệt pha 2 cùng ngày)
+
+Nguồn duy nhất: file «LỊCH CHUẨN xe cấp 2 rời Khai thác tỉnh» (`KTT-LICH-CHUAN-05-11-2026.md`, PO chốt 05/11/2026). Thay lịch KTT-7a (26/10), file lịch C2, canvas v22 B2, HANDOVER-KTT-27-10, bản nháp 04/11 và phần lịch của #112 (quy tắc «mốc = giờ rời, hạn = mốc − 60 phút» của #112 giữ nguyên).
+1. **14 dòng**: Thuận Hóa 07:00, 12:45, 12:55, 19:45, 22:00 (chạy đủ Chủ nhật); Hương Thủy 07:30 (chạy CN), 12:45 (nghỉ CN); Hương Trà 06:10, 12:00 (chạy CN, xe cấp 1); Thuận An 07:30, 13:30 (nghỉ CN); Phú Lộc 07:30, 13:00 (nghỉ CN); A Lưới 08:00 (chạy CN). Chủ nhật mô hình hóa ở **mức dòng chuyến** (cột `ngay_chay` hiện có, `CA_TUAN` | `NGHI_CN`); KHÔNG thêm cột chuyến.
+2. **Migration MỘT lần** theo khóa `lich_phien_ban` (`20261105`) ở `ktt_lich_cau_hinh`: `ensureKttSchema` đồng bộ `ktt_lich_chuyen` về lịch chuẩn trong MỘT giao dịch (xóa dòng ngoài chuẩn, ghi đè dòng trùng, thêm dòng thiếu); DB mới, DB cũ và DB «lai» đều về đúng 14 dòng; chạy lần hai không đổi gì; sửa tay SAU migration không bị ghi đè. Đổi lịch chuẩn lần sau: sửa `LICH_CHUYEN_MAC_DINH` và tăng `LICH_PHIEN_BAN`.
+3. **Lịch V1** (`ktt_cau_hinh_chuyen`, `CHUYEN_MAC_DINH`): đã kiểm, không còn nơi nào xếp chuyến theo V1 (chỉ `kttTinh.danhGiaChuyen`, hàm thuần chưa nối, và đọc cấu hình `docCauHinhKtt`); đã BỎ seed (bảng vẫn được tạo, DB cũ còn dòng thì để nguyên); cảnh báo «chưa có dòng» của V1 bị lọc khỏi `canh_bao` của API.
+4. **`luu_y_lich`** giữ trường và tên khóa (`o[]`, `chuyen[]`, `meta.luu_y_lich.bcvh_chuyen_nghi_chu_nhat`) nhưng đổi nghĩa: nguồn là cột `ngay_chay_xac_nhan` (0 = lịch ngày chạy chưa xác nhận), không còn suy từ `NGHI_CN`; lịch chuẩn đặt mọi dòng = 1 nên **không BCVH nào gắn cờ**. Thêm khóa `meta.luu_y_lich.bcvh_chu_nhat_chua_xac_nhan` (cùng giá trị). Về sau chỉ cần đổi dữ liệu.
+5. **BD10 lập ngày chuyến nghỉ** (Chủ nhật, BCVH có chuyến nghỉ, giờ lập sau chuyến Chủ nhật cuối còn chạy): **phương án A** cho bảng KTT-12 (`lich-xe/gio-lap-bd10`: không gán chuyến, đếm riêng `lap_ngay_nghi`, loại khỏi «lập sau giờ xe»); **phương án B** cho `luu-thoat` và `khong-dat-14h` (chỉ cờ phụ `lap_ngay_nghi`, KHÔNG đổi «đúng chuyến» / «trượt chuyến» / mẫu số).
+6. **Cache**: chữ ký cache KTT thêm `ngay_chay_xac_nhan` và `lich_phien_ban`; đổi lịch thì hủy toàn bộ cache theo ngày (có test).
+7. **Hiệu lực**: áp cho TOÀN BỘ cửa sổ (tính lại cả quá khứ); số trước / sau ở `40_KTT_LICH_CHUYEN.md` mục 8 và báo cáo KTT-LICH-2.
+8. **«Đổi thực»** (so lịch cũ ↔ chuẩn) = bưu gửi vào khe giờ / ngày KHÁC sau khi coi 06:00→06:10, 12:30→12:45 (Thuận Hóa, Hương Thủy), 06:30→07:30 là cùng một chuyến (`40` mục 8).
+
+### #128 — Màn «Giờ đến trong ngày» (KTT-KD-3b, CTO duyệt 05/11/2026)
+1. **Đơn vị** = mã đường thư (gộp mọi lịch, mọi cụm); hàng chưa có mã là dòng riêng, đường thư chưa có tên là dòng riêng (`ten` null), không vào «Khác».
+2. **Chuyến thư đến**: các lần đến của cùng đường thư cách nhau KHÔNG QUÁ 60 phút (`ktt_bt_gap_cum_phut`) là MỘT chuyến — cùng một xe được xác nhận trước và sau (PO 05/11/2026), không phải hai xe. **Giờ đến của một ngày = mỗi chuyến một giờ** (giờ giữa); P10 / giờ giữa / P90 của đường thư tính trên các giờ-chuyến-ngày, không trên từng bưu gửi.
+3. **Phạm vi hàng**: chỉ 6 BCVH Huế (cùng mẫu số bức tranh, không hàng hoàn); số đi ngoài / không rõ đích / không có giờ quét / hàng hoàn ở `ngoai_pham_vi`. Hàng đi tỉnh khác: ticket sau.
+4. **Mốc**: API trả cả hai mốc; A (`bd10_den_xnd`, #111) giữ giờ trong ngày vòng 24 giờ. Giao diện mặc định mốc B ở cách xem «Chỉ xem giờ đến trong ngày» (A méo theo lô), mốc A ở cách xem có tính chỉ tiêu.
+5. **Dải «còn so với chỉ tiêu» do máy chủ tính** (hàng đến phút :30, lịch chuẩn, trừ 21:00–07:00, giờ chốt = rời − 60, chỉ tiêu 14 / 12 giờ): giao diện không hard-code lịch hay chỉ tiêu; `con_lai_gio` có thể âm; không tính được = null.
+6. **Dấu hiệu cấp đường thư** (ngưỡng tương đối ở máy chủ, khóa `ktt_bt_*`): `san_luong_khong_deu`, `gio_den_khong_co_dinh`, `nhieu_kien_di_ngoai`, `mau_it` (co theo số ngày: `ktt_bt_mau_toi_thieu` × ngày / 30, làm tròn lên), `san_luong_lon` (khóa mới `ktt_bt_san_luong_lon_phan_vi` = 80). Cờ cấp cụm của route cũ giữ nguyên. **KTT-KD-3b2 (05/11/2026)**: `gio_den_khong_co_dinh` đo độ ổn định TỪNG CHUYẾN giữa các ngày (chuyến từ 5 ngày có hàng; P90−P10 của giờ giữa chuyến qua các ngày; trung bình trọng số bưu gửi), không đo khoảng cách giữa các chuyến (cờ cũ thiên về đường thư nhiều chuyến). Khoảng giờ có `vat_nua_dem`, độ rộng theo vòng 24 giờ ≥ 0.
+7. Chỉ THÊM: ba route mới, `docs/ai/42` mục 22; không đổi trường nào của route cũ (đã so JSON trước / sau trên dữ liệu giả: giống từng byte).
+8. **KTT-KD-3b3 (07/11/2026) — chốt tên trường**: bảng tên chuẩn ở `docs/ai/42` mục 22 là nguồn duy nhất cho giao diện (không đoán tên, không tự cộng). THÊM (không đổi trường cũ): `san_luong_loc` (sản lượng theo loại ngày đang lọc: hai cách chia, ÷ ngày có hàng và ÷ ngày của loại ngày; kg tương tự) ở đường thư / `khac` / `tong` / theo-ngay; `trong_tui` ở `khac` / `tong`; `danh_sach[].meo_theo_lo`; `canh_bao_ma` (mã cảnh báo, giao diện không in `canh_bao` thô). Không tính được = `null`, không 0. Không đổi quy tắc tính (#111, #112, #127, #128 mục 1–7).
 
 ## Drift phát hiện
 _(chưa có)_
