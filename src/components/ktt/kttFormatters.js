@@ -151,4 +151,26 @@ export function formatDateTimeWithoutSeconds(str) {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
+/**
+ * Kiểm tra nhóm nguồn / đường thư đến chỉ có mã, chưa có tên hiển thị.
+ * Server kttNguon.js đặt ten = ma khi thiếu bd10_den_ten_duong_thu.
+ * @param {Object|null|undefined} g
+ */
+export function isNguonChuaCoTen(g) {
+  if (!g || !g.ma) return false;
+  if (g.ma === 'NOI_TINH' || g.ma === 'KHONG_RO_NGUON') return false;
+  const ten = g.ten == null ? '' : String(g.ten).trim();
+  const ma = String(g.ma).trim();
+  return !ten || ten === ma;
+}
+
+/**
+ * Định dạng tên nhóm nguồn / đường thư đến: nếu chưa có tên thì trả «Chưa có tên · mã».
+ * @param {Object|null|undefined} g
+ */
+export function formatNguonTen(g) {
+  if (!g) return '—';
+  if (isNguonChuaCoTen(g)) return `Chưa có tên · ${String(g.ma).trim()}`;
+  return g.ten || g.ma || '—';
+}
 
