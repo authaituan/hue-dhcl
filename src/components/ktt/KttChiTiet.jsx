@@ -36,7 +36,7 @@ export default function KttChiTiet({
 
   const reqIdRef = useRef(0);
 
-  // Khi người dùng bấm ô ở heatmap, đồng bộ loại và reset về trang 1
+  // Khi người dùng bấm ô ở bảng nguồn × BCVH, đồng bộ loại và reset về trang 1
   useEffect(() => {
     if (filterCell?.loai) {
       setActiveLoai(filterCell.loai);
@@ -119,7 +119,7 @@ export default function KttChiTiet({
             Danh sách hàng đến trong ngày theo trạng thái
           </h2>
           <p className="text-xs text-gray-600 mt-1">
-            Mở từ một ô của heatmap, hoặc xem cả ngày/khoảng. Mỗi dòng một bưu gửi (SHBG); lọc theo trạng thái ở cột cuối.
+            Mở từ một ô của bảng nguồn × BCVH, hoặc xem cả ngày/khoảng. Mỗi dòng một bưu gửi (SHBG); lọc theo trạng thái ở cột cuối.
           </p>
         </div>
 
@@ -145,7 +145,7 @@ export default function KttChiTiet({
       {filterCell && (
         <div className="flex items-center justify-between px-3.5 py-2 bg-[#EFE6F5] border border-[#D8BDEB] rounded-[10px] text-xs text-[#4A1D6E]">
           <div className="flex items-center gap-2">
-            <span className="font-bold">Đang xem theo ô heatmap:</span>
+            <span className="font-bold">Đang xem theo ô:</span>
             <span className="font-semibold bg-white px-2 py-0.5 rounded border border-[#D8BDEB]">
               {formatTrangThaiNhan(filterCell.label)}
             </span>

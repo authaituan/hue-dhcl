@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { Download } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import { formatInt, formatPercent } from '../quythoigian/quyThoiGianFormatters';
+import { formatNguonTen, isNguonChuaCoTen } from './kttFormatters';
 import KttTooltip from './KttTooltip';
 
+/** Ngưỡng số bưu gửi tối thiểu của một ô để tô màu; dưới mức này chỉ hiện «Ít mẫu · N bưu gửi». */
+export const NGUONG_IT_MAU_O = 20;
+
 /**
- * Tính màu nền và màu chữ cho ô heatmap theo độ đậm của đỏ #B3202A trên nền kem,
+ * Tính màu nền và màu chữ cho ô theo độ đậm của đỏ #B3202A trên nền kem,
  * đảm bảo độ tương phản chữ >= 4.5:1.
  */
-function getHeatmapStyle(ratio) {
+function getCellTintStyle(ratio) {
   if (ratio === null || ratio === undefined || isNaN(ratio) || ratio <= 0) {
     return {
       className: 'bg-white hover:bg-[#FFFBEF] text-gray-900',
@@ -39,11 +42,100 @@ function getHeatmapStyle(ratio) {
       subTextClass: 'text-white/90',
     };
   }
-  // > 70%
   return {
     className: 'bg-[#B3202A] hover:bg-[#9B1921] text-white',
     subTextClass: 'text-white/90',
   };
+}
+
+function getMetricConfig(colorBy) {
+  if (colorBy === 'truot_chuyen') {
+    return { label: 'Vừa rớt lại vừa trượt chuyến' };
+  }
+  if (colorBy === 'khong_dat') {
+    return { label: 'Không đạt 14 giờ' };
+  }
+  return { label: 'Rớt lại' };
+}
+
+function MatrixCellButton({
+  hasNoData,
+  shbg,
+  primaryVal,
+  displayRatio,
+  colorRatio,
+  isSelected,
+  borderClass = 'border-gray-200/80',
+  tooltipTitle,
+  tooltipAriaLabel,
+  tooltipRows,
+  onClick,
+}) {
+  const isEmpty = hasNoData || shbg === 0;
+  const isFewSample = !isEmpty && shbg < NGUONG_IT_MAU_O;
+  const style = isEmpty
+    ? { className: 'bg-white hover:bg-[#FFFBEF] text-gray-900', subTextClass: 'text-gray-500' }
+    : isFewSample
+    ? { className: 'bg-[#FAF5E8]/70 hover:bg-[#FAF5E8] text-gray-800', subTextClass: 'text-gray-600' }
+    : getCellTintStyle(colorRatio);
+
+  const tooltipContent = !isEmpty ? (
+    <div className="space-y-1.5 min-w-[210px]">
+      <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
+        <span>{tooltipTitle}</span>
+        <span className="text-gray-300 font-normal">
+          Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(shbg)}</strong> bưu gửi
+        </span>
+      </div>
+      <div className="space-y-1 text-[11px]">
+        {tooltipRows.map((row) => (
+          <div key={row.label} className={`flex items-center justify-between gap-3 ${row.highlight ? '' : 'text-gray-300'}`}>
+            <span className={row.highlight ? 'text-amber-300 font-semibold' : ''}>{row.label}:</span>
+            <span className={`tabular-nums ${row.highlight ? 'font-bold text-white' : ''}`}>
+              {row.valueText}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="pt-1 border-t border-gray-800 text-[11px] text-gray-400 italic">
+        Bấm để xem danh sách chi tiết bưu gửi
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <KttTooltip content={tooltipContent} ariaLabel={tooltipAriaLabel} className="w-full h-full">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full h-full min-h-[54px] px-2 py-1.5 rounded-[8px] border ${borderClass} flex flex-col items-center justify-center transition-all cursor-pointer ${
+          style.className
+        } ${isSelected ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm' : ''}`}
+      >
+        {isEmpty ? (
+          <span className="text-gray-400 italic">—</span>
+        ) : isFewSample ? (
+          <>
+            <div className="text-sm font-bold tabular-nums leading-tight">
+              {formatInt(primaryVal)}
+            </div>
+            <div className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}>
+              Ít mẫu · {formatInt(shbg)} bưu gửi
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-sm font-bold tabular-nums leading-tight">
+              {formatInt(primaryVal)}
+            </div>
+            <div className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}>
+              {formatPercent(displayRatio)} của {formatInt(shbg)}
+            </div>
+          </>
+        )}
+      </button>
+    </KttTooltip>
+  );
 }
 
 export default function KttBanDoNhiet({
@@ -51,8 +143,6 @@ export default function KttBanDoNhiet({
   selectedBcvh,
   selectedCell,
   onSelectCell,
-  onExportCell,
-  exportLoading,
 }) {
   const hasNoData = !data?.co_du_lieu;
   const [colorBy, setColorBy] = useState('ro_lai'); // 'ro_lai' | 'truot_chuyen' | 'khong_dat'
@@ -107,7 +197,6 @@ export default function KttBanDoNhiet({
       map[b.ma] = { shbg, roLai, truot, khongDat, roLaiTruot };
     });
 
-    // Grand total
     const grandShbg = data.tong_cong.luu_thoat?.mau_so ?? 0;
     const grandRoLai = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
       (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
@@ -132,24 +221,71 @@ export default function KttBanDoNhiet({
 
   if (!data?.tong_cong) return null;
 
+  const { label: metricLabel } = getMetricConfig(colorBy);
+
+  const buildStandardCellProps = ({ title, shbg, roLai, roLaiTruot, khongDat, showKhongDat = true }) => {
+    let metricVal = roLai;
+    if (colorBy === 'truot_chuyen') metricVal = roLaiTruot;
+    else if (colorBy === 'khong_dat') metricVal = khongDat;
+
+    const ratio = shbg > 0 ? metricVal / shbg : 0;
+    const roLaiRatio = shbg > 0 ? roLai / shbg : 0;
+    const primaryVal = colorBy === 'khong_dat' ? khongDat : roLai;
+    const displayRatio = colorBy === 'khong_dat' ? ratio : roLaiRatio;
+
+    const tooltipAriaLabel = hasNoData || shbg === 0
+      ? `${title}: không có dữ liệu`
+      : `${title} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
+
+    const tooltipRows = [
+      {
+        label: metricLabel,
+        valueText: `${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)})`,
+        highlight: true,
+      },
+      {
+        label: 'Rớt lại',
+        valueText: `${formatInt(roLai)} bưu gửi (${formatPercent(roLaiRatio)})`,
+      },
+      {
+        label: 'Vừa rớt lại vừa trượt chuyến',
+        valueText: `${formatInt(roLaiTruot)} bưu gửi (${formatPercent(shbg > 0 ? roLaiTruot / shbg : 0)})`,
+      },
+    ];
+    if (showKhongDat) {
+      tooltipRows.push({
+        label: 'Không đạt 14 giờ',
+        valueText: `${formatInt(khongDat)} bưu gửi (${formatPercent(shbg > 0 ? khongDat / shbg : 0)})`,
+      });
+    }
+
+    return {
+      hasNoData,
+      shbg,
+      primaryVal,
+      displayRatio,
+      colorRatio: ratio,
+      tooltipTitle: title,
+      tooltipAriaLabel,
+      tooltipRows,
+    };
+  };
+
   return (
     <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
       {/* ── TIÊU ĐỀ & CÔNG TẮC TÔ MÀU ───────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h2 className="hue-h2 text-[17px]">
-            Rớt lại nằm ở đâu: nguồn / đường thư × BCVH đích
+            Rớt lại nằm ở đâu: nguồn × BCVH đích
           </h2>
           <p className="text-xs text-gray-600 mt-1">
-            Mỗi ô: số bưu gửi rớt lại, tỷ lệ so với hàng đến của ô, và trong đó số trượt chuyến. Ô càng đỏ càng rớt nhiều. Bấm một ô để mở danh sách của ô đó.
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Chú giải: Rớt lại = hàng không đi trong ngày đến. Trượt chuyến = hàng đi sau giờ xuất phát của chuyến theo lịch (kể cả hàng đi trong ngày), hoặc đã quá giờ chuyến mà chưa đi. «Cũng trượt chuyến» = hàng vừa rớt lại vừa trượt chuyến.
+            Mỗi ô: số rớt lại và % của ô. Ô dưới {NGUONG_IT_MAU_O} bưu gửi không tô màu, ghi «Ít mẫu». «Trượt chuyến» chỉ hiện khi rê chuột hoặc ở danh sách. Bấm một ô để mở danh sách.
           </p>
         </div>
 
         {/* 3 nút công tắc tô màu */}
-        <div className="flex items-center gap-1.5 bg-[#FAF5E8] p-1 rounded-[10px] border border-[#E4D5AE] shrink-0 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 bg-[#FAF5E8] p-1 rounded-[10px] border border-[#E4D5AE] shrink-0 text-xs">
           <span className="text-gray-600 font-semibold px-2 py-1">Tô màu theo:</span>
           <button
             type="button"
@@ -187,7 +323,7 @@ export default function KttBanDoNhiet({
         </div>
       </div>
 
-      {/* ── BẢNG BẢN ĐỒ NHIỆT ────────────────────────────────────────────────── */}
+      {/* ── BẢNG MA TRẬN NGUỒN × BCVH ──────────────────────────────────────── */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[850px] border-collapse text-left text-xs">
           <thead>
@@ -211,235 +347,86 @@ export default function KttBanDoNhiet({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {/* Các hàng nhóm nguồn */}
             {sortedNguon.map((g) => {
+              const nguonLabelText = formatNguonTen(g);
+              const chuaCoTen = isNguonChuaCoTen(g);
+
               return (
                 <tr key={g.ma} className="hover:bg-gray-50/50">
                   <td className="py-2 px-3 font-semibold text-gray-900 whitespace-nowrap">
-                    {g.ten}
+                    {chuaCoTen ? (
+                      <>
+                        <span className="italic text-gray-500 font-normal">Chưa có tên</span>
+                        {' · '}
+                        <span>{g.ma}</span>
+                      </>
+                    ) : (
+                      g.ten
+                    )}
                   </td>
 
-                  {/* 6 ô theo 6 BCVH */}
                   {BCVH_LIST.map((b) => {
                     const cell = g.theo_bcvh?.[b.ma];
-                    const shbg = cell?.shbg ?? 0;
-                    const roLai = cell?.ro_lai ?? 0;
-                    const roLaiTruot = cell?.ro_lai_truot_chuyen ?? 0;
-                    const khongDat = cell?.khong_dat ?? 0;
-
-                    let metricVal = roLai;
-                    if (colorBy === 'truot_chuyen') {
-                      metricVal = roLaiTruot;
-                    } else if (colorBy === 'khong_dat') {
-                      metricVal = khongDat;
-                    }
-
-                    const ratio = shbg > 0 ? metricVal / shbg : 0;
-                    const style = getHeatmapStyle(hasNoData || shbg === 0 ? 0 : ratio);
+                    const props = buildStandardCellProps({
+                      title: `${nguonLabelText} × ${b.ten}`,
+                      shbg: cell?.shbg ?? 0,
+                      roLai: cell?.ro_lai ?? 0,
+                      roLaiTruot: cell?.ro_lai_truot_chuyen ?? 0,
+                      khongDat: cell?.khong_dat ?? 0,
+                    });
                     const isSelected =
                       selectedCell?.nguon === g.ma &&
                       selectedCell?.ma_bcvh === b.ma &&
                       selectedCell?.loai === colorBy;
 
-                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
-                    const cellTip = hasNoData || shbg === 0
-                      ? `${g.ten} × ${b.ten}: không có dữ liệu`
-                      : `${g.ten} × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
-
-                    const cellTooltipContent = !hasNoData && shbg > 0 ? (
-                      <div className="space-y-1.5 min-w-[210px]">
-                        <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                          <span>{g.ten} × {b.ten}</span>
-                          <span className="text-gray-300 font-normal">
-                            Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(shbg)}</strong> bưu gửi
-                          </span>
-                        </div>
-                        <div className="space-y-1 text-[11px]">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-amber-300 font-semibold">{metricLabel}:</span>
-                            <span className="tabular-nums font-bold text-white">
-                              {formatInt(metricVal)} bưu gửi ({formatPercent(ratio)})
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Rớt lại:</span>
-                            <span className="tabular-nums">{formatInt(roLai)} bưu gửi ({formatPercent(shbg > 0 ? roLai / shbg : 0)})</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Vừa rớt lại vừa trượt chuyến:</span>
-                            <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(shbg > 0 ? roLaiTruot / shbg : 0)})</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Không đạt 14 giờ:</span>
-                            <span className="tabular-nums">{formatInt(khongDat)} bưu gửi ({formatPercent(shbg > 0 ? khongDat / shbg : 0)})</span>
-                          </div>
-                        </div>
-                        <div className="pt-1 border-t border-gray-800 text-[11px] text-gray-400 italic">
-                          Bấm để xem danh sách chi tiết bưu gửi
-                        </div>
-                      </div>
-                    ) : null;
-
                     return (
                       <td key={b.ma} className="p-1">
-                        <KttTooltip
-                          content={cellTooltipContent}
-                          ariaLabel={cellTip}
-                          className="w-full h-full"
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onSelectCell({
-                                nguon: g.ma,
-                                nguonTen: g.ten,
-                                ma_bcvh: b.ma,
-                                bcvhTen: b.ten,
-                                loai: colorBy,
-                                label: `${g.ten} × ${b.ten} · ${metricLabel}`,
-                              })
-                            }
-                            className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-200/80 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                              style.className
-                            } ${
-                              isSelected
-                                ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                                : ''
-                            }`}
-                          >
-                            {hasNoData || shbg === 0 ? (
-                              <span className="text-gray-400 italic">—</span>
-                            ) : (
-                              <>
-                                <div className="text-sm font-bold tabular-nums leading-tight">
-                                  {formatInt(colorBy === 'khong_dat' ? khongDat : roLai)}
-                                </div>
-                                <div
-                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                                >
-                                  {formatPercent(colorBy === 'khong_dat' ? ratio : (shbg > 0 ? roLai / shbg : 0))} của {formatInt(shbg)}
-                                </div>
-                                <div
-                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                                >
-                                  {colorBy === 'khong_dat'
-                                    ? `rớt lại ${formatInt(roLai)}`
-                                    : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
-                                </div>
-                              </>
-                            )}
-                          </button>
-                        </KttTooltip>
+                        <MatrixCellButton
+                          {...props}
+                          isSelected={isSelected}
+                          onClick={() =>
+                            onSelectCell({
+                              nguon: g.ma,
+                              nguonTen: nguonLabelText,
+                              ma_bcvh: b.ma,
+                              bcvhTen: b.ten,
+                              loai: colorBy,
+                              label: `${nguonLabelText} × ${b.ten} · ${metricLabel}`,
+                            })
+                          }
+                        />
                       </td>
                     );
                   })}
 
-                  {/* Ô Cộng của hàng nguồn g */}
-                  {(() => {
-                    const shbg = g.shbg;
-                    const roLai = g.ro_lai;
-                    const roLaiTruot = g.ro_lai_truot_chuyen ?? 0;
-                    const khongDat = g.dat_khong_dat?.khong_dat ?? 0;
-
-                    let metricVal = roLai;
-                    if (colorBy === 'truot_chuyen') {
-                      metricVal = roLaiTruot;
-                    } else if (colorBy === 'khong_dat') {
-                      metricVal = khongDat;
-                    }
-
-                    const ratio = shbg > 0 ? metricVal / shbg : 0;
-                    const style = getHeatmapStyle(hasNoData || shbg === 0 ? 0 : ratio);
-                    const isSelected =
-                      selectedCell?.nguon === g.ma &&
-                      !selectedCell?.ma_bcvh &&
-                      selectedCell?.loai === colorBy;
-
-                    const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
-                    const rowTip = hasNoData || shbg === 0
-                      ? `${g.ten} · Tất cả BCVH: không có dữ liệu`
-                      : `${g.ten} · Tất cả BCVH · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(roLai)}`;
-
-                    const rowTooltipContent = !hasNoData && shbg > 0 ? (
-                      <div className="space-y-1.5 min-w-[210px]">
-                        <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                          <span>{g.ten} · Tất cả BCVH</span>
-                          <span className="text-gray-300 font-normal">
-                            Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(shbg)}</strong> bưu gửi
-                          </span>
-                        </div>
-                        <div className="space-y-1 text-[11px]">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-amber-300 font-semibold">{metricLabel}:</span>
-                            <span className="tabular-nums font-bold text-white">
-                              {formatInt(metricVal)} bưu gửi ({formatPercent(ratio)})
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Rớt lại:</span>
-                            <span className="tabular-nums">{formatInt(roLai)} bưu gửi ({formatPercent(shbg > 0 ? roLai / shbg : 0)})</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 text-gray-300">
-                            <span>Vừa rớt lại vừa trượt chuyến:</span>
-                            <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(shbg > 0 ? roLaiTruot / shbg : 0)})</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null;
-
-                    return (
-                      <td className="p-1 bg-[#FAF5E8]/30">
-                        <KttTooltip
-                          content={rowTooltipContent}
-                          ariaLabel={rowTip}
-                          className="w-full h-full"
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onSelectCell({
-                                nguon: g.ma,
-                                nguonTen: g.ten,
-                                ma_bcvh: null,
-                                bcvhTen: 'Tất cả BCVH',
-                                loai: colorBy,
-                                label: `${g.ten} · Tất cả BCVH · ${metricLabel}`,
-                              })
-                            }
-                            className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                              style.className
-                            } ${
-                              isSelected
-                                ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                                : ''
-                            }`}
-                          >
-                            {hasNoData || shbg === 0 ? (
-                              <span className="text-gray-400 italic">—</span>
-                            ) : (
-                              <>
-                                <div className="text-sm font-bold tabular-nums leading-tight">
-                                  {formatInt(colorBy === 'khong_dat' ? khongDat : roLai)}
-                                </div>
-                                <div
-                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                                >
-                                  {formatPercent(colorBy === 'khong_dat' ? ratio : (shbg > 0 ? roLai / shbg : 0))} của {formatInt(shbg)}
-                                </div>
-                                <div
-                                  className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                                >
-                                  {colorBy === 'khong_dat'
-                                    ? `rớt lại ${formatInt(roLai)}`
-                                    : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
-                                </div>
-                              </>
-                            )}
-                          </button>
-                        </KttTooltip>
-                      </td>
-                    );
-                  })()}
+                  <td className="p-1 bg-[#FAF5E8]/30">
+                    <MatrixCellButton
+                      {...buildStandardCellProps({
+                        title: `${nguonLabelText} · Tất cả BCVH`,
+                        shbg: g.shbg ?? 0,
+                        roLai: g.ro_lai ?? 0,
+                        roLaiTruot: g.ro_lai_truot_chuyen ?? 0,
+                        khongDat: g.dat_khong_dat?.khong_dat ?? 0,
+                        showKhongDat: false,
+                      })}
+                      borderClass="border-gray-300"
+                      isSelected={
+                        selectedCell?.nguon === g.ma &&
+                        !selectedCell?.ma_bcvh &&
+                        selectedCell?.loai === colorBy
+                      }
+                      onClick={() =>
+                        onSelectCell({
+                          nguon: g.ma,
+                          nguonTen: nguonLabelText,
+                          ma_bcvh: null,
+                          bcvhTen: 'Tất cả BCVH',
+                          loai: colorBy,
+                          label: `${nguonLabelText} · Tất cả BCVH · ${metricLabel}`,
+                        })
+                      }
+                    />
+                  </td>
                 </tr>
               );
             })}
@@ -449,238 +436,108 @@ export default function KttBanDoNhiet({
               <td className="py-2.5 px-3 font-bold text-gray-900">Cộng</td>
               {BCVH_LIST.map((b) => {
                 const total = bcvhTotals[b.ma] || { shbg: 0, roLai: 0, truot: 0, khongDat: 0, roLaiTruot: 0 };
-                const roLaiTruot = total.roLaiTruot ?? 0;
-                let metricVal = total.roLai;
-                if (colorBy === 'truot_chuyen') {
-                  metricVal = roLaiTruot;
-                } else if (colorBy === 'khong_dat') {
-                  metricVal = total.khongDat;
-                }
-
-                const ratio = total.shbg > 0 ? metricVal / total.shbg : 0;
-                const style = getHeatmapStyle(hasNoData || total.shbg === 0 ? 0 : ratio);
-                const isSelected =
-                  !selectedCell?.nguon &&
-                  selectedCell?.ma_bcvh === b.ma &&
-                  selectedCell?.loai === colorBy;
-
-                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
-                const colTip = hasNoData || total.shbg === 0
-                  ? `Tất cả nguồn × ${b.ten}: không có dữ liệu`
-                  : `Tất cả nguồn × ${b.ten} · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
-
-                const colTooltipContent = !hasNoData && total.shbg > 0 ? (
-                  <div className="space-y-1.5 min-w-[210px]">
-                    <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                      <span>Tất cả nguồn × {b.ten}</span>
-                      <span className="text-gray-300 font-normal">
-                        Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(total.shbg)}</strong> bưu gửi
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-amber-300 font-semibold">{metricLabel}:</span>
-                        <span className="tabular-nums font-bold text-white">
-                          {formatInt(metricVal)} bưu gửi ({formatPercent(ratio)})
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Rớt lại:</span>
-                        <span className="tabular-nums">{formatInt(total.roLai)} bưu gửi ({formatPercent(total.shbg > 0 ? total.roLai / total.shbg : 0)})</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Vừa rớt lại vừa trượt chuyến:</span>
-                        <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(total.shbg > 0 ? roLaiTruot / total.shbg : 0)})</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Không đạt 14 giờ:</span>
-                        <span className="tabular-nums">{formatInt(total.khongDat)} bưu gửi ({formatPercent(total.shbg > 0 ? total.khongDat / total.shbg : 0)})</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : null;
-
                 return (
                   <td key={b.ma} className="p-1">
-                    <KttTooltip
-                      content={colTooltipContent}
-                      ariaLabel={colTip}
-                      className="w-full h-full"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onSelectCell({
-                            nguon: null,
-                            nguonTen: 'Tất cả nguồn',
-                            ma_bcvh: b.ma,
-                            bcvhTen: b.ten,
-                            loai: colorBy,
-                            label: `Tất cả nguồn × ${b.ten} · ${metricLabel}`,
-                          })
-                        }
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                          style.className
-                        } ${
-                          isSelected
-                            ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                            : ''
-                        }`}
-                      >
-                        {hasNoData || total.shbg === 0 ? (
-                          <span className="text-gray-400 italic">—</span>
-                        ) : (
-                          <>
-                            <div className="text-sm font-bold tabular-nums leading-tight">
-                              {formatInt(colorBy === 'khong_dat' ? total.khongDat : total.roLai)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {formatPercent(colorBy === 'khong_dat' ? ratio : (total.shbg > 0 ? total.roLai / total.shbg : 0))} của {formatInt(total.shbg)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {colorBy === 'khong_dat'
-                                ? `rớt lại ${formatInt(total.roLai)}`
-                                : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
-                            </div>
-                          </>
-                        )}
-                      </button>
-                    </KttTooltip>
+                    <MatrixCellButton
+                      {...buildStandardCellProps({
+                        title: `Tất cả nguồn × ${b.ten}`,
+                        shbg: total.shbg,
+                        roLai: total.roLai,
+                        roLaiTruot: total.roLaiTruot ?? 0,
+                        khongDat: total.khongDat,
+                      })}
+                      borderClass="border-gray-300"
+                      isSelected={
+                        !selectedCell?.nguon &&
+                        selectedCell?.ma_bcvh === b.ma &&
+                        selectedCell?.loai === colorBy
+                      }
+                      onClick={() =>
+                        onSelectCell({
+                          nguon: null,
+                          nguonTen: 'Tất cả nguồn',
+                          ma_bcvh: b.ma,
+                          bcvhTen: b.ten,
+                          loai: colorBy,
+                          label: `Tất cả nguồn × ${b.ten} · ${metricLabel}`,
+                        })
+                      }
+                    />
                   </td>
                 );
               })}
 
-              {/* Ô Grand Total góc dưới bên phải */}
-              {(() => {
-                const total = bcvhTotals.ALL || { shbg: 0, roLai: 0, truot: 0, khongDat: 0, roLaiTruot: 0 };
-                const roLaiTruot = total.roLaiTruot ?? 0;
-                let metricVal = total.roLai;
-                if (colorBy === 'truot_chuyen') {
-                  metricVal = roLaiTruot;
-                } else if (colorBy === 'khong_dat') {
-                  metricVal = total.khongDat;
-                }
-                const metricLabel = colorBy === 'ro_lai' ? 'Rớt lại' : colorBy === 'truot_chuyen' ? 'Vừa rớt lại vừa trượt chuyến' : 'Không đạt 14 giờ';
-
-                const ratio = total.shbg > 0 ? metricVal / total.shbg : 0;
-                const style = getHeatmapStyle(hasNoData || total.shbg === 0 ? 0 : ratio);
-                const isSelected =
-                  !selectedCell?.nguon && !selectedCell?.ma_bcvh && selectedCell?.loai === colorBy;
-
-                const grandTip = hasNoData || total.shbg === 0
-                  ? 'Toàn bộ KTT: không có dữ liệu'
-                  : `Toàn bộ KTT · ${metricLabel}: ${formatInt(metricVal)} bưu gửi (${formatPercent(ratio)}) trong tổng số ${formatInt(total.shbg)} bưu gửi · Vừa rớt lại vừa trượt chuyến: ${formatInt(roLaiTruot)} · Rớt lại: ${formatInt(total.roLai)}`;
-
-                const grandTooltipContent = !hasNoData && total.shbg > 0 ? (
-                  <div className="space-y-1.5 min-w-[220px]">
-                    <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                      <span>Toàn bộ KTT</span>
-                      <span className="text-gray-300 font-normal">
-                        Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(total.shbg)}</strong> bưu gửi
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-amber-300 font-semibold">{metricLabel}:</span>
-                        <span className="tabular-nums font-bold text-white">
-                          {formatInt(metricVal)} bưu gửi ({formatPercent(ratio)})
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Rớt lại:</span>
-                        <span className="tabular-nums">{formatInt(total.roLai)} bưu gửi ({formatPercent(total.shbg > 0 ? total.roLai / total.shbg : 0)})</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-gray-300">
-                        <span>Vừa rớt lại vừa trượt chuyến:</span>
-                        <span className="tabular-nums">{formatInt(roLaiTruot)} bưu gửi ({formatPercent(total.shbg > 0 ? roLaiTruot / total.shbg : 0)})</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : null;
-
-                return (
-                  <td className="p-1 bg-[#FAF5E8]">
-                    <KttTooltip
-                      content={grandTooltipContent}
-                      ariaLabel={grandTip}
-                      className="w-full h-full"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onSelectCell({
-                            nguon: null,
-                            nguonTen: 'Tất cả nguồn',
-                            ma_bcvh: null,
-                            bcvhTen: 'Tất cả BCVH',
-                            loai: colorBy,
-                            label: `Toàn bộ KTT · ${metricLabel}`,
-                          })
-                        }
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border-2 border-gray-400 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                          style.className
-                        } ${
-                          isSelected
-                            ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                            : ''
-                        }`}
-                      >
-                        {hasNoData || total.shbg === 0 ? (
-                          <span className="text-gray-400 italic">—</span>
-                        ) : (
-                          <>
-                            <div className="text-sm font-bold tabular-nums leading-tight">
-                              {formatInt(colorBy === 'khong_dat' ? total.khongDat : total.roLai)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {formatPercent(colorBy === 'khong_dat' ? ratio : (total.shbg > 0 ? total.roLai / total.shbg : 0))} của {formatInt(total.shbg)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {colorBy === 'khong_dat'
-                                ? `rớt lại ${formatInt(total.roLai)}`
-                                : `trong đó ${formatInt(roLaiTruot)} cũng trượt chuyến`}
-                            </div>
-                          </>
-                        )}
-                      </button>
-                    </KttTooltip>
-                  </td>
-                );
-              })()}
+              <td className="p-1 bg-[#FAF5E8]">
+                {(() => {
+                  const total = bcvhTotals.ALL || { shbg: 0, roLai: 0, truot: 0, khongDat: 0, roLaiTruot: 0 };
+                  return (
+                    <MatrixCellButton
+                      {...buildStandardCellProps({
+                        title: 'Toàn bộ KTT',
+                        shbg: total.shbg,
+                        roLai: total.roLai,
+                        roLaiTruot: total.roLaiTruot ?? 0,
+                        khongDat: total.khongDat,
+                        showKhongDat: false,
+                      })}
+                      borderClass="border-2 border-gray-400"
+                      isSelected={
+                        !selectedCell?.nguon &&
+                        !selectedCell?.ma_bcvh &&
+                        selectedCell?.loai === colorBy
+                      }
+                      onClick={() =>
+                        onSelectCell({
+                          nguon: null,
+                          nguonTen: 'Tất cả nguồn',
+                          ma_bcvh: null,
+                          bcvhTen: 'Tất cả BCVH',
+                          loai: colorBy,
+                          label: `Toàn bộ KTT · ${metricLabel}`,
+                        })
+                      }
+                    />
+                  );
+                })()}
+              </td>
             </tr>
 
             {/* ── DÒNG «HÀNG CHUYỂN HOÀN» ─────────────────────── */}
             {hhData && (
               <tr className="bg-purple-50/20 text-xs">
                 <td className="py-2.5 px-3">
-                  <div className="font-bold text-gray-900">
-                    Hàng chuyển hoàn
-                  </div>
+                  <div className="font-bold text-gray-900">Hàng chuyển hoàn</div>
                   <div className="text-[11px] text-gray-500 italic mt-0.5">
                     Không tính chỉ tiêu 14 giờ; không cộng vào dòng Cộng
                   </div>
                 </td>
 
-                {/* Mỗi ô BCVH của hàng hoàn */}
                 {BCVH_LIST.map((b) => {
                   const bHh = hhData.theo_bcvh?.[b.ma] || { shbg: 0, roLai: 0, truot: 0 };
                   const ratio = bHh.shbg > 0 ? bHh.roLai / bHh.shbg : 0;
-                  const style = getHeatmapStyle(hasNoData || bHh.shbg === 0 ? 0 : ratio);
-                  const isSelected =
-                    selectedCell?.loai === 'hang_hoan' && selectedCell?.ma_bcvh === b.ma;
-
                   return (
                     <td key={b.ma} className="p-1">
-                      <button
-                        type="button"
+                      <MatrixCellButton
+                        hasNoData={hasNoData}
+                        shbg={bHh.shbg}
+                        primaryVal={bHh.roLai}
+                        displayRatio={ratio}
+                        colorRatio={ratio}
+                        borderClass="border-purple-300"
+                        tooltipTitle={`Hàng chuyển hoàn × ${b.ten}`}
+                        tooltipAriaLabel={`Hàng chuyển hoàn × ${b.ten} · Rớt lại: ${formatInt(bHh.roLai)} (${formatPercent(ratio)}) trong ${formatInt(bHh.shbg)} bưu gửi · Trượt chuyến: ${formatInt(bHh.truot)}`}
+                        tooltipRows={[
+                          {
+                            label: 'Rớt lại',
+                            valueText: `${formatInt(bHh.roLai)} bưu gửi (${formatPercent(ratio)})`,
+                            highlight: true,
+                          },
+                          {
+                            label: 'Trượt chuyến',
+                            valueText: `${formatInt(bHh.truot)} bưu gửi (${formatPercent(bHh.shbg > 0 ? bHh.truot / bHh.shbg : 0)})`,
+                          },
+                        ]}
+                        isSelected={selectedCell?.loai === 'hang_hoan' && selectedCell?.ma_bcvh === b.ma}
                         onClick={() =>
                           onSelectCell({
                             nguon: null,
@@ -688,52 +545,39 @@ export default function KttBanDoNhiet({
                             ma_bcvh: b.ma,
                             bcvhTen: b.ten,
                             loai: 'hang_hoan',
-                            label: 'Hàng chuyển hoàn',
+                            label: `Hàng chuyển hoàn · ${b.ten}`,
                           })
                         }
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-purple-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                          style.className
-                        } ${
-                          isSelected
-                            ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                            : ''
-                        }`}
-                      >
-                        {hasNoData || bHh.shbg === 0 ? (
-                          <span className="text-gray-400 italic">—</span>
-                        ) : (
-                          <>
-                            <div className="text-sm font-bold tabular-nums leading-tight">
-                              {formatInt(bHh.roLai)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {formatPercent(ratio)} của {formatInt(bHh.shbg)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              trượt {formatInt(bHh.truot)}
-                            </div>
-                          </>
-                        )}
-                      </button>
+                      />
                     </td>
                   );
                 })}
 
-                {/* Ô Cộng hàng hoàn */}
                 <td className="p-1 bg-[#FAF5E8]/30">
                   {(() => {
                     const ratio = hhData.shbg > 0 ? hhData.roLai / hhData.shbg : 0;
-                    const style = getHeatmapStyle(hasNoData || hhData.shbg === 0 ? 0 : ratio);
-                    const isSelected =
-                      selectedCell?.loai === 'hang_hoan' && !selectedCell?.ma_bcvh;
-
                     return (
-                      <button
-                        type="button"
+                      <MatrixCellButton
+                        hasNoData={hasNoData}
+                        shbg={hhData.shbg}
+                        primaryVal={hhData.roLai}
+                        displayRatio={ratio}
+                        colorRatio={ratio}
+                        borderClass="border-gray-300"
+                        tooltipTitle="Hàng chuyển hoàn · Tất cả BCVH"
+                        tooltipAriaLabel={`Hàng chuyển hoàn · Tất cả BCVH · Rớt lại: ${formatInt(hhData.roLai)} (${formatPercent(ratio)}) trong ${formatInt(hhData.shbg)} bưu gửi · Trượt chuyến: ${formatInt(hhData.truot)}`}
+                        tooltipRows={[
+                          {
+                            label: 'Rớt lại',
+                            valueText: `${formatInt(hhData.roLai)} bưu gửi (${formatPercent(ratio)})`,
+                            highlight: true,
+                          },
+                          {
+                            label: 'Trượt chuyến',
+                            valueText: `${formatInt(hhData.truot)} bưu gửi (${formatPercent(hhData.shbg > 0 ? hhData.truot / hhData.shbg : 0)})`,
+                          },
+                        ]}
+                        isSelected={selectedCell?.loai === 'hang_hoan' && !selectedCell?.ma_bcvh}
                         onClick={() =>
                           onSelectCell({
                             ma_bcvh: null,
@@ -743,34 +587,7 @@ export default function KttBanDoNhiet({
                             label: 'Hàng chuyển hoàn',
                           })
                         }
-                        className={`w-full h-full min-h-[62px] p-2 rounded-[8px] border border-gray-300 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                          style.className
-                        } ${
-                          isSelected
-                            ? 'ring-2 ring-[#4A1D6E] ring-offset-1 font-bold shadow-sm'
-                            : ''
-                        }`}
-                      >
-                        {hasNoData || hhData.shbg === 0 ? (
-                          <span className="text-gray-400 italic">—</span>
-                        ) : (
-                          <>
-                            <div className="text-sm font-bold tabular-nums leading-tight">
-                              {formatInt(hhData.roLai)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              {formatPercent(ratio)} của {formatInt(hhData.shbg)}
-                            </div>
-                            <div
-                              className={`text-[11px] tabular-nums mt-0.5 leading-tight ${style.subTextClass}`}
-                            >
-                              trượt {formatInt(hhData.truot)}
-                            </div>
-                          </>
-                        )}
-                      </button>
+                      />
                     );
                   })()}
                 </td>
@@ -780,36 +597,11 @@ export default function KttBanDoNhiet({
         </table>
       </div>
 
-      {/* ── NÚT XUẤT THEO Ô TỪ HEATMAP ────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <div className="text-xs text-gray-600">
-          {selectedCell ? (
-            <span>
-              Đang chọn ô: <strong className="text-[#4A1D6E]">{selectedCell.label}</strong>
-            </span>
-          ) : (
-            <span>Chưa chọn ô nào (bấm ô bất kỳ trên bản đồ để lọc danh sách chi tiết hoặc xuất)</span>
-          )}
+      {selectedCell && (
+        <div className="text-xs text-gray-600 pt-0.5">
+          Đang lọc danh sách theo ô: <strong className="text-[#4A1D6E]">{selectedCell.label}</strong>
         </div>
-
-        <button
-          type="button"
-          onClick={() => onExportCell(selectedCell)}
-          disabled={exportLoading || hasNoData}
-          className={`btn-primary px-3.5 py-1.5 rounded-[8px] text-xs font-bold inline-flex items-center gap-1.5 transition-colors ${
-            exportLoading || hasNoData ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-          }`}
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>
-            {exportLoading
-              ? 'Đang tạo…'
-              : selectedCell
-              ? `Xuất xlsx · Ô đang chọn (${selectedCell.label})`
-              : 'Xuất xlsx · Sheet 7'}
-          </span>
-        </button>
-      </div>
+      )}
     </div>
   );
 }

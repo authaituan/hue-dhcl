@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AlertCircle, Download } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { BCVH_LIST } from '../../constants/bcvh';
 import QuyThoiGianDateRangePicker from '../quythoigian/QuyThoiGianDateRangePicker';
 import {
@@ -58,10 +58,10 @@ export default function KttLuuThoat({ authUser }) {
   const [dateRange, setDateRange] = useState(null);
   const [selectedBcvh, setSelectedBcvh] = useState('all');
 
-  // Công tắc «Xem theo»: 'luu_thoat' (mặc định: Lưu thoát (như trước)) | 'chi_tieu' | 'gio_den'
+  // Công tắc «Xem theo»: 'luu_thoat' (mặc định: Lưu thoát) | 'chi_tieu' | 'gio_den'
   const [xemTheo, setXemTheo] = useState('luu_thoat');
 
-  // Bộ lọc riêng của màn cũ («Lưu thoát (như trước)»)
+  // Bộ lọc riêng của cách xem «Lưu thoát»
   const [mocChiTieu, setMocChiTieu] = useState('xnd');
   const [validationError, setValidationError] = useState(null);
 
@@ -84,10 +84,12 @@ export default function KttLuuThoat({ authUser }) {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState(null);
 
-  // Hộp giải thích nhóm ngoài 7 trạng thái
+  // Hộp giải thích nhóm ngoài 7 trạng thái, danh sách chi tiết thu gọn, cách tính thu gọn
   const [showNgoaiBayChipModal, setShowNgoaiBayChipModal] = useState(false);
+  const [showChiTiet, setShowChiTiet] = useState(false);
+  const [showCachTinh, setShowCachTinh] = useState(false);
 
-  // Ô bản đồ nhiệt đang chọn (lọc danh sách chi tiết + xuất)
+  // Ô bảng nguồn × BCVH đang chọn (lọc danh sách chi tiết + xuất)
   const [selectedCell, setSelectedCell] = useState(null);
 
   // Reset selectedCell khi đổi BCVH hoặc đổi khoảng ngày ở đầu trang
@@ -138,7 +140,7 @@ export default function KttLuuThoat({ authUser }) {
     return null;
   }, []);
 
-  // 3. Tải dữ liệu lưu thoát cho màn cũ (chỉ gọi khi đang ở cách xem «Lưu thoát (như trước)»)
+  // 3. Tải dữ liệu lưu thoát cho cách xem «Lưu thoát» (chỉ gọi khi đang ở cách xem này)
   const loadData = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) {
       return;
@@ -241,10 +243,10 @@ export default function KttLuuThoat({ authUser }) {
     return data.tong_cong.theo_bcvh?.[selectedBcvh]?.hang_hoan || null;
   }, [data, selectedBcvh]);
 
-  // Số lượng cho từng chip xuất (phản ánh đúng bộ lọc BCVH đang chọn)
+  // Số lượng cho từng trạng thái xuất (phản ánh đúng bộ lọc BCVH đang chọn)
   const getExportCount = (key) => {
     if (!data?.tong_cong) return null;
-    if (selectedCell) return null; // KTT-13a: Đang lọc theo ô heatmap thì chip hiện «–»
+    if (selectedCell) return null; // Đang lọc theo ô bảng nguồn × BCVH thì bỏ đếm chung
     const targetBlock = selectedBcvh === 'all'
       ? data.tong_cong
       : data.tong_cong.theo_bcvh?.[selectedBcvh];
@@ -388,7 +390,7 @@ export default function KttLuuThoat({ authUser }) {
                   : 'text-gray-700 hover:text-gray-900 hover:bg-[#FAF5E8]'
               }`}
             >
-              Lưu thoát (như trước)
+              Lưu thoát
             </button>
             <button
               type="button"
@@ -477,12 +479,12 @@ export default function KttLuuThoat({ authUser }) {
         </div>
       </div>
 
-      {/* ── CÁCH XEM 1: LƯU THOÁT (NHƯ TRƯỚC — KHÔI PHỤC TỪ 52913e6) ──────── */}
+      {/* ── CÁCH XEM 1: LƯU THOÁT ──────────────────────────────────────────── */}
       {xemTheo === 'luu_thoat' && (
-        <div className="space-y-5">
-          {/* Dòng ghi chú định hướng như canvas */}
-          <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] px-3.5 py-2 text-xs text-[#5A4A62]">
-            Trang này dùng để điều hành từng ngày. Tối đa 31 ngày theo đúng bộ chọn ngày của hệ thống.
+        <div className="space-y-4">
+          {/* Dòng ghi chú định hướng */}
+          <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] px-3.5 py-1.5 text-xs text-[#5A4A62]">
+            Trang này dùng để điều hành từng ngày · tối đa 31 ngày theo bộ chọn ngày của hệ thống.
           </div>
 
           {/* Cảnh báo validate ngày nếu người dùng chọn sai khoảng */}
@@ -545,379 +547,26 @@ export default function KttLuuThoat({ authUser }) {
           {/* NỘI DUNG CHÍNH (Khi có dữ liệu) */}
           {data && !isChuaCoDuLieu && (
             <div className={`space-y-5 transition-opacity duration-200 ${loading ? 'opacity-40 pointer-events-none' : ''}`}>
-              {/* ── 2. BẢNG «THEO NGÀY HÀNG ĐẾN» ───────────────────────────────── */}
-              <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none">
-                <div className="mb-3">
-                  <h2 className="hue-h2 text-[17px]">Theo ngày hàng đến</h2>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Ngày chưa chốt hiện <span className="text-[#A87A12] font-semibold">«Số tạm»</span>; ngày chốt khi dữ liệu 09:00 của hôm sau về.
-                  </p>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="table-soft w-full min-w-[700px] text-left">
-                    <thead>
-                      <tr>
-                        <th className="text-left">NGÀY</th>
-                        <th className="text-center">CHỐT SỐ</th>
-                        <th className="text-right">HÀNG ĐẾN TÍNH CHỈ TIÊU</th>
-                        <th className="text-right">ĐI TRONG NGÀY</th>
-                        <th className="text-right">RỚT LẠI SANG HÔM SAU</th>
-                        <th className="text-right">ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.theo_ngay && data.theo_ngay.length > 0 ? (
-                        data.theo_ngay.map((row) => {
-                          const dayBlock = selectedBcvh === 'all' ? row.tong : row.theo_bcvh?.[selectedBcvh];
-                          const ddmm = formatDdMmYyyy(row.ngay).slice(0, 5);
-                          const thu = getThuTiengViet(row.ngay);
-
-                          if (!row.co_du_lieu) {
-                            return (
-                              <tr key={row.ngay} className="opacity-50">
-                                <td className="font-medium whitespace-nowrap">
-                                  {ddmm} ({thu})
-                                </td>
-                                <td className="text-center">
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500">
-                                    Chưa có hàng đến
-                                  </span>
-                                </td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                              </tr>
-                            );
-                          }
-
-                          if (!dayBlock) {
-                            return (
-                              <tr key={row.ngay} className="hover:bg-[#FFFBEF] transition-colors">
-                                <td className="font-medium whitespace-nowrap text-gray-900">
-                                  {ddmm} ({thu})
-                                </td>
-                                <td className="text-center">
-                                  {row.da_chot ? (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
-                                      Đã chốt
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#FFF1CC] text-[#A87A12]">
-                                      Số tạm
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                                <td className="text-right italic text-gray-400">—</td>
-                              </tr>
-                            );
-                          }
-
-                          const mauSo = dayBlock.luu_thoat?.mau_so ?? 0;
-                          const rotLaiShbg = (dayBlock.trang_thai?.t3?.shbg ?? 0) +
-                            (dayBlock.trang_thai?.t4?.shbg ?? 0) +
-                            (dayBlock.trang_thai?.t5?.shbg ?? 0);
-                          const tyLeRotLai = mauSo > 0 ? rotLaiShbg / mauSo : null;
-
-                          return (
-                            <tr key={row.ngay} className="hover:bg-[#FFFBEF] transition-colors">
-                              <td className="font-medium whitespace-nowrap text-gray-900">
-                                {ddmm} ({thu})
-                              </td>
-                              <td className="text-center">
-                                {row.da_chot ? (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
-                                    Đã chốt
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#FFF1CC] text-[#A87A12]">
-                                    Số tạm
-                                  </span>
-                                )}
-                              </td>
-                              <td className="text-right tabular-nums font-medium text-gray-900">
-                                {formatInt(mauSo)}
-                              </td>
-                              <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
-                                {formatPercent(dayBlock.luu_thoat?.ty_le)}
-                              </td>
-                              <td className="text-right tabular-nums font-semibold text-[#A87A12]">
-                                {formatPercent(tyLeRotLai)}
-                              </td>
-                              {(() => {
-                                const dayC14 = dayBlock.chi_tieu_14h?.theo_moc?.[mocChiTieu];
-                                const doDuoc = dayC14?.do_duoc ?? 0;
-                                const mauSo14 = dayC14?.mau_so ?? 0;
-                                const tyLe14 = doDuoc > 0 ? dayC14.ty_le_dat_tren_do_duoc : null;
-                                const tooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(dayC14?.dat ?? 0)} · không đạt ${formatInt(dayC14?.khong_dat ?? 0)}`;
-                                return (
-                                  <td
-                                    className="text-right tabular-nums font-semibold text-[#4A1D6E] cursor-help"
-                                    title={tooltip}
-                                  >
-                                    {tyLe14 !== null ? formatPercent(tyLe14) : '—'}
-                                  </td>
-                                );
-                              })()}
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="text-center py-6 text-gray-500 italic">
-                            Không có ngày nào trong khoảng chọn.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* ── 8. KHUNG «XUẤT XLSX · SHEET 7» (C6) ─────────────────────────────── */}
-              <div
-                className="bg-white rounded-[10px] border border-gray-200 border-t-4 border-t-amber-400 p-5 shadow-none"
-                aria-busy={exportLoading ? 'true' : 'false'}
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Cột trái */}
-                  <div className="flex flex-col justify-between">
-                    <div>
-                      <h2 className="hue-h2 text-[17px]">
-                        Xuất xlsx · Sheet 7
-                      </h2>
-                      <p className="text-xs text-gray-600 leading-relaxed mt-1.5">
-                        Một dòng là một bưu gửi, 18 cột, kèm sheet «Thông tin». Xuất theo khoảng ngày đang chọn (tối đa 31 ngày, tối đa 200.000 dòng) và trạng thái chọn bên cạnh. Chỉ ADMIN và TTVH.
-                      </p>
-                      <p className="text-xs text-[#A87A12] font-semibold mt-1">
-                        {(() => {
-                          const effBcvh = selectedCell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : null);
-                          const effNguon = selectedCell?.nguon || null;
-                          const bcvhName = effBcvh ? (BCVH_LIST.find((b) => b.ma === effBcvh)?.ten || effBcvh) : null;
-                          const nguonName = selectedCell?.nguonTen || effNguon;
-
-                          if (bcvhName && nguonName) {
-                            return `Đang lọc theo: BCVH ${bcvhName} · Nguồn ${nguonName}`;
-                          }
-                          if (bcvhName) {
-                            return `Đang lọc theo: BCVH ${bcvhName}`;
-                          }
-                          if (nguonName) {
-                            return `Đang lọc theo: Nguồn ${nguonName}`;
-                          }
-                          return 'Ghi rõ: xuất cả 6 BCVH.';
-                        })()}
-                      </p>
-                    </div>
-
-                    <div className="mt-4">
-                      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                        FILE GỒM CÁC CỘT
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 text-xs text-gray-600">
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">SHBG</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Đường thư đến</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Giờ quét đến</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">ConfirmDate</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">BCVH đích</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Chuyến liền kề</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Giờ BD10 đi</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line" title="Chỉ tiêu 14 giờ – Giờ xác nhận BD10 đến (xác nhận BD10 đến → lập BD10 đi)">Giờ xác nhận BD10 đến (chính thức)</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line" title="Chỉ tiêu 14 giờ – Giờ quét túi đến (quét túi đến KTT → lập BD10 đi)">Giờ quét túi đến</span>
-                        <span className="px-2 py-0.5 bg-cream-head rounded border border-cream-line">Trạng thái (1–5)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cột phải */}
-                  <div>
-                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">
-                      CHỌN TRẠNG THÁI XUẤT
-                    </div>
-
-                    {/* 8 chip chọn */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {EXPORT_STATUS_OPTIONS.map((opt) => {
-                        const isSelected = selectedExportStatus === opt.key;
-                        const count = getExportCount(opt.key);
-                        const countText = (hasNoData || count === null) ? '—' : formatInt(count);
-                        return (
-                          <button
-                            key={opt.key || 'ALL'}
-                            type="button"
-                            onClick={() => setSelectedExportStatus(opt.key)}
-                            disabled={exportLoading}
-                            className={`px-3 py-1 rounded-full text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                              isSelected
-                                ? 'bg-[#4A1D6E] text-white font-bold border border-transparent shadow-none'
-                                : 'bg-white text-gray-700 border border-[#D9CBA8] font-medium hover:bg-[#FFFBEF]'
-                            }`}
-                          >
-                            {opt.label} · {countText}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Khi đang lọc theo ô heatmap (KTT-13a) */}
-                    {selectedCell && (
-                      <div className="mb-3 text-xs text-[#A87A12] bg-[#FFFBEF] border border-[#E4D5AE] rounded-[8px] px-3 py-2 flex items-center justify-between">
-                        <span>
-                          Đang lọc theo ô {selectedCell.label || 'bản đồ nhiệt'} : bỏ lọc để xem số các nhóm
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCell(null)}
-                          className="font-bold underline text-[#4A1D6E] ml-2 cursor-pointer shrink-0"
-                        >
-                          Bỏ lọc
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Dòng «Không vào bảy trạng thái» (KTT-13a) */}
-                    {!selectedCell && currentNgoaiBayChip && currentNgoaiBayChip.tong > 0 && (
-                      <div className="mb-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowNgoaiBayChipModal((prev) => !prev)}
-                          aria-expanded={showNgoaiBayChipModal ? 'true' : 'false'}
-                          className="text-xs text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-[#FAF5E8] border border-gray-200 hover:border-[#D9CBA8] rounded-[8px] px-3 py-1.5 transition-colors cursor-pointer text-left w-full"
-                        >
-                          <span className="font-semibold text-gray-900">
-                            Không vào bảy trạng thái: {formatInt(currentNgoaiBayChip.tong)}
-                          </span>
-                          {' ('}
-                          <span>không rõ đích {formatInt(currentNgoaiBayChip.khong_ro_dich ?? 0)}</span>
-                          {' · '}
-                          <span>ngoài 6 BCVH {formatInt(currentNgoaiBayChip.ngoai_pham_vi_tong ?? 0)}</span>
-                          {' · '}
-                          <span>thiếu giờ quét {formatInt(currentNgoaiBayChip.khong_co_gio_quet_den ?? 0)}</span>
-                          {' · '}
-                          <span>không xếp được chuyến {formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong ?? 0)}</span>
-                          {') '}
-                          <span className="text-[11px] text-[#4A1D6E] font-medium underline ml-1">
-                            {showNgoaiBayChipModal ? 'Thu gọn' : 'Xem giải thích'}
-                          </span>
-                        </button>
-
-                        {/* Hộp giải thích chi tiết khi bấm vào dòng */}
-                        {showNgoaiBayChipModal && (
-                          <div className="mt-2 p-3.5 bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] text-xs text-[#5A4A62] space-y-2">
-                            <div className="flex items-center justify-between font-bold text-gray-800">
-                              <span>Giải thích các nhóm bưu gửi không vào bảy trạng thái:</span>
-                              <button
-                                type="button"
-                                onClick={() => setShowNgoaiBayChipModal(false)}
-                                className="text-gray-500 hover:text-gray-800 underline font-normal cursor-pointer"
-                              >
-                                Đóng
-                              </button>
-                            </div>
-                            <ul className="list-disc pl-4 space-y-1 text-gray-700">
-                              <li>
-                                <strong>Không rõ đích ({formatInt(currentNgoaiBayChip.khong_ro_dich ?? 0)}):</strong> Bưu gửi không xác định được bưu cục đến (mã xã phường không hợp lệ hoặc thiếu thông tin nơi nhận).
-                              </li>
-                              <li>
-                                <strong>Ngoài 6 BCVH Huế ({formatInt(currentNgoaiBayChip.ngoai_pham_vi_tong ?? 0)}):</strong> Bưu gửi đi các tỉnh khác hoặc các điểm ngoài 6 BCVH nội tỉnh (Hệ 1 / 530900, bưu cục ngoài tỉnh, hoặc bưu cục KTT 530100).
-                              </li>
-                              <li>
-                                <strong>Thiếu giờ quét túi đến ({formatInt(currentNgoaiBayChip.khong_co_gio_quet_den ?? 0)}):</strong> Bưu gửi chỉ có giờ xác nhận BD10 đến hoặc các mốc khác mà thiếu giờ quét túi đến tại KTT.
-                              </li>
-                              <li>
-                                <strong>Không xếp được chuyến ({formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong ?? 0)}):</strong> Bưu gửi đến nhưng không khớp với lịch chuyến xe nào đã cấu hình (ví dụ không có lịch xe cho tuyến đường thư đó).
-                              </li>
-                            </ul>
-                            <div className="text-[11px] text-gray-500 italic pt-1 border-t border-[#E4D5AE]">
-                              Đẳng thức: 7 trạng thái + hàng hoàn + số ở dòng này = Tất cả bưu gửi đến KTT.
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Trạng thái tải */}
-                    {exportLoading && (
-                      <div className="mb-3 space-y-2">
-                        <div className="text-xs text-gray-700">
-                          Đang tạo tệp Excel cho khoảng ngày {dateRange ? `${formatDdMmYyyy(dateRange.from)} – ${formatDdMmYyyy(dateRange.to)}` : ''}…
-                        </div>
-                        <div className="progress-soft w-full overflow-hidden">
-                          <div className="progress-bar-soft w-full animate-pulse" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Lỗi tải */}
-                    {exportError && (
-                      <div role="alert" className="p-3.5 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 space-y-2 mb-3">
-                        <div>
-                          <strong>Không tải được.</strong> {exportError}
-                        </div>
-                        <div className="flex items-center gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setExportError(null)}
-                            className="px-2.5 py-1 bg-white hover:bg-gray-100 border border-red-300 rounded text-red-700 text-xs font-semibold cursor-pointer"
-                          >
-                            Đóng
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleDownloadExcel}
-                            className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold cursor-pointer"
-                          >
-                            Thử lại
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nút bấm tải */}
-                    <div>
-                      <button
-                        type="button"
-                        onClick={handleDownloadExcel}
-                        disabled={exportLoading || !!validationError}
-                        className={`btn-primary px-4 py-2.5 rounded-[8px] text-xs font-bold transition-colors inline-flex items-center gap-2 ${
-                          exportLoading || validationError ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                        }`}
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>
-                          {exportLoading
-                            ? 'Đang tạo…'
-                            : (selectedCell
-                              ? 'Tải xlsx'
-                              : `Tải xlsx · ${formatInt(getExportCount(selectedExportStatus) ?? 0)} bưu gửi`)}
-                        </span>
-                      </button>
-                      <div className="text-[11px] text-gray-500 mt-2">
-                        Tên file: KTT_LuuThoat_{dateRange?.from}_{dateRange?.to}.xlsx. Quá 200.000 dòng thì hãy thu hẹp khoảng ngày hoặc chọn trạng thái.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── 3. CÁC THẺ TỔNG SỐ LIỆU (C2) ────────────────────────────────────── */}
+              {/* ── 2. KẾT QUẢ ─────────────────────────────────────────────────── */}
               {activeBlockData && (() => {
                 const mauSo = activeBlockData.luu_thoat?.mau_so ?? 0;
                 const luuThoatTuSo = activeBlockData.luu_thoat?.tu_so ?? 0;
-                const rotLaiShbg = (activeBlockData.trang_thai?.t3?.shbg ?? 0) +
-                  (activeBlockData.trang_thai?.t4?.shbg ?? 0) +
-                  (activeBlockData.trang_thai?.t5?.shbg ?? 0);
+                const t1 = activeBlockData.trang_thai?.t1?.shbg ?? 0;
+                const t2 = activeBlockData.trang_thai?.t2?.shbg ?? 0;
+                const t3 = activeBlockData.trang_thai?.t3?.shbg ?? 0;
+                const t4 = activeBlockData.trang_thai?.t4?.shbg ?? 0;
+                const t5 = activeBlockData.trang_thai?.t5?.shbg ?? 0;
+                const dangChoChuyen = activeBlockData.trang_thai?.dang_cho_chuyen?.shbg ?? 0;
+
+                const rotLaiShbg = t3 + t4 + t5;
                 const tyLeRotLai = !hasNoData && mauSo > 0 ? rotLaiShbg / mauSo : null;
                 const truotChuyenShbg = (activeBlockData.dung_chuyen?.truot_chuyen ?? 0) +
                   (activeBlockData.dung_chuyen?.lo_chuyen ?? 0);
                 const tyLeTruotChuyen = !hasNoData && mauSo > 0 ? truotChuyenShbg / mauSo : null;
+                const diTuD2Dung = activeBlockData.chi_tiet_trang_thai_5?.di_tu_d2_dung_chuyen ?? 0;
                 const hangHoanTong = activeHangHoan?.tong_shbg ?? 0;
+                const tongTatCa = activeBlockData.tong_shbg_ngay ?? 0;
 
-                // Quy ước kg: Σ t1..t5.kg cho phần hàng đến tính chỉ tiêu
                 const kgT1DenT5 = (activeBlockData.trang_thai?.t1?.kg ?? 0) +
                   (activeBlockData.trang_thai?.t2?.kg ?? 0) +
                   (activeBlockData.trang_thai?.t3?.kg ?? 0) +
@@ -930,364 +579,181 @@ export default function KttLuuThoat({ authUser }) {
                   (activeBlockData.trang_thai?.t5?.kg ?? 0);
                 const kgT3 = activeBlockData.trang_thai?.t3?.kg ?? 0;
 
-                const todayVn = getTodayVnYmd();
-                const isHomNay = dateRange.from === todayVn && dateRange.to === todayVn;
-                const sectionTitle = isHomNay
-                  ? 'Hôm nay hàng đến lưu thoát được bao nhiêu, rớt lại bao nhiêu'
-                  : `Hàng đến từ ${formatDdMm(dateRange.from)} đến ${formatDdMm(dateRange.to)} lưu thoát được bao nhiêu, rớt lại bao nhiêu`;
-
-                return (
-                  <div className="space-y-3">
-                    <div>
-                      <h2 className="hue-h2 text-[17px]">
-                        {sectionTitle}
-                      </h2>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Đến bao nhiêu, đi được bao nhiêu, rớt lại bao nhiêu (đúng lịch hay trượt chuyến), đi đâu tỷ lệ nào, rớt lại của BCVH nào và nguồn nào.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                      {/* Thẻ 1: Hàng đến tính chỉ tiêu */}
-                      <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                            HÀNG ĐẾN TÍNH CHỈ TIÊU
-                          </div>
-                          <div className="hue-num-lg my-1.5 text-gray-900">
-                            {hasNoData ? '—' : formatInt(mauSo)}
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-gray-500 tabular-nums">
-                          {hasNoData
-                            ? 'bưu gửi'
-                            : (activeHangHoan
-                              ? `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })} · chưa gồm ${formatInt(hangHoanTong)} hàng chuyển hoàn`
-                              : `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })}`)}
-                        </div>
-                      </div>
-
-                      {/* Thẻ 2: Lưu thoát: đi trong ngày */}
-                      <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                            LƯU THOÁT: ĐI TRONG NGÀY
-                          </div>
-                          <div className="hue-num-lg my-1.5 text-[#1F7A5C]">
-                            {hasNoData ? '—' : formatInt(luuThoatTuSo)}
-                          </div>
-                        </div>
-                        <div className="text-[11px] font-semibold text-[#1F7A5C] tabular-nums">
-                          {hasNoData ? '—' : `${formatPercent(activeBlockData.luu_thoat?.ty_le)} · ${formatKg(kgDiTrongNgay, { withUnit: true })}`}
-                        </div>
-                      </div>
-
-                      {/* Thẻ 3: Rớt lại sang hôm sau */}
-                      <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                            RỚT LẠI SANG HÔM SAU
-                          </div>
-                          <div className="hue-num-lg my-1.5 text-[#A87A12]">
-                            {hasNoData ? '—' : formatInt(rotLaiShbg)}
-                          </div>
-                        </div>
-                        <div className="text-[11px] font-semibold text-[#A87A12] tabular-nums">
-                          {hasNoData ? '—' : `${formatPercent(tyLeRotLai)} · ${formatKg(kgRotLai, { withUnit: true })}`}
-                        </div>
-                      </div>
-
-                      {/* Thẻ 4: 3 · Đi hôm sau, đúng chuyến */}
-                      <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                            3 · ĐI HÔM SAU, ĐÚNG CHUYẾN
-                          </div>
-                          <div className="hue-num-lg my-1.5 text-[#4A1D6E]">
-                            {hasNoData ? '—' : formatInt(activeBlockData.trang_thai?.t3?.shbg ?? 0)}
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-gray-500 tabular-nums">
-                          {hasNoData ? 'đến sau chuyến cuối cùng' : `đến sau chuyến cuối cùng · ${formatKg(kgT3, { withUnit: true })}`}
-                        </div>
-                      </div>
-
-                      {/* Thẻ 5: Trượt chuyến (cần xử lý) */}
-                      <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]">
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                            TRƯỢT CHUYẾN (CẦN XỬ LÝ)
-                          </div>
-                          <div className="hue-num-lg my-1.5 text-[#B3202A]">
-                            {hasNoData ? '—' : formatInt(truotChuyenShbg)}
-                          </div>
-                        </div>
-                        <div className="text-[11px] font-semibold text-[#B3202A] tabular-nums">
-                          {hasNoData ? '—' : `${formatPercent(tyLeTruotChuyen)} hàng đến · gồm cả hàng đi trong ngày`}
-                        </div>
-                      </div>
-
-                      {/* Thẻ 6: Đạt chỉ tiêu 14 giờ hai mốc */}
-                      <KttErrorBoundary>
-                        {(() => {
-                          const c14 = activeBlockData?.chi_tieu_14h;
-                          const mocA = c14?.theo_moc?.xnd;
-                          const mocB = c14?.theo_moc?.quet_tui_den;
-
-                          return (
-                            <div
-                              id="ktt-kpi-card-14h"
-                              className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none flex flex-col justify-between min-h-[140px]"
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
-                                  ĐẠT CHỈ TIÊU 14 GIỜ
-                                </div>
-                                <span className="text-[11px] text-gray-400 font-medium italic">trên số đo được</span>
-                              </div>
-
-                              {hasNoData || !c14 ? (
-                                <div className="py-4 text-gray-400 italic text-xs text-center">—</div>
-                              ) : (
-                                <div className="space-y-2 my-auto">
-                                  {/* Dòng Giờ xác nhận BD10 đến (chính thức) */}
-                                  <div
-                                    className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
-                                      mocChiTieu === 'xnd'
-                                        ? 'bg-[#FAF5E8] border-[#E4D5AE]'
-                                        : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
-                                    }`}
-                                    title={`Giờ xác nhận BD10 đến: ${formatInt(mocA?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocA?.khong_do_duoc?.chua_di ?? 0)}, thiếu XNĐ: ${formatInt(mocA?.khong_do_duoc?.thieu_moc ?? 0)}, XNĐ sau giờ đi: ${formatInt(mocA?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
-                                  >
-                                    <div className="flex items-center justify-between gap-1 leading-tight">
-                                      <span className="text-[11px] font-bold text-gray-900 truncate">
-                                        Giờ xác nhận BD10 đến (chính thức)
-                                      </span>
-                                      <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
-                                        {mocA?.do_duoc > 0 ? formatPercent(mocA.ty_le_dat_tren_do_duoc) : '—'}
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
-                                      đo được <strong>{formatInt(mocA?.do_duoc ?? 0)}</strong>/{formatInt(mocA?.mau_so ?? 0)} · đạt {formatInt(mocA?.dat ?? 0)} · không đạt {formatInt(mocA?.khong_dat ?? 0)}
-                                    </div>
-                                  </div>
-
-                                  {/* Dòng Giờ quét túi đến */}
-                                  <div
-                                    className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
-                                      mocChiTieu === 'quet_tui_den'
-                                        ? 'bg-[#FAF5E8] border-[#E4D5AE]'
-                                        : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
-                                    }`}
-                                    title={`Giờ quét túi đến: ${formatInt(mocB?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocB?.khong_do_duoc?.chua_di ?? 0)}, thiếu giờ quét đến: ${formatInt(mocB?.khong_do_duoc?.thieu_moc ?? 0)}, quét đến sau giờ đi: ${formatInt(mocB?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
-                                  >
-                                    <div className="flex items-center justify-between gap-1 leading-tight">
-                                      <span className="text-[11px] font-bold text-gray-900 truncate">
-                                        Giờ quét túi đến
-                                      </span>
-                                      <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
-                                        {mocB?.do_duoc > 0 ? formatPercent(mocB.ty_le_dat_tren_do_duoc) : '—'}
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
-                                      đo được <strong>{formatInt(mocB?.do_duoc ?? 0)}</strong>/{formatInt(mocB?.mau_so ?? 0)} · đạt {formatInt(mocB?.dat ?? 0)} · không đạt {formatInt(mocB?.khong_dat ?? 0)}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="text-[11px] text-gray-400 pt-1 leading-tight border-t border-gray-100">
-                                Di chuột vào mốc để xem chi tiết lý do không đo được
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </KttErrorBoundary>
-                    </div>
-
-                    {/* Dòng chú thích khi có bưu gửi thiếu khối lượng */}
-                    {data.meta?.shbg_thieu_khoi_luong > 0 && (
-                      <div className="text-[11px] text-gray-500 italic pt-0.5">
-                        * {formatInt(data.meta.shbg_thieu_khoi_luong)} bưu gửi chưa có khối lượng, tổng kg là số tối thiểu
-                      </div>
-                    )}
-
-                    {/* Khối «Theo nguồn hàng» (KTT-13a, KTT-14) */}
-                    {data.tong_cong?.theo_nguon_hang && (() => {
-                      const tnh = data.tong_cong.theo_nguon_hang;
-                      const kt = tnh.khai_thac;
-                      const ct = tnh.chuyen_tiep;
-
-                      const ktMauSo = kt?.tong?.luu_thoat?.mau_so ?? 0;
-                      const ktTyLeLuu = !hasNoData && ktMauSo > 0 ? (kt?.tong?.luu_thoat?.ty_le ?? null) : null;
-                      const ktC14 = kt?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
-                      const ktDoDuoc = ktC14?.do_duoc ?? 0;
-                      const ktTyLe14 = !hasNoData && ktDoDuoc > 0 ? (ktC14?.ty_le_dat_tren_do_duoc ?? null) : null;
-
-                      const ctMauSo = ct?.tong?.luu_thoat?.mau_so ?? 0;
-                      const ctTyLeLuu = !hasNoData && ctMauSo > 0 ? (ct?.tong?.luu_thoat?.ty_le ?? null) : null;
-                      const ctC14 = ct?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
-                      const ctDoDuoc = ctC14?.do_duoc ?? 0;
-                      const ctTyLe14 = !hasNoData && ctDoDuoc > 0 ? (ctC14?.ty_le_dat_tren_do_duoc ?? null) : null;
-
-                      return (
-                        <div className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none space-y-3 mt-3.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="hue-h2 text-[17px]">
-                              Theo nguồn hàng
-                            </h2>
-                            {selectedBcvh !== 'all' && (
-                              <span className="text-[11px] text-gray-500 italic">
-                                Số liệu nguồn hàng tính trên toàn KTT
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="overflow-x-auto">
-                            <table className="table-soft w-full min-w-[550px] text-xs text-left">
-                              <thead>
-                                <tr>
-                                  <th className="text-left font-semibold text-gray-600">NGUỒN HÀNG</th>
-                                  <th className="text-right font-semibold text-gray-600">BƯU GỬI TÍNH CHỈ TIÊU</th>
-                                  <th className="text-right font-semibold text-gray-600">ĐI TRONG NGÀY</th>
-                                  <th className="text-right font-semibold text-gray-600">ĐẠT 14 GIỜ</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr className="hover:bg-[#FFFBEF] transition-colors">
-                                  <td className="font-medium text-gray-900">
-                                    Hàng khai thác (KTT mở túi, chia lại)
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-gray-900">
-                                    {hasNoData ? '—' : formatInt(ktMauSo)}
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
-                                    {hasNoData || ktTyLeLuu === null ? '—' : formatPercent(ktTyLeLuu)}
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-[#4A1D6E]">
-                                    {hasNoData || ktTyLe14 === null ? '—' : formatPercent(ktTyLe14)}
-                                  </td>
-                                </tr>
-                                <tr className="hover:bg-[#FFFBEF] transition-colors">
-                                  <td className="font-medium text-gray-900">
-                                    Hàng chuyển tiếp (đi nguyên túi)
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-gray-900">
-                                    {hasNoData ? '—' : formatInt(ctMauSo)}
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
-                                    {hasNoData || ctTyLeLuu === null ? '—' : formatPercent(ctTyLeLuu)}
-                                  </td>
-                                  <td className="text-right tabular-nums font-semibold text-[#4A1D6E]">
-                                    {hasNoData || ctTyLe14 === null ? '—' : formatPercent(ctTyLe14)}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-
-                          <div className="text-[11px] text-gray-500 leading-relaxed pt-0.5">
-                            * Hàng chuyển tiếp: túi đến KTT rồi đi tiếp nguyên túi (hàng đi ngoài, túi chia sẵn), KTT không mở túi; vẫn tính chỉ tiêu nếu đích là 6 BCVH Huế.
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                );
-              })()}
-
-              {/* ── 4. THANH NĂM TRẠNG THÁI + ĐANG CHỜ CHUYẾN ───────────────────── */}
-              {activeBlockData && (() => {
-                const mauSo = activeBlockData.luu_thoat?.mau_so ?? 0;
-                const t1 = activeBlockData.trang_thai?.t1?.shbg ?? 0;
-                const t2 = activeBlockData.trang_thai?.t2?.shbg ?? 0;
-                const t3 = activeBlockData.trang_thai?.t3?.shbg ?? 0;
-                const t4 = activeBlockData.trang_thai?.t4?.shbg ?? 0;
-                const t5 = activeBlockData.trang_thai?.t5?.shbg ?? 0;
-                const dangChoChuyen = activeBlockData.trang_thai?.dang_cho_chuyen?.shbg ?? 0;
-
                 const p1 = !hasNoData && mauSo > 0 ? (t1 / mauSo) * 100 : 0;
                 const p2 = !hasNoData && mauSo > 0 ? (t2 / mauSo) * 100 : 0;
                 const p3 = !hasNoData && mauSo > 0 ? (t3 / mauSo) * 100 : 0;
                 const p4 = !hasNoData && mauSo > 0 ? (t4 / mauSo) * 100 : 0;
                 const p5 = !hasNoData && mauSo > 0 ? (t5 / mauSo) * 100 : 0;
 
-                const luuThoatShbg = t1 + t2;
-                const rotLaiShbg = t3 + t4 + t5;
-                const tyLeLuuThoat = !hasNoData && mauSo > 0 ? luuThoatShbg / mauSo : null;
-                const tyLeRotLai = !hasNoData && mauSo > 0 ? rotLaiShbg / mauSo : null;
+                const todayVn = getTodayVnYmd();
+                const isHomNay = dateRange.from === todayVn && dateRange.to === todayVn;
+                const sectionTitle = isHomNay
+                  ? 'Hôm nay hàng đến lưu thoát được bao nhiêu, rớt lại bao nhiêu'
+                  : `Hàng đến từ ${formatDdMm(dateRange.from)} đến ${formatDdMm(dateRange.to)} lưu thoát được bao nhiêu, rớt lại bao nhiêu`;
+
+                const c14 = activeBlockData?.chi_tieu_14h;
+                const mocA = c14?.theo_moc?.xnd;
+                const mocB = c14?.theo_moc?.quet_tui_den;
+                const bcvhSelectedName = selectedBcvh !== 'all'
+                  ? (BCVH_LIST.find((b) => b.ma === selectedBcvh)?.ten || selectedBcvh)
+                  : null;
+
+                const legendItems = [
+                  { code: 't1', label: '1 · Đi trong ngày, đúng chuyến', shbg: t1, color: '#1F7A5C' },
+                  { code: 't2', label: '2 · Đi trong ngày, trượt chuyến', shbg: t2, color: '#7FBFA6' },
+                  { code: 't3', label: '3 · Đi hôm sau, đúng chuyến', shbg: t3, color: '#B79BCB', extraKg: kgT3 },
+                  { code: 't4', label: '4 · Đi hôm sau, trượt chuyến', shbg: t4, color: '#E0A82E' },
+                  { code: 't5', label: '5 · Từ 2 ngày hoặc chưa đi', shbg: t5, color: '#B3202A' },
+                ];
 
                 return (
-                  <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
+                  <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3.5">
                     <div>
-                      <h2 className="hue-h2 text-[17px]">Tổng quan trong ngày</h2>
-                      <div className="flex flex-wrap items-center justify-between text-xs text-gray-700 mt-2 font-medium">
-                        <span>
-                          Hàng đến tính chỉ tiêu: đi được bao nhiêu, rớt lại bao nhiêu
-                        </span>
-                        <span className="tabular-nums">
-                          Lưu thoát: đi trong ngày · <strong>{hasNoData ? '—' : formatInt(luuThoatShbg)}</strong> ({hasNoData ? '—' : formatPercent(tyLeLuuThoat)}) &nbsp;—&nbsp; Rớt lại · <strong>{hasNoData ? '—' : formatInt(rotLaiShbg)}</strong> ({hasNoData ? '—' : formatPercent(tyLeRotLai)})
-                        </span>
-                      </div>
+                      <h2 className="hue-h2 text-[17px]">{sectionTitle}</h2>
                     </div>
 
-                    {/* Thanh 5 trạng thái xếp chồng chuẩn KttTooltip */}
+                    {/* 4 thẻ kết quả chính */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* Thẻ 1: Hàng đến tính chỉ tiêu */}
+                      <div className="rounded-[10px] p-3.5 border border-gray-200 flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                            HÀNG ĐẾN TÍNH CHỈ TIÊU
+                          </div>
+                          <div className="hue-num-lg my-1 text-gray-900">
+                            {hasNoData ? '—' : formatInt(mauSo)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 tabular-nums">
+                          {hasNoData
+                            ? 'bưu gửi'
+                            : (activeHangHoan
+                              ? `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })} · chưa gồm ${formatInt(hangHoanTong)} hàng hoàn`
+                              : `bưu gửi · ${formatKg(kgT1DenT5, { withUnit: true })}`)}
+                        </div>
+                      </div>
+
+                      {/* Thẻ 2: Đi trong ngày */}
+                      <div className="rounded-[10px] p-3.5 border border-gray-200 flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                            ĐI TRONG NGÀY
+                          </div>
+                          <div className="hue-num-lg my-1 text-[#1F7A5C]">
+                            {hasNoData ? '—' : formatInt(luuThoatTuSo)}
+                          </div>
+                        </div>
+                        <div className="text-xs font-semibold text-[#1F7A5C] tabular-nums">
+                          {hasNoData ? '—' : `${formatPercent(activeBlockData.luu_thoat?.ty_le)} · ${formatKg(kgDiTrongNgay, { withUnit: true })}`}
+                        </div>
+                      </div>
+
+                      {/* Thẻ 3: Rớt lại sang hôm sau */}
+                      <div className="rounded-[10px] p-3.5 border border-gray-200 flex flex-col justify-between">
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase">
+                            RỚT LẠI SANG HÔM SAU
+                          </div>
+                          <div className="hue-num-lg my-1 text-[#A87A12]">
+                            {hasNoData ? '—' : formatInt(rotLaiShbg)}
+                          </div>
+                        </div>
+                        <div className="text-xs font-semibold text-[#A87A12] tabular-nums">
+                          {hasNoData ? '—' : `${formatPercent(tyLeRotLai)} · ${formatKg(kgRotLai, { withUnit: true })}`}
+                        </div>
+                      </div>
+
+                      {/* Thẻ 4: Đạt 14 giờ (trên phần đo được) */}
+                      <KttErrorBoundary>
+                        <div
+                          id="ktt-the-chi-tieu-14h"
+                          className="rounded-[10px] p-3.5 border border-gray-200 flex flex-col justify-between"
+                        >
+                          <div className="text-[11px] font-bold text-gray-600 tracking-wide uppercase mb-1">
+                            ĐẠT 14 GIỜ (TRÊN PHẦN ĐO ĐƯỢC)
+                          </div>
+
+                          {hasNoData || !c14 ? (
+                            <div className="py-3 text-gray-400 italic text-xs text-center">—</div>
+                          ) : (
+                            <div className="space-y-1.5 my-auto">
+                              <div
+                                className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
+                                  mocChiTieu === 'xnd'
+                                    ? 'bg-[#FAF5E8] border-[#E4D5AE]'
+                                    : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
+                                }`}
+                                title={`Giờ xác nhận BD10 đến: ${formatInt(mocA?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocA?.khong_do_duoc?.chua_di ?? 0)}, thiếu XNĐ: ${formatInt(mocA?.khong_do_duoc?.thieu_moc ?? 0)}, XNĐ sau giờ đi: ${formatInt(mocA?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight">
+                                  <span className="text-[11px] font-bold text-gray-900 truncate">
+                                    Giờ xác nhận BD10 đến (chính thức)
+                                  </span>
+                                  <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
+                                    {mocA?.do_duoc > 0 ? formatPercent(mocA.ty_le_dat_tren_do_duoc) : '—'}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                  đo được <strong>{formatInt(mocA?.do_duoc ?? 0)}</strong>/{formatInt(mocA?.mau_so ?? 0)} · đạt {formatInt(mocA?.dat ?? 0)} · không đạt {formatInt(mocA?.khong_dat ?? 0)}
+                                </div>
+                              </div>
+
+                              <div
+                                className={`p-1.5 rounded-[8px] transition-colors cursor-help border ${
+                                  mocChiTieu === 'quet_tui_den'
+                                    ? 'bg-[#FAF5E8] border-[#E4D5AE]'
+                                    : 'bg-gray-50/70 border-transparent hover:bg-gray-100/70'
+                                }`}
+                                title={`Giờ quét túi đến: ${formatInt(mocB?.khong_do_duoc?.tong ?? 0)} không đo được (chưa đi: ${formatInt(mocB?.khong_do_duoc?.chua_di ?? 0)}, thiếu giờ quét đến: ${formatInt(mocB?.khong_do_duoc?.thieu_moc ?? 0)}, quét đến sau giờ đi: ${formatInt(mocB?.khong_do_duoc?.moc_sau_gio_di ?? 0)})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight">
+                                  <span className="text-[11px] font-bold text-gray-900 truncate">
+                                    Giờ quét túi đến
+                                  </span>
+                                  <span className="text-xs font-bold text-[#1F7A5C] tabular-nums shrink-0">
+                                    {mocB?.do_duoc > 0 ? formatPercent(mocB.ty_le_dat_tren_do_duoc) : '—'}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-gray-600 tabular-nums mt-0.5 leading-snug">
+                                  đo được <strong>{formatInt(mocB?.do_duoc ?? 0)}</strong>/{formatInt(mocB?.mau_so ?? 0)} · đạt {formatInt(mocB?.dat ?? 0)} · không đạt {formatInt(mocB?.khong_dat ?? 0)}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </KttErrorBoundary>
+                    </div>
+
+                    {/* Chú thích thiếu khối lượng */}
+                    {data.meta?.shbg_thieu_khoi_luong > 0 && (
+                      <div className="text-[11px] text-gray-500 italic">
+                        * {formatInt(data.meta.shbg_thieu_khoi_luong)} bưu gửi chưa có khối lượng, tổng kg là số tối thiểu
+                      </div>
+                    )}
+
+                    {/* Thanh năm trạng thái */}
                     <KttTooltip
-                      ariaLabel={`Năm trạng thái lưu thoát · Mẫu số: ${formatInt(mauSo)} bưu gửi · Lưu thoát: ${formatInt(luuThoatShbg)} (${formatPercent(tyLeLuuThoat)}) · Rớt lại: ${formatInt(rotLaiShbg)} (${formatPercent(tyLeRotLai)})`}
+                      ariaLabel={`Năm trạng thái lưu thoát · Hàng đến tính chỉ tiêu: ${formatInt(mauSo)} bưu gửi · Đi trong ngày: ${formatInt(luuThoatTuSo)} (${formatPercent(activeBlockData.luu_thoat?.ty_le)}) · Rớt lại: ${formatInt(rotLaiShbg)} (${formatPercent(tyLeRotLai)})`}
                       content={
                         <div className="space-y-1.5 min-w-[240px]">
                           <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
                             <span>Năm trạng thái lưu thoát</span>
                             <span className="text-gray-300 font-normal">
-                              Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(mauSo)}</strong> bưu gửi
+                              Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(mauSo)}</strong> bưu gửi
                             </span>
                           </div>
                           <div className="space-y-1 text-[11px]">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-gray-200">
-                                <span className="w-2.5 h-2.5 rounded-xs bg-[#1F7A5C] shrink-0" />
-                                <span>1 · Đi trong ngày, đúng chuyến</span>
-                              </span>
-                              <span className="tabular-nums font-semibold text-emerald-300">
-                                {formatInt(t1)} bưu gửi ({formatPercent(mauSo > 0 ? t1 / mauSo : 0)})
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-gray-200">
-                                <span className="w-2.5 h-2.5 rounded-xs bg-[#7FBFA6] shrink-0" />
-                                <span>2 · Đi trong ngày, trượt chuyến</span>
-                              </span>
-                              <span className="tabular-nums font-semibold text-teal-200">
-                                {formatInt(t2)} bưu gửi ({formatPercent(mauSo > 0 ? t2 / mauSo : 0)})
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-gray-200">
-                                <span className="w-2.5 h-2.5 rounded-xs bg-[#B79BCB] shrink-0" />
-                                <span>3 · Đi hôm sau, đúng chuyến</span>
-                              </span>
-                              <span className="tabular-nums font-semibold text-purple-200">
-                                {formatInt(t3)} bưu gửi ({formatPercent(mauSo > 0 ? t3 / mauSo : 0)})
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-gray-200">
-                                <span className="w-2.5 h-2.5 rounded-xs bg-[#E0A82E] shrink-0" />
-                                <span>4 · Đi hôm sau, trượt chuyến</span>
-                              </span>
-                              <span className="tabular-nums font-semibold text-amber-300">
-                                {formatInt(t4)} bưu gửi ({formatPercent(mauSo > 0 ? t4 / mauSo : 0)})
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-gray-200">
-                                <span className="w-2.5 h-2.5 rounded-xs bg-[#B3202A] shrink-0" />
-                                <span>5 · Từ 2 ngày hoặc chưa đi</span>
-                              </span>
-                              <span className="tabular-nums font-semibold text-red-300">
-                                {formatInt(t5)} bưu gửi ({formatPercent(mauSo > 0 ? t5 / mauSo : 0)})
-                              </span>
-                            </div>
+                            {legendItems.map((it) => (
+                              <div key={it.code} className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-1.5 text-gray-200">
+                                  <span style={{ backgroundColor: it.color }} className="w-2.5 h-2.5 rounded-xs shrink-0" />
+                                  <span>{it.label}</span>
+                                </span>
+                                <span className="tabular-nums font-semibold text-white">
+                                  {formatInt(it.shbg)} bưu gửi ({formatPercent(mauSo > 0 ? it.shbg / mauSo : 0)})
+                                </span>
+                              </div>
+                            ))}
                             {dangChoChuyen > 0 && (
                               <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-800">
                                 <span className="flex items-center gap-1.5 text-purple-300">
@@ -1302,499 +768,671 @@ export default function KttLuuThoat({ authUser }) {
                           </div>
                         </div>
                       }
-                      className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-lg"
+                      className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-md"
                     >
-                      <div className="w-full h-7 rounded-lg overflow-hidden flex bg-gray-100">
+                      <div className="w-full h-6 rounded-md overflow-hidden flex bg-gray-100">
                         {p1 > 0 && (
-                          <div
-                            style={{ width: `${p1}%` }}
-                            className="bg-[#1F7A5C] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                          >
+                          <div style={{ width: `${p1}%` }} className="bg-[#1F7A5C] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden">
                             {p1 >= 4 ? `${Math.round(p1)}%` : ''}
                           </div>
                         )}
                         {p2 > 0 && (
-                          <div
-                            style={{ width: `${p2}%` }}
-                            className="bg-[#7FBFA6] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                          >
+                          <div style={{ width: `${p2}%` }} className="bg-[#7FBFA6] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden">
                             {p2 >= 4 ? `${Math.round(p2)}%` : ''}
                           </div>
                         )}
                         {p3 > 0 && (
-                          <div
-                            style={{ width: `${p3}%` }}
-                            className="bg-[#B79BCB] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                          >
+                          <div style={{ width: `${p3}%` }} className="bg-[#B79BCB] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden">
                             {p3 >= 4 ? `${Math.round(p3)}%` : ''}
                           </div>
                         )}
                         {p4 > 0 && (
-                          <div
-                            style={{ width: `${p4}%` }}
-                            className="bg-[#E0A82E] h-full flex items-center justify-center text-[11px] font-bold text-[#3B1450] tabular-nums px-1 overflow-hidden transition-all"
-                          >
+                          <div style={{ width: `${p4}%` }} className="bg-[#E0A82E] h-full flex items-center justify-center text-[11px] font-bold text-[#3B1450] tabular-nums px-1 overflow-hidden">
                             {p4 >= 4 ? `${Math.round(p4)}%` : ''}
                           </div>
                         )}
                         {p5 > 0 && (
-                          <div
-                            style={{ width: `${p5}%` }}
-                            className="bg-[#B3202A] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden transition-all"
-                          >
+                          <div style={{ width: `${p5}%` }} className="bg-[#B3202A] h-full flex items-center justify-center text-[11px] font-bold text-white tabular-nums px-1 overflow-hidden">
                             {p5 >= 4 ? `${Math.round(p5)}%` : ''}
                           </div>
                         )}
                       </div>
                     </KttTooltip>
 
-                    {/* 5 thẻ t1..t5 dưới thanh */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                      <div className="p-3 bg-[#FAF5E8] rounded-[10px] border-t-4 border-t-[#1F7A5C] text-xs">
-                        <div className="text-[11px] font-bold text-gray-600">1 · Đi trong ngày, đúng chuyến</div>
-                        <div className="text-base font-bold text-[#1F7A5C] mt-1 tabular-nums">
-                          {hasNoData ? '—' : formatInt(t1)} <span className="text-xs font-normal text-gray-500">bưu gửi</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-[#FAF5E8] rounded-[10px] border-t-4 border-t-[#7FBFA6] text-xs">
-                        <div className="text-[11px] font-bold text-gray-600">2 · Đi trong ngày, trượt chuyến</div>
-                        <div className="text-base font-bold text-[#7FBFA6] mt-1 tabular-nums">
-                          {hasNoData ? '—' : formatInt(t2)} <span className="text-xs font-normal text-gray-500">bưu gửi</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-[#FAF5E8] rounded-[10px] border-t-4 border-t-[#B79BCB] text-xs">
-                        <div className="text-[11px] font-bold text-gray-600">3 · Đi hôm sau, đúng chuyến</div>
-                        <div className="text-base font-bold text-[#B79BCB] mt-1 tabular-nums">
-                          {hasNoData ? '—' : formatInt(t3)} <span className="text-xs font-normal text-gray-500">bưu gửi</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-[#FAF5E8] rounded-[10px] border-t-4 border-t-[#E0A82E] text-xs">
-                        <div className="text-[11px] font-bold text-gray-600">4 · Đi hôm sau, trượt chuyến</div>
-                        <div className="text-base font-bold text-[#E0A82E] mt-1 tabular-nums">
-                          {hasNoData ? '—' : formatInt(t4)} <span className="text-xs font-normal text-gray-500">bưu gửi</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-[#FAF5E8] rounded-[10px] border-t-4 border-t-[#B3202A] text-xs">
-                        <div className="text-[11px] font-bold text-gray-600">5 · Từ 2 ngày hoặc chưa đi</div>
-                        <div className="text-base font-bold text-[#B3202A] mt-1 tabular-nums">
-                          {hasNoData ? '—' : formatInt(t5)} <span className="text-xs font-normal text-gray-500">bưu gửi</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Dòng chú thích màu + Đang chờ chuyến */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs text-gray-600">
-                      <div>
-                        Xanh: đi trong ngày. Tím: đi hôm sau đúng chuyến. Vàng, đỏ: trượt chuyến, cần xử lý.
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded text-xs font-semibold bg-[#EFE6F5] text-[#4A1D6E] border border-[#D8BDEB]">
-                          Đang chờ chuyến: {hasNoData ? '—' : `${formatInt(dangChoChuyen)} bưu gửi`}
-                        </span>
-                        <span className="text-[11px] text-gray-500">
-                          chưa tới giờ xuất phát, không tính vào tỷ lệ.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ── 5. KHỐI HÀNG CHUYỂN HOÀN ─────────────────────────── */}
-              {activeHangHoan && (
-                <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-4">
-                  <div>
-                    <h2 className="hue-h2 text-[17px]">
-                      Hàng chuyển hoàn: hiện riêng, không tính chỉ tiêu 14 giờ
-                    </h2>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Bưu gửi có trong danh sách hàng hoàn và đích là 6 BCVH Huế. Hiện riêng để nhìn sản lượng và hiện trạng; không cộng vào các con số và tỷ lệ của trang.
-                    </p>
-                  </div>
-
-                  {/* 4 thẻ nhỏ hàng hoàn */}
-                  {(() => {
-                    const hhTong = activeHangHoan.tong_shbg ?? 0;
-                    const hhT1 = activeHangHoan.trang_thai?.t1?.shbg ?? 0;
-                    const hhT2 = activeHangHoan.trang_thai?.t2?.shbg ?? 0;
-                    const hhT3 = activeHangHoan.trang_thai?.t3?.shbg ?? 0;
-                    const hhT4 = activeHangHoan.trang_thai?.t4?.shbg ?? 0;
-                    const hhT5 = activeHangHoan.trang_thai?.t5?.shbg ?? 0;
-                    const hhDangCho = activeHangHoan.trang_thai?.dang_cho_chuyen?.shbg ?? 0;
-
-                    const hhKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
-                      (activeHangHoan.trang_thai?.t2?.kg ?? 0) +
-                      (activeHangHoan.trang_thai?.t3?.kg ?? 0) +
-                      (activeHangHoan.trang_thai?.t4?.kg ?? 0) +
-                      (activeHangHoan.trang_thai?.t5?.kg ?? 0);
-                    const hhDiTrongNgayKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
-                      (activeHangHoan.trang_thai?.t2?.kg ?? 0);
-                    const hhT3Kg = activeHangHoan.trang_thai?.t3?.kg ?? 0;
-
-                    const hhLuuThoat = hhT1 + hhT2;
-                    const hhRotLai = hhT3 + hhT4 + hhT5;
-                    const hhTruot = (activeHangHoan.dung_chuyen?.truot_chuyen ?? 0) +
-                      (activeHangHoan.dung_chuyen?.lo_chuyen ?? 0);
-                    const hhMauSo = activeHangHoan.luu_thoat?.mau_so ?? (hhLuuThoat + hhRotLai);
-                    const hhTyLeLuu = !hasNoData && hhMauSo > 0 ? hhLuuThoat / hhMauSo : null;
-                    const hhTyLeRot = !hasNoData && hhMauSo > 0 ? hhRotLai / hhMauSo : null;
-                    const hhTyLeTruot = !hasNoData && hhMauSo > 0 ? hhTruot / hhMauSo : null;
-
-                    const hp1 = !hasNoData && hhMauSo > 0 ? (hhT1 / hhMauSo) * 100 : 0;
-                    const hp2 = !hasNoData && hhMauSo > 0 ? (hhT2 / hhMauSo) * 100 : 0;
-                    const hp3 = !hasNoData && hhMauSo > 0 ? (hhT3 / hhMauSo) * 100 : 0;
-                    const hp4 = !hasNoData && hhMauSo > 0 ? (hhT4 / hhMauSo) * 100 : 0;
-                    const hp5 = !hasNoData && hhMauSo > 0 ? (hhT5 / hhMauSo) * 100 : 0;
-
-                    return (
-                      <>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-                          <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
-                            <div className="text-[11px] font-bold text-gray-600 uppercase">HÀNG HOÀN ĐẾN TRONG KHOẢNG</div>
-                            <div className="text-xl font-bold text-gray-900 mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhTong)}</div>
-                            <div className="text-[11px] text-gray-500 mt-0.5">
-                              {hasNoData ? 'bưu gửi' : `bưu gửi · ${formatKg(hhKg, { withUnit: true })}`}
-                            </div>
-                          </div>
-                          <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
-                            <div className="text-[11px] font-bold text-gray-600 uppercase">ĐI TRONG NGÀY</div>
-                            <div className="text-xl font-bold text-[#1F7A5C] mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhLuuThoat)}</div>
-                            <div className="text-[11px] font-semibold text-[#1F7A5C] mt-0.5">
-                              {hasNoData ? '—' : `${formatPercent(hhTyLeLuu)} · ${formatKg(hhDiTrongNgayKg, { withUnit: true })}`}
-                            </div>
-                          </div>
-                          <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
-                            <div className="text-[11px] font-bold text-gray-600 uppercase">3 · ĐI HÔM SAU, ĐÚNG CHUYẾN</div>
-                            <div className="text-xl font-bold text-[#4A1D6E] mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhT3)}</div>
-                            <div className="text-[11px] text-gray-500 mt-0.5">
-                              {hasNoData ? 'đến sau mốc 21:00 của chuyến cuối 22:00' : `đến sau mốc 21:00 của chuyến cuối 22:00 · ${formatKg(hhT3Kg, { withUnit: true })}`}
-                            </div>
-                          </div>
-                          <div className="p-3.5 bg-gray-50 rounded-[10px] border border-gray-200">
-                            <div className="text-[11px] font-bold text-gray-600 uppercase">TRƯỢT CHUYẾN, TỪ 2 NGÀY / CHƯA ĐI</div>
-                            <div className="text-xl font-bold text-[#B3202A] mt-1 tabular-nums">{hasNoData ? '—' : formatInt(hhTruot)}</div>
-                            <div className="text-[11px] text-gray-500 mt-0.5">{hasNoData ? '—' : `${formatPercent(hhTyLeTruot)} · chỉ để theo dõi`}</div>
-                          </div>
-                        </div>
-
-                        {/* Thanh tỷ lệ hàng hoàn */}
-                        <div className="space-y-1.5 pt-1">
-                          <div className="flex justify-between text-xs text-gray-600 tabular-nums">
-                            <span>Lưu thoát: đi trong ngày · <strong>{hasNoData ? '—' : formatInt(hhLuuThoat)}</strong> ({hasNoData ? '—' : formatPercent(hhTyLeLuu)})</span>
-                            <span>Rớt lại · <strong>{hasNoData ? '—' : formatInt(hhRotLai)}</strong> ({hasNoData ? '—' : formatPercent(hhTyLeRot)})</span>
-                          </div>
-                          {/* Thanh tỷ lệ hàng hoàn chuẩn KttTooltip */}
-                          <KttTooltip
-                            ariaLabel={`Hàng chuyển hoàn · Mẫu số: ${formatInt(hhLuuThoat + hhRotLai)} bưu gửi · Lưu thoát: ${formatInt(hhLuuThoat)} (${formatPercent(hhTyLeLuu)}) · Rớt lại: ${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}
-                            content={
-                              <div className="space-y-1.5 min-w-[240px]">
-                                <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
-                                  <span>Hàng chuyển hoàn</span>
-                                  <span className="text-gray-300 font-normal">
-                                    Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(hhLuuThoat + hhRotLai)}</strong> bưu gửi
-                                  </span>
-                                </div>
-                                <div className="space-y-1 text-[11px]">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-gray-200">
-                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#1F7A5C] shrink-0" />
-                                      <span>1 · Đi trong ngày, đúng chuyến</span>
-                                    </span>
-                                    <span className="tabular-nums font-semibold text-emerald-300">
-                                      {formatInt(hhT1)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT1 / (hhLuuThoat + hhRotLai) : 0)})
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-gray-200">
-                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#7FBFA6] shrink-0" />
-                                      <span>2 · Đi trong ngày, trượt chuyến</span>
-                                    </span>
-                                    <span className="tabular-nums font-semibold text-teal-200">
-                                      {formatInt(hhT2)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT2 / (hhLuuThoat + hhRotLai) : 0)})
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-gray-200">
-                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#B79BCB] shrink-0" />
-                                      <span>3 · Đi hôm sau, đúng chuyến</span>
-                                    </span>
-                                    <span className="tabular-nums font-semibold text-purple-200">
-                                      {formatInt(hhT3)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT3 / (hhLuuThoat + hhRotLai) : 0)})
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-gray-200">
-                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#E0A82E] shrink-0" />
-                                      <span>4 · Đi hôm sau, trượt chuyến</span>
-                                    </span>
-                                    <span className="tabular-nums font-semibold text-amber-300">
-                                      {formatInt(hhT4)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT4 / (hhLuuThoat + hhRotLai) : 0)})
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-gray-200">
-                                      <span className="w-2.5 h-2.5 rounded-xs bg-[#B3202A] shrink-0" />
-                                      <span>5 · Từ 2 ngày hoặc chưa đi</span>
-                                    </span>
-                                    <span className="tabular-nums font-semibold text-red-300">
-                                      {formatInt(hhT5)} bưu gửi ({formatPercent((hhLuuThoat + hhRotLai) > 0 ? hhT5 / (hhLuuThoat + hhRotLai) : 0)})
-                                    </span>
-                                  </div>
-                                  {hhDangCho > 0 && (
-                                    <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-800">
-                                      <span className="flex items-center gap-1.5 text-purple-300">
-                                        <span className="w-2.5 h-2.5 rounded-xs bg-[#4A1D6E] shrink-0" />
-                                        <span>Đang chờ chuyến</span>
-                                      </span>
-                                      <span className="tabular-nums font-semibold text-purple-200">
-                                        {formatInt(hhDangCho)} bưu gửi
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            }
-                            className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-md"
-                          >
-                            <div className="w-full h-5 rounded-md overflow-hidden flex bg-gray-100">
-                              {hp1 > 0 && <div style={{ width: `${hp1}%` }} className="bg-[#1F7A5C] h-full" />}
-                              {hp2 > 0 && <div style={{ width: `${hp2}%` }} className="bg-[#7FBFA6] h-full" />}
-                              {hp3 > 0 && <div style={{ width: `${hp3}%` }} className="bg-[#B79BCB] h-full" />}
-                              {hp4 > 0 && <div style={{ width: `${hp4}%` }} className="bg-[#E0A82E] h-full" />}
-                              {hp5 > 0 && <div style={{ width: `${hp5}%` }} className="bg-[#B3202A] h-full" />}
-                            </div>
-                          </KttTooltip>
-                          <div className="flex flex-wrap gap-3 text-[11px] text-gray-600 tabular-nums pt-1">
-                            <span>1 · Đi trong ngày đúng: <strong>{hasNoData ? '—' : formatInt(hhT1)}</strong></span>
-                            <span>2 · Đi trong ngày trượt: <strong>{hasNoData ? '—' : formatInt(hhT2)}</strong></span>
-                            <span>3 · Đi hôm sau đúng: <strong>{hasNoData ? '—' : formatInt(hhT3)}</strong></span>
-                            <span>4 · Đi hôm sau trượt: <strong>{hasNoData ? '—' : formatInt(hhT4)}</strong></span>
-                            <span>5 · Từ 2 ngày hoặc chưa đi: <strong>{hasNoData ? '—' : formatInt(hhT5)}</strong></span>
-                            {hhDangCho > 0 && (
-                              <span className="px-2 py-0.5 bg-[#EFE6F5] text-[#4A1D6E] rounded">
-                                Đang chờ: <strong>{hasNoData ? '—' : formatInt(hhDangCho)}</strong>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* ── 6. THEO BCVH ĐÍCH & THEO NGUỒN / ĐƯỜNG THƯ ĐẾN (C4) ─────────────── */}
-              {data.tong_cong && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
-                  {/* Cột trái: Theo BCVH đích (6 thẻ + Bảng tỷ trọng) */}
-                  <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-5">
-                    <div>
-                      <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Sản lượng, tỷ lệ lưu thoát và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
-                      </p>
-                    </div>
-
-                    {/* 6 thẻ BCVH */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {BCVH_LIST.map((b) => {
-                        const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
-                        const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
-                        const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
-                        const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
-                          (bBlock?.trang_thai?.t4?.shbg ?? 0) +
-                          (bBlock?.trang_thai?.t5?.shbg ?? 0);
-                        const bTruot = (bBlock?.dung_chuyen?.truot_chuyen ?? 0) +
-                          (bBlock?.dung_chuyen?.lo_chuyen ?? 0);
-                        const bTyLeRot = !hasNoData && bMauSo > 0 ? bRot / bMauSo : null;
-                        const bTyLeTruot = !hasNoData && bMauSo > 0 ? bTruot / bMauSo : null;
-                        const bTyLeLuu = !hasNoData ? bBlock?.luu_thoat?.ty_le : null;
-
-                        // kg của bcvh (Σ t1..t5.kg)
-                        const bKg = (bBlock?.trang_thai?.t1?.kg ?? 0) +
-                          (bBlock?.trang_thai?.t2?.kg ?? 0) +
-                          (bBlock?.trang_thai?.t3?.kg ?? 0) +
-                          (bBlock?.trang_thai?.t4?.kg ?? 0) +
-                          (bBlock?.trang_thai?.t5?.kg ?? 0);
-
+                    {/* Chú thích 5 trạng thái (số và %) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs">
+                      {legendItems.map((it) => {
+                        const pct = !hasNoData && mauSo > 0 ? it.shbg / mauSo : null;
                         return (
-                          <div
-                            key={b.ma}
-                            className={`p-4 rounded-[12px] border transition-colors ${
-                              selectedBcvh === b.ma
-                                ? 'border-[#4A1D6E] bg-[#FAF5E8]'
-                                : 'border-gray-200 bg-white hover:bg-[#FFFBEF]'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-sm text-gray-900">{b.ten}</span>
-                              <span className="text-xs font-bold text-gray-900 tabular-nums">
-                                {hasNoData ? '—' : `${formatInt(bMauSo)} bưu gửi`}
-                              </span>
+                          <div key={it.code} className="flex items-start gap-1.5 text-gray-700 leading-snug">
+                            <span style={{ backgroundColor: it.color }} className="w-2.5 h-2.5 rounded-xs shrink-0 mt-1" />
+                            <div>
+                              <span>{it.label}</span>{' '}
+                              <strong className="tabular-nums text-gray-900">{hasNoData ? '—' : formatInt(it.shbg)}</strong>{' '}
+                              <span className="tabular-nums text-gray-500">({hasNoData ? '—' : formatPercent(pct)})</span>
+                              {it.extraKg !== undefined && !hasNoData && (
+                                <span className="text-[11px] text-gray-500 tabular-nums"> · {formatKg(it.extraKg, { withUnit: true })}</span>
+                              )}
                             </div>
-                            <div className="text-xs text-gray-600 mt-1.5 tabular-nums">
-                              <span className="font-semibold text-gray-900">{hasNoData ? '—' : formatInt(bMauSo)}</span>
-                              {' · '}
-                              <span>{hasNoData ? '—' : formatKg(bKg, { withUnit: true })}</span>
-                              {' · rớt '}
-                              <strong className="text-[#A87A12]">{hasNoData ? '—' : formatPercent(bTyLeRot)}</strong>
-                              {' · trượt '}
-                              <strong className="text-[#B3202A]">{hasNoData ? '—' : formatPercent(bTyLeTruot)}</strong>
-                            </div>
-                            {/* Thanh lưu thoát chuẩn KttTooltip */}
-                            <KttTooltip
-                              ariaLabel={`${b.ten} · Mẫu số: ${formatInt(bMauSo)} bưu gửi · Lưu thoát: ${formatInt(bDi)} bưu gửi (${formatPercent(bTyLeLuu)}) · Rớt lại: ${formatInt(bRot)} bưu gửi (${formatPercent(bTyLeRot)}) · Trượt chuyến: ${formatInt(bTruot)} bưu gửi (${formatPercent(bTyLeTruot)})`}
-                              content={
-                                <div className="space-y-1 min-w-[200px]">
-                                  <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
-                                    <span>{b.ten}</span>
-                                    <span className="text-gray-300 font-normal">
-                                      Mẫu số: <strong className="text-white font-bold tabular-nums">{formatInt(bMauSo)}</strong> bưu gửi
-                                    </span>
-                                  </div>
-                                  <div className="space-y-0.5 text-[11px] pt-0.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-emerald-300">Lưu thoát (trong ngày):</span>
-                                      <span className="tabular-nums font-bold text-white">{formatInt(bDi)} bưu gửi ({formatPercent(bTyLeLuu)})</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-amber-300">Rớt lại:</span>
-                                      <span className="tabular-nums font-bold text-white">{formatInt(bRot)} bưu gửi ({formatPercent(bTyLeRot)})</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-red-300">Trượt chuyến:</span>
-                                      <span className="tabular-nums font-bold text-white">{formatInt(bTruot)} bưu gửi ({formatPercent(bTyLeTruot)})</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              }
-                              className="w-full mt-3 cursor-pointer py-1 focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-full"
-                            >
-                              <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 flex">
-                                <div
-                                  style={{ width: `${(bTyLeLuu ?? 0) * 100}%` }}
-                                  className="bg-[#1F7A5C] h-full"
-                                />
-                                <div
-                                  style={{ width: `${(bTyLeRot ?? 0) * 100}%` }}
-                                  className="bg-[#E0A82E] h-full"
-                                />
-                              </div>
-                            </KttTooltip>
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Bảng tỷ trọng từng BCVH */}
-                    <div>
-                      <div className="mb-2">
-                        <div className="text-sm font-bold text-gray-800">Tỷ trọng từng BCVH</div>
+                    {/* Dòng «Trượt chuyến, cần xử lý» */}
+                    <div className="border-l-[3px] border-[#B3202A] pl-3 py-0.5 text-xs text-gray-800 tabular-nums">
+                      <strong>Trượt chuyến, cần xử lý: {hasNoData ? '—' : formatInt(truotChuyenShbg)}</strong>{' '}
+                      ({hasNoData ? '—' : `${formatPercent(tyLeTruotChuyen)} hàng đến`}){' '}
+                      ={' '}
+                      {hasNoData ? '—' : (
+                        diTuD2Dung === 0 && truotChuyenShbg === t2 + t4 + t5
+                          ? `${formatInt(t2)} + ${formatInt(t4)} + ${formatInt(t5)} (trạng thái 2 + 4 + 5)`
+                          : `${formatInt(t2)} + ${formatInt(t4)} + ${formatInt(Math.max(0, t5 - diTuD2Dung))} (trạng thái 2 + 4 + phần trượt/chưa đi của 5)`
+                      )}
+                      . Nằm trong cả «đi trong ngày» lẫn «rớt lại», không cộng thêm.
+                    </div>
+
+                    {/* Dòng nối số */}
+                    <div className="bg-[#FAF5E8] border border-[#E4D5AE] rounded-[8px] px-3 py-2 text-xs text-[#4A3F55] tabular-nums space-y-1.5">
+                      <div>
+                        {bcvhSelectedName ? (
+                          <>
+                            <strong>Nối số ({bcvhSelectedName}):</strong> tất cả bưu gửi của BCVH{' '}
+                            <strong>{hasNoData ? '—' : formatInt(tongTatCa)}</strong> ={' '}
+                            {hasNoData ? '—' : formatInt(mauSo)} tính chỉ tiêu +{' '}
+                            {hasNoData ? '—' : formatInt(dangChoChuyen)} đang chờ chuyến +{' '}
+                            {hasNoData ? '—' : formatInt(hangHoanTong)} hàng hoàn +{' '}
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.tong ?? 0)} ngoài chỉ tiêu (
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.khong_co_gio_quet_den ?? 0)} thiếu giờ quét
+                            {(currentNgoaiBayChip?.khong_xep_duoc_chuyen_tong ?? 0) > 0
+                              ? `, ${formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong)} không xếp được chuyến`
+                              : ''}
+                            ). Hàng hoàn hiện riêng, không cộng vào chỉ tiêu.
+                          </>
+                        ) : (
+                          <>
+                            <strong>Nối số:</strong> tất cả bưu gửi đến KTT{' '}
+                            <strong>{hasNoData ? '—' : formatInt(tongTatCa)}</strong> ={' '}
+                            {hasNoData ? '—' : formatInt(mauSo)} tính chỉ tiêu +{' '}
+                            {hasNoData ? '—' : formatInt(dangChoChuyen)} đang chờ chuyến +{' '}
+                            {hasNoData ? '—' : formatInt(hangHoanTong)} hàng hoàn +{' '}
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.tong ?? 0)} ngoài chỉ tiêu (
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.khong_ro_dich ?? 0)} không rõ đích,{' '}
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.ngoai_pham_vi_tong ?? 0)} ngoài 6 BCVH,{' '}
+                            {hasNoData ? '—' : formatInt(currentNgoaiBayChip?.khong_co_gio_quet_den ?? 0)} thiếu giờ quét
+                            {(currentNgoaiBayChip?.khong_xep_duoc_chuyen_tong ?? 0) > 0
+                              ? `, ${formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong)} không xếp được chuyến`
+                              : ''}
+                            ). Hàng hoàn hiện riêng, không cộng vào chỉ tiêu.
+                          </>
+                        )}
+                        {!selectedCell && currentNgoaiBayChip && currentNgoaiBayChip.tong > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowNgoaiBayChipModal((prev) => !prev)}
+                            aria-expanded={showNgoaiBayChipModal ? 'true' : 'false'}
+                            className="ml-2 text-[#4A1D6E] font-semibold underline hover:no-underline cursor-pointer"
+                          >
+                            {showNgoaiBayChipModal ? 'Thu gọn giải thích' : 'Xem giải thích'}
+                          </button>
+                        )}
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="table-soft w-full min-w-[500px] text-left">
-                          <thead>
-                            <tr>
-                              <th className="text-left">BCVH</th>
-                              <th className="text-right">
-                                TỶ TRỌNG HÀNG ĐI
-                                <div className="text-[11px] font-normal normal-case text-gray-500">
-                                  trong {formatInt(data.tong_cong.luu_thoat?.tu_so ?? 0)} hàng đi
-                                </div>
-                              </th>
-                              <th className="text-right">
-                                TỶ TRỌNG RỚT LẠI
-                                <div className="text-[11px] font-normal normal-case text-gray-500">
-                                  {(() => {
-                                    const tRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
-                                      (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
-                                      (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
-                                    return `trong ${formatInt(tRot)} hàng rớt`;
-                                  })()}
-                                </div>
-                              </th>
-                              <th className="text-right">
-                                RỚT LẠI BCVH
-                                <div className="text-[11px] font-normal normal-case text-gray-500">
-                                  trong hàng đến
-                                </div>
-                              </th>
-                              <th className="text-right">
-                                ĐẠT 14 GIỜ (TRÊN SỐ ĐO ĐƯỢC)
-                                <div className="text-[11px] font-normal normal-case text-gray-500">
-                                  trong hàng đến của BCVH này
-                                </div>
-                              </th>
+
+                      {showNgoaiBayChipModal && currentNgoaiBayChip && currentNgoaiBayChip.tong > 0 && (
+                        <div className="pt-2 border-t border-[#E4D5AE] space-y-1 text-xs text-gray-700">
+                          <ul className="list-disc pl-4 space-y-0.5">
+                            <li>
+                              <strong>Không rõ đích ({formatInt(currentNgoaiBayChip.khong_ro_dich ?? 0)}):</strong> Bưu gửi không xác định được bưu cục đến.
+                            </li>
+                            <li>
+                              <strong>Ngoài 6 BCVH Huế ({formatInt(currentNgoaiBayChip.ngoai_pham_vi_tong ?? 0)}):</strong> Bưu gửi đi các tỉnh khác hoặc các điểm ngoài 6 BCVH nội tỉnh (Hệ 1 / 530900, tỉnh khác, KTT 530100).
+                            </li>
+                            <li>
+                              <strong>Thiếu giờ quét túi đến ({formatInt(currentNgoaiBayChip.khong_co_gio_quet_den ?? 0)}):</strong> Chỉ có giờ xác nhận BD10 đến hoặc mốc khác mà thiếu giờ quét túi đến tại KTT.
+                            </li>
+                            <li>
+                              <strong>Không xếp được chuyến ({formatInt(currentNgoaiBayChip.khong_xep_duoc_chuyen_tong ?? 0)}):</strong> Không khớp với lịch chuyến xe đã cấu hình.
+                            </li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Khối «Theo nguồn hàng» (Khai thác vs Chuyển tiếp) */}
+                    {data.tong_cong?.theo_nguon_hang && (() => {
+                      const tnh = data.tong_cong.theo_nguon_hang;
+                      const kt = tnh.khai_thac;
+                      const ct = tnh.chuyen_tiep;
+
+                      const ktMauSo = kt?.tong?.luu_thoat?.mau_so ?? 0;
+                      const ktTyLeLuu = !hasNoData && ktMauSo > 0 ? (kt?.tong?.luu_thoat?.ty_le ?? null) : null;
+                      const ktC14 = kt?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                      const ktDoDuoc = ktC14?.do_duoc ?? 0;
+                      const ktMauSo14 = ktC14?.mau_so ?? 0;
+                      const ktTyLe14 = !hasNoData && ktDoDuoc > 0 ? (ktC14?.ty_le_dat_tren_do_duoc ?? null) : null;
+
+                      const ctMauSo = ct?.tong?.luu_thoat?.mau_so ?? 0;
+                      const ctTyLeLuu = !hasNoData && ctMauSo > 0 ? (ct?.tong?.luu_thoat?.ty_le ?? null) : null;
+                      const ctC14 = ct?.tong?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                      const ctDoDuoc = ctC14?.do_duoc ?? 0;
+                      const ctMauSo14 = ctC14?.mau_so ?? 0;
+                      const ctTyLe14 = !hasNoData && ctDoDuoc > 0 ? (ctC14?.ty_le_dat_tren_do_duoc ?? null) : null;
+
+                      return (
+                        <div className="pt-1 border-t border-gray-100 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                              Theo nguồn hàng
+                            </span>
+                            {selectedBcvh !== 'all' && (
+                              <span className="text-[11px] text-gray-500 italic">
+                                Số liệu nguồn hàng tính trên toàn KTT
+                              </span>
+                            )}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="table-soft w-full min-w-[520px] text-xs text-left">
+                              <thead>
+                                <tr>
+                                  <th className="text-left">NGUỒN HÀNG</th>
+                                  <th className="text-right">BƯU GỬI TÍNH CHỈ TIÊU</th>
+                                  <th className="text-right">ĐI TRONG NGÀY</th>
+                                  <th className="text-right">ĐẠT 14 GIỜ (TRÊN PHẦN ĐO ĐƯỢC)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="hover:bg-[#FFFBEF] transition-colors">
+                                  <td className="font-medium text-gray-900">Hàng khai thác (KTT mở túi, chia lại)</td>
+                                  <td className="text-right tabular-nums font-semibold text-gray-900">
+                                    {hasNoData ? '—' : formatInt(ktMauSo)}
+                                  </td>
+                                  <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                    {hasNoData || ktTyLeLuu === null ? '—' : formatPercent(ktTyLeLuu)}
+                                  </td>
+                                  <td className="text-right tabular-nums">
+                                    <span className="font-semibold text-[#4A1D6E]">
+                                      {hasNoData || ktTyLe14 === null ? '—' : formatPercent(ktTyLe14)}
+                                    </span>
+                                    {!hasNoData && ktC14 && (
+                                      <span className="text-[11px] text-gray-500 ml-1.5">
+                                        (đo được {formatInt(ktDoDuoc)}/{formatInt(ktMauSo14)})
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                                <tr className="hover:bg-[#FFFBEF] transition-colors">
+                                  <td className="font-medium text-gray-900">Hàng chuyển tiếp (đi nguyên túi)</td>
+                                  <td className="text-right tabular-nums font-semibold text-gray-900">
+                                    {hasNoData ? '—' : formatInt(ctMauSo)}
+                                  </td>
+                                  <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                    {hasNoData || ctTyLeLuu === null ? '—' : formatPercent(ctTyLeLuu)}
+                                  </td>
+                                  <td className="text-right tabular-nums">
+                                    <span className="font-semibold text-[#4A1D6E]">
+                                      {hasNoData || ctTyLe14 === null ? '—' : formatPercent(ctTyLe14)}
+                                    </span>
+                                    {!hasNoData && ctC14 && (
+                                      <span className="text-[11px] text-gray-500 ml-1.5">
+                                        (đo được {formatInt(ctDoDuoc)}/{formatInt(ctMauSo14)})
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+
+              {/* ── HÀNG CHUYỂN HOÀN (HIỆN RIÊNG, THU GỌN) ────────────────────── */}
+              {activeHangHoan && (() => {
+                const hhTong = activeHangHoan.tong_shbg ?? 0;
+                const hhT1 = activeHangHoan.trang_thai?.t1?.shbg ?? 0;
+                const hhT2 = activeHangHoan.trang_thai?.t2?.shbg ?? 0;
+                const hhT3 = activeHangHoan.trang_thai?.t3?.shbg ?? 0;
+                const hhT4 = activeHangHoan.trang_thai?.t4?.shbg ?? 0;
+                const hhT5 = activeHangHoan.trang_thai?.t5?.shbg ?? 0;
+                const hhDangCho = activeHangHoan.trang_thai?.dang_cho_chuyen?.shbg ?? 0;
+
+                const hhKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
+                  (activeHangHoan.trang_thai?.t2?.kg ?? 0) +
+                  (activeHangHoan.trang_thai?.t3?.kg ?? 0) +
+                  (activeHangHoan.trang_thai?.t4?.kg ?? 0) +
+                  (activeHangHoan.trang_thai?.t5?.kg ?? 0);
+                const hhDiTrongNgayKg = (activeHangHoan.trang_thai?.t1?.kg ?? 0) +
+                  (activeHangHoan.trang_thai?.t2?.kg ?? 0);
+                const hhT3Kg = activeHangHoan.trang_thai?.t3?.kg ?? 0;
+
+                const hhLuuThoat = hhT1 + hhT2;
+                const hhRotLai = hhT3 + hhT4 + hhT5;
+                const hhTruot = (activeHangHoan.dung_chuyen?.truot_chuyen ?? 0) +
+                  (activeHangHoan.dung_chuyen?.lo_chuyen ?? 0);
+                const hhMauSo = activeHangHoan.luu_thoat?.mau_so ?? (hhLuuThoat + hhRotLai);
+                const hhTyLeLuu = !hasNoData && hhMauSo > 0 ? hhLuuThoat / hhMauSo : null;
+                const hhTyLeRot = !hasNoData && hhMauSo > 0 ? hhRotLai / hhMauSo : null;
+                const hhTyLeTruot = !hasNoData && hhMauSo > 0 ? hhTruot / hhMauSo : null;
+
+                const hp1 = !hasNoData && hhMauSo > 0 ? (hhT1 / hhMauSo) * 100 : 0;
+                const hp2 = !hasNoData && hhMauSo > 0 ? (hhT2 / hhMauSo) * 100 : 0;
+                const hp3 = !hasNoData && hhMauSo > 0 ? (hhT3 / hhMauSo) * 100 : 0;
+                const hp4 = !hasNoData && hhMauSo > 0 ? (hhT4 / hhMauSo) * 100 : 0;
+                const hp5 = !hasNoData && hhMauSo > 0 ? (hhT5 / hhMauSo) * 100 : 0;
+
+                return (
+                  <div className="bg-white rounded-[14px] p-4 border border-purple-200 shadow-none space-y-2.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h2 className="hue-h2 text-[16px]">
+                        Hàng chuyển hoàn: hiện riêng, không tính chỉ tiêu 14 giờ
+                      </h2>
+                      <span className="text-[11px] text-gray-500">
+                        Không cộng vào các con số và tỷ lệ của trang
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                      <div className="px-3 py-2 bg-gray-50 rounded-[8px] border border-gray-200">
+                        <div className="text-[11px] font-bold text-gray-600 uppercase">HÀNG HOÀN ĐẾN</div>
+                        <div className="text-lg font-bold text-gray-900 tabular-nums">
+                          {hasNoData ? '—' : formatInt(hhTong)}{' '}
+                          <span className="text-[11px] font-normal text-gray-500">
+                            {hasNoData ? '' : `· ${formatKg(hhKg, { withUnit: true })}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="px-3 py-2 bg-gray-50 rounded-[8px] border border-gray-200">
+                        <div className="text-[11px] font-bold text-gray-600 uppercase">ĐI TRONG NGÀY</div>
+                        <div className="text-lg font-bold text-[#1F7A5C] tabular-nums">
+                          {hasNoData ? '—' : formatInt(hhLuuThoat)}{' '}
+                          <span className="text-[11px] font-semibold">
+                            {hasNoData ? '' : `(${formatPercent(hhTyLeLuu)} · ${formatKg(hhDiTrongNgayKg, { withUnit: true })})`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="px-3 py-2 bg-gray-50 rounded-[8px] border border-gray-200">
+                        <div className="text-[11px] font-bold text-gray-600 uppercase">3 · ĐI HÔM SAU, ĐÚNG CHUYẾN</div>
+                        <div className="text-lg font-bold text-[#4A1D6E] tabular-nums">
+                          {hasNoData ? '—' : formatInt(hhT3)}{' '}
+                          <span className="text-[11px] font-normal text-gray-500">
+                            {hasNoData ? '' : `· ${formatKg(hhT3Kg, { withUnit: true })}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="px-3 py-2 bg-gray-50 rounded-[8px] border border-gray-200">
+                        <div className="text-[11px] font-bold text-gray-600 uppercase">TRƯỢT CHUYẾN, TỪ 2 NGÀY / CHƯA ĐI</div>
+                        <div className="text-lg font-bold text-[#B3202A] tabular-nums">
+                          {hasNoData ? '—' : formatInt(hhTruot)}{' '}
+                          <span className="text-[11px] font-semibold">
+                            {hasNoData ? '' : `(${formatPercent(hhTyLeTruot)})`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <KttTooltip
+                      ariaLabel={`Hàng chuyển hoàn · Tổng phân loại: ${formatInt(hhLuuThoat + hhRotLai)} bưu gửi · Đi trong ngày: ${formatInt(hhLuuThoat)} (${formatPercent(hhTyLeLuu)}) · Rớt lại: ${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}
+                      content={
+                        <div className="space-y-1.5 min-w-[240px]">
+                          <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-3">
+                            <span>Hàng chuyển hoàn</span>
+                            <span className="text-gray-300 font-normal">
+                              Tổng: <strong className="text-white font-bold tabular-nums">{formatInt(hhLuuThoat + hhRotLai)}</strong> bưu gửi
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-[11px]">
+                            <div className="flex items-center justify-between gap-3">
+                              <span>1 · Đi trong ngày, đúng chuyến</span>
+                              <span className="tabular-nums font-semibold text-emerald-300">{formatInt(hhT1)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span>2 · Đi trong ngày, trượt chuyến</span>
+                              <span className="tabular-nums font-semibold text-teal-200">{formatInt(hhT2)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span>3 · Đi hôm sau, đúng chuyến</span>
+                              <span className="tabular-nums font-semibold text-purple-200">{formatInt(hhT3)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span>4 · Đi hôm sau, trượt chuyến</span>
+                              <span className="tabular-nums font-semibold text-amber-300">{formatInt(hhT4)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span>5 · Từ 2 ngày hoặc chưa đi</span>
+                              <span className="tabular-nums font-semibold text-red-300">{formatInt(hhT5)}</span>
+                            </div>
+                            {hhDangCho > 0 && (
+                              <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-800">
+                                <span>Đang chờ chuyến</span>
+                                <span className="tabular-nums font-semibold text-purple-200">{formatInt(hhDangCho)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      }
+                      className="w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-md"
+                    >
+                      <div className="w-full h-3.5 rounded-md overflow-hidden flex bg-gray-100">
+                        {hp1 > 0 && <div style={{ width: `${hp1}%` }} className="bg-[#1F7A5C] h-full" />}
+                        {hp2 > 0 && <div style={{ width: `${hp2}%` }} className="bg-[#7FBFA6] h-full" />}
+                        {hp3 > 0 && <div style={{ width: `${hp3}%` }} className="bg-[#B79BCB] h-full" />}
+                        {hp4 > 0 && <div style={{ width: `${hp4}%` }} className="bg-[#E0A82E] h-full" />}
+                        {hp5 > 0 && <div style={{ width: `${hp5}%` }} className="bg-[#B3202A] h-full" />}
+                      </div>
+                    </KttTooltip>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-600 tabular-nums">
+                      <span>1 · Đúng: <strong>{hasNoData ? '—' : formatInt(hhT1)}</strong></span>
+                      <span>2 · Trượt: <strong>{hasNoData ? '—' : formatInt(hhT2)}</strong></span>
+                      <span>3 · Hôm sau đúng: <strong>{hasNoData ? '—' : formatInt(hhT3)}</strong></span>
+                      <span>4 · Hôm sau trượt: <strong>{hasNoData ? '—' : formatInt(hhT4)}</strong></span>
+                      <span>5 · Từ 2 ngày/chưa đi: <strong>{hasNoData ? '—' : formatInt(hhT5)}</strong></span>
+                      <span>Rớt lại: <strong className="text-[#A87A12]">{hasNoData ? '—' : `${formatInt(hhRotLai)} (${formatPercent(hhTyLeRot)})`}</strong></span>
+                      {hhDangCho > 0 && (
+                        <span className="px-1.5 py-0.5 bg-[#EFE6F5] text-[#4A1D6E] rounded">
+                          Đang chờ: <strong>{hasNoData ? '—' : formatInt(hhDangCho)}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 3. BẢNG «THEO NGÀY HÀNG ĐẾN» ───────────────────────────────── */}
+              <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
+                <div>
+                  <h2 className="hue-h2 text-[17px]">Theo ngày hàng đến</h2>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Ngày chưa chốt hiện <span className="text-[#A87A12] font-semibold">«Số tạm»</span>; ngày chốt khi dữ liệu {meta?.gio_chot_ngay || '09:00'} của hôm sau về.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="table-soft w-full min-w-[680px] text-left">
+                    <thead>
+                      <tr>
+                        <th className="text-left">NGÀY</th>
+                        <th className="text-right">HÀNG ĐẾN TÍNH CHỈ TIÊU</th>
+                        <th className="text-right">ĐI TRONG NGÀY</th>
+                        <th className="text-right">RỚT LẠI</th>
+                        <th className="text-right">ĐẠT 14 GIỜ (TRÊN PHẦN ĐO ĐƯỢC)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.theo_ngay && data.theo_ngay.length > 0 ? (
+                        data.theo_ngay.map((row) => {
+                          const dayBlock = selectedBcvh === 'all' ? row.tong : row.theo_bcvh?.[selectedBcvh];
+                          const ddmm = formatDdMmYyyy(row.ngay).slice(0, 5);
+                          const thu = getThuTiengViet(row.ngay);
+                          const statusBadge = !row.co_du_lieu ? (
+                            <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-500">
+                              Chưa có hàng đến
+                            </span>
+                          ) : row.da_chot ? (
+                            <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#DDF1E8] text-[#1F7A5C]">
+                              Đã chốt
+                            </span>
+                          ) : (
+                            <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-[#FFF1CC] text-[#A87A12]">
+                              Số tạm
+                            </span>
+                          );
+
+                          if (!row.co_du_lieu || !dayBlock) {
+                            return (
+                              <tr key={row.ngay} className={!row.co_du_lieu ? 'opacity-50' : 'hover:bg-[#FFFBEF] transition-colors'}>
+                                <td className="font-medium whitespace-nowrap text-gray-900">
+                                  {ddmm} ({thu}){statusBadge}
+                                </td>
+                                <td className="text-right italic text-gray-400">—</td>
+                                <td className="text-right italic text-gray-400">—</td>
+                                <td className="text-right italic text-gray-400">—</td>
+                                <td className="text-right italic text-gray-400">—</td>
+                              </tr>
+                            );
+                          }
+
+                          const mauSo = dayBlock.luu_thoat?.mau_so ?? 0;
+                          const rotLaiShbg = (dayBlock.trang_thai?.t3?.shbg ?? 0) +
+                            (dayBlock.trang_thai?.t4?.shbg ?? 0) +
+                            (dayBlock.trang_thai?.t5?.shbg ?? 0);
+                          const tyLeRotLai = mauSo > 0 ? rotLaiShbg / mauSo : null;
+                          const dayC14 = dayBlock.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                          const doDuoc = dayC14?.do_duoc ?? 0;
+                          const mauSo14 = dayC14?.mau_so ?? 0;
+                          const tyLe14 = doDuoc > 0 ? dayC14.ty_le_dat_tren_do_duoc : null;
+                          const tooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(dayC14?.dat ?? 0)} · không đạt ${formatInt(dayC14?.khong_dat ?? 0)}`;
+
+                          return (
+                            <tr key={row.ngay} className="hover:bg-[#FFFBEF] transition-colors">
+                              <td className="font-medium whitespace-nowrap text-gray-900">
+                                {ddmm} ({thu}){statusBadge}
+                              </td>
+                              <td className="text-right tabular-nums font-medium text-gray-900">
+                                {formatInt(mauSo)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                {formatPercent(dayBlock.luu_thoat?.ty_le)}
+                              </td>
+                              <td className="text-right tabular-nums font-semibold text-[#A87A12]">
+                                {formatPercent(tyLeRotLai)}
+                              </td>
+                              <td
+                                className="text-right tabular-nums cursor-help"
+                                title={tooltip}
+                              >
+                                <span className="font-semibold text-[#4A1D6E]">
+                                  {tyLe14 !== null ? formatPercent(tyLe14) : '—'}
+                                </span>
+                                {dayC14 && (
+                                  <span className="text-[11px] text-gray-500 ml-1.5">
+                                    (đo được {formatInt(doDuoc)}/{formatInt(mauSo14)})
+                                  </span>
+                                )}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              const tongDi = data.tong_cong.luu_thoat?.tu_so ?? 0;
-                              const tongRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
-                                (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
-                                (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center py-6 text-gray-500 italic">
+                            Không có ngày nào trong khoảng chọn.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                              return BCVH_LIST.map((b) => {
-                                const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
-                                const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
-                                const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
-                                const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
-                                  (bBlock?.trang_thai?.t4?.shbg ?? 0) +
-                                  (bBlock?.trang_thai?.t5?.shbg ?? 0);
+              {/* ── 4. THEO BCVH ĐÍCH (BẢNG CÓ THANH) & 5. THEO NGUỒN ───────────── */}
+              {data.tong_cong && (
+                <>
+                  <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
+                    <div>
+                      <h2 className="hue-h2 text-[17px]">Theo BCVH đích</h2>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Sản lượng, tỷ lệ rớt lại và tỷ trọng phân bổ trên 6 Bưu cục Vận hành Huế.
+                      </p>
+                    </div>
 
-                                const tyTrongDi = tongDi > 0 ? bDi / tongDi : null;
-                                const tyTrongRot = tongRot > 0 ? bRot / tongRot : null;
-                                const tyLeRotChinh = bMauSo > 0 ? bRot / bMauSo : null;
-                                const bC14 = bBlock?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
-                                const doDuoc = bC14?.do_duoc ?? 0;
-                                const mauSo14 = bC14?.mau_so ?? 0;
-                                const tyLeDat14 = doDuoc > 0 ? bC14.ty_le_dat_tren_do_duoc : null;
-                                const bTooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(bC14?.dat ?? 0)} · không đạt ${formatInt(bC14?.khong_dat ?? 0)}`;
+                    <div className="overflow-x-auto">
+                      <table className="table-soft w-full min-w-[820px] text-left">
+                        <thead>
+                          <tr>
+                            <th className="text-left">BCVH</th>
+                            <th className="text-right">HÀNG ĐẾN</th>
+                            <th className="text-left min-w-[230px]">RỚT LẠI (% CỦA CHÍNH BCVH)</th>
+                            <th className="text-right">TRƯỢT CHUYẾN</th>
+                            <th className="text-right">
+                              CHIẾM % HÀNG ĐI
+                              <div className="text-[11px] font-normal normal-case text-gray-500">
+                                trong {formatInt(data.tong_cong.luu_thoat?.tu_so ?? 0)} hàng đi
+                              </div>
+                            </th>
+                            <th className="text-right">
+                              CHIẾM % HÀNG RỚT
+                              <div className="text-[11px] font-normal normal-case text-gray-500">
+                                {(() => {
+                                  const tRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
+                                    (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
+                                    (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
+                                  return `trong ${formatInt(tRot)} hàng rớt`;
+                                })()}
+                              </div>
+                            </th>
+                            <th className="text-right">ĐẠT 14 GIỜ (TRÊN PHẦN ĐO ĐƯỢC)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const tongDi = data.tong_cong.luu_thoat?.tu_so ?? 0;
+                            const tongRot = (data.tong_cong.trang_thai?.t3?.shbg ?? 0) +
+                              (data.tong_cong.trang_thai?.t4?.shbg ?? 0) +
+                              (data.tong_cong.trang_thai?.t5?.shbg ?? 0);
 
-                                return (
-                                  <tr key={b.ma} className="hover:bg-[#FFFBEF] transition-colors">
-                                    <td className="font-semibold text-gray-900 whitespace-nowrap">
-                                      {b.ten}
-                                    </td>
-                                    <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
-                                      {formatPercent(tyTrongDi)}
-                                    </td>
-                                    <td className="text-right tabular-nums font-semibold text-[#A87A12]">
-                                      {formatPercent(tyTrongRot)}
-                                    </td>
-                                    <td className="text-right tabular-nums font-medium text-gray-800">
-                                      {formatPercent(tyLeRotChinh)}
-                                    </td>
-                                    <td
-                                      className="text-right tabular-nums font-medium text-[#4A1D6E] cursor-help"
-                                      title={bTooltip}
-                                    >
+                            return BCVH_LIST.map((b) => {
+                              const bBlock = data.tong_cong.theo_bcvh?.[b.ma];
+                              const bMauSo = bBlock?.luu_thoat?.mau_so ?? 0;
+                              const bDi = bBlock?.luu_thoat?.tu_so ?? 0;
+                              const bRot = (bBlock?.trang_thai?.t3?.shbg ?? 0) +
+                                (bBlock?.trang_thai?.t4?.shbg ?? 0) +
+                                (bBlock?.trang_thai?.t5?.shbg ?? 0);
+                              const bTruot = (bBlock?.dung_chuyen?.truot_chuyen ?? 0) +
+                                (bBlock?.dung_chuyen?.lo_chuyen ?? 0);
+                              const bKg = (bBlock?.trang_thai?.t1?.kg ?? 0) +
+                                (bBlock?.trang_thai?.t2?.kg ?? 0) +
+                                (bBlock?.trang_thai?.t3?.kg ?? 0) +
+                                (bBlock?.trang_thai?.t4?.kg ?? 0) +
+                                (bBlock?.trang_thai?.t5?.kg ?? 0);
+
+                              const tyTrongDi = !hasNoData && tongDi > 0 ? bDi / tongDi : null;
+                              const tyTrongRot = !hasNoData && tongRot > 0 ? bRot / tongRot : null;
+                              const tyLeRotChinh = !hasNoData && bMauSo > 0 ? bRot / bMauSo : null;
+                              const tyLeLuu = !hasNoData ? bBlock?.luu_thoat?.ty_le : null;
+                              const tyLeTruot = !hasNoData && bMauSo > 0 ? bTruot / bMauSo : null;
+
+                              const bC14 = bBlock?.chi_tieu_14h?.theo_moc?.[mocChiTieu];
+                              const doDuoc = bC14?.do_duoc ?? 0;
+                              const mauSo14 = bC14?.mau_so ?? 0;
+                              const tyLeDat14 = !hasNoData && doDuoc > 0 ? bC14.ty_le_dat_tren_do_duoc : null;
+                              const bTooltip = `Đo được ${formatInt(doDuoc)}/${formatInt(mauSo14)} · đạt ${formatInt(bC14?.dat ?? 0)} · không đạt ${formatInt(bC14?.khong_dat ?? 0)}`;
+
+                              return (
+                                <tr
+                                  key={b.ma}
+                                  className={`transition-colors ${
+                                    selectedBcvh === b.ma ? 'bg-[#FAF5E8]' : 'hover:bg-[#FFFBEF]'
+                                  }`}
+                                >
+                                  <td className="font-semibold text-gray-900 whitespace-nowrap">
+                                    {b.ten}
+                                  </td>
+                                  <td className="text-right tabular-nums">
+                                    <div className="font-semibold text-gray-900">
+                                      {hasNoData ? '—' : formatInt(bMauSo)}
+                                    </div>
+                                    <div className="text-[11px] text-gray-500">
+                                      {hasNoData ? '—' : formatKg(bKg, { withUnit: true })}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="tabular-nums font-medium text-gray-800 w-12 text-right shrink-0">
+                                        {hasNoData ? '—' : formatInt(bRot)}
+                                      </span>
+                                      <KttTooltip
+                                        ariaLabel={`${b.ten} · Hàng đến: ${formatInt(bMauSo)} bưu gửi · Đi trong ngày: ${formatInt(bDi)} (${formatPercent(tyLeLuu)}) · Rớt lại: ${formatInt(bRot)} (${formatPercent(tyLeRotChinh)}) · Trượt chuyến: ${formatInt(bTruot)} (${formatPercent(tyLeTruot)})`}
+                                        content={
+                                          <div className="space-y-1 min-w-[200px]">
+                                            <div className="font-bold border-b border-gray-700 pb-1 flex items-center justify-between gap-2">
+                                              <span>{b.ten}</span>
+                                              <span className="text-gray-300 font-normal tabular-nums">
+                                                {formatInt(bMauSo)} bưu gửi
+                                              </span>
+                                            </div>
+                                            <div className="space-y-0.5 text-[11px] pt-0.5">
+                                              <div className="flex items-center justify-between gap-2">
+                                                <span className="text-emerald-300">Đi trong ngày:</span>
+                                                <span className="tabular-nums font-bold text-white">{formatInt(bDi)} ({formatPercent(tyLeLuu)})</span>
+                                              </div>
+                                              <div className="flex items-center justify-between gap-2">
+                                                <span className="text-amber-300">Rớt lại:</span>
+                                                <span className="tabular-nums font-bold text-white">{formatInt(bRot)} ({formatPercent(tyLeRotChinh)})</span>
+                                              </div>
+                                              <div className="flex items-center justify-between gap-2">
+                                                <span className="text-red-300">Trượt chuyến:</span>
+                                                <span className="tabular-nums font-bold text-white">{formatInt(bTruot)} ({formatPercent(tyLeTruot)})</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        }
+                                        className="flex-1 min-w-[80px] cursor-pointer py-1 focus:outline-none focus:ring-2 focus:ring-[#1F7A5C] rounded-full"
+                                      >
+                                        <div className="w-full h-2.5 rounded-full overflow-hidden bg-gray-200 flex">
+                                          <div
+                                            style={{ width: `${(tyLeLuu ?? 0) * 100}%` }}
+                                            className="bg-[#1F7A5C] h-full"
+                                          />
+                                          <div
+                                            style={{ width: `${(tyLeRotChinh ?? 0) * 100}%` }}
+                                            className="bg-[#E0A82E] h-full"
+                                          />
+                                        </div>
+                                      </KttTooltip>
+                                      <span className="tabular-nums font-bold text-[#A87A12] w-12 text-right shrink-0">
+                                        {formatPercent(tyLeRotChinh)}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="text-right tabular-nums">
+                                    <div className="font-semibold text-[#B3202A]">
+                                      {formatPercent(tyLeTruot)}
+                                    </div>
+                                    <div className="text-[11px] text-gray-500">
+                                      {hasNoData ? '—' : `${formatInt(bTruot)} bưu gửi`}
+                                    </div>
+                                  </td>
+                                  <td className="text-right tabular-nums font-semibold text-[#1F7A5C]">
+                                    {formatPercent(tyTrongDi)}
+                                  </td>
+                                  <td className="text-right tabular-nums font-semibold text-[#A87A12]">
+                                    {formatPercent(tyTrongRot)}
+                                  </td>
+                                  <td
+                                    className="text-right tabular-nums cursor-help"
+                                    title={bTooltip}
+                                  >
+                                    <div className="font-semibold text-[#4A1D6E]">
                                       {tyLeDat14 !== null ? formatPercent(tyLeDat14) : '—'}
-                                    </td>
-                                  </tr>
-                                );
-                              });
-                            })()}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="text-[11px] text-gray-500 mt-2">
-                        Hai cột «Tỷ trọng» cộng 100% theo cột. Hai cột «trong hàng đến của BCVH này» là tỷ lệ riêng của từng BCVH.
-                      </div>
+                                    </div>
+                                    {!hasNoData && bC14 && (
+                                      <div className="text-[11px] text-gray-500">
+                                        đo được {formatInt(doDuoc)}/{formatInt(mauSo14)}
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          })()}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  {/* Cột phải: Theo nguồn / đường thư đến (thẻ nguồn + Chuyển hoàn + Bảng tỷ trọng) */}
+                  {/* ── 5. THEO NGUỒN / ĐƯỜNG THƯ ĐẾN ──────────────────────────── */}
                   <KttTheoNguon
                     data={data}
                     selectedBcvh={selectedBcvh}
-                    activeHangHoan={activeHangHoan}
-                    mocChiTieu={mocChiTieu}
                   />
-                </div>
+                </>
               )}
 
-              {/* ── 7. BẢN ĐỒ NHIỆT: NGUỒN / ĐƯỜNG THƯ × BCVH ĐÍCH (C3) ──────────────── */}
+              {/* ── 6. RỚT LẠI NẰM Ở ĐÂU: NGUỒN × BCVH ĐÍCH ───────────────────── */}
               <KttBanDoNhiet
                 data={data}
                 selectedBcvh={selectedBcvh}
@@ -1808,96 +1446,265 @@ export default function KttLuuThoat({ authUser }) {
                     setSelectedCell(null);
                   } else {
                     setSelectedCell(cell);
+                    setShowChiTiet(true);
                   }
                 }}
-                onExportCell={async (cell) => {
-                  if (!dateRange) return;
-                  setExportLoading(true);
-                  try {
-                    await downloadKttLuuThoat({
-                      tu: dateRange.from,
-                      den: dateRange.to,
-                      trang_thai: cell?.loai || 'ro_lai',
-                      ma_bcvh: cell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : undefined),
-                      nguon: cell?.nguon || undefined,
-                    });
-                  } finally {
-                    setExportLoading(false);
-                  }
-                }}
-                exportLoading={exportLoading}
               />
 
-              {/* ── 8. DANH SÁCH CHI TIẾT THEO TRẠNG THÁI (C5) ───────────────────────── */}
-              <KttChiTiet
-                dateRange={dateRange}
-                selectedBcvh={selectedBcvh}
-                mocChiTieu={mocChiTieu}
-                filterCell={selectedCell}
-                onClearFilterCell={() => setSelectedCell(null)}
-              />
-
-              {/* ── 7. BẢNG «MỐC CHUYẾN THEO BCVH» ─────────────────────────────── */}
-              <div className="bg-white rounded-[14px] p-5 border border-gray-200 shadow-none space-y-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="hue-h2 text-[17px]">Mốc chuyến theo BCVH</h2>
-                    {metaError && (
-                      <span className="text-xs text-red-600 font-semibold italic">
-                        (Không tải được lịch chuyến)
-                      </span>
-                    )}
+              {/* ── 7. DANH SÁCH VÀ XUẤT XLSX (SHEET 7) THU GỌN ───────────────── */}
+              <div
+                className="bg-white rounded-[14px] p-4 border border-gray-200 shadow-none space-y-3"
+                aria-busy={exportLoading ? 'true' : 'false'}
+              >
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="hue-h2 text-[17px]">
+                      Danh sách hàng đến trong ngày theo trạng thái
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setShowChiTiet((prev) => !prev)}
+                      aria-expanded={showChiTiet ? 'true' : 'false'}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[#D9CBA8] bg-[#FAF5E8] hover:bg-[#FFFBEF] text-xs font-bold text-[#4A1D6E] cursor-pointer transition-colors"
+                    >
+                      <span>{showChiTiet ? 'Thu gọn danh sách' : 'Mở danh sách'}</span>
+                      {showChiTiet ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    * = chạy 6 ngày/tuần, nghỉ Chủ nhật (theo cấu hình lịch chuyến). Hàng đến vào Chủ nhật hoặc sau chuyến cuối được tính vào chuyến đầu tiên liền kề có xe đi.
-                  </p>
-                  {metaError && (
-                    <p className="text-xs text-red-500 mt-1 italic">
-                      Không tải được lịch chuyến
-                    </p>
-                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label htmlFor="ktt-export-status-select" className="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                      Trạng thái xuất:
+                    </label>
+                    <select
+                      id="ktt-export-status-select"
+                      aria-label="Trạng thái xuất"
+                      value={selectedExportStatus}
+                      onChange={(e) => setSelectedExportStatus(e.target.value)}
+                      disabled={exportLoading}
+                      className="px-2.5 py-1.5 rounded-[8px] border border-[#D9CBA8] bg-white text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#4A1D6E] cursor-pointer disabled:opacity-50"
+                    >
+                      {EXPORT_STATUS_OPTIONS.map((opt) => {
+                        const count = getExportCount(opt.key);
+                        const countText = (hasNoData || count === null) ? '—' : formatInt(count);
+                        return (
+                          <option key={opt.key || 'ALL'} value={opt.key}>
+                            {opt.label} · {countText}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleDownloadExcel}
+                      disabled={exportLoading || !!validationError}
+                      title="Xuất xlsx Sheet 7 (18 cột: SHBG, Đường thư đến, Giờ quét túi đến KTT, Giờ xác nhận BD10 đến, KL, BCVH đích, Chuyến liền kề, Giờ xuất phát, Hạn đến, Giờ lập BD10 đi, Chờ tính chỉ tiêu, 2 cột Chỉ tiêu 14 giờ, Phân loại, Trạng thái 1–5, Ngày lưu thoát). Tối đa 31 ngày, 200.000 dòng."
+                      className={`btn-primary px-3.5 py-1.5 rounded-[8px] text-xs font-bold transition-colors inline-flex items-center gap-1.5 ${
+                        exportLoading || validationError ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                      }`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>
+                        {exportLoading
+                          ? 'Đang tạo…'
+                          : (selectedCell
+                            ? 'Xuất xlsx'
+                            : `Xuất xlsx · ${formatInt(getExportCount(selectedExportStatus) ?? 0)}`)}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="table-soft w-full min-w-[700px] text-left">
-                    <thead>
-                      <tr>
-                        <th className="text-left">BCVH</th>
-                        <th className="text-left">
-                          GIỜ XUẤT PHÁT (LỊCH C2)
-                          <div className="text-[11px] font-normal normal-case text-gray-500">
-                            mốc hàng phải đi
-                          </div>
-                        </th>
-                        <th className="text-left">
-                          HÀNG ĐẾN MUỘN NHẤT ĐỂ KỊP CHUYẾN
-                          <div className="text-[11px] font-normal normal-case text-gray-500">
-                            {metaError ? '—' : `− ${meta?.han_den_truoc_chuyen_phut ?? 60} phút khai thác`}
-                          </div>
-                        </th>
-                        <th className="text-left">CHỦ NHẬT</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupedLichChuyen.map((item) => (
-                        <tr key={item.ma} className="hover:bg-[#FFFBEF] transition-colors">
-                          <td className="font-semibold text-gray-900 whitespace-nowrap">
-                            {item.ten}
-                          </td>
-                          <td className="tabular-nums font-medium text-gray-800">
-                            {metaError ? '—' : item.mocXuatPhat}
-                          </td>
-                          <td className="tabular-nums font-medium text-gray-600">
-                            {metaError ? '—' : item.mocHanDen}
-                          </td>
-                          <td className="text-xs text-gray-600">
-                            {metaError ? '—' : item.chuNhat}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500">
+                  <span>
+                    Xuất xlsx Sheet 7 · tối đa 31 ngày, tối đa 200.000 dòng · Chỉ ADMIN và TTVH · Tên file: KTT_LuuThoat_{dateRange?.from}_{dateRange?.to}.xlsx
+                  </span>
+                  <span className="text-[#A87A12] font-semibold">
+                    {(() => {
+                      const effBcvh = selectedCell?.ma_bcvh || (selectedBcvh !== 'all' ? selectedBcvh : null);
+                      const effNguon = selectedCell?.nguon || null;
+                      const bcvhName = effBcvh ? (BCVH_LIST.find((b) => b.ma === effBcvh)?.ten || effBcvh) : null;
+                      const nguonName = selectedCell?.nguonTen || effNguon;
+                      if (bcvhName && nguonName) return `Đang lọc xuất: ${bcvhName} · Nguồn ${nguonName}`;
+                      if (bcvhName) return `Đang lọc xuất: ${bcvhName}`;
+                      if (nguonName) return `Đang lọc xuất: Nguồn ${nguonName}`;
+                      return 'Đang xuất: cả 6 BCVH';
+                    })()}
+                  </span>
                 </div>
+
+                {selectedCell && (
+                  <div className="text-xs text-[#A87A12] bg-[#FFFBEF] border border-[#E4D5AE] rounded-[8px] px-3 py-1.5 flex items-center justify-between">
+                    <span>
+                      Đang lọc theo ô {selectedCell.label || 'đã chọn'}: bỏ lọc để xem số các nhóm
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCell(null)}
+                      className="font-bold underline text-[#4A1D6E] ml-2 cursor-pointer shrink-0"
+                    >
+                      Bỏ lọc
+                    </button>
+                  </div>
+                )}
+
+                {exportLoading && (
+                  <div className="space-y-1.5">
+                    <div className="text-xs text-gray-700">
+                      Đang tạo tệp Excel cho khoảng ngày {dateRange ? `${formatDdMmYyyy(dateRange.from)} – ${formatDdMmYyyy(dateRange.to)}` : ''}…
+                    </div>
+                    <div className="progress-soft w-full overflow-hidden">
+                      <div className="progress-bar-soft w-full animate-pulse" />
+                    </div>
+                  </div>
+                )}
+
+                {exportError && (
+                  <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <strong>Không tải được.</strong> {exportError}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setExportError(null)}
+                        className="px-2.5 py-1 bg-white hover:bg-gray-100 border border-red-300 rounded text-red-700 text-xs font-semibold cursor-pointer"
+                      >
+                        Đóng
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadExcel}
+                        className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold cursor-pointer"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {showChiTiet && (
+                  <div className="pt-2 border-t border-gray-100">
+                    <KttChiTiet
+                      dateRange={dateRange}
+                      selectedBcvh={selectedBcvh}
+                      mocChiTieu={mocChiTieu}
+                      filterCell={selectedCell}
+                      onClearFilterCell={() => setSelectedCell(null)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ── 8. «CÁCH TÍNH VÀ MỐC XE THEO LỊCH» THU GỌN ────────────────── */}
+              <div className="bg-white rounded-[14px] border border-gray-200 shadow-none">
+                <button
+                  type="button"
+                  onClick={() => setShowCachTinh((prev) => !prev)}
+                  aria-expanded={showCachTinh ? 'true' : 'false'}
+                  className="w-full px-5 py-3.5 flex flex-wrap items-center justify-between gap-2 text-left cursor-pointer hover:bg-[#FFFBEF] rounded-[14px] transition-colors"
+                >
+                  <div>
+                    <span className="font-bold text-sm text-[#4A1D6E]">
+                      Cách tính và mốc xe theo lịch
+                    </span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      Định nghĩa 5 trạng thái, phần đo được «đạt 14 giờ», hàng chuyển tiếp, cột file xuất và giờ xe theo lịch
+                    </span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#4A1D6E] shrink-0">
+                    <span>{showCachTinh ? 'Thu gọn' : 'Mở'}</span>
+                    {showCachTinh ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </span>
+                </button>
+
+                {showCachTinh && (
+                  <div className="px-5 pb-5 pt-2 border-t border-gray-100 space-y-4 text-xs text-gray-700">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <div className="font-bold text-gray-900">Năm trạng thái lưu thoát &amp; trượt chuyến</div>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li><strong>1 · Đi trong ngày, đúng chuyến:</strong> lập BD10 đi trong ngày D, kịp giờ xuất phát của chuyến theo lịch.</li>
+                          <li><strong>2 · Đi trong ngày, trượt chuyến:</strong> lập BD10 đi trong ngày D, nhưng sau giờ xuất phát của chuyến theo lịch.</li>
+                          <li><strong>3 · Đi hôm sau, đúng chuyến:</strong> đến sau chuyến cuối hoặc sang ngày D+1, đi đúng chuyến đầu tiên liền kề.</li>
+                          <li><strong>4 · Đi hôm sau, trượt chuyến:</strong> đi vào ngày D+1 nhưng trượt chuyến theo lịch.</li>
+                          <li><strong>5 · Từ 2 ngày hoặc chưa đi:</strong> đi từ D+2 trở đi hoặc chưa đi mà đã quá giờ xuất phát của chuyến.</li>
+                          <li><strong>Đang chờ chuyến:</strong> chưa đi và chưa tới giờ xuất phát của chuyến theo lịch; không tính vào tỷ lệ lưu thoát.</li>
+                          <li><strong>Rớt lại = trạng thái 3 + 4 + 5.</strong> Trượt chuyến (cần xử lý) = hàng đi sau giờ xuất phát (gồm trạng thái 2, 4 và phần trượt/chưa đi của 5), nằm trong cả đi trong ngày lẫn rớt lại nên không cộng thêm.</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="font-bold text-gray-900">Đạt 14 giờ, nguồn hàng &amp; bảng tỷ trọng</div>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li><strong>Đạt 14 giờ (trên phần đo được):</strong> tính thời gian chờ từ mốc bắt đầu đến giờ lập BD10 đi (bỏ khung đêm 21:00–07:00), đo song song theo <em>Giờ xác nhận BD10 đến (chính thức)</em> và <em>Giờ quét túi đến</em>; luôn ghi rõ «đo được x/y» vì không có tỷ lệ chung cho phần chưa đo được (chưa đi, thiếu mốc, mốc sau giờ đi).</li>
+                          <li><strong>Hàng chuyển tiếp (đi nguyên túi):</strong> túi đến KTT rồi đi tiếp nguyên túi (hàng đi ngoài, túi chia sẵn), KTT không mở túi; vẫn tính chỉ tiêu nếu đích là 6 BCVH Huế.</li>
+                          <li><strong>Hàng chuyển hoàn:</strong> bưu gửi có trong danh sách hàng hoàn và đích là 6 BCVH Huế; hiện riêng, không tính chỉ tiêu 14 giờ và không cộng vào các con số, tỷ lệ của trang.</li>
+                          <li><strong>Bảng Theo BCVH đích &amp; Theo nguồn:</strong> hai cột «Chiếm % hàng đi» / «Chiếm % hàng đến» và «Chiếm % hàng rớt» / «Chiếm % tổng rớt lại» cộng 100% theo cột (ở bảng BCVH là toàn 6 BCVH); cột «Rớt lại» là tỷ lệ riêng của chính từng BCVH hoặc nguồn.</li>
+                          <li><strong>Cột trong file xuất xlsx (Sheet 7):</strong> SHBG, Đường thư đến (tên, mã), Giờ quét túi đến KTT, Giờ xác nhận BD10 đến (ConfirmDate), KL (kg), BCVH đích (mã, tên), Chuyến liền kề, Giờ xuất phát, Hàng đến muộn nhất để kịp chuyến, Giờ lập BD10 đi, Giờ chờ tính chỉ tiêu, Chỉ tiêu 14 giờ – Giờ xác nhận BD10 đến, Chỉ tiêu 14 giờ – Giờ quét túi đến, Phân loại, Trạng thái (1–5), Ngày lưu thoát (18 cột, kèm sheet «Thông tin»).</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Bảng Mốc xe theo lịch */}
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-gray-900">Mốc xe theo lịch</h3>
+                          {metaError && (
+                            <span className="text-xs text-red-600 font-semibold italic">
+                              (Không tải được lịch chuyến)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          * = chạy 6 ngày/tuần, nghỉ Chủ nhật (theo cấu hình lịch chuyến). Hàng đến vào Chủ nhật hoặc sau chuyến cuối được tính vào chuyến đầu tiên liền kề có xe đi.
+                        </p>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="table-soft w-full min-w-[700px] text-left">
+                          <thead>
+                            <tr>
+                              <th className="text-left">BCVH</th>
+                              <th className="text-left">
+                                GIỜ XUẤT PHÁT (LỊCH C2)
+                                <div className="text-[11px] font-normal normal-case text-gray-500">
+                                  mốc hàng phải đi
+                                </div>
+                              </th>
+                              <th className="text-left">
+                                HÀNG ĐẾN MUỘN NHẤT ĐỂ KỊP CHUYẾN
+                                <div className="text-[11px] font-normal normal-case text-gray-500">
+                                  {metaError ? '—' : `− ${meta?.han_den_truoc_chuyen_phut ?? 60} phút khai thác`}
+                                </div>
+                              </th>
+                              <th className="text-left">CHỦ NHẬT</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupedLichChuyen.map((item) => (
+                              <tr key={item.ma} className="hover:bg-[#FFFBEF] transition-colors">
+                                <td className="font-semibold text-gray-900 whitespace-nowrap">
+                                  {item.ten}
+                                </td>
+                                <td className="tabular-nums font-medium text-gray-800">
+                                  {metaError ? '—' : item.mocXuatPhat}
+                                </td>
+                                <td className="tabular-nums font-medium text-gray-600">
+                                  {metaError ? '—' : item.mocHanDen}
+                                </td>
+                                <td className="text-xs text-gray-600">
+                                  {metaError ? '—' : item.chuNhat}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
