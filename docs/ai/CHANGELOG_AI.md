@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-11] - KTT-KD-3e → 3e6: bảng «Giờ đến × Đường thư» gọn, sửa tiếp theo các lần kiểm, xuất xlsx (chỉ giao diện `src/components/ktt/`; nhánh `feat/ktt-kd-3-gio-den-api`, commit đầu `f1106be`)
+
+- `KttKhongDat14h.jsx`: thay bảng lưới «Giờ đến × Đường thư» bằng bảng 5 cột mỗi đường thư một dòng (xếp theo «Không đạt (đã đi)», «Ít mẫu» khi đo được < 20 không tính %, lưới 24 giờ mở khi bấm dòng, dấu ▼ giờ chốt khi chọn một BCVH); bấm ô giờ lọc danh sách kiểm chứng theo ĐÚNG đường thư (`nguon`) và giờ (`gio_den`), chip ghi «… · giờ quét túi đến: X giờ» + ghi chú «Danh sách gồm cả hàng chưa đi đã quá chỉ tiêu, nên có thể nhiều hơn số trong ô.»; tiêu đề lưới «…theo giờ quét túi đến» (+ dòng «Lưới này luôn tính theo giờ quét túi đến.» ở mốc «Giờ xác nhận BD10 đến»); «Giờ đến nhiều nhất» cố định theo bưu gửi; khối Top không in % cho «Ít mẫu»; `null` → «chưa đủ số liệu», 0 thật → 0 / «0 kg»; câu chỉ tiêu đọc từ API `con-lai-theo-gio` (bỏ vế «riêng phường …» khi API không trả); lỗi route chính có nút «Tải lại»; danh sách kiểm chứng đọc đúng tên trường thật (`duong_thu_den_ten/ma`, `gio_xac_nhan_bd10_den`, `gio_quet_tui_den`, `ten_bcvh`, `gio_xuat_phat`), «Ngày đến» theo mốc đang chọn; chống chạy đua bằng mã yêu cầu.
+- `kttApi.js:370`: nút xuất xlsx gửi `moc_chi_tieu` (trước gửi `moc` nên route luôn trả 400).
+- `KttGioDenTrongNgay.jsx`: cửa sổ «Lọc đường thư» neo mép trái nút, tính theo `clientWidth` (không làm trang rộng thêm), Esc đóng và trả con trỏ về nút.
+- `KttCoTinhChiTieu.jsx`: thêm `chiTieuInfo` (chỉ tiêu, ngoại lệ, giờ chốt, hạn đến) và truyền `unit`, `onUnitChange`, `chiTieuInfo` cho khối.
+- Kiểm: 3e2/3e4/3e6 (Claude Code, chỉ đọc, JSON từ lõi thật); xuất xlsx 15 tổ hợp qua router thật + `authRequired` thật: HTTP 200, số dòng = danh sách, GDVH/TIVI 403. `npm test` 1392 / 1382 pass / 0 fail / 10 skipped; build ✓. Không đụng `server/`, `tests/`, `docs/` (trừ mục này), `KttLuuThoat.jsx`.
+- Còn nợ / cần server: lưới 24 giờ và `gio_den` luôn theo giờ QUÉT túi đến kể cả mốc A (`kttKhongDat14h.js:127,271`); `chi-tiet?loai=khong_dat_14h` chưa có bộ lọc «đã đi A–D» (danh sách có thể nhiều hơn ô khi có hàng nhóm E); giờ chốt theo đường thư, tần suất chuyến, `do_duoc_kg`, `chi_tieu_gio`/`chi_tieu_gio_ngoai_le` trong `khong-dat-14h`. Chữ «14 giờ» còn ở tên khối/nhãn khung chờ (PO giữ nguyên).
+
 ## [2026-11-07] - KTT-KD-3b3: chốt tên trường và bổ sung trường thiếu cho API «Giờ đến trong ngày» (server, test, docs; nhánh `feat/ktt-kd-3-gio-den-api`, commit đầu `adf9f2f`)
 
 - `server/lib/kttGioDen.js`: THÊM `san_luong_loc` (sản lượng theo loại ngày đang lọc: số ngày của loại ngày / có hàng, bưu gửi và kg trung bình ÷ ngày có hàng và ÷ ngày của loại ngày; null khi không hàng) ở mỗi đường thư, `khac`, `tong` và `tinhTheoNgay`; `trong_tui` ở `khac` / `tong`; `meo_theo_lo` ở mọi dòng `danh_sach`.

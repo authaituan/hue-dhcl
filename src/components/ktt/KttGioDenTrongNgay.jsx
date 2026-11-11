@@ -90,7 +90,10 @@ export default function KttGioDenTrongNgay({
   // Dropdown chọn đường thư
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [filterPopupOffset, setFilterPopupOffset] = useState(0);
   const filterDropdownRef = useRef(null);
+  const filterButtonRef = useRef(null);
+  const filterPopupRef = useRef(null);
 
   // Dữ liệu API chính
   const [data, setData] = useState(null);
@@ -109,17 +112,56 @@ export default function KttGioDenTrongNgay({
   const detailRequestIdRef = useRef(0);
   const activeDetailKeyRef = useRef(null);
 
-  // Đóng dropdown khi click ra ngoài
+  // Đóng dropdown khi click ra ngoài hoặc bấm phím Esc (trả con trỏ về nút mở)
   useEffect(() => {
     function handleClickOutside(e) {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
         setShowFilterDropdown(false);
       }
     }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowFilterDropdown(false);
+        filterButtonRef.current?.focus();
+      }
+    }
     if (showFilterDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleKeyDown);
+      };
     }
+  }, [showFilterDropdown]);
+
+  // Neo cửa sổ «Lọc đường thư» vào mép trái nút bấm và dịch vào trong nếu sát mép phải khung nhìn (3.12)
+  useEffect(() => {
+    if (!showFilterDropdown) {
+      setFilterPopupOffset(0);
+      return;
+    }
+    const updateOffset = () => {
+      const wrapper = filterDropdownRef.current;
+      const popup = filterPopupRef.current;
+      if (!wrapper || !popup) return;
+      const wrapRect = wrapper.getBoundingClientRect();
+      const popupWidth = popup.offsetWidth || 320;
+      const margin = 12;
+      const vw = document.documentElement.clientWidth || window.innerWidth;
+      let offset = 0;
+      if (wrapRect.left + popupWidth > vw - margin) {
+        offset = vw - margin - popupWidth - wrapRect.left;
+      }
+      if (wrapRect.left + offset < margin) {
+        offset = margin - wrapRect.left;
+      }
+      setFilterPopupOffset(offset);
+    };
+    updateOffset();
+    window.addEventListener('resize', updateOffset);
+    return () => window.removeEventListener('resize', updateOffset);
   }, [showFilterDropdown]);
 
   // M2 & L2: Khi đổi bộ lọc (khoảng ngày, loại ngày, BCVH, danh sách đường thư), đóng dòng mở rộng
@@ -441,7 +483,9 @@ export default function KttGioDenTrongNgay({
         <div className="relative" ref={filterDropdownRef}>
           <button
             type="button"
+            ref={filterButtonRef}
             id="ktt-loc-duong-thu-btn"
+            aria-expanded={showFilterDropdown}
             onClick={() => setShowFilterDropdown(!showFilterDropdown)}
             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] border text-xs font-bold cursor-pointer transition-colors ${
               selectedDuongThu.length > 0
@@ -461,7 +505,11 @@ export default function KttGioDenTrongNgay({
 
           {/* Dropdown popup */}
           {showFilterDropdown && (
-            <div className="absolute right-0 mt-1 w-80 bg-white border border-[#D9CBA8] rounded-[12px] shadow-lg z-30 p-3 space-y-3">
+            <div
+              ref={filterPopupRef}
+              style={filterPopupOffset ? { transform: `translateX(${filterPopupOffset}px)` } : undefined}
+              className="absolute left-0 mt-1 w-80 max-w-[calc(100vw-24px)] bg-white border border-[#D9CBA8] rounded-[12px] shadow-lg z-30 p-3 space-y-3"
+            >
               <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                 <span className="text-xs font-bold text-gray-800">
                   Lọc đường thư (tối đa 8)

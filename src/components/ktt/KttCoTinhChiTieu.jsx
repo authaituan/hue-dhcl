@@ -421,6 +421,21 @@ export default function KttCoTinhChiTieu({
     return list;
   }, [conLai24h]);
 
+  // Thông tin chỉ tiêu & giờ chốt chuyến truyền cho khối KttKhongDat14h
+  const chiTieuInfo = useMemo(() => {
+    const ngoaiLeBcvh = conLaiData?.theo_bcvh?.find((b) => b.chi_tieu_gio_ngoai_le) || null;
+    return {
+      chiTieuGio: conLaiBcvhBlock?.chi_tieu_gio ?? ngoaiLeBcvh?.chi_tieu_gio ?? null,
+      chiTieuNgoaiLe: ngoaiLeBcvh?.chi_tieu_gio_ngoai_le || null,
+      cutOffHours: selectedBcvh !== 'all'
+        ? cutOffEvents
+            .map((ev) => (ev.phutChot != null ? Math.floor(ev.phutChot / 60) : null))
+            .filter((h) => h !== null)
+        : [],
+      hanDenTruocPhut: conLaiData?.meta?.han_den_truoc_chuyen_phut ?? null,
+    };
+  }, [conLaiData, conLaiBcvhBlock, selectedBcvh, cutOffEvents]);
+
   // Tính sản lượng trung bình / ngày từng giờ và tìm đỉnh cao nhất cho biểu đồ (3.4)
   const hourlyData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, h) => ({
@@ -1787,6 +1802,9 @@ export default function KttCoTinhChiTieu({
                   dateRange={dateRange}
                   selectedBcvh={selectedBcvh}
                   mocChiTieu={activeMoc === 'B' ? 'quet_tui_den' : 'xnd'}
+                  unit={unit}
+                  onUnitChange={setUnit}
+                  chiTieuInfo={chiTieuInfo}
                 />
               )}
             </div>

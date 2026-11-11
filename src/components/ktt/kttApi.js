@@ -367,7 +367,7 @@ export async function downloadKttKhongDat14h({
   nguon_hang,
 }) {
   const params = { tu, den };
-  if (moc) params.moc = String(moc);
+  if (moc) params.moc_chi_tieu = moc === 'B' || moc === 'quet_tui_den' ? 'quet_tui_den' : 'xnd';
   if (nhom && nhom !== 'tat_ca') params.nhom_nguyen_nhan = String(nhom);
   if (ma_bcvh && ma_bcvh !== 'all') params.ma_bcvh = String(ma_bcvh);
   if (nguon) params.nguon = String(nguon);
