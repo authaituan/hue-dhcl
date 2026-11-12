@@ -39,6 +39,8 @@ const DC = require('./kttDoiChieu');
 const DG = require('./kttDanhGiaDoiChieu');
 const DX = require('./kttDoiChieuXuat');
 const { bcvhNames } = require('./dashboardQuery');
+const HDC = require('./kttHuongDong'); // KTT-DC-1: «Hướng đóng chuyến nội tỉnh»
+const HDX = require('./kttHuongDongXuat');
 
 const CUA_SO_NAP_NGAY = 8; // ngày nằm trong cửa sổ nạp = từ độ mới dữ liệu lùi chừng này ngày trở lại (mỗi lần xuất lùi 7 ngày + 1 ngày đệm)
 const TUOI_CHUA_CHOT_MS = 10 * 60 * 1000;
@@ -48,14 +50,14 @@ const MUC_KHAC_TOI_DA = 200;
 
 const ngayLui = (ngay, n) => L.dinhDang(L.giayCua(`${ngay} 00:00:00`) - n * 86400).slice(0, 10);
 const nhuong = () => new Promise((r) => setImmediate(r));
-const boNho = { ngay: new Map(), ngayB: new Map(), ngayDC: new Map(), tongHop: new Map(), chiTiet: new Map(), doPhu: new Map(), dangTinh: new Map(), phienBan: null, hangHoan: null, phienHoan: null };
+const boNho = { ngay: new Map(), ngayB: new Map(), ngayDC: new Map(), ngayHD: new Map(), tongHop: new Map(), chiTiet: new Map(), doPhu: new Map(), dangTinh: new Map(), phienBan: null, hangHoan: null, phienHoan: null };
 const dem = { ngayTinh: 0, ngayBTinh: 0, tongHopTinh: 0, chiTietTinh: 0, hangDenTinh: 0, doPhuTinh: 0, ngayDCTinh: 0, workerLan: 0, noiTuyenLan: 0 };
 
 function xoaCache() {
-  boNho.ngay.clear(); boNho.ngayB.clear(); boNho.ngayDC.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.doPhu.clear(); boNho.dangTinh.clear(); boNho.phienBan = null;
+  boNho.ngay.clear(); boNho.ngayB.clear(); boNho.ngayDC.clear(); boNho.ngayHD.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.doPhu.clear(); boNho.dangTinh.clear(); boNho.phienBan = null;
   dem.ngayTinh = 0; dem.ngayBTinh = 0; dem.tongHopTinh = 0; dem.chiTietTinh = 0; dem.hangDenTinh = 0; dem.doPhuTinh = 0; dem.ngayDCTinh = 0; dem.workerLan = 0; dem.noiTuyenLan = 0;
 }
-const thongKe = () => ({ ngay: boNho.ngay.size, ngay_b: boNho.ngayB.size, ngay_dc: boNho.ngayDC.size, tong_hop: boNho.tongHop.size, chi_tiet: boNho.chiTiet.size, do_phu: boNho.doPhu.size, ...dem });
+const thongKe = () => ({ ngay: boNho.ngay.size, ngay_b: boNho.ngayB.size, ngay_dc: boNho.ngayDC.size, ngay_hd: boNho.ngayHD.size, tong_hop: boNho.tongHop.size, chi_tiet: boNho.chiTiet.size, do_phu: boNho.doPhu.size, ...dem });
 
 // ------------------------------------------
 // Tham số
@@ -98,7 +100,7 @@ function dongBoPhienBan(db) {
   boNho.hangHoan = HH.metaHangHoan(hh);
   boNho.phienHoan = hh.phienBan;
   const pb = `${thamSo.phienBan()}|${chuKyLich(db)}|${hh.phienBan}`;
-  if (boNho.phienBan !== pb) { boNho.ngay.clear(); boNho.ngayB.clear(); boNho.ngayDC.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.phienBan = pb; }
+  if (boNho.phienBan !== pb) { boNho.ngay.clear(); boNho.ngayB.clear(); boNho.ngayDC.clear(); boNho.ngayHD.clear(); boNho.tongHop.clear(); boNho.chiTiet.clear(); boNho.phienBan = pb; }
 }
 
 /** Chữ ký của một ngày đến: số dòng + tổng id của túi quét đến trong ngày (bắt thêm / xóa / khôi phục dòng). */
@@ -509,7 +511,7 @@ function huyCacheNgay(ngays) {
   let n = 0;
   const ds = new Set(ngays || []);
   for (const khoa of [...boNho.ngay.keys()]) if (ds.has(khoa.split('|')[1])) { boNho.ngay.delete(khoa); n++; }
-  for (const ngay of ds) { if (boNho.ngayB.delete(ngay)) n++; if (boNho.ngayDC.delete(ngay)) n++; }
+  for (const ngay of ds) { if (boNho.ngayB.delete(ngay)) n++; if (boNho.ngayDC.delete(ngay)) n++; if (boNho.ngayHD.delete(ngay)) n++; }
   boNho.tongHop.clear(); boNho.chiTiet.clear();
   return n;
 }
@@ -1228,7 +1230,122 @@ async function xuatDoiChieuTrong(db, query, sheet, { now = Date.now(), nguoiXuat
   };
 }
 
+// ------------------------------------------
+// KTT-DC-1: «Hướng đóng chuyến nội tỉnh» (docs/ai/42_KTT_API.md mục 23)
+// ------------------------------------------
+// Bó MỖI NGÀY (kttHuongDong.tinhNgay) cache theo ngày với đúng quy tắc của luu-thoat / B (conHanNgay; xóa khi đổi tham số hệ thống, lịch, danh sách hàng hoàn). Tên / loại hình / BĐX
+// KHÔNG nằm trong bó: đọc từ post_offices ở mỗi lần trả lời, nên đổi danh mục có hiệu lực ngay (không cần chữ ký cache riêng cho danh mục).
+async function layNgayHD(db, ngay, doMoi, now) {
+  const e = boNho.ngayHD.get(ngay);
+  const token = PD.dauHieuDb(db);
+  if (e) {
+    if (conHanNgay(db, e, ngay, doMoi, now, token)) return e.kq;
+    boNho.ngayHD.delete(ngay);
+  }
+  return chiaSe(`hd|${ngay}|${doMoi}`, async () => {
+    await nhuong();
+    const tk = PD.dauHieuDb(db);
+    const ck = chuKyNgay(db, ngay);
+    const kq = HDC.tinhNgay(db, ngay, doMoi);
+    datMuc(boNho.ngayHD, NGAY_TOI_DA_TRONG_NHO, ngay, { luc: now, kq, daChot: S.daChot(ngay, doMoi, QL.gioChot()), doMoi, token: tk, chuKy: ck });
+    return kq;
+  });
+}
+async function boHuongDong(db, k, now) {
+  const doMoi = QL.docDoMoi(db);
+  dongBoPhienBan(db);
+  if (!doMoi) return { doMoi: null, ds: k.ngays.map((n) => HDC.boRong(n)) };
+  const ds = [];
+  for (const ngay of k.ngays) ds.push(await layNgayHD(db, ngay, doMoi.nguon_xuat_luc, now));
+  return { doMoi, ds };
+}
+function docLoaiHinhHD(query) {
+  const v = mot(query, 'loai_hinh');
+  if (v === undefined || v === '') return null;
+  if (!HDC.LOAI_HINH.includes(v)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "loai_hinh" phải thuộc: ${HDC.LOAI_HINH.join(', ')}.`);
+  return v;
+}
+/** Cờ 0/1 (hoặc true/false); vắng = false. */
+function docCo(query, ten) {
+  const v = mot(query, ten);
+  if (v === undefined || v === '') return false;
+  const t = String(v).trim().toLowerCase();
+  if (t === '1' || t === 'true') return true;
+  if (t === '0' || t === 'false') return false;
+  throw new Q.LoiKtt('KTT_THAM_SO_SAI', `Tham số "${ten}" phải là 0 / 1 (hoặc false / true).`);
+}
+const cuaSoHD = (ds) => { const c = ds.filter((d) => d.co_du_lieu); return { tu_ngay: c.length ? c[0].ngay : null, den_ngay: c.length ? c[c.length - 1].ngay : null, so_ngay_co_du_lieu: c.length }; };
+
+/** GET /api/ktt/huong-dong-chuyen/tong-hop?tu=&den=[&loai_hinh=GD1|GD2_GD3|VHX|531120|KHAC] — bảng nơi đóng, theo loại hình, theo ngày (KTT-DC-1 mục 3A). */
+async function huongDongTongHop(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query, ['loai_hinh']);
+  const loaiHinh = docLoaiHinhHD(query);
+  const b = await boHuongDong(db, k, now);
+  const danhMuc = HDC.docDanhMuc(db);
+  const th = HDC.tongHop(b.ds, danhMuc, loaiHinh);
+  const dau = dauPhanHoi(k, b.doMoi, cuaSoHD(b.ds));
+  th.meta = { khoang_ngay: dau.khoang_ngay, cua_so_thuc_te: dau.cua_so_thuc_te, nguon_xuat_luc_moi_nhat: dau.nguon_xuat_luc_moi_nhat, bay_gio: dau.bay_gio, ...th.meta };
+  return { ...dau, ...th };
+}
+
+/** GET /api/ktt/huong-dong-chuyen/danh-sach?tu=&den=&noi_dong=<mã>[&nhom=dong_vao_530100|chua_ro&chi_ghi_ngay_cu=0|1&page=&page_size=] — danh sách bưu gửi của MỘT nơi đóng (mục 3B). */
+async function huongDongDanhSach(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query, ['noi_dong', 'nhom', 'chi_ghi_ngay_cu', 'page', 'page_size']);
+  const noi = docMa(query, 'noi_dong');
+  if (!noi) throw new Q.LoiKtt('KTT_THIEU_THAM_SO', 'Thiếu tham số "noi_dong" (mã nơi đóng chuyến thư).');
+  if (HDC.MA_BCVH_LOAI.includes(noi)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "noi_dong" không được là một trong 6 BCVH Huế (không nằm trong bảng nơi đóng).');
+  const nhom = mot(query, 'nhom') || 'dong_vao_530100';
+  if (nhom !== 'dong_vao_530100' && nhom !== 'chua_ro') throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "nhom" phải là dong_vao_530100 hoặc chua_ro.');
+  const chiCu = docCo(query, 'chi_ghi_ngay_cu');
+  const trang = docSoNguyen(query, 'page', 1, 1000000, 1);
+  const kichThuoc = docSoNguyen(query, 'page_size', 1, Q.TRANG_TOI_DA, 50);
+  const b = await boHuongDong(db, k, now);
+  const danhMuc = HDC.docDanhMuc(db);
+  const all = HDC.dongCuaNoi(b.ds, noi, { chua_ro: nhom === 'chua_ro', chiCu });
+  const batDau = (trang - 1) * kichThuoc;
+  const p = danhMuc[noi] || null;
+  return {
+    items: all.slice(batDau, batDau + kichThuoc).map((r) => HDC.dongApi(r, danhMuc)),
+    pagination: { total: all.length, page: trang, page_size: kichThuoc, total_pages: Math.ceil(all.length / kichThuoc) },
+    meta: { noi_dong: noi, ten_noi_dong: p ? p.ten : null, nhom, chi_ghi_ngay_cu: chiCu, tu: k.tuNgay, den: k.denNgay, nguon_xuat_luc_moi_nhat: b.doMoi ? b.doMoi.nguon_xuat_luc : null, ly_do: b.doMoi ? null : 'CHUA_CO_DU_LIEU' }
+  };
+}
+
+/**
+ * GET /api/ktt/xuat/huong-dong-chuyen?tu=&den=&kieu=nhac_viec|chi_tiet[&loai_hinh=] — hai file Excel (mục 3C). Trả { tenFile, khoang, kieu, loaiHinh, tong, viet } cho route (viet(out, dungChua) ghi luồng).
+ * Mọi kiểm tra / tính toán xong TRƯỚC khi route gửi header (lỗi vẫn là JSON 400/500).
+ */
+async function xuatHuongDong(db, query, { now = Date.now(), nguoiXuat = null } = {}) {
+  void nguoiXuat;
+  const k = docKhoang(query, ['kieu', 'loai_hinh']);
+  const kieu = mot(query, 'kieu');
+  if (kieu !== 'nhac_viec' && kieu !== 'chi_tiet') throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "kieu" phải là nhac_viec hoặc chi_tiet.');
+  const loaiHinh = docLoaiHinhHD(query);
+  const b = await boHuongDong(db, k, now);
+  const danhMuc = HDC.docDanhMuc(db);
+  const doMoi = b.doMoi ? b.doMoi.nguon_xuat_luc : null;
+  const dau = `${k.tuNgay.replace(/-/g, '')}_${k.denNgay.replace(/-/g, '')}`;
+  const kq = { khoang: { tuNgay: k.tuNgay, denNgay: k.denNgay }, kieu, loaiHinh };
+  if (kieu === 'nhac_viec') {
+    const tong = HDC.tongHop(b.ds, danhMuc, loaiHinh);
+    const tong7 = HDC.tongHop(b.ds.slice(-7), danhMuc, loaiHinh);
+    const wb = HDX.taoNhacViec({ ds: b.ds, k, tong, tong7, danhMuc, doMoi });
+    return { ...kq, tenFile: `KTT-huong-dong-chuyen_nhac-viec_${dau}.xlsx`, tong: tong.theo_noi_dong.length, viet: (out, dung) => HDX.ghiWorkbook(out, wb, tong.theo_noi_dong.length, dung) };
+  }
+  const loai = new Set(HDC.MA_BCVH_LOAI);
+  const giu = (r) => !loai.has(r.noi) && (loaiHinh === null || HDC.nhomLoaiHinh(r.noi, danhMuc[r.noi] ? danhMuc[r.noi].loai : null) === loaiHinh);
+  const dongN2 = []; const dongN3 = [];
+  for (const d of b.ds) for (const r of d.rows) if (giu(r)) (r.chua_ro ? dongN3 : dongN2).push(r);
+  const ord = (a, c) => (a.ngay_den < c.ngay_den ? -1 : a.ngay_den > c.ngay_den ? 1 : a.shbg < c.shbg ? -1 : a.shbg > c.shbg ? 1 : 0);
+  dongN2.sort(ord); dongN3.sort(ord);
+  const tran = X.tranDong();
+  if (dongN2.length + dongN3.length > tran) throw new Q.LoiKtt('KTT_QUA_NHIEU_DONG', `Có ${dongN2.length + dongN3.length} dòng, vượt giới hạn ${tran} dòng mỗi file: hãy thu hẹp khoảng ngày hoặc chọn loại hình.`);
+  const wb = HDX.taoChiTiet({ k, dongN2, dongN3, danhMuc });
+  return { ...kq, tenFile: `KTT-huong-dong-chuyen_chi-tiet_${dau}.xlsx`, tong: dongN2.length, viet: (out, dung) => HDX.ghiWorkbook(out, wb, dongN2.length + dongN3.length, dung) };
+}
+
 module.exports = {
+  huongDongTongHop, huongDongDanhSach, xuatHuongDong,
   docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatKhongDat14h, khongDat14h, docKd, bucTranhCum, bucTranhChuyenXe, bucTranhDanhGia, gioDen, gioDenTheoNgay, conLaiTheoGio, huyCacheNgay, docMocBt, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, doiChieuDanhGia, xuatDoiChieu, TEN_SHEET_XUAT_DC, trangThaiXuat, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,

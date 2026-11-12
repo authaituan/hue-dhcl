@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-11] - KTT-DC-1: API tab «Hướng đóng chuyến nội tỉnh» (backend; nhánh `feat/ktt-dc-1-api-huong-dong-chuyen`, chưa giao diện)
+
+- Thêm `server/lib/kttHuongDong.js` (bó MỖI NGÀY từ `kttDiNgayQuery.chayShbg`, hướng `noi_tinh_den_bcvh`, không hàng hoàn; N1 / N2 / N3 theo `nguonHang` + `coCaHaiLoaiTui`; nơi đóng = `ktt_tui.from_pos`; chuyến thư = khóa 6 cột; **ngày = ngày hàng đến** như màn B theo KTT-DT-5b; 6 BCVH lấy từ `kttTinh.MA_BCVH_HUE`, loại khỏi bảng nhưng nối số ở `meta.do_6_bcvh_dong`), `server/lib/kttHuongDongXuat.js` (hai file Excel), nối ở `kttApi.js` (`layNgayHD` + cache theo ngày, `huongDongTongHop`, `huongDongDanhSach`, `xuatHuongDong`) và `server/routes/ktt.js` (3 route: `/huong-dong-chuyen/tong-hop`, `/huong-dong-chuyen/danh-sach`, `/xuat/huong-dong-chuyen`; `xuatFile` thêm nhánh `kq.viet`). Chỉ THÊM, không đổi hành vi route / lõi cũ.
+- Thêm cờ `chuyen_ghi_ngay_cu` (ngày hàng đến − ngày đóng chuyến thư > 7 ngày) và `ngay_dong_chuyen`; đếm `meta.so_chuyen_ghi_ngay_cu` (137 trên bản sao, 385 gồm 6 BCVH).
+- `tests/ktt-huong-dong.test.js` (11 test, dữ liệu giả, server thật): quyền, tham số 400, N1/N2/N3, nơi ít mẫu, chuyến lẫn / sạch, hai kiểu cùng ngày, 6 BCVH, mã ngoài danh mục, lọc `loai_hinh`, các đẳng thức, danh sách, cache, hai file Excel qua router thật (quét số hiệu / từ cấm có chuỗi thử bị bắt). `docs/ai/42_KTT_API.md` mục 23.
+- Bản sao DB (30 ngày 11/10 – 09/11): 23.991 = 14.583 + 8.803 + 605; 7.208 + 1.595 = 8.803; 53 nơi; top 8 = 75,3%; chuyến lẫn 1.119 (+ 258 do 6 BCVH = 1.377 của DT-4); nguội ≈ 11 giây, ấm ≈ 12 ms.
+- Kiểm: `npm run build` mã 0; `npm test` trên nhánh: 1403 test, 14 lỗi ở `tests/phat-thang.test.js` do tiến trình thừa chiếm cổng 5941 của test (cũng lỗi y hệt trên bản main `0c21ae4`); tắt tiến trình thì 0 lỗi, 10 test bỏ qua. Đã thêm `tests/ktt-huong-dong.test.js` vào `npm test`. Chưa làm nóng nền (`kttNong.js`); chưa giao diện.
+
 ## [2026-11-11] - KTT-KD-3g: làm gọn màn «Lưu thoát trong ngày» (chỉ giao diện `src/components/ktt/`, 5 file; nhánh `feat/ktt-kd-3g-luu-thoat-gon`, commit đầu `9024436`)
 
 - `KttLuuThoat.jsx` (1950 → 1757 dòng): nút «Xem theo» đổi «Lưu thoát (như trước)» → «Lưu thoát»; bố cục 8 khối theo canvas v23 (bộ lọc → kết quả 4 thẻ + thanh năm trạng thái + dòng «Trượt chuyến, cần xử lý» + dòng nối số từ trường API → hàng chuyển hoàn thu gọn → theo ngày → theo BCVH → theo nguồn → nguồn × BCVH → danh sách và xuất xlsx → «Cách tính và mốc xe theo lịch» thu gọn); bỏ thẻ «Đi hôm sau, đúng chuyến» / «Trượt chuyến» dạng thẻ, 6 thẻ BCVH, 16 thẻ nguồn (số còn ở thanh trạng thái, dòng «trong đó» và bảng); id `ktt-kpi-card-14h` → `ktt-the-chi-tieu-14h`.
