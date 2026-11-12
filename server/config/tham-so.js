@@ -354,6 +354,13 @@ const SUA_DUOC = [
     vi_du: 'Đặt 80: 20% đường thư lớn nhất bị gắn dấu hiệu. Đặt 90: chỉ 10% đường thư lớn nhất.',
     nhin_thay_o: ['Hàng tại KTT: màn «Giờ đến trong ngày»']
   }),
+  sua('ktt_dc_nguong_bg_trong_tui', {
+    nhom: 'hang_tai_ktt', nhan: 'Hướng đóng chuyến nội tỉnh: túi có từ chừng này bưu gửi nội tỉnh trở lên là «túi lớn»', kieu: 'so_nguyen', min: 1, max: 200, don_vi: 'bưu gửi',
+    mo_ta: 'Túi gửi vào Khai thác (530100) có số bưu gửi nội tỉnh (đi 6 BCVH Huế) từ mức này trở lên là «túi lớn» (đóng nhầm nhiều); túi ít hơn là «túi nhỏ» và vẫn được phép. Chỉ đếm bưu gửi nội tỉnh trong túi, không đếm hàng đi tỉnh khác nằm cùng túi.',
+    anh_huong: 'Đổi số hàng trong túi lớn / túi nhỏ và danh sách nơi có túi lớn của tab «Hướng đóng chuyến nội tỉnh»; không đổi số hàng đóng vào 530100. Có hiệu lực ngay, kể cả khi xem lại ngày đã qua.',
+    vi_du: 'Đặt 15: túi có 14 bưu gửi nội tỉnh là túi nhỏ, túi có 15 là túi lớn. Đặt 20: túi 15 bưu gửi chuyển sang túi nhỏ.',
+    nhin_thay_o: ['Hàng tại KTT: tab «Hướng đóng chuyến nội tỉnh» và file Excel của tab (API, chưa có giao diện)']
+  }),
   sua('ktt_so_cap_toi_thieu_ngay', {
     nhom: 'nap_ktt', nhan: 'Số cặp file tối thiểu mỗi ngày', kieu: 'so_nguyen', min: 1, max: 10, don_vi: 'cặp',
     mo_ta: 'Một ngày đã qua có ít cặp (túi + bưu gửi) nạp thành công hơn mức này thì cảnh báo. Lịch hiện hành là 2 lần xuất mỗi ngày (09:00, 15:00).',

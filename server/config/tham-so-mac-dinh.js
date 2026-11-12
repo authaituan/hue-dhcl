@@ -67,5 +67,6 @@ module.exports = Object.freeze({
   ktt_bt_con_lai_gio: 3,
   ktt_bt_ty_le_con_lai_pct: 25,
   ktt_bt_meo_theo_lo_phut: 120,
-  ktt_bt_san_luong_lon_phan_vi: 80 // KTT-KD-3b: cờ «Sản lượng lớn» ở cấp đường thư (màn «Giờ đến trong ngày»)
+  ktt_bt_san_luong_lon_phan_vi: 80, // KTT-KD-3b: cờ «Sản lượng lớn» ở cấp đường thư (màn «Giờ đến trong ngày»)
+  ktt_dc_nguong_bg_trong_tui: 15 // KTT-DC-3: túi có từ chừng này bưu gửi nội tỉnh trở lên là «túi lớn» (tab «Hướng đóng chuyến nội tỉnh»)
 });

@@ -296,7 +296,7 @@ test('danh sách bưu gửi của một nơi: số dòng = dong_vao_530100; phâ
   assert.equal(r.body.pagination.total, t.dong_vao_530100);
   assert.equal(r.body.items.length, 15);
   const it = r.body.items[0];
-  assert.deepEqual(Object.keys(it).sort(), ['bcvh_dich', 'chua_ro', 'chuyen_ghi_ngay_cu', 'dich_vu', 'kg', 'ma_noi_dong', 'ngay_den', 'ngay_dong_chuyen', 'shbg', 'so_chuyen_thu', 'ten_noi_dong'].sort());
+  assert.deepEqual(Object.keys(it).sort(), ['bcvh_dich', 'chua_ro', 'chuyen_ghi_ngay_cu', 'dich_vu', 'kg', 'ma_noi_dong', 'ngay_den', 'ngay_dong_chuyen', 'shbg', 'so_chuyen_thu', 'ten_noi_dong', 'so_bg_trong_tui', 'tui_lon', 'ma_tui', 'khoa_tui'].sort()); // KTT-DC-3: chỉ THÊM 4 trường
   assert.equal(it.ma_noi_dong, '536001'); assert.equal(it.bcvh_dich.ma, TH); assert.equal(it.chua_ro, false);
   assert.equal(r.body.items.filter((x) => x.chuyen_ghi_ngay_cu).length, t.dong_chuyen_ghi_ngay_cu);
   assert.deepEqual(r.body.items.map((x) => x.ngay_den), [...r.body.items.map((x) => x.ngay_den)].sort(), 'sắp theo ngày hàng đến');
@@ -411,7 +411,7 @@ function danhMucThem(...ds) { for (const [code, name, type] of ds) them('post_of
 test('trong_loc: luôn có; không lọc = số toàn tập; từng nhóm khớp bảng, theo_ngay, số nơi, chuyến lẫn; 5 nhóm cộng = toàn tập; tỷ trọng 8 nơi đầu', async () => {
   duLieu();
   const full = (await goi(TH_URL, 'admin')).body; const m = full.meta; const t = m.trong_loc;
-  assert.deepEqual(Object.keys(t).sort(), ['chuyen_co_lan', 'dong_vao_530100', 'loai_hinh', 'so_noi_dong', 'ty_trong_8_noi_dau'].sort());
+  assert.deepEqual(Object.keys(t).sort(), ['chuyen_co_lan', 'dong_vao_530100', 'loai_hinh', 'so_noi_dong', 'ty_trong_8_noi_dau', 'nguong_bg_trong_tui', 'bg_trong_tui_lon', 'bg_trong_tui_nho', 'so_tui_lon', 'so_noi_dong_tui_lon', 'ty_trong_8_noi_dau_tui_lon'].sort()); // KTT-DC-3: chỉ THÊM
   assert.equal(t.loai_hinh, null);
   assert.equal(t.dong_vao_530100, m.dong_vao_530100_toan_tap, 'không lọc = toàn tập'); assert.equal(t.dong_vao_530100, DONG(full)); assert.equal(t.dong_vao_530100, full.theo_ngay.reduce((s, y) => s + y.dong_vao_530100, 0));
   assert.equal(t.so_noi_dong, m.so_noi_dong); assert.equal(t.so_noi_dong, full.theo_noi_dong.length);
@@ -441,12 +441,12 @@ test('trong_loc: ty_trong_8_noi_dau tính trên 8 nơi đầu của phạm vi l�
   assert.equal(x.dong_vao_530100, 55); assert.equal(x.so_noi_dong, 10);
   assert.ok(Math.abs(x.ty_trong_8_noi_dau - (10 + 9 + 8 + 7 + 6 + 5 + 4 + 3) / 55) < 1e-12, '52 / 55');
   const rong = (await goi(`${TH_URL}&loai_hinh=GD1`, 'admin')).body.meta.trong_loc; // không nơi GD1 nào có hàng
-  assert.deepEqual(rong, { loai_hinh: 'GD1', dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null });
+  assert.deepEqual(rong, { loai_hinh: 'GD1', dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null, nguong_bg_trong_tui: 15, bg_trong_tui_lon: 0, bg_trong_tui_nho: 0, so_tui_lon: 0, so_noi_dong_tui_lon: 0, ty_trong_8_noi_dau_tui_lon: null });
 });
 
 test('không có dữ liệu: trong_loc có, toàn 0, ty_trong_8_noi_dau null', async () => {
   const b = (await goi(TH_URL, 'admin')).body;
-  assert.deepEqual(b.meta.trong_loc, { loai_hinh: null, dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null });
+  assert.deepEqual(b.meta.trong_loc, { loai_hinh: null, dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null, nguong_bg_trong_tui: 15, bg_trong_tui_lon: 0, bg_trong_tui_nho: 0, so_tui_lon: 0, so_noi_dong_tui_lon: 0, ty_trong_8_noi_dau_tui_lon: null });
 });
 
 test('khóa mới: so_hang_ghi_ngay_cu (bưu gửi) và so_chuyen_thu_ghi_ngay_cu (chuyến thư khác nhau); KHÔNG còn khóa cũ trong JSON và Excel', async () => {
@@ -506,4 +506,283 @@ test('hàng không có giờ quét túi đến: tính theo ngày xác nhận BD1
   assert.equal(b.meta.n2, 1); assert.equal(b.meta.trong_loc.dong_vao_530100, 1);
   assert.deepEqual(b.theo_ngay.map((y) => y.dong_vao_530100), [0, 1, 0]);
   const ds = (await goi(DS_URL, 'admin')).body; assert.equal(ds.pagination.total, 1); assert.equal(ds.items[0].ngay_den, '2026-10-21');
+});
+
+// ==========================================
+// KTT-DC-3: ngưỡng «túi lớn» (số BG nội tỉnh trong túi), trường mới, danh sách, Excel, cache.
+// ==========================================
+const NG_URL = (n, extra = '') => `${TH_URL}&nguong=${n}${extra}`;
+/**
+ * MỘT túi ĐẾN vào 530100 từ `from` chứa `n2` bưu gửi N2 (mỗi bưu gửi có túi ĐI riêng sang BCVH lần lượt trong `nhan`) và `n3` bưu gửi N3 (còn có túi chuyển tiếp).
+ * `soHieu` (so_hieu_bd8) đặt tay được để tạo mã túi trùng nhau.
+ */
+function tuiNhieu(from, ngay, { n2: so2 = 0, n3: so3 = 0, so = '1', nhan = [TH], soHieu = null, dong = `${ngay} 04:00:00` } = {}) {
+  const t = tui({ chieu: 'DEN', luong: 'KHAI_THAC_DEN', from_pos: from, mail_trip_number: so, co_mo_tui: 1, chuyen_thu_gio_dong: dong, gio_quet_tui_den: `${ngay} 05:30:00`, bd10_den_xnd: `${ngay} 05:30:00`, bd10_den_ma_diem_gui: NT, bd10_den_so_hieu: `BD10-D-${seq}`, ...(soHieu ? { so_hieu_bd8: soHieu } : {}) });
+  for (let i = 0; i < so2; i++) {
+    const s = sh(); const n = nhan[i % nhan.length];
+    bg(t, s);
+    const d = tui({ chieu: 'DI', luong: 'KHAI_THAC_DI', to_pos: n, bd10_di_gio_di: `${ngay} 20:00:00`, gio_quet_tui_di: `${ngay} 20:00:00`, bd10_di_so_hieu: `BD10-I-${seq}`, bd10_di_ma_diem_nhan: n });
+    bg(d, s);
+  }
+  for (let i = 0; i < so3; i++) {
+    const s = sh(); bg(t, s);
+    const c = tui({ chieu: 'CHUYEN_TIEP_DI', luong: 'DA_CHIA_SAN', from_pos: from, to_pos: TH, mail_trip_number: `c${seq}`, chuyen_thu_gio_dong: `${ngay} 03:00:00`, gio_quet_tui_den: `${ngay} 05:35:00`, bd10_den_ma_diem_gui: NT, bd10_di_gio_di: `${ngay} 06:00:00`, bd10_di_ma_diem_nhan: TH });
+    bg(c, s);
+  }
+  return t;
+}
+/**
+ * Dữ liệu ranh ngưỡng (ngày 20, 21, 22):
+ *  536001 VHX: túi 14, 15 (hai BCVH đích), 16 (ba BCVH đích) ngày 20 + túi 20 ngày 21 (chuyến ghi ngày cũ) -> ở ngưỡng 15: lớn 15 + 16 + 20 = 51, nhỏ 14.
+ *  536002 VHX: chỉ túi nhỏ (5) -> không có túi lớn nhưng có bg_trong_tui_nho.
+ *  536003 VHX: túi 12 N2 + 3 N3 (= 15, LỚN, N2 = 12 vào tử số, N3 chỉ góp cỡ túi) + túi nhỏ 2 N2 (nơi có cả lớn lẫn nhỏ), ngày 21.
+ *  531120 (GD3): túi 30 ngày 22 -> lớn. TH (một trong 6 BCVH) đóng túi 40 ngày 20 -> bị loại khỏi bảng.
+ */
+function duLieuTui() {
+  danhMuc();
+  danhMucThem(['536002', 'VHX hai', 'VHX'], ['536003', 'VHX ba', 'VHX']);
+  tuiNhieu('536001', '2026-10-20', { n2: 14, so: '1', soHieu: 'TUI-TRUNG' });
+  tuiNhieu('536001', '2026-10-20', { n2: 15, so: '2', nhan: [TH, HT], soHieu: 'TUI-TRUNG' });
+  tuiNhieu('536001', '2026-10-20', { n2: 16, so: '3', nhan: [TH, HT, HTH] });
+  tuiNhieu('536001', '2026-10-21', { n2: 20, so: '4', dong: '2026-09-01 08:00:00' });
+  tuiNhieu('536002', '2026-10-20', { n2: 5, so: '5' });
+  tuiNhieu('536003', '2026-10-21', { n2: 12, n3: 3, so: '6' });
+  tuiNhieu('536003', '2026-10-21', { n2: 2, so: '7' });
+  tuiNhieu('531120', '2026-10-22', { n2: 30, so: '8' });
+  tuiNhieu(TH, '2026-10-20', { n2: 40, so: '9', nhan: [HTH] });
+  capOk('2026-10-23 10:00:00');
+}
+const Nh = (b, ma) => b.theo_noi_dong.find((y) => y.ma === ma);
+/** Mọi đẳng thức của mục 3 trên một trả lời tong-hop. */
+function kiemDangThuc(b, nhan) {
+  const m = b.meta; const t = m.trong_loc;
+  const sum = (f) => b.theo_noi_dong.reduce((s, y) => s + y[f], 0);
+  assert.equal(sum('bg_trong_tui_lon'), m.bg_trong_tui_lon, `${nhan}: Σ bảng = meta`);
+  assert.equal(t.bg_trong_tui_lon, m.bg_trong_tui_lon, `${nhan}: trong_loc = meta`);
+  assert.equal(b.theo_loai_hinh.reduce((s, y) => s + y.bg_trong_tui_lon, 0), m.bg_trong_tui_lon, `${nhan}: Σ theo_loai_hinh`);
+  assert.equal(b.theo_ngay.reduce((s, y) => s + y.bg_trong_tui_lon, 0), m.bg_trong_tui_lon, `${nhan}: Σ theo_ngay`);
+  assert.equal(m.bg_trong_tui_lon + m.bg_trong_tui_nho, m.dong_vao_530100, `${nhan}: lớn + nhỏ = đóng vào 530100`);
+  assert.equal(t.bg_trong_tui_lon + t.bg_trong_tui_nho, t.dong_vao_530100, `${nhan}: trong_loc lớn + nhỏ`);
+  for (const y of b.theo_noi_dong) assert.equal(y.bg_trong_tui_lon + y.bg_trong_tui_nho, y.dong_vao_530100, `${nhan}: nơi ${y.ma}`);
+  assert.equal(m.so_tui_lon, sum('so_tui_lon')); assert.equal(m.so_noi_dong_tui_lon, b.theo_noi_dong.filter((y) => y.bg_trong_tui_lon > 0).length);
+  assert.equal(b.theo_loai_hinh.reduce((s, y) => s + y.so_noi_dong_tui_lon, 0), m.so_noi_dong_tui_lon);
+  for (const k of ['nguong_bg_trong_tui', 'bg_trong_tui_lon', 'bg_trong_tui_nho', 'so_tui_lon', 'so_noi_dong_tui_lon', 'ty_trong_8_noi_dau_tui_lon']) assert.deepEqual(t[k], m[k], `${nhan}: trong_loc.${k} = meta.${k}`);
+  for (const y of b.theo_noi_dong) assert.ok(y.chuyen_co_tui_lon <= y.chuyen_vao_530100 && y.chuyen_co_tui_lon <= y.so_tui_lon, `${nhan}: chuyến có túi lớn hợp lý`);
+}
+
+test('KTT-DC-3: ranh ngưỡng 14 / 15 / 16 — túi đúng bằng ngưỡng là túi LỚN (≥); đổi ngưỡng đổi đúng số', async () => {
+  duLieuTui();
+  const lay = async (n) => (await goi(NG_URL(n), 'admin')).body;
+  const b14 = await lay(14); const b15 = await lay(15); const b16 = await lay(16); const b17 = await lay(17); const b21 = await lay(21);
+  const a = (b) => Nh(b, '536001');
+  assert.deepEqual([a(b14).bg_trong_tui_lon, a(b14).so_tui_lon, a(b14).bg_trong_tui_nho], [14 + 15 + 16 + 20, 4, 0], 'ngưỡng 14: túi 14 cũng lớn');
+  assert.deepEqual([a(b15).bg_trong_tui_lon, a(b15).so_tui_lon, a(b15).bg_trong_tui_nho], [15 + 16 + 20, 3, 14], 'ngưỡng 15: túi 15 LỚN, túi 14 nhỏ');
+  assert.deepEqual([a(b16).bg_trong_tui_lon, a(b16).so_tui_lon, a(b16).bg_trong_tui_nho], [16 + 20, 2, 29], 'ngưỡng 16: túi 15 thành nhỏ');
+  assert.deepEqual([a(b17).bg_trong_tui_lon, a(b17).so_tui_lon], [20, 1]);
+  assert.deepEqual([a(b21).bg_trong_tui_lon, a(b21).so_tui_lon, a(b21).bg_trong_tui_nho, a(b21).so_bg_tui_lon_nhat], [0, 0, 65, 20], 'ngưỡng 21: hết túi lớn; túi nhiều BG nhất vẫn là túi 20');
+  assert.equal(a(b15).so_bg_tui_lon_nhat, 20);
+  for (const [b, n] of [[b14, 14], [b15, 15], [b16, 16], [b17, 17], [b21, 21]]) { assert.equal(b.meta.nguong_bg_trong_tui, n); assert.equal(b.meta.trong_loc.nguong_bg_trong_tui, n); assert.equal(b.meta.nguon_nguong_bg_trong_tui, 'yêu cầu'); kiemDangThuc(b, `nguong ${n}`); }
+});
+
+test('KTT-DC-3: túi chứa cả N2 lẫn N3 (cỡ túi đếm cả hai, tử số chỉ N2); túi nhiều BCVH đích; nơi có cả túi lớn lẫn nhỏ; nơi chỉ có túi nhỏ; 6 BCVH bị loại', async () => {
+  duLieuTui();
+  const b = (await goi(TH_URL, 'admin')).body; // ngưỡng mặc định 15
+  assert.equal(b.meta.nguong_bg_trong_tui, 15); assert.equal(b.meta.nguon_nguong_bg_trong_tui, 'mặc định');
+  const c = Nh(b, '536003');
+  assert.deepEqual([c.dong_vao_530100, c.chua_ro, c.bg_trong_tui_lon, c.bg_trong_tui_nho, c.so_tui_lon, c.so_bg_tui_lon_nhat], [14, 3, 12, 2, 1, 15], 'túi 12 N2 + 3 N3 = 15 là LỚN; N3 không vào tử số, vẫn ở chua_ro');
+  assert.equal(Nh((await goi(NG_URL(16), 'admin')).body, '536003').bg_trong_tui_lon, 0, 'ngưỡng 16: cỡ 15 là túi nhỏ');
+  const d = Nh(b, '536002');
+  assert.deepEqual([d.dong_vao_530100, d.bg_trong_tui_lon, d.bg_trong_tui_nho, d.so_tui_lon, d.chuyen_co_tui_lon, d.so_bg_tui_lon_nhat], [5, 0, 5, 0, 0, 5], 'nơi chỉ có túi nhỏ: vẫn trong bảng, có bg_trong_tui_nho, không có túi lớn');
+  const a = Nh(b, '536001');
+  assert.deepEqual([a.bg_trong_tui_lon, a.bg_trong_tui_nho, a.chuyen_co_tui_lon, a.chuyen_vao_530100], [51, 14, 3, 4], 'nơi có cả lớn lẫn nhỏ; túi nhiều BCVH đích tính một túi');
+  assert.equal(b.theo_noi_dong.some((y) => y.ma === TH), false, '6 BCVH không là nơi đóng trong bảng');
+  assert.equal(Nh(b, '531120').bg_trong_tui_lon, 30);
+  assert.equal(b.meta.do_6_bcvh_dong, 40);
+  assert.equal(b.meta.bg_trong_tui_lon, 51 + 12 + 30); assert.equal(b.meta.bg_trong_tui_nho, 14 + 5 + 2);
+  assert.equal(b.meta.so_tui_lon, 3 + 1 + 1); assert.equal(b.meta.so_noi_dong_tui_lon, 3);
+  assert.equal(b.meta.ty_trong_8_noi_dau_tui_lon, null, 'chỉ 3 nơi có túi lớn (≤ 8) -> null');
+  assert.equal(b.theo_noi_dong.length, 4, 'danh sách nơi không đổi theo ngưỡng');
+  assert.deepEqual((await goi(NG_URL(200), 'admin')).body.theo_noi_dong.map((y) => y.ma), b.theo_noi_dong.map((y) => y.ma));
+  kiemDangThuc(b, 'mặc định');
+});
+
+test('KTT-DC-3: đẳng thức khi lọc từng loai_hinh ở nhiều ngưỡng; giảm đơn điệu khi tăng ngưỡng; số cũ không đổi', async () => {
+  duLieuTui();
+  const goc = (await goi(TH_URL, 'admin')).body.meta;
+  for (const loai of [null, ...HDC.LOAI_HINH]) {
+    let truoc = Infinity; let truocTui = Infinity;
+    for (const n of [1, 5, 10, 14, 15, 16, 20, 21, 50, 200]) {
+      const b = (await goi(NG_URL(n, loai ? `&loai_hinh=${loai}` : ''), 'admin')).body;
+      kiemDangThuc(b, `${loai} / ${n}`);
+      assert.ok(b.meta.bg_trong_tui_lon <= truoc, `không tăng khi tăng ngưỡng (${loai} / ${n})`); truoc = b.meta.bg_trong_tui_lon;
+      assert.ok(b.meta.so_tui_lon <= truocTui); truocTui = b.meta.so_tui_lon;
+      assert.equal(b.meta.n2, goc.n2); assert.equal(b.meta.tong_noi_tinh, goc.tong_noi_tinh); assert.equal(b.meta.n3, goc.n3);
+    }
+  }
+  const b1 = (await goi(NG_URL(1), 'admin')).body; assert.equal(b1.meta.bg_trong_tui_lon, b1.meta.dong_vao_530100, 'ngưỡng 1: mọi túi là lớn');
+  const b200 = (await goi(NG_URL(200), 'admin')).body; assert.equal(b200.meta.bg_trong_tui_lon, 0); assert.equal(b200.meta.ty_trong_8_noi_dau_tui_lon, null);
+  const b = (await goi(TH_URL, 'admin')).body;
+  assert.deepEqual(b.theo_ngay.map((y) => [y.ngay, y.bg_trong_tui_lon, y.so_noi_dong_tui_lon]), [['2026-10-20', 31, 1], ['2026-10-21', 32, 2], ['2026-10-22', 30, 1]], 'theo ngày hàng đến');
+});
+
+test('KTT-DC-3: tỷ trọng 8 nơi đầu của hàng trong túi lớn: tính khi > 8 nơi có túi lớn, xếp theo bg_trong_tui_lon', async () => {
+  danhMuc();
+  for (let i = 0; i < 10; i++) { const ma = `5363${String(i).padStart(2, '0')}`; danhMucThem([ma, `VHX ${i}`, 'VHX']); tuiNhieu(ma, '2026-10-20', { n2: 20 + i, so: String(i + 1) }); }
+  tuiNhieu('536001', '2026-10-20', { n2: 3, so: '99' }); // nơi chỉ có túi nhỏ: không tính vào 8 nơi
+  capOk('2026-10-23 10:00:00');
+  const b = (await goi(`${TH_URL}&loai_hinh=VHX`, 'admin')).body;
+  const lon = [29, 28, 27, 26, 25, 24, 23, 22, 21, 20]; const tong = lon.reduce((s, x) => s + x, 0);
+  assert.equal(b.meta.bg_trong_tui_lon, tong); assert.equal(b.meta.so_noi_dong_tui_lon, 10);
+  assert.ok(Math.abs(b.meta.ty_trong_8_noi_dau_tui_lon - lon.slice(0, 8).reduce((s, x) => s + x, 0) / tong) < 1e-12);
+  assert.deepEqual(b.meta.trong_loc.ty_trong_8_noi_dau_tui_lon, b.meta.ty_trong_8_noi_dau_tui_lon);
+  kiemDangThuc(b, 'tỷ trọng');
+  assert.equal(b.theo_noi_dong[0].dong_vao_530100, 29, 'thứ tự mặc định vẫn theo dong_vao_530100');
+});
+
+test('KTT-DC-3: tham số nguong sai kiểu / ngoài khoảng -> 400 ở cả ba route; 1 và 200 hợp lệ', async () => {
+  duLieuTui();
+  const goiY = { tong: (v) => `${TH_URL}&nguong=${v}`, ds: (v) => `${DS_URL}&nguong=${v}`, xuat: (v) => `${XUAT_NV}&nguong=${v}` };
+  for (const v of ['0', '201', '-1', '1.5', 'abc', '15%2C5', '1e1', '0x10', '%20%2015']) {
+    for (const [ten, f] of Object.entries(goiY)) {
+      const r = await goi(f(v), 'admin');
+      assert.equal(r.status, 400, `${ten} nguong=${v}`); assert.match(r.body.error, /nguong/, `${ten} ${v}`);
+    }
+  }
+  assert.equal((await goi(`${TH_URL}&nguong=15&nguong=20`, 'admin')).status, 400, 'lặp tham số');
+  for (const v of ['1', '200']) for (const f of Object.values(goiY)) assert.equal((await goi(f(v), 'admin')).status, 200, `nguong=${v}`);
+  assert.equal((await goi(`${DS_URL}&chi_tui_lon=2`, 'admin')).status, 400);
+  assert.equal((await goi(`${TH_URL}&chi_tui_lon=1`, 'admin')).status, 400, 'chi_tui_lon chỉ có ở danh sách');
+});
+
+test('KTT-DC-3: nguồn của ngưỡng — mặc định / cấu hình (tham số hệ thống) / yêu cầu; yêu cầu thắng cấu hình; danh bạ tham số', async () => {
+  duLieuTui();
+  assert.equal((await goi(TH_URL, 'admin')).body.meta.nguon_nguong_bg_trong_tui, 'mặc định');
+  TS.__thuDatRam('ktt_dc_nguong_bg_trong_tui', 20);
+  try {
+    const cauHinh = (await goi(TH_URL, 'admin')).body;
+    assert.equal(cauHinh.meta.nguong_bg_trong_tui, 20); assert.equal(cauHinh.meta.nguon_nguong_bg_trong_tui, 'cấu hình');
+    assert.equal(Nh(cauHinh, '536001').bg_trong_tui_lon, 20, 'ngưỡng 20 từ cấu hình: chỉ túi 20');
+    const yc = (await goi(NG_URL(15), 'admin')).body;
+    assert.equal(yc.meta.nguong_bg_trong_tui, 15); assert.equal(yc.meta.nguon_nguong_bg_trong_tui, 'yêu cầu');
+    const ds = (await goi(`${DS_URL}&chi_tui_lon=1`, 'admin')).body;
+    assert.equal(ds.meta.nguong_bg_trong_tui, 20); assert.equal(ds.meta.nguon_nguong_bg_trong_tui, 'cấu hình'); assert.equal(ds.pagination.total, 20);
+  } finally { TS.__thuDatRam('ktt_dc_nguong_bg_trong_tui', undefined); }
+  assert.equal((await goi(TH_URL, 'admin')).body.meta.nguon_nguong_bg_trong_tui, 'mặc định');
+  const DB_TS = require('../server/config/tham-so');
+  const m = DB_TS.THEO_KHOA.get('ktt_dc_nguong_bg_trong_tui');
+  assert.ok(m && !m.chi_doc); assert.equal(m.mac_dinh, 15); assert.equal(m.min, 1); assert.equal(m.max, 200); assert.equal(m.nhom, 'hang_tai_ktt');
+  assert.ok(TS.kiemTraGiaTri(m, 0) && TS.kiemTraGiaTri(m, 201) && TS.kiemTraGiaTri(m, 1.5) && !TS.kiemTraGiaTri(m, 15), 'giá trị ngoài khoảng bị từ chối, 15 hợp lệ');
+});
+
+test('KTT-DC-3: cache — kích thước túi tính một lần theo ngày; đổi ngưỡng không tính lại ngày nào và cho kết quả khác, đúng', async () => {
+  duLieuTui();
+  Api.xoaCache();
+  let tinh = 0; const goc = HDC.tinhNgay; HDC.tinhNgay = (...a) => { tinh++; return goc(...a); };
+  try {
+    const b15 = (await goi(NG_URL(15), 'admin')).body;
+    assert.equal(tinh, 3, 'ba ngày của khoảng, mỗi ngày một lần');
+    const b20 = (await goi(NG_URL(20), 'admin')).body; const b16 = (await goi(NG_URL(16), 'admin')).body; const mac = (await goi(TH_URL, 'admin')).body;
+    assert.equal(tinh, 3, 'đổi ngưỡng KHÔNG tính lại và không mất cache');
+    assert.notEqual(b15.meta.bg_trong_tui_lon, b20.meta.bg_trong_tui_lon);
+    assert.equal(b15.meta.bg_trong_tui_lon, 51 + 12 + 30); assert.equal(b20.meta.bg_trong_tui_lon, 20 + 30); assert.equal(b16.meta.bg_trong_tui_lon, 16 + 20 + 30);
+    assert.deepEqual(mac, { ...b15, meta: { ...b15.meta, nguon_nguong_bg_trong_tui: 'mặc định' } }, 'ngưỡng mặc định 15 = yêu cầu 15 (trừ nguồn)');
+    await goi(`${DS_URL}&nguong=17`, 'admin'); await goi(`${XUAT_NV}&nguong=18`, 'admin'); await goi(`${XUAT_CT}&nguong=19`, 'admin');
+    assert.equal(tinh, 3, 'danh sách và xuất dùng chung bó ngày');
+  } finally { HDC.tinhNgay = goc; }
+});
+
+test('KTT-DC-3: danh sách — so_bg_trong_tui, tui_lon, ma_tui, khoa_tui; mã túi trùng vẫn phân biệt bằng khóa túi; chi_tui_lon=1 và kết hợp chi_ghi_ngay_cu; không dữ liệu cá nhân', async () => {
+  duLieuTui();
+  const tat = (await goi(`${DS_URL}&page_size=100`, 'admin')).body;
+  assert.equal(tat.pagination.total, 65, '536001: 14 + 15 + 16 + 20 bưu gửi N2');
+  assert.equal(tat.items.filter((x) => x.tui_lon).length, 51); assert.equal(tat.items.filter((x) => !x.tui_lon).length, 14);
+  for (const x of tat.items) { assert.equal(x.tui_lon, x.so_bg_trong_tui >= 15); assert.ok([14, 15, 16, 20].includes(x.so_bg_trong_tui)); assert.equal(x.khoa_tui.split('|').length, 7, '6 cột chuyến + chỉ số túi'); }
+  const trung = tat.items.filter((x) => x.ma_tui === 'TUI-TRUNG');
+  assert.equal(trung.length, 14 + 15, 'hai túi dùng chung mã túi');
+  assert.equal(new Set(trung.map((x) => x.khoa_tui)).size, 2, 'mã trùng nhưng khóa túi phân biệt hai túi');
+  assert.deepEqual([...new Set(trung.map((x) => x.so_bg_trong_tui))].sort(), [14, 15]);
+  const lon = (await goi(`${DS_URL}&page_size=100&chi_tui_lon=1`, 'admin')).body;
+  assert.equal(lon.pagination.total, 51); assert.ok(lon.items.every((x) => x.tui_lon)); assert.equal(lon.meta.chi_tui_lon, true);
+  assert.equal((await goi(`${DS_URL}&chi_tui_lon=0`, 'admin')).body.pagination.total, 65);
+  const cu = (await goi(`${DS_URL}&page_size=100&chi_tui_lon=1&chi_ghi_ngay_cu=1`, 'admin')).body;
+  assert.equal(cu.pagination.total, 20, '(túi lớn) VÀ (chuyến ghi ngày cũ): chỉ túi 20 ngày 21'); assert.ok(cu.items.every((x) => x.tui_lon && x.chuyen_ghi_ngay_cu));
+  assert.equal((await goi(`${DS_URL}&chi_ghi_ngay_cu=1&nguong=21`, 'admin')).body.pagination.total, 20);
+  assert.equal((await goi(`${DS_URL}&chi_ghi_ngay_cu=1&chi_tui_lon=1&nguong=21`, 'admin')).body.pagination.total, 0, 'ngưỡng 21: túi 20 không còn lớn');
+  assert.equal((await goi(`${DS_URL}&nguong=16&page_size=100`, 'admin')).body.items.filter((x) => x.tui_lon).length, 36);
+  const n3 = (await goi(`/api/ktt/huong-dong-chuyen/danh-sach${Q}&noi_dong=536003&nhom=chua_ro`, 'admin')).body;
+  assert.equal(n3.pagination.total, 3); assert.ok(n3.items.every((x) => x.so_bg_trong_tui === 15 && x.tui_lon === true && x.chua_ro === true), 'BG N3 cũng có cỡ túi');
+  const s = JSON.stringify(tat).replace(/KTT-DEMO-\d+/g, '');
+  assert.ok(!RE_DIEN_THOAI.test(s) && !/địa chỉ|dia_chi|ten_nguoi|phone/i.test(s));
+});
+
+const RE_TU_CAM3 = /Mốc\s*[AB]|đợt|bản đồ nhiệt|heatmap|tuổi|quỹ|trung vị|(?<![\p{L}])cờ(?![\p{L}])/iu;
+const vanBan = (c) => (c.value && c.value.richText ? c.value.richText.map((x) => x.text).join('') : String(c.value ?? ''));
+test('KTT-DC-3: Excel «nhắc việc» có 4 cột túi lớn, «Giải thích» nêu quy tắc và ngưỡng bằng chữ đời thường; không số hiệu bưu gửi, không từ cấm', async () => {
+  duLieuTui();
+  const { wb } = await docXlsx(XUAT_NV, 'admin');
+  const ws = wb.getWorksheet('Nhắc việc');
+  const head = ws.getRow(2).values.slice(1).map(String);
+  const cot = (t) => { assert.ok(head.includes(t), t); return head.indexOf(t) + 1; };
+  const iL = cot('Hàng trong túi lớn'); const iN = cot('Hàng trong túi nhỏ (được phép)'); const iT = cot('Số túi lớn'); const iM = cot('Túi lớn nhất (số bưu gửi)');
+  const th = (await goi(TH_URL, 'admin')).body;
+  let sL = 0; let sN = 0; let sT = 0; let hang = 0;
+  ws.eachRow((row, i) => { if (i >= 3 && typeof row.getCell(1).value === 'number') { hang++; sL += row.getCell(iL).value; sN += row.getCell(iN).value; sT += row.getCell(iT).value; assert.equal(row.getCell(iM).value, Nh(th, String(row.getCell(2).value)).so_bg_tui_lon_nhat); } });
+  assert.equal(hang, th.theo_noi_dong.length); assert.equal(sL, th.meta.bg_trong_tui_lon); assert.equal(sN, th.meta.bg_trong_tui_nho); assert.equal(sT, th.meta.so_tui_lon);
+  const text = []; wb.getWorksheet('Giải thích').eachRow((r) => text.push(String(r.getCell(1).value)));
+  assert.ok(text.some((t) => /túi có từ 15 bưu gửi nội tỉnh trở lên là túi lớn/.test(t)), 'ngưỡng 15 bằng chữ đời thường');
+  assert.ok(text.some((t) => /không đếm hàng đi tỉnh khác nằm cùng túi/.test(t)));
+  const q = quetWorkbook(wb); assert.equal(q.shbg, 0); assert.equal(q.dienThoai, 0);
+  let cam = 0; wb.eachSheet((s) => s.eachRow((row) => row.eachCell((c) => { if (RE_TU_CAM3.test(vanBan(c))) cam++; })));
+  assert.equal(cam, 0, 'không từ cấm (bản mở rộng: quỹ, cờ, trung vị)');
+  for (const thu of ['Mốc A', 'đợt', 'tuổi', 'quỹ', 'cờ', 'trung vị', 'Trung Vị', 'heatmap', 'bản đồ nhiệt', 'MỐC B']) assert.ok(RE_TU_CAM3.test(thu), `quét bắt được: ${thu}`);
+  assert.ok(!RE_TU_CAM3.test('Thuận Hóa, cơ sở, mờ, cờ-lê'.replace('cờ-lê', 'cơ-lê')), 'không bắt nhầm chữ khác');
+  const x20 = await docXlsx(`${XUAT_NV}&nguong=20`, 'admin'); const t20 = []; x20.wb.getWorksheet('Giải thích').eachRow((r) => t20.push(String(r.getCell(1).value)));
+  assert.ok(t20.some((t) => /túi có từ 20 bưu gửi nội tỉnh trở lên là túi lớn/.test(t)));
+  let l20 = 0; x20.wb.getWorksheet('Nhắc việc').eachRow((row, i) => { if (i >= 3 && typeof row.getCell(1).value === 'number') l20 += row.getCell(iL).value; });
+  assert.equal(l20, (await goi(NG_URL(20), 'admin')).body.meta.bg_trong_tui_lon);
+});
+
+test('KTT-DC-3: Excel «chi tiết» có cột ngưỡng, số BG nội tỉnh trong túi, mã túi, «túi lớn: có/không»; dòng đầu cảnh báo như cũ', async () => {
+  duLieuTui();
+  const { wb } = await docXlsx(XUAT_CT, 'admin');
+  const ws = wb.getWorksheet('Chi tiết');
+  assert.match(String(ws.getRow(1).getCell(1).value), /Không đưa lên GitHub/);
+  const head = ws.getRow(3).values.slice(1).map(String);
+  const i = (t) => { assert.ok(head.includes(t), t); return head.indexOf(t) + 1; };
+  const cNg = i('Ngưỡng túi lớn (số bưu gửi nội tỉnh)'); const cSo = i('Số bưu gửi nội tỉnh trong túi'); i('Mã túi'); const cCo = i('Túi lớn: có/không');
+  let dong = 0; let lon = 0;
+  ws.eachRow((row, r) => {
+    if (r < 4) return; dong++;
+    const so = row.getCell(cSo).value; const co = row.getCell(cCo).value;
+    assert.equal(row.getCell(cNg).value, 15); assert.equal(co, so >= 15 ? 'có' : 'không'); if (co === 'có') lon++;
+  });
+  const th = (await goi(TH_URL, 'admin')).body;
+  assert.equal(dong, th.meta.dong_vao_530100); assert.equal(lon, th.meta.bg_trong_tui_lon);
+  let n3 = 0; wb.getWorksheet('Chưa chắc').eachRow((row, r) => { if (r >= 4) { n3++; assert.equal(row.getCell(cSo).value, 15); assert.equal(row.getCell(cCo).value, 'có'); } });
+  assert.equal(n3, 3);
+  const x16 = await docXlsx(`${XUAT_CT}&nguong=16`, 'admin'); let l16 = 0;
+  x16.wb.getWorksheet('Chi tiết').eachRow((row, r) => { if (r >= 4) { assert.equal(row.getCell(cNg).value, 16); if (row.getCell(cCo).value === 'có') l16++; } });
+  assert.equal(l16, (await goi(NG_URL(16), 'admin')).body.meta.bg_trong_tui_lon);
+  let cam = 0; wb.eachSheet((s) => s.eachRow((row, r) => { if (r > 1) row.eachCell((c) => { if (RE_TU_CAM3.test(vanBan(c))) cam++; }); }));
+  assert.equal(cam, 0);
+});
+
+test('KTT-DC-3: quyền với tham số mới — ADMIN / TTVH / TTKT 200; GDVH / TIVI 403; không token 401', async () => {
+  duLieuTui();
+  for (const [ten, url] of [['tong-hop', NG_URL(20)], ['danh-sach', `${DS_URL}&nguong=20&chi_tui_lon=1`], ['xuat nhac_viec', `${XUAT_NV}&nguong=20`], ['xuat chi_tiet', `${XUAT_CT}&nguong=20`]]) {
+    assert.equal((await goi(url)).status, 401, ten);
+    for (const w of ['admin', 'ttvh', 'ttkt']) assert.equal((await goi(url, w)).status, 200, `${ten} ${w}`);
+    for (const w of ['gdvh', 'tivi']) assert.equal((await goi(url, w)).status, 403, `${ten} ${w}`);
+  }
+  assert.deepEqual((await goi(NG_URL(20), 'admin')).body, (await goi(NG_URL(20), 'ttkt')).body);
+});
+
+test('KTT-DC-3: không có dữ liệu — các số túi lớn bằng 0, không lỗi; MỘT chỗ duy nhất định nghĩa «từ ngưỡng trở lên»', async () => {
+  const b = (await goi(NG_URL(15), 'admin')).body;
+  assert.equal(b.meta.bg_trong_tui_lon, 0); assert.equal(b.meta.bg_trong_tui_nho, 0); assert.equal(b.meta.so_tui_lon, 0); assert.equal(b.meta.nguong_bg_trong_tui, 15);
+  assert.equal(b.theo_ngay.every((y) => y.bg_trong_tui_lon === 0 && y.so_noi_dong_tui_lon === 0), true);
+  assert.equal(HDC.laTuiLon(15, 15), true); assert.equal(HDC.laTuiLon(14, 15), false);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'lib', 'kttHuongDong.js'), 'utf8');
+  assert.ok((src.match(/laTuiLon\(/g) || []).length >= 4, 'mọi chỗ dùng gọi hàm chung');
+  assert.equal((src.match(/>= nguong/g) || []).length, 1, 'dấu so sánh với ngưỡng chỉ ở MỘT chỗ');
 });
