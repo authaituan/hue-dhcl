@@ -36,6 +36,8 @@ function lay(khoa) {
 function layNhieu() {
   return Object.fromEntries(Object.keys(MD).map((k) => [k, lay(k)]));
 }
+/** Khóa đang có giá trị ghi đè (do ADMIN chỉnh) hay đang dùng mặc định. */
+const coGhiDe = (khoa) => state.ghiDe.has(khoa);
 const phienBan = () => state.phienBan;
 
 // ------------------------------------------
@@ -326,6 +328,6 @@ function __thuDatRam(khoa, giaTri) {
 }
 
 module.exports = {
-  ThamSoLoi, lay, layNhieu, phienBan, taoDoiTuong, theoKhoa, theoHam, kiemTraGiaTri,
+  ThamSoLoi, lay, layNhieu, coGhiDe, phienBan, taoDoiTuong, theoKhoa, theoHam, kiemTraGiaTri,
   ensureThamSoSchema, khoiTao, datNhieu, veMacDinh, danhSach, nhatKy, __thuDatRam
 };

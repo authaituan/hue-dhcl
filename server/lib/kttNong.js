@@ -33,17 +33,26 @@ function soNgay(env = process.env) {
 }
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Trả mã lỗi (chuỗi ngắn, KHÔNG có số liệu) của bó «Hướng đóng chuyến» nếu nó hỏng, không thì null. KTT-DC-3: lỗi của bó này không được làm mất làm nóng /luu-thoat và bó B của cùng ngày. */
+const maLoi = (e) => (e && e.code ? String(e.code).slice(0, 40) : (e && e.name ? String(e.name).slice(0, 40) : 'LOI'));
+
 async function mot(db, ngay, doMoi) {
   // Cùng khóa cache với request: /luu-thoat (hai mốc) và bó B (B1–B6, danh-sach, tong-quan).
   await layNgayDC(db, ngay, doMoi, Date.now()); // KTT-16-2: một lượt duyệt cho bó đối chiếu VÀ bó B (layNgayDC cất cả hai)
   await layNgayB(db, ngay, doMoi, Date.now());
-  await layNgayHD(db, ngay, doMoi, Date.now()); // KTT-DC-2: bó «Hướng đóng chuyến nội tỉnh» (một lượt duyệt riêng mỗi ngày), cùng khóa cache với request
+  let loiHD = null;
+  // KTT-DC-2: bó «Hướng đóng chuyến nội tỉnh» (một lượt duyệt riêng mỗi ngày), cùng khóa cache với request. KTT-DC-3: try/catch RIÊNG — hỏng thì chỉ ghi nhận, các mục sau (luu-thoat hai mốc) vẫn được làm nóng.
+  try { await layNgayHD(db, ngay, doMoi, Date.now()); } catch (e) { loiHD = maLoi(e); }
   for (const moc of MOC) await layNgay(db, ngay, doMoi, Date.now(), moc);
+  return loiHD;
+}
+function ghiLoiHD(tk, ma) {
+  tk.loi_hd++; tk.ma_loi_hd = tk.ma_loi_hd || ma;
 }
 
 async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs, chiDoiChieu = false }, soThuTu) {
   const bd = Date.now();
-  const tk = { ly_do: lyDo, ngay_cua_so: 0, ngay_thua: 0, muc_khoang: 0, bi_huy: false, loi: null, ms: 0 };
+  const tk = { ly_do: lyDo, ngay_cua_so: 0, ngay_thua: 0, muc_khoang: 0, bi_huy: false, loi: null, loi_hd: 0, ma_loi_hd: null, ms: 0 };
   const huy = () => the !== soThuTu || (typeof dung === 'function' && dung());
   try {
     const doMoi = QL.docDoMoi(db);
@@ -66,7 +75,7 @@ async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs, chiDoiCh
     const trongCuaSo = Math.min(tongNgay, CUA_SO_NAP_NGAY + 1);
     for (let i = 0; i < trongCuaSo; i++) {
       if (huy()) { tk.bi_huy = true; return tk; }
-      await mot(db, ngayLui(den, i), nguonXuat);
+      { const l = await mot(db, ngayLui(den, i), nguonXuat); if (l) ghiLoiHD(tk, l); }
       tk.ngay_cua_so++;
       await nghi(nghiCuaSoMs);
     }
@@ -83,7 +92,7 @@ async function chayLuot(db, { lyDo, env, dung, nghiCuaSoMs, nghiThuaMs, chiDoiCh
     // (3) lượt thưa: các ngày cũ hơn cửa sổ nạp
     for (let i = trongCuaSo; i < tongNgay; i++) {
       if (huy()) { tk.bi_huy = true; return tk; }
-      await mot(db, ngayLui(den, i), nguonXuat);
+      { const l = await mot(db, ngayLui(den, i), nguonXuat); if (l) ghiLoiHD(tk, l); }
       tk.ngay_thua++;
       await nghi(nghiThuaMs);
     }
@@ -110,11 +119,14 @@ function batDauNong(db, opts = {}) {
   const chay = hangCho.then(async () => {
     if (the !== soThuTu) return { da_chay: false, ly_do: 'DA_CO_LUOT_MOI' }; // lượt mới hơn đã xếp hàng: bỏ lượt này
     trangThai.dangChay = true; trangThai.lan++;
+    const logLoi = opts.logLoi || ((m) => console.warn(m));
     const tk = await chayLuot(db, { lyDo, env, dung: opts.dung, chiDoiChieu, nghiCuaSoMs: opts.nghiCuaSoMs ?? NGHI_CUA_SO_MS, nghiThuaMs: opts.nghiThuaMs ?? NGHI_THUA_MS }, soThuTu);
     trangThai.dangChay = false; trangThai.lanCuoi = tk;
     try {
       log(`[ktt-nong] ${lyDo}: ${tk.ngay_cua_so}+${tk.ngay_thua} ngày, ${tk.muc_khoang} mục khoảng trong ${tk.ms} ms${tk.bi_huy ? ' (bị hủy)' : ''}${tk.loi ? ` (lỗi: ${tk.loi})` : ''}`);
     } catch (e) { /* log hỏng không được làm sập */ }
+    // KTT-DC-3: bó «Hướng đóng chuyến» hỏng ở ≥ 1 ngày: cảnh báo (mức warn), chỉ có số ngày và mã lỗi — không số liệu nghiệp vụ, không mã bưu gửi.
+    if (tk.loi_hd > 0) { try { logLoi(`[ktt-nong] ${lyDo}: bó «Hướng đóng chuyến nội tỉnh» lỗi ở ${tk.loi_hd} ngày (mã: ${tk.ma_loi_hd}); các mục còn lại vẫn đã làm nóng`); } catch (e) { /* log hỏng không được làm sập */ } }
     return { da_chay: true, ...tk };
   }).catch(() => ({ da_chay: false, ly_do: 'LOI' }));
   hangCho = chay;

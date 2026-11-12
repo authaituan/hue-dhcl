@@ -213,6 +213,7 @@ test('log thường: một dòng, chỉ có số ngày / mili giây (không số
 
 test('KTT-DC-2: làm nóng gồm bó «Hướng đóng chuyến nội tỉnh» (mỗi ngày một bó): kết quả sau nóng = nguội, lần mở đầu không tính thêm ngày nào; KTT_WARM=0 thì không có bó nào', async () => {
   const nguoi = await Api.huongDongTongHop(db, Q12);
+  const nguoi7 = await Api.huongDongTongHop(db, Q7); // KTT-DC-3 (nợ DC-2b điểm 5): kết quả NGUỘI của cửa sổ 7 ngày, tính trước khi xóa cache — để so với kết quả sau làm nóng
   assert.ok(nguoi.meta.n2 > 0 && nguoi.meta.tong_noi_tinh > 0, 'dữ liệu giả có hàng nội tỉnh đến 6 BCVH để so');
   Api.xoaCache();
   let tinh = 0; const goc = HDC.tinhNgay; HDC.tinhNgay = (...a) => { tinh++; return goc(...a); };
@@ -221,10 +222,35 @@ test('KTT-DC-2: làm nóng gồm bó «Hướng đóng chuyến nội tỉnh» (
     assert.equal(kq.da_chay, true); assert.equal(kq.loi, null);
     assert.equal(Api.thongKe().ngay_hd, 12); assert.equal(tinh, 12, 'mỗi ngày của cửa sổ làm nóng đúng một lần');
     assert.deepEqual(await Api.huongDongTongHop(db, Q12), nguoi, 'kết quả sau làm nóng = kết quả nguội');
-    assert.deepEqual(await Api.huongDongTongHop(db, Q7), (await Api.huongDongTongHop(db, Q7)), 'cửa sổ 7 ngày nằm trong 12 ngày đã nóng');
+    assert.deepEqual(await Api.huongDongTongHop(db, Q7), nguoi7, 'cửa sổ 7 ngày nằm trong 12 ngày đã nóng: kết quả sau làm nóng = kết quả nguội');
     assert.equal(tinh, 12, 'mở trang sau làm nóng không tính thêm ngày nào');
     Api.xoaCache(); tinh = 0;
     const tat = await Nong.batDauNong(db, { env: { KTT_WARM: '0', KTT_WARM_NGAY: '12' }, ...NHANH });
     assert.equal(tat.da_chay, false); assert.equal(Api.thongKe().ngay_hd, 0); assert.equal(tinh, 0);
   } finally { HDC.tinhNgay = goc; }
+});
+
+test('KTT-DC-3: lỗi của bó «Hướng đóng chuyến» lúc làm nóng KHÔNG làm mất làm nóng /luu-thoat: các ngày vẫn có bó B và luu-thoat hai mốc, tiến trình không sập, log mức cảnh báo không có số liệu', async () => {
+  Api.xoaCache();
+  const canhBao = []; const logs = [];
+  const goc = HDC.tinhNgay; let ngayLoi = 0;
+  HDC.tinhNgay = () => { ngayLoi++; throw Object.assign(new Error('KTT-DEMO-LOI 12345 nội dung nhạy cảm'), { code: 'LOI_HD_GIA' }); };
+  try {
+    const kq = await Nong.batDauNong(db, { env: ENV12, ...NHANH, log: (m) => logs.push(m), logLoi: (m) => canhBao.push(m) });
+    assert.equal(kq.da_chay, true); assert.equal(kq.loi, null, 'lượt không bị coi là hỏng');
+    assert.equal(kq.ngay_cua_so + kq.ngay_thua, 12, 'đủ 12 ngày, không dừng giữa chừng');
+    assert.equal(kq.loi_hd, 12); assert.equal(kq.ma_loi_hd, 'LOI_HD_GIA'); assert.equal(ngayLoi, 12);
+    const tk = Api.thongKe();
+    assert.equal(tk.ngay_hd, 0, 'bó HD hỏng không vào cache');
+    assert.equal(tk.ngay_b, 12, 'bó B vẫn nóng'); assert.equal(tk.ngay, 24, 'luu-thoat hai mốc của 12 ngày vẫn nóng');
+    assert.equal(canhBao.length, 1); assert.match(canhBao[0], /^\[ktt-nong\] SAU_NAP: bó «Hướng đóng chuyến nội tỉnh» lỗi ở 12 ngày \(mã: LOI_HD_GIA\)/);
+    assert.doesNotMatch(canhBao[0], /KTT-DEMO|12345|nhạy cảm/);
+    assert.equal(logs.length, 1); assert.doesNotMatch(logs[0], /lỗi:/, 'dòng log thường không đổi hình dạng');
+    // log cảnh báo hỏng cũng không làm sập
+    const r2 = await Nong.batDauNong(db, { env: { KTT_WARM_NGAY: '1' }, ...NHANH, logLoi: () => { throw new Error('log hỏng'); } });
+    assert.equal(r2.da_chay, true);
+  } finally { HDC.tinhNgay = goc; }
+  Api.xoaCache();
+  const tot = await Nong.batDauNong(db, { env: ENV12, ...NHANH });
+  assert.equal(tot.loi_hd, 0); assert.equal(Api.thongKe().ngay_hd, 12, 'lần sau chạy lại bình thường');
 });

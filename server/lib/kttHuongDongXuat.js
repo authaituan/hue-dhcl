@@ -48,7 +48,8 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
     `Hàng nội tỉnh đóng vào 530100 (${soNgay} ngày)`, `Hàng nội tỉnh đóng thẳng BCVH (${soNgay} ngày)`, `Tỷ lệ đóng vào 530100 (${soNgay} ngày)`, 'Hàng chưa rõ cách đóng (xếp riêng)',
     'Số chuyến thư vào 530100', 'Trong đó số chuyến có lẫn hàng nội tỉnh', `Số ngày có đóng vào 530100 hàng nội tỉnh (trên ${soNgay} ngày)`, 'Số ngày vừa đóng thẳng BCVH vừa đóng vào 530100 hàng nội tỉnh',
     'Hàng nội tỉnh đóng vào 530100 (7 ngày)', 'Hàng nội tỉnh đóng thẳng BCVH (7 ngày)', 'Tỷ lệ đóng vào 530100 (7 ngày)',
-    'Khối lượng hàng nội tỉnh đóng vào 530100 (kg)', 'Dịch vụ đóng sai nhiều nhất', 'Số bưu gửi của dịch vụ đó', 'BCVH nhận nhiều nhất', 'Số bưu gửi nhận tại BCVH đó', 'Hàng có chuyến thư ghi ngày cũ (xếp riêng, chưa rõ nguyên nhân)'];
+    'Khối lượng hàng nội tỉnh đóng vào 530100 (kg)', 'Dịch vụ đóng sai nhiều nhất', 'Số bưu gửi của dịch vụ đó', 'BCVH nhận nhiều nhất', 'Số bưu gửi nhận tại BCVH đó', 'Hàng có chuyến thư ghi ngày cũ (xếp riêng, chưa rõ nguyên nhân)',
+    'Hàng trong túi lớn', 'Hàng trong túi nhỏ (được phép)', 'Số túi lớn', 'Túi lớn nhất (số bưu gửi)'];
   dongTieuDe(ws, head, 70);
   const bay = new Map(tong7.theo_noi_dong.map((r) => [r.ma, r]));
   const ty = (a, b) => (a + b < HD.NGUONG_IT_MAU ? 'Ít mẫu' : a / (a + b));
@@ -60,16 +61,18 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
       r.dong_vao_530100, r.dong_thang_bcvh, r.it_mau ? 'Ít mẫu' : r.ty_le, r.chua_ro, r.chuyen_vao_530100, r.chuyen_co_lan, r.ngay_co_dong_vao_530100, r.ngay_dong_ca_hai_kieu,
       s.dong_vao_530100, s.dong_thang_bcvh, ty(s.dong_vao_530100, s.dong_thang_bcvh), r.kg,
       r.dich_vu_nhieu_nhat ? `${r.dich_vu_nhieu_nhat.ma || ''} – ${r.dich_vu_nhieu_nhat.ten || ''}` : '', r.dich_vu_nhieu_nhat ? r.dich_vu_nhieu_nhat.so : '',
-      r.bcvh_dich_nhieu_nhat ? (r.bcvh_dich_nhieu_nhat.ten || r.bcvh_dich_nhieu_nhat.ma) : '', r.bcvh_dich_nhieu_nhat ? r.bcvh_dich_nhieu_nhat.so : '', r.dong_chuyen_ghi_ngay_cu]);
+      r.bcvh_dich_nhieu_nhat ? (r.bcvh_dich_nhieu_nhat.ten || r.bcvh_dich_nhieu_nhat.ma) : '', r.bcvh_dich_nhieu_nhat ? r.bcvh_dich_nhieu_nhat.so : '', r.dong_chuyen_ghi_ngay_cu,
+      r.bg_trong_tui_lon, r.bg_trong_tui_nho, r.so_tui_lon, r.so_bg_tui_lon_nhat]);
   }
   const tongN1 = tong.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0);
   const rt = ws.addRow(['', '', `TỔNG ${tong.theo_noi_dong.length} nơi`, '', '', '', m.dong_vao_530100, tongN1, m.dong_vao_530100 / (m.dong_vao_530100 + tongN1 || 1), tong.theo_noi_dong.reduce((s, r) => s + r.chua_ro, 0),
-    m.so_chuyen_vao_530100, m.so_chuyen_co_lan, '', '', tong7.meta.dong_vao_530100, tong7.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0), '', tong.theo_noi_dong.reduce((s, r) => s + r.kg, 0), '', '', '', '', m.so_hang_ghi_ngay_cu]);
+    m.so_chuyen_vao_530100, m.so_chuyen_co_lan, '', '', tong7.meta.dong_vao_530100, tong7.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0), '', tong.theo_noi_dong.reduce((s, r) => s + r.kg, 0), '', '', '', '', m.so_hang_ghi_ngay_cu,
+    m.bg_trong_tui_lon, m.bg_trong_tui_nho, m.so_tui_lon, '']);
   rt.font = { bold: true }; rt.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
   ws.addRow([]);
   const gc = ws.addRow([`Ghi chú: toàn tập có ${so(m.tong_noi_tinh)} bưu gửi nội tỉnh đến 6 BCVH: đóng thẳng BCVH ${so(m.n1)}, đóng vào 530100 ${so(m.n2)}, chưa rõ cách đóng ${so(m.n3)}. Trong số đóng vào 530100, ${so(m.do_6_bcvh_dong)} bưu gửi do chính 6 BCVH đóng (không liệt kê ở bảng này) và ${so(m.dong_vao_530100_toan_tap)} do các nơi còn lại. Hàng chưa rõ cách đóng vừa có túi gửi vào 530100 vừa có túi chuyển tiếp nên KHÔNG cộng vào cột «đóng vào 530100». Cột «Số chuyến thư vào 530100» là mọi chuyến thư gửi vào 530100 của nơi đó (cả hàng đi tỉnh khác, không sai). Ô có tổng dưới ${HD.NGUONG_IT_MAU} bưu gửi ghi «Ít mẫu», không tính tỷ lệ.`]);
   ws.mergeCells(gc.number, 1, gc.number, 14); gc.alignment = { wrapText: true, vertical: 'top' }; gc.height = 78;
-  [8, 11, 24, 10, 28, 30, 16, 16, 14, 16, 14, 16, 16, 18, 14, 14, 14, 16, 30, 12, 18, 14, 18].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  [8, 11, 24, 10, 28, 30, 16, 16, 14, 16, 14, 16, 16, 18, 14, 14, 14, 16, 30, 12, 18, 14, 18, 16, 16, 12, 16].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   const ultimo = 2 + tong.theo_noi_dong.length;
   ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: ultimo, column: head.length } };
   for (let r = 3; r <= ultimo + 1; r++) { for (const c of [9, 17]) { ws.getCell(r, c).numFmt = '0.0%'; ws.getCell(r, c).alignment = { horizontal: 'right' }; } ws.getCell(r, 18).numFmt = '#,##0.0'; }
@@ -109,6 +112,12 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
     [`• Hàng hoàn không tính. Ngày hàng đến là ngày giờ quét túi đến Khai thác, thiếu thì ngày xác nhận BD10 đến. Có ${so(m.so_hang_ghi_ngay_cu)} bưu gửi (thuộc ${so(m.so_chuyen_thu_ghi_ngay_cu)} chuyến thư) đóng vào 530100 có chuyến thư ghi ngày cũ (cách ngày hàng đến hơn ${HD.NGAY_LECH_CU} ngày): chưa rõ là ghi nhận chậm hay đóng sai nên không dùng nhóm này để nhắc đơn vị.`],
     [`• Khoảng thời gian: ${soNgay} ngày từ ${dmy(k.tuNgay)} đến ${dmy(k.denNgay)}; dữ liệu Khai thác cập nhật đến ${doMoi || 'chưa có'}. Ngày cuối của khoảng có thể chưa trọn nếu dữ liệu mới đến giữa ngày.`],
     ['• Tên bưu cục, loại hình, BĐX lấy từ danh mục bưu cục của hệ thống; mã không có trong danh mục ghi «chưa có tên».'],
+    [''],
+    ['TÚI LỚN VÀ TÚI NHỎ', true],
+    [`• Một chuyến thư vào 530100 có thể có một hoặc nhiều túi, mỗi túi nhiều bưu gửi. Túi ít bưu gửi nội tỉnh thì vẫn được phép đóng vào 530100; chỉ túi nhiều bưu gửi nội tỉnh mới là túi lớn (đóng nhầm nhiều). Ngưỡng đang dùng: túi có từ ${so(m.nguong_bg_trong_tui)} bưu gửi nội tỉnh trở lên là túi lớn.`],
+    ['• «Số bưu gửi trong túi» chỉ đếm bưu gửi nội tỉnh đến 6 bưu cục văn hóa Huế (kể cả hàng chưa rõ cách đóng nằm trong túi đó); không đếm hàng đi tỉnh khác nằm cùng túi.'],
+    [`• Cột «Hàng trong túi lớn» + «Hàng trong túi nhỏ (được phép)» = «Hàng nội tỉnh đóng vào 530100». Toàn bảng: ${so(m.bg_trong_tui_lon)} bưu gửi trong túi lớn, ${so(m.bg_trong_tui_nho)} trong túi nhỏ; ${so(m.so_tui_lon)} túi lớn của ${so(m.so_noi_dong_tui_lon)} nơi. «Túi lớn nhất (số bưu gửi)» là túi nhiều bưu gửi nhất của nơi đó trong khoảng ngày.`],
+    ['• Túi lớn chưa chắc là đóng sai: có thể có lý do vận hành (ví dụ khách hàng lớn gom hàng). Số này cho biết nơi nào nên rà trước, không phải kết luận.'],
     ['• Thời gian hàng bị mất thêm do khai thác lại: KHÔNG đưa vào file này vì chưa đo đủ chắc.'],
     ['• Cột dịch vụ và BCVH: chỉ nêu dịch vụ / bưu cục văn hóa có nhiều hàng đóng vào 530100 nhất của nơi đó.']
   ];
@@ -116,24 +125,26 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
   return wb;
 }
 
+const COT_CHI_TIET_TUI = ['Ngưỡng túi lớn (số bưu gửi nội tỉnh)', 'Số bưu gửi nội tỉnh trong túi', 'Mã túi', 'Túi lớn: có/không'];
 const COT_CHI_TIET = ['Số hiệu bưu gửi', 'Mã nơi đóng', 'Tên nơi đóng', 'Ngày hàng đến Khai thác', 'Ngày đóng chuyến thư', 'Chuyến thư ghi ngày cũ (hơn 7 ngày): có/không', 'Số chuyến thư', 'Loại chuyến thư', 'Ngày ghi trên chuyến thư', 'Mã dịch vụ của chuyến', 'BCVH đích', 'Dịch vụ', 'Khối lượng (kg)'];
 
 /** Nội dung file chi tiết (có số hiệu bưu gửi). `dongN2`, `dongN3`: các dòng của bó (kttHuongDong.tinhNgay.rows) đã lọc, bỏ 6 BCVH. */
-function taoChiTiet({ k, dongN2, dongN3, danhMuc }) {
+function taoChiTiet({ k, dongN2, dongN3, danhMuc, nguong }) {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Khai thác Huế';
   const mk = (ten, rs, ghiChu) => {
     const s = wb.addWorksheet(ten, { views: [{ state: 'frozen', ySplit: 3 }] });
-    s.addRow([CANH_BAO_CHI_TIET]); s.getRow(1).font = { bold: true, color: { argb: 'FFC00000' } }; s.mergeCells(1, 1, 1, 13);
-    s.addRow([ghiChu]); s.mergeCells(2, 1, 2, 13); s.getRow(2).font = { italic: true };
-    dongTieuDe(s, COT_CHI_TIET, 45);
+    s.addRow([CANH_BAO_CHI_TIET]); s.getRow(1).font = { bold: true, color: { argb: 'FFC00000' } }; s.mergeCells(1, 1, 1, 17);
+    s.addRow([ghiChu]); s.mergeCells(2, 1, 2, 17); s.getRow(2).font = { italic: true };
+    dongTieuDe(s, [...COT_CHI_TIET, ...COT_CHI_TIET_TUI], 45);
     for (const r of rs) {
       const p = danhMuc[r.noi];
       s.addRow([r.shbg, r.noi, p ? p.ten : 'chưa có tên', r.ngay_den, r.ngay_dong || '', r.ngay_dong ? (r.cu ? 'có' : 'không') : 'không rõ', r.so_chuyen, r.loai_chuyen, r.nam_chuyen, r.dv_chuyen,
-        r.bcvh ? `${r.bcvh} ${DQ.TEN_BCVH[r.bcvh] || ''}`.trim() : '', `${r.dv} ${r.dv_ten}`.trim(), r.kg === null ? '' : r.kg]);
+        r.bcvh ? `${r.bcvh} ${DQ.TEN_BCVH[r.bcvh] || ''}`.trim() : '', `${r.dv} ${r.dv_ten}`.trim(), r.kg === null ? '' : r.kg,
+        nguong, r.bg_tui, r.ma_tui, HD.laTuiLon(r.bg_tui, nguong) ? 'có' : 'không']);
     }
-    [18, 11, 26, 16, 16, 18, 12, 12, 14, 14, 20, 36, 14].forEach((w, i) => { s.getColumn(i + 1).width = w; });
-    s.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + rs.length, column: 13 } };
+    [18, 11, 26, 16, 16, 18, 12, 12, 14, 14, 20, 36, 14, 16, 16, 18, 12].forEach((w, i) => { s.getColumn(i + 1).width = w; });
+    s.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + rs.length, column: 17 } };
     s.getColumn(13).numFmt = '0.000';
   };
   mk('Chi tiết', dongN2, `Mỗi dòng một bưu gửi hàng nội tỉnh đóng vào 530100 (${k.ngays.length} ngày từ ${dmy(k.tuNgay)} đến ${dmy(k.denNgay)}), không kể 6 BCVH đóng. Không có tên, địa chỉ, số điện thoại người gửi hoặc người nhận.`);
@@ -149,4 +160,4 @@ async function ghiWorkbook(out, wb, rows, dungChua = () => false) {
   return { rows, aborted: false };
 }
 
-module.exports = { taoNhacViec, taoChiTiet, ghiWorkbook, CANH_BAO_CHI_TIET, COT_CHI_TIET, TOP_MA_TRAN, tranDong: X.tranDong, LoiKtt: Q.LoiKtt };
+module.exports = { taoNhacViec, taoChiTiet, ghiWorkbook, CANH_BAO_CHI_TIET, COT_CHI_TIET, COT_CHI_TIET_TUI, TOP_MA_TRAN, tranDong: X.tranDong, LoiKtt: Q.LoiKtt };
