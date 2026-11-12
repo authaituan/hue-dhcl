@@ -14,6 +14,7 @@
 //   GET /api/ktt/doi-chieu/thoi-gian-nhan | chua-thay ?tu=&den=[&ma_bcvh=]   KTT-16-3: độ trễ BCVH nhận (p50/p90), chuyến mất dấu, nguồn «chưa thấy» (doc 44 mục 9)
 //   GET /api/ktt/doi-chieu/danh-gia?tu=&den=[&ma_bcvh=]   KTT-16-4: khối «Đánh giá» sinh từ số thật + số dòng sheet 1–6 (lib/kttDanhGiaDoiChieu.js, doc 44 mục 10)
 //   GET /api/ktt/doi-chieu/xuat/{chua-thay,chuyen-mat-dau,chuyen-tiep-chua-quet-di,thay-o-bcvh-khac,chuyen-cham,da-co-tai-dich}?tu=&den=[&ma_bcvh=]   KTT-16-4: file .xlsx sheet 1–6 («Thông tin» + sheet dữ liệu), lib/kttDoiChieuXuat.js
+//   GET /api/ktt/huong-dong-chuyen/tong-hop?tu=&den=[&loai_hinh=] , /huong-dong-chuyen/danh-sach?tu=&den=&noi_dong=[&nhom=&chi_ghi_ngay_cu=&page=&page_size=] , /xuat/huong-dong-chuyen?tu=&den=&kieu=nhac_viec|chi_tiet[&loai_hinh=]   KTT-DC-1 (lib/kttHuongDong.js, doc 42 mục 23)
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
@@ -75,6 +76,10 @@ router.get('/hang-den/theo-duong-thu', xuLy('hang-den/theo-duong-thu', (req) => 
 router.get('/hang-den/xe', xuLy('hang-den/xe', (req) => Api.hangDenXe(db, req.query)));
 router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query)));
 
+// KTT-DC-1: tab «Hướng đóng chuyến nội tỉnh» (nơi đóng chuyến thư vào 530100 có lẫn hàng nội tỉnh đến 6 BCVH) — chỉ THÊM (lõi lib/kttHuongDong.js, docs/ai/42_KTT_API.md mục 23).
+router.get('/huong-dong-chuyen/tong-hop', xuLy('huong-dong-chuyen/tong-hop', (req) => Api.huongDongTongHop(db, req.query)));
+router.get('/huong-dong-chuyen/danh-sach', xuLy('huong-dong-chuyen/danh-sach', (req) => Api.huongDongDanhSach(db, req.query)));
+
 // KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu — chỉ đọc arrival_*, không chạm bảng ktt_* (docs/ai/44_KTT_DO_PHU_BCVH.md).
 router.get('/doi-chieu/do-phu', xuLy('doi-chieu/do-phu', (req) => Api.doPhuBcvh(db, req.query)));
 // KTT-16-2: ghép KTT ↔ BCVH, tổng hợp đối chiếu (hai thanh xếp chồng), cache theo ngày + làm nóng (docs/ai/44 mục 8).
@@ -108,7 +113,7 @@ const xuatFile = (kind, chuanBi, boLoc) => async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${kq.tenFile}"`);
   res.setHeader('Cache-Control', 'no-store');
   try {
-    const r = await Xuat.ghiXlsx(res, kq, () => khachDi);
+    const r = kq.viet ? await kq.viet(res, () => khachDi) : await Xuat.ghiXlsx(res, kq, () => khachDi); // KTT-DC-1: kq.viet = bên gọi tự ghi (workbook thường, nhiều sheet)
     ghiNhatKy(r.rows, r.aborted ? 'aborted' : 'ok');
   } catch (err) {
     console.error(`Ktt xuat ${kind} error:`, err && err.code ? err.code : (err && err.name));
@@ -125,6 +130,10 @@ router.get('/xuat/khong-dat-14h', xuatFile('khong-dat-14h', (req) => Api.xuatKho
 // KTT-8d: sheet 8 «Hôm sau / chưa đi trên 24 giờ» — cùng tham số với /danh-sach (trừ page, page_size).
 router.get('/xuat/hom-sau-chua-di', xuatFile('hom-sau-chua-di', (req) => Api.xuatHomSauChuaDi(db, req.query, nguoiXuat(req)),
   (kq) => ({ loai: kq.loai, duong_thu: kq.loc.duongThu, noi_gui: kq.loc.noiGui, huong: kq.loc.huong, hang_hoan: kq.loc.hangHoan, ma_bcvh: kq.loc.maBcvh })));
+
+// KTT-DC-1: hai file Excel của tab «Hướng đóng chuyến nội tỉnh» (kieu=nhac_viec: không số hiệu bưu gửi; kieu=chi_tiet: có số hiệu thật) — nhật ký ghi kiểu, KHÔNG ghi số hiệu.
+router.get('/xuat/huong-dong-chuyen', xuatFile('huong-dong-chuyen', (req) => Api.xuatHuongDong(db, req.query, nguoiXuat(req)),
+  (kq) => ({ kieu: kq.kieu, loai_hinh: kq.loaiHinh })));
 
 // KTT-16-4: xuất xlsx sheet 1–6 của trang Đối chiếu — mỗi sheet một route, cùng tham số tu, den, ma_bcvh như tong-hop.
 for (const [sheet, ten] of Object.entries(Api.TEN_SHEET_XUAT_DC)) {
