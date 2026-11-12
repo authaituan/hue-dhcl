@@ -14,7 +14,7 @@ const Api = require('./kttApi');
 const QL = require('./kttLuuThoatQuery');
 const S = require('./kttLuuThoat');
 
-const { layNgay, layNgayB, layNgayDC, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY } = Api.noiBoNong;
+const { layNgay, layNgayB, layNgayDC, layNgayHD, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY } = Api.noiBoNong;
 const NGAY_TOI_DA = 31;
 const NGHI_CUA_SO_MS = 25; // giữa hai ngày trong cửa sổ nạp
 const NGHI_THUA_MS = 150; // giữa hai ngày của lượt thưa
@@ -37,6 +37,7 @@ async function mot(db, ngay, doMoi) {
   // Cùng khóa cache với request: /luu-thoat (hai mốc) và bó B (B1–B6, danh-sach, tong-quan).
   await layNgayDC(db, ngay, doMoi, Date.now()); // KTT-16-2: một lượt duyệt cho bó đối chiếu VÀ bó B (layNgayDC cất cả hai)
   await layNgayB(db, ngay, doMoi, Date.now());
+  await layNgayHD(db, ngay, doMoi, Date.now()); // KTT-DC-2: bó «Hướng đóng chuyến nội tỉnh» (một lượt duyệt riêng mỗi ngày), cùng khóa cache với request
   for (const moc of MOC) await layNgay(db, ngay, doMoi, Date.now(), moc);
 }
 

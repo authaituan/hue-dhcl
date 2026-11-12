@@ -1350,5 +1350,5 @@ module.exports = {
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, doiChieuDanhGia, xuatDoiChieu, TEN_SHEET_XUAT_DC, trangThaiXuat, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
   // KTT-15: chỉ cho kttNong.js (làm nóng) gọi ĐÚNG các hàm mà request đang dùng, nên kết quả nóng = kết quả nguội và request giữa chừng dùng chung lần tính (chiaSe).
-  noiBoNong: { layNgay, layNgayB, layNgayDC, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY }
+  noiBoNong: { layNgay, layNgayB, layNgayDC, layNgayHD, layHangDen, layGioLapBd10, dongBoPhienBan, ngayLui, CUA_SO_NAP_NGAY }
 };

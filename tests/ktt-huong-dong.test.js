@@ -63,8 +63,8 @@ function bg(t, shbg, o = {}) { them('ktt_buu_gui', { from_pos: t.from_pos, to_po
 const sh = () => `KTT-DEMO-${String(++nShbg).padStart(4, '0')}`;
 const NT = '530101'; // nơi gửi BD10 nội tỉnh giả (bắt đầu 53)
 /** N2: túi ĐẾN vào 530100 (từ nơi `from`, chuyến `so`, đóng lúc `dong`) + túi ĐI sang BCVH `nhan`. */
-function n2(from, ngay, { so = '1', dong = `${ngay} 04:00:00`, nhan = TH, gam = 100, dv = 'E', gioDi = `${ngay} 20:00:00`, diemGui = NT, shbg = sh() } = {}) {
-  const t = tui({ chieu: 'DEN', luong: 'KHAI_THAC_DEN', from_pos: from, mail_trip_number: so, co_mo_tui: 1, chuyen_thu_gio_dong: dong, gio_quet_tui_den: `${ngay} 05:30:00`, bd10_den_xnd: `${ngay} 05:30:00`, bd10_den_ma_diem_gui: diemGui, bd10_den_so_hieu: `BD10-D-${seq}` });
+function n2(from, ngay, { so = '1', dong = `${ngay} 04:00:00`, quet = `${ngay} 05:30:00`, xnd = `${ngay} 05:30:00`, nhan = TH, gam = 100, dv = 'E', gioDi = `${ngay} 20:00:00`, diemGui = NT, shbg = sh() } = {}) {
+  const t = tui({ chieu: 'DEN', luong: 'KHAI_THAC_DEN', from_pos: from, mail_trip_number: so, co_mo_tui: 1, chuyen_thu_gio_dong: dong, gio_quet_tui_den: quet, bd10_den_xnd: xnd, bd10_den_ma_diem_gui: diemGui, bd10_den_so_hieu: `BD10-D-${seq}` });
   bg(t, shbg, { khoi_luong_thuc_te_g: gam, dich_vu_code: dv });
   const d = tui({ chieu: 'DI', luong: 'KHAI_THAC_DI', to_pos: nhan, bd10_di_gio_di: gioDi, gio_quet_tui_di: gioDi, bd10_di_so_hieu: `BD10-I-${seq}`, bd10_di_ma_diem_nhan: nhan });
   bg(d, shbg);
@@ -247,8 +247,9 @@ test('tổng hợp: N1 / N2 / N3, nơi ít mẫu, chuyến lẫn / sạch, hai k
   assert.equal(d.dong_vao_530100, 2); assert.equal(d.dong_thang_bcvh, 21); assert.equal(d.it_mau, false); assert.ok(Math.abs(d.ty_le - 2 / 23) < 1e-9);
   assert.equal(d.ngay_dong_ca_hai_kieu, 1); assert.deepEqual(d.dich_vu_nhieu_nhat, { ma: 'C', ten: 'EMS giả', so: 2 });
   assert.equal(noi['535710'].nhom_loai_hinh, 'KHAC'); assert.equal(noi['535710'].loai_hinh, 'KT2');
-  assert.equal(m.so_chuyen_ghi_ngay_cu, 1);
-  assert.equal(m.so_chuyen_ghi_ngay_cu_ca_6_bcvh, 1);
+  assert.equal(m.so_hang_ghi_ngay_cu, 1);
+  assert.equal(m.so_hang_ghi_ngay_cu_ca_6_bcvh, 1);
+  assert.equal(m.so_chuyen_thu_ghi_ngay_cu, 1);
   // đẳng thức bắt buộc
   const tongNoi = r.body.theo_noi_dong.reduce((s, y) => s + y.dong_vao_530100, 0);
   assert.equal(tongNoi, m.dong_vao_530100);
@@ -400,4 +401,109 @@ test('nhãn trong mã xuất và trả lời không có từ cấm (quét nguồ
   const nguon = fs.readFileSync(path.join(__dirname, '..', 'server', 'lib', 'kttHuongDongXuat.js'), 'utf8');
   const nhan = nguon.split('\n').filter((l) => !/^\s*\/\/|^\/\*|^ \*/.test(l)).join('\n');
   assert.ok(!RE_TU_CAM.test(nhan), 'kttHuongDongXuat.js: không từ cấm trong nhãn');
+});
+
+// ---------- KTT-DC-2: trong_loc, đổi tên khóa, chuyến lẫn nhất quán, các ca biên ----------
+const DONG = (r) => r.theo_noi_dong.reduce((t, y) => t + y.dong_vao_530100, 0);
+const LAN = (r) => r.theo_noi_dong.reduce((t, y) => t + y.chuyen_co_lan, 0);
+function danhMucThem(...ds) { for (const [code, name, type] of ds) them('post_offices', { id: `po-${code}`, code, name, type, commune_id: 'c1' }); }
+
+test('trong_loc: luôn có; không lọc = số toàn tập; từng nhóm khớp bảng, theo_ngay, số nơi, chuyến lẫn; 5 nhóm cộng = toàn tập; tỷ trọng 8 nơi đầu', async () => {
+  duLieu();
+  const full = (await goi(TH_URL, 'admin')).body; const m = full.meta; const t = m.trong_loc;
+  assert.deepEqual(Object.keys(t).sort(), ['chuyen_co_lan', 'dong_vao_530100', 'loai_hinh', 'so_noi_dong', 'ty_trong_8_noi_dau'].sort());
+  assert.equal(t.loai_hinh, null);
+  assert.equal(t.dong_vao_530100, m.dong_vao_530100_toan_tap, 'không lọc = toàn tập'); assert.equal(t.dong_vao_530100, DONG(full)); assert.equal(t.dong_vao_530100, full.theo_ngay.reduce((s, y) => s + y.dong_vao_530100, 0));
+  assert.equal(t.so_noi_dong, m.so_noi_dong); assert.equal(t.so_noi_dong, full.theo_noi_dong.length);
+  assert.equal(t.chuyen_co_lan, m.so_chuyen_co_lan); assert.equal(t.chuyen_co_lan, LAN(full));
+  const top8 = full.theo_noi_dong.slice(0, 8).reduce((s, y) => s + y.dong_vao_530100, 0);
+  assert.ok(Math.abs(t.ty_trong_8_noi_dau - top8 / t.dong_vao_530100) < 1e-12);
+  assert.equal(top8, t.dong_vao_530100, 'dữ liệu giả có 6 nơi (≤ 8): 8 nơi đầu = tất cả -> tỷ trọng 1');
+  const cong = { dong: 0, noi: 0, lan: 0 };
+  for (const g of HDC.LOAI_HINH) {
+    const b = (await goi(`${TH_URL}&loai_hinh=${g}`, 'admin')).body; const x = b.meta.trong_loc;
+    assert.equal(x.loai_hinh, g);
+    assert.equal(x.dong_vao_530100, DONG(b), g); assert.equal(x.dong_vao_530100, b.meta.dong_vao_530100, g); assert.equal(x.dong_vao_530100, b.theo_ngay.reduce((s, y) => s + y.dong_vao_530100, 0), g);
+    assert.equal(x.so_noi_dong, b.theo_noi_dong.length, g); assert.equal(x.chuyen_co_lan, LAN(b), g); assert.equal(x.chuyen_co_lan, b.meta.so_chuyen_co_lan, g);
+    const t8 = b.theo_noi_dong.slice(0, 8).reduce((s, y) => s + y.dong_vao_530100, 0);
+    assert.ok(Math.abs(x.ty_trong_8_noi_dau - t8 / x.dong_vao_530100) < 1e-12, g);
+    assert.equal(b.meta.n2, m.n2, 'khóa cũ của meta vẫn là toàn tập');
+    cong.dong += x.dong_vao_530100; cong.noi += x.so_noi_dong; cong.lan += x.chuyen_co_lan;
+  }
+  assert.deepEqual(cong, { dong: t.dong_vao_530100, noi: t.so_noi_dong, lan: t.chuyen_co_lan }, 'tổng 5 nhóm = toàn tập');
+});
+
+test('trong_loc: ty_trong_8_noi_dau tính trên 8 nơi đầu của phạm vi lọc (không phải toàn tập); null khi phạm vi rỗng', async () => {
+  danhMuc();
+  for (let i = 0; i < 10; i++) { const ma = `5362${String(i).padStart(2, '0')}`; danhMucThem([ma, `VHX ${i}`, 'VHX']); for (let j = 0; j < 10 - i; j++) n2(ma, '2026-10-20', { so: String(i + 1) }); } // 10, 9, ..., 1 hàng
+  capOk('2026-10-23 10:00:00');
+  const r = (await goi(`${TH_URL}&loai_hinh=VHX`, 'admin')).body; const x = r.meta.trong_loc;
+  assert.equal(x.dong_vao_530100, 55); assert.equal(x.so_noi_dong, 10);
+  assert.ok(Math.abs(x.ty_trong_8_noi_dau - (10 + 9 + 8 + 7 + 6 + 5 + 4 + 3) / 55) < 1e-12, '52 / 55');
+  const rong = (await goi(`${TH_URL}&loai_hinh=GD1`, 'admin')).body.meta.trong_loc; // không nơi GD1 nào có hàng
+  assert.deepEqual(rong, { loai_hinh: 'GD1', dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null });
+});
+
+test('không có dữ liệu: trong_loc có, toàn 0, ty_trong_8_noi_dau null', async () => {
+  const b = (await goi(TH_URL, 'admin')).body;
+  assert.deepEqual(b.meta.trong_loc, { loai_hinh: null, dong_vao_530100: 0, so_noi_dong: 0, chuyen_co_lan: 0, ty_trong_8_noi_dau: null });
+});
+
+test('khóa mới: so_hang_ghi_ngay_cu (bưu gửi) và so_chuyen_thu_ghi_ngay_cu (chuyến thư khác nhau); KHÔNG còn khóa cũ trong JSON và Excel', async () => {
+  duLieu();
+  n2('536001', '2026-10-20', { so: '3', dong: '2026-09-01 08:00:00' }); n2('536001', '2026-10-20', { so: '3', dong: '2026-09-01 08:00:00' }); // thêm 2 hàng cùng chuyến ghi ngày cũ (cùng khóa 6 cột)
+  n2('536100', '2026-10-22', { so: '11', dong: '2026-09-05 08:00:00' }); // chuyến ghi cũ khác (nơi khác)
+  const b = (await goi(TH_URL, 'admin')).body; const m = b.meta;
+  assert.equal(m.so_hang_ghi_ngay_cu, 4, '1 + 2 + 1 bưu gửi'); assert.equal(m.so_chuyen_thu_ghi_ngay_cu, 2, 'chuyến 3 (536001) và chuyến 11 (536100)');
+  assert.equal(m.so_hang_ghi_ngay_cu, b.theo_noi_dong.reduce((s, y) => s + y.dong_chuyen_ghi_ngay_cu, 0));
+  assert.ok(m.so_chuyen_thu_ghi_ngay_cu <= m.so_hang_ghi_ngay_cu);
+  assert.equal(m.so_hang_ghi_ngay_cu_ca_6_bcvh, m.so_hang_ghi_ngay_cu, 'dữ liệu giả: 6 BCVH không có hàng ghi cũ');
+  assert.ok(!JSON.stringify(b).includes('so_chuyen_ghi_ngay_cu'), 'không còn khóa cũ (kể cả ..._ca_6_bcvh)');
+  const l = (await goi(`${TH_URL}&loai_hinh=VHX`, 'admin')).body.meta; assert.equal(l.so_hang_ghi_ngay_cu, 3); assert.equal(l.so_chuyen_thu_ghi_ngay_cu, 1);
+  const { wb } = await docXlsx(XUAT_NV, 'admin'); const txt = [];
+  wb.eachSheet((ws) => ws.eachRow((row) => row.eachCell((c) => txt.push(String(c.value && c.value.richText ? c.value.richText.map((x) => x.text).join('') : (c.value ?? ''))))));
+  const gt = txt.find((t) => t.startsWith('• Hàng hoàn không tính'));
+  assert.match(gt, /Có 4 bưu gửi \(thuộc 2 chuyến thư\)/);
+  assert.ok(!txt.some((t) => t.includes('so_chuyen_ghi_ngay_cu')));
+});
+
+test('ranh «Ít mẫu»: đúng 19 (N1 + N2) là ít mẫu, ty_le null; đúng 20 là tính tỷ lệ', async () => {
+  danhMuc(); danhMucThem(['536210', 'VHX 19', 'VHX'], ['536211', 'VHX 20', 'VHX'], ['536212', 'VHX 21', 'VHX']);
+  for (const [ma, soN2, soN1] of [['536210', 12, 7], ['536211', 13, 7], ['536212', 14, 7]]) { for (let i = 0; i < soN2; i++) n2(ma, '2026-10-20', { so: '1' }); for (let i = 0; i < soN1; i++) n1(ma, '2026-10-20', { so: '9' }); }
+  capOk('2026-10-23 10:00:00');
+  const by = Object.fromEntries((await goi(TH_URL, 'admin')).body.theo_noi_dong.map((y) => [y.ma, y]));
+  assert.deepEqual([by['536210'].it_mau, by['536210'].ty_le], [true, null], '12 + 7 = 19');
+  assert.equal(by['536211'].it_mau, false); assert.ok(Math.abs(by['536211'].ty_le - 13 / 20) < 1e-12, '13 + 7 = 20');
+  assert.equal(by['536212'].it_mau, false); assert.ok(Math.abs(by['536212'].ty_le - 14 / 21) < 1e-12);
+  const { wb } = await docXlsx(XUAT_NV, 'admin'); const ws = wb.getWorksheet('Nhắc việc'); const hien = {};
+  ws.eachRow((row, i) => { if (i >= 3 && typeof row.getCell(1).value === 'number') hien[row.getCell(2).value] = row.getCell(9).value; });
+  assert.equal(hien['536210'], 'Ít mẫu'); assert.ok(Math.abs(hien['536211'] - 0.65) < 1e-12);
+});
+
+test('nơi chỉ có hàng N3: không có trong bảng; chuyến của nó không tính vào chuyến lẫn; meta = Σ bảng = trong_loc = Σ theo_ngay; danh sách chua_ro vẫn có', async () => {
+  duLieu();
+  danhMucThem(['536300', 'VHX chỉ N3', 'VHX']);
+  n3('536300', '2026-10-21', { so: '5' }); n3('536300', '2026-10-22', { so: '6' });
+  const b = (await goi(TH_URL, 'admin')).body; const m = b.meta;
+  assert.ok(!b.theo_noi_dong.some((y) => y.ma === '536300'), 'bảng không liệt kê nơi chỉ có N3');
+  assert.equal(m.so_noi_dong, 6, 'số nơi không đổi (vẫn 6 nơi có N2)');
+  assert.equal(m.n3, 3, 'N3 vẫn nằm ở số toàn tập: 1 của 531120 + 2 của 536300');
+  assert.equal(m.so_chuyen_co_lan, LAN(b)); assert.equal(m.so_chuyen_co_lan, m.trong_loc.chuyen_co_lan);
+  assert.equal(m.so_chuyen_co_lan, b.theo_ngay.reduce((s, y) => s + y.chuyen_co_lan, 0), 'chuyến của các nơi trong bảng không trải nhiều ngày ở dữ liệu giả');
+  assert.ok(m.so_chuyen_vao_530100 >= m.so_chuyen_co_lan + 2, 'chuyến vào 530100 tính MỌI nơi (kể cả nơi chỉ có N3): 2 chuyến thêm');
+  const lh = (await goi(`${TH_URL}&loai_hinh=VHX`, 'admin')).body; assert.equal(lh.meta.trong_loc.chuyen_co_lan, LAN(lh)); assert.equal(lh.meta.so_chuyen_co_lan, LAN(lh));
+  const ds = (await goi(`/api/ktt/huong-dong-chuyen/danh-sach${Q}&noi_dong=536300&nhom=chua_ro`, 'admin')).body;
+  assert.equal(ds.pagination.total, 2); assert.equal(ds.items[0].ten_noi_dong, 'VHX chỉ N3'); assert.equal((await goi(`/api/ktt/huong-dong-chuyen/danh-sach${Q}&noi_dong=536300`, 'admin')).body.pagination.total, 0);
+  const ct = (await docXlsx(XUAT_CT, 'admin')).wb; assert.equal(ct.getWorksheet('Chưa chắc').rowCount - 3, 3, 'N3 của nơi chỉ có N3 vẫn có ở sheet «Chưa chắc»');
+});
+
+test('hàng không có giờ quét túi đến: tính theo ngày xác nhận BD10 đến; không có cả hai thì không vào cửa sổ', async () => {
+  danhMuc();
+  n2('536001', '2026-10-21', { so: '4', quet: null, xnd: '2026-10-21 05:40:00' }); // chỉ có xác nhận BD10 đến
+  n2('536001', '2026-10-22', { so: '5', quet: null, xnd: null }); // không có cả hai: ngoài mọi cửa sổ
+  capOk('2026-10-23 10:00:00');
+  const b = (await goi(TH_URL, 'admin')).body;
+  assert.equal(b.meta.n2, 1); assert.equal(b.meta.trong_loc.dong_vao_530100, 1);
+  assert.deepEqual(b.theo_ngay.map((y) => y.dong_vao_530100), [0, 1, 0]);
+  const ds = (await goi(DS_URL, 'admin')).body; assert.equal(ds.pagination.total, 1); assert.equal(ds.items[0].ngay_den, '2026-10-21');
 });

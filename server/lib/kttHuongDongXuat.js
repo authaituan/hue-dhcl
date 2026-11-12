@@ -64,7 +64,7 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
   }
   const tongN1 = tong.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0);
   const rt = ws.addRow(['', '', `TỔNG ${tong.theo_noi_dong.length} nơi`, '', '', '', m.dong_vao_530100, tongN1, m.dong_vao_530100 / (m.dong_vao_530100 + tongN1 || 1), tong.theo_noi_dong.reduce((s, r) => s + r.chua_ro, 0),
-    m.so_chuyen_vao_530100, m.so_chuyen_co_lan, '', '', tong7.meta.dong_vao_530100, tong7.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0), '', tong.theo_noi_dong.reduce((s, r) => s + r.kg, 0), '', '', '', '', m.so_chuyen_ghi_ngay_cu]);
+    m.so_chuyen_vao_530100, m.so_chuyen_co_lan, '', '', tong7.meta.dong_vao_530100, tong7.theo_noi_dong.reduce((s, r) => s + r.dong_thang_bcvh, 0), '', tong.theo_noi_dong.reduce((s, r) => s + r.kg, 0), '', '', '', '', m.so_hang_ghi_ngay_cu]);
   rt.font = { bold: true }; rt.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
   ws.addRow([]);
   const gc = ws.addRow([`Ghi chú: toàn tập có ${so(m.tong_noi_tinh)} bưu gửi nội tỉnh đến 6 BCVH: đóng thẳng BCVH ${so(m.n1)}, đóng vào 530100 ${so(m.n2)}, chưa rõ cách đóng ${so(m.n3)}. Trong số đóng vào 530100, ${so(m.do_6_bcvh_dong)} bưu gửi do chính 6 BCVH đóng (không liệt kê ở bảng này) và ${so(m.dong_vao_530100_toan_tap)} do các nơi còn lại. Hàng chưa rõ cách đóng vừa có túi gửi vào 530100 vừa có túi chuyển tiếp nên KHÔNG cộng vào cột «đóng vào 530100». Cột «Số chuyến thư vào 530100» là mọi chuyến thư gửi vào 530100 của nơi đó (cả hàng đi tỉnh khác, không sai). Ô có tổng dưới ${HD.NGUONG_IT_MAU} bưu gửi ghi «Ít mẫu», không tính tỷ lệ.`]);
@@ -106,7 +106,7 @@ function taoNhacViec({ ds, k, tong, tong7, danhMuc, doMoi }) {
     ['• 531120 Khách hàng lớn: chưa biết có thoả thuận đóng chuyến thư riêng hay không.'],
     ['• 530000 «Huế» là bưu cục loại GD1, xếp vào nhóm «Bưu cục địa phương».'],
     [`• Mã thuộc loại hình khác (không phải GD1, GD2, GD3, VHX, PH1, PH2) được ghi đúng loại hình trong danh mục, không tự xếp nhóm: ${khac.length ? khac.join('; ') : 'không có'}.`],
-    [`• Hàng hoàn không tính. Ngày hàng đến là ngày giờ quét túi đến Khai thác, thiếu thì ngày xác nhận BD10 đến. Có ${so(m.so_chuyen_ghi_ngay_cu)} bưu gửi đóng vào 530100 có chuyến thư ghi ngày cũ (cách ngày hàng đến hơn ${HD.NGAY_LECH_CU} ngày): chưa rõ là ghi nhận chậm hay đóng sai nên không dùng nhóm này để nhắc đơn vị.`],
+    [`• Hàng hoàn không tính. Ngày hàng đến là ngày giờ quét túi đến Khai thác, thiếu thì ngày xác nhận BD10 đến. Có ${so(m.so_hang_ghi_ngay_cu)} bưu gửi (thuộc ${so(m.so_chuyen_thu_ghi_ngay_cu)} chuyến thư) đóng vào 530100 có chuyến thư ghi ngày cũ (cách ngày hàng đến hơn ${HD.NGAY_LECH_CU} ngày): chưa rõ là ghi nhận chậm hay đóng sai nên không dùng nhóm này để nhắc đơn vị.`],
     [`• Khoảng thời gian: ${soNgay} ngày từ ${dmy(k.tuNgay)} đến ${dmy(k.denNgay)}; dữ liệu Khai thác cập nhật đến ${doMoi || 'chưa có'}. Ngày cuối của khoảng có thể chưa trọn nếu dữ liệu mới đến giữa ngày.`],
     ['• Tên bưu cục, loại hình, BĐX lấy từ danh mục bưu cục của hệ thống; mã không có trong danh mục ghi «chưa có tên».'],
     ['• Thời gian hàng bị mất thêm do khai thác lại: KHÔNG đưa vào file này vì chưa đo đủ chắc.'],
