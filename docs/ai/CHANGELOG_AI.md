@@ -2,6 +2,15 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-12] - KTT-DC-2: hoàn thiện API «Hướng đóng chuyến nội tỉnh» (backend; nhánh `feat/ktt-dc-2-trong-loc-ten-khoa`, chưa giao diện)
+
+- `meta.trong_loc` (luôn có): `{ loai_hinh, dong_vao_530100, so_noi_dong, chuyen_co_lan, ty_trong_8_noi_dau }` tính trên đúng phạm vi đang lọc (không lọc = số toàn tập không kể 6 BCVH); các khóa `meta` cũ chỉ thêm, không đổi nghĩa. Đẳng thức có test: Σ bảng = `trong_loc.dong_vao_530100` = Σ `theo_ngay`; `so_noi_dong` = số dòng bảng; Σ 5 nhóm = toàn tập.
+- Đổi tên (không giữ tên cũ): `meta.so_chuyen_ghi_ngay_cu` → `so_hang_ghi_ngay_cu` (đếm BƯU GỬI, 137), `..._ca_6_bcvh` → `so_hang_ghi_ngay_cu_ca_6_bcvh` (385); thêm `so_chuyen_thu_ghi_ngay_cu` (số chuyến thư khác nhau, 17 trên bản sao). Sửa nhãn Excel «Giải thích», test, `42_KTT_API.md`.
+- Chuyến lẫn nhất quán: `meta.so_chuyen_co_lan` = `trong_loc.chuyen_co_lan` = Σ cột bảng; chỉ tính chuyến của các nơi liệt kê trong bảng (có N2 > 0, không 6 BCVH). Nơi chỉ có hàng N3 không có trong bảng và chuyến của nó không tính (trước đây `meta` đếm còn bảng thì không, lệch 1 đơn vị). Dữ liệu thật không đổi (1.119).
+- Làm nóng nền: `kttNong.mot()` gọi thêm `layNgayHD` (`kttApi.noiBoNong`); lần mở đầu `tong-hop` 30 ngày 8,1–8,5 s → 24–36 ms; lượt khởi động 36,0 / 40,1 → 51,8 / 49,3 s, lượt sau nạp 11,0 / 11,1 → 12,3 / 12,6 s, RSS đỉnh 403 / 455 → 405 / 399 MB (trong ngưỡng đã ghi ở `43_KTT_DI_CUNG_NGAY_API.md` mục 13.5). Không đổi hành vi các làm nóng cũ.
+- Test: `tests/ktt-huong-dong.test.js` +7 (trong_loc từng nhóm và 8 nơi đầu, không dữ liệu, khóa mới và không còn khóa cũ, ranh 19 / 20, nơi chỉ có N3, hàng chỉ có xác nhận BD10 đến); `tests/ktt-nong.test.js` +1 (làm nóng gồm bó HD, kết quả nóng = nguội, `KTT_WARM=0`). Không thêm file test mới.
+- Kiểm: `npm run build` mã 0; `npm test` 1411 test, 0 lỗi, 10 bỏ qua (tăng đúng 8 so với 1403). Số đối chiếu trên bản sao DB giữ nguyên: 23.991, 7.208 + 1.595 = 8.803, 53 nơi, top 8 = 75,3%, chuyến lẫn 1.119, chuyến vào 530100 4.684.
+
 ## [2026-11-11] - KTT-DC-1: API tab «Hướng đóng chuyến nội tỉnh» (backend; nhánh `feat/ktt-dc-1-api-huong-dong-chuyen`, chưa giao diện)
 
 - Thêm `server/lib/kttHuongDong.js` (bó MỖI NGÀY từ `kttDiNgayQuery.chayShbg`, hướng `noi_tinh_den_bcvh`, không hàng hoàn; N1 / N2 / N3 theo `nguonHang` + `coCaHaiLoaiTui`; nơi đóng = `ktt_tui.from_pos`; chuyến thư = khóa 6 cột; **ngày = ngày hàng đến** như màn B theo KTT-DT-5b; 6 BCVH lấy từ `kttTinh.MA_BCVH_HUE`, loại khỏi bảng nhưng nối số ở `meta.do_6_bcvh_dong`), `server/lib/kttHuongDongXuat.js` (hai file Excel), nối ở `kttApi.js` (`layNgayHD` + cache theo ngày, `huongDongTongHop`, `huongDongDanhSach`, `xuatHuongDong`) và `server/routes/ktt.js` (3 route: `/huong-dong-chuyen/tong-hop`, `/huong-dong-chuyen/danh-sach`, `/xuat/huong-dong-chuyen`; `xuatFile` thêm nhánh `kq.viet`). Chỉ THÊM, không đổi hành vi route / lõi cũ.

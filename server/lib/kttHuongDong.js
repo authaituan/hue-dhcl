@@ -153,10 +153,21 @@ function tongHop(ds, danhMuc, loaiHinh = null) {
   });
   const tongDong = dongNoi.reduce((s, r) => s + r.dong_vao_530100, 0);
   const n2ToanTap = tong.n2 - do6;
-  const soChuyenCu = dongNoi.reduce((s, r) => s + r.dong_chuyen_ghi_ngay_cu, 0);
-  // số chuyến lẫn / vào 530100 toàn khoảng (không tính 6 BCVH, theo bộ lọc): hợp các chuyến, không cộng theo nơi để chuyến nhiều ngày không bị đếm đôi
+  const soHangCu = dongNoi.reduce((s, r) => s + r.dong_chuyen_ghi_ngay_cu, 0);
+  // KTT-DC-2: số CHUYẾN THƯ khác nhau có ≥ 1 bưu gửi N2 mang cờ ngày cũ (cùng phạm vi bảng: không 6 BCVH, theo bộ lọc); khóa chuyến = khóa 6 cột nên chuyến nhiều ngày không bị đếm đôi
+  const trongBang = new Set(dongNoi.map((r) => r.ma));
+  const chuyenCu = new Set();
+  for (const d of ds) for (const r of d.rows) if (r.cu && !r.chua_ro && r.chuyen && trongBang.has(r.noi)) chuyenCu.add(r.chuyen);
+  // «Chuyến lẫn» (KTT-DC-2, docs/ai/42 mục 23): chuyến thư vào 530100 có ≥ 1 bưu gửi nội tỉnh đến 6 BCVH N2 hoặc N3, của các nơi LIỆT KÊ trong bảng (không 6 BCVH, có N2 > 0, theo bộ lọc).
+  // Nơi chỉ có N3 không có trong bảng nên chuyến của nó không tính — để Σ cột chuyen_co_lan của bảng = meta = trong_loc. Hợp các chuyến, không cộng theo nơi để chuyến nhiều ngày không bị đếm đôi.
+  // «Chuyến vào 530100» (so_chuyen_vao_530100) thì vẫn tính MỌI nơi đóng không phải 6 BCVH thuộc nhóm đang lọc (kể cả nơi không có hàng nội tỉnh), nên lớn hơn Σ cột bảng.
   const lanAll = new Set(); const chuyenAll = new Set();
-  for (const g of gop.values()) { if (!trongLoc(g.f)) continue; for (const k of g.lan) lanAll.add(k); for (const k of g.chuyen) chuyenAll.add(k); }
+  for (const g of gop.values()) {
+    if (!trongLoc(g.f)) continue;
+    for (const k of g.chuyen) chuyenAll.add(k);
+    if (g.n2 > 0) for (const k of g.lan) lanAll.add(k);
+  }
+  const top8 = dongNoi.slice(0, 8).reduce((s, r) => s + r.dong_vao_530100, 0);
   const meta = {
     cach_tinh_ngay: { ten: 'ngay_hang_den', mo_ta: 'Ngày hàng đến Khai thác như màn mục 2 «Nội tỉnh đến → 6 BCVH Huế»: ngày của giờ quét túi đến, thiếu thì ngày xác nhận BD10 đến (KTT-DT-5b). Không dùng ngày đóng chuyến thư.', cot_db: 'ktt_tui.gio_quet_tui_den, thiếu thì ktt_tui.bd10_den_xnd' },
     noi_dong: 'ktt_tui.from_pos (≙ Mailtrip.StartingCode), chuyến thư = khóa 6 cột (from_pos, to_pos, mail_trip_type, service_code, year, mail_trip_number)',
@@ -165,12 +176,15 @@ function tongHop(ds, danhMuc, loaiHinh = null) {
     tong_noi_tinh: tong.tong, n1: tong.n1, n2: tong.n2, n3: tong.n3,
     do_6_bcvh_dong: do6, dong_vao_530100: tongDong, dong_vao_530100_toan_tap: n2ToanTap, so_noi_dong: dongNoi.length,
     so_chuyen_vao_530100: chuyenAll.size, so_chuyen_co_lan: lanAll.size,
-    so_chuyen_ghi_ngay_cu: soChuyenCu, so_chuyen_ghi_ngay_cu_ca_6_bcvh: soChuyenCu + (loaiHinh === null ? cu6 : 0),
+    so_hang_ghi_ngay_cu: soHangCu, so_hang_ghi_ngay_cu_ca_6_bcvh: soHangCu + (loaiHinh === null ? cu6 : 0), so_chuyen_thu_ghi_ngay_cu: chuyenCu.size,
+    // KTT-DC-2: số «trong phạm vi đang lọc» — luôn có; không lọc thì bằng số toàn tập (không 6 BCVH). Giao diện dùng khối này, không tự cộng.
+    trong_loc: { loai_hinh: loaiHinh, dong_vao_530100: tongDong, so_noi_dong: dongNoi.length, chuyen_co_lan: lanAll.size, ty_trong_8_noi_dau: tongDong > 0 ? top8 / tongDong : null },
     ghi_chu: [
-      'Hàng «chưa rõ» (N3, có cả túi vào 530100 lẫn túi chuyển tiếp) KHÔNG cộng vào số hàng đóng vào 530100; vẫn tính chuyến chứa nó là «chuyến có lẫn».',
+      'Hàng «chưa rõ» (N3, có cả túi vào 530100 lẫn túi chuyển tiếp) KHÔNG cộng vào số hàng đóng vào 530100; chuyến chứa nó vẫn là «chuyến có lẫn» nếu nơi đóng có trong bảng (nơi chỉ có hàng N3, không có hàng đóng vào 530100, không liệt kê ở bảng và chuyến của nơi đó không tính vào chuyến lẫn).',
       'Nơi đóng chuyến thư có thể không phải điểm chấp nhận gốc (nơi gom, chặng sau). 6 BCVH không liệt kê làm nơi đóng; số của 6 BCVH nằm ở meta.do_6_bcvh_dong.',
       '«Ngày đóng cả hai kiểu» = số ngày trong khoảng nơi đó vừa có hàng đóng thẳng BCVH vừa có hàng đóng vào 530100. Tỷ lệ chỉ tính khi (đóng thẳng + đóng vào) ≥ 20.',
-      'Cờ chuyen_ghi_ngay_cu = ngày hàng đến cách ngày đóng chuyến thư hơn 7 ngày (nghi ghi nhận chậm); không dùng nhóm này để nhắc đơn vị.'
+      'Cờ chuyen_ghi_ngay_cu = ngày hàng đến cách ngày đóng chuyến thư hơn 7 ngày (nghi ghi nhận chậm); không dùng nhóm này để nhắc đơn vị. meta.so_hang_ghi_ngay_cu đếm BƯU GỬI; meta.so_chuyen_thu_ghi_ngay_cu đếm CHUYẾN THƯ khác nhau.',
+      'meta.trong_loc = số trong phạm vi đang lọc (không lọc thì bằng số toàn tập không kể 6 BCVH); meta.n1, n2, n3, tong_noi_tinh luôn là toàn tập.'
     ]
   };
   return { meta, theo_noi_dong: dongNoi, theo_loai_hinh: theoLoai, theo_ngay: theoNgay };

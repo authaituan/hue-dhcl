@@ -12,6 +12,7 @@ const K = require('../server/lib/kttNapCap');
 const Api = require('../server/lib/kttApi');
 const Nong = require('../server/lib/kttNong');
 const TS = require('../server/lib/thamSo');
+const HDC = require('../server/lib/kttHuongDong');
 
 const PORT = 5975;
 const TH = '533140'; const HT = '535470'; const HTHUY = '536250';
@@ -208,4 +209,22 @@ test('log thường: một dòng, chỉ có số ngày / mili giây (không số
   const logs = [];
   await Nong.batDauNong(db, { env: { KTT_WARM_NGAY: '2' }, lyDo: 'KHOI_DONG', nghiCuaSoMs: 0, nghiThuaMs: 0, log: (m) => logs.push(m) });
   assert.equal(logs.length, 1); assert.match(logs[0], /^\[ktt-nong\] KHOI_DONG: 2\+0 ngày, 0 mục khoảng trong \d+ ms$/);
+});
+
+test('KTT-DC-2: làm nóng gồm bó «Hướng đóng chuyến nội tỉnh» (mỗi ngày một bó): kết quả sau nóng = nguội, lần mở đầu không tính thêm ngày nào; KTT_WARM=0 thì không có bó nào', async () => {
+  const nguoi = await Api.huongDongTongHop(db, Q12);
+  assert.ok(nguoi.meta.n2 > 0 && nguoi.meta.tong_noi_tinh > 0, 'dữ liệu giả có hàng nội tỉnh đến 6 BCVH để so');
+  Api.xoaCache();
+  let tinh = 0; const goc = HDC.tinhNgay; HDC.tinhNgay = (...a) => { tinh++; return goc(...a); };
+  try {
+    const kq = await Nong.batDauNong(db, { env: ENV12, ...NHANH });
+    assert.equal(kq.da_chay, true); assert.equal(kq.loi, null);
+    assert.equal(Api.thongKe().ngay_hd, 12); assert.equal(tinh, 12, 'mỗi ngày của cửa sổ làm nóng đúng một lần');
+    assert.deepEqual(await Api.huongDongTongHop(db, Q12), nguoi, 'kết quả sau làm nóng = kết quả nguội');
+    assert.deepEqual(await Api.huongDongTongHop(db, Q7), (await Api.huongDongTongHop(db, Q7)), 'cửa sổ 7 ngày nằm trong 12 ngày đã nóng');
+    assert.equal(tinh, 12, 'mở trang sau làm nóng không tính thêm ngày nào');
+    Api.xoaCache(); tinh = 0;
+    const tat = await Nong.batDauNong(db, { env: { KTT_WARM: '0', KTT_WARM_NGAY: '12' }, ...NHANH });
+    assert.equal(tat.da_chay, false); assert.equal(Api.thongKe().ngay_hd, 0); assert.equal(tinh, 0);
+  } finally { HDC.tinhNgay = goc; }
 });
