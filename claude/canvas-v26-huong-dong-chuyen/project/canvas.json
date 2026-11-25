@@ -1,0 +1,57 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-12T08:30:00Z"
+ },
+ "title": "Canvas v26 — Hướng đóng chuyến nội tỉnh (túi lớn, ngưỡng 15)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1366,
+   "h": 2200,
+   "expand": "fill",
+   "title": "03/11/2026 — 502 BG, 5 túi, 5 nơi"
+  },
+  "Ngay-08-11.dc.html": {
+   "x": 1446,
+   "y": 0,
+   "w": 1366,
+   "h": 1950,
+   "expand": "fill",
+   "title": "08/11/2026 — 166 BG, 1 túi, 1 nơi"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Ngay-08-11.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Canvas v26 · Hướng đóng chuyến nội tỉnh · số thật 03/11 và 08/11/2026",
+   "kind": "title1",
+   "maxW": 2800
+  },
+  "n1": {
+   "x": 0,
+   "y": 2320,
+   "w": 520,
+   "text": "Bỏ khối «Những gì khối này không nói được» và hai tab «Tồn tại và Gợi ý», «Dữ liệu rà soát tổng thể». Bảng hướng đi ghi rõ đơn vị là bưu gửi, thêm cột «Số túi». Dựng theo chuẩn trang «Đối chiếu BCVH» (canvas v22): thanh menu tím, tiêu đề Playfair 28, thanh trang con có tab mới, hàng bộ lọc, mỗi khối là một thẻ trắng viền #E4D5AE với tiêu đề Playfair 22, thẻ số viền trên màu, thanh trên nền kem, đầu bảng nền kem #FAF5E8, thẻ «LƯU Ý / THÔNG TIN» viền trái. Vị trí tab sau «Đối chiếu BCVH» là đề xuất.",
+   "fill": "orange"
+  },
+  "n2": {
+   "x": 600,
+   "y": 2320,
+   "w": 520,
+   "text": "Bảng «túi đi hướng nào»: số theo BCVH là minh hoạ, tổng khớp số thật. Ngày 08/11 chỉ một nơi (531120): bảng hướng đi một dòng, một dòng gộp «2 nơi chỉ có túi dưới 15 BG».",
+   "fill": "blue"
+  }
+ }
+}
