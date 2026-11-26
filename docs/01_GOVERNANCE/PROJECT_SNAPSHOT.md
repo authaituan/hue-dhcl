@@ -19,18 +19,18 @@ It is designed to be the shortest safe entry point for a new AI session while pr
 
 | Field | Value |
 | --- | --- |
-| Current Phase | `Module «Hàng tại KTT» (Trung tâm Khai thác, POS 530100): API và giao diện đã vào main (PR #136–#140); đang đối chiếu số liệu độc lập (KTT-10 xong, KTT-10b sắp làm).` |
-| Current Ticket | `KTT-10b — đo song song hai mốc «giờ đi» cho chỉ tiêu «đạt 14 giờ» (manifest đã có, chuẩn bị giao Claude Code (Sonnet)).` |
-| Next Ticket | `Chưa có — PO chọn. Đề xuất: nối «Chỉ tiêu 14 giờ» hai mốc + chọn mốc vào giao diện Lưu thoát (sau khi PO duyệt canvas). Việc đang mở khác: mục «Việc còn lại» trong HANDOVER-KTT-27-10-2026 (KTT-8d, các trang canvas chưa dựng, hàng hoàn 531120 → 5 BCVH khác).` |
-| Last PO Status | `28/10/2026: KTT-10b đã merge (PR #141). KTT-10c (nối moc_chi_tieu vào /api/ktt/luu-thoat, xlsx hai cột mốc) — CTO duyệt khảo sát 5.1, Claude Code làm xong 5.2–5.5 trên nhánh feat/ktt-10c-api-xlsx, CHỜ CTO duyệt + PO commit. 27/10/2026: PO đã quyết Q1 (giữ hàng hoàn «chỉ đích Thuận Hóa»), Q2 (đo song song hai mốc), Q3 (gộp kiểm 18/10 và 20/10 vào KTT-10b). Nghiệm thu giao diện KTT-9a/9b: CHƯA RÕ — PO xác nhận.` |
-| Current Branch | `main` tại `be5a5f4` (merge PR #140). Nhánh làm KTT-10b: CHƯA ĐẶT — PO đặt khi giao việc.` |
-| Current Manifest | `docs/ai/tickets/KTT-10b.md` |
-| Current State | `Hệ thống: đăng nhập/tài khoản, Quản lý mạng lưới, Dashboard động, Hàng tại KTT (Lưu thoát trong ngày).` |
+| Current Phase | `Đóng dự án (KTT-CLOSE-1, 26/11/2026). Module «Hàng tại KTT» (Trung tâm Khai thác, POS 530100) đã vào main đến PR #180: 7 tab Tổng quan, Lưu thoát trong ngày, A · Hàng đến, B · Tỷ lệ đi cùng ngày, B · Lịch xe / đường thư, Đối chiếu BCVH, Hướng đóng chuyến nội tỉnh (src/components/ktt/KttView.jsx:14-22; tab cuối do KTT-DC-1…DC-6d).` |
+| Current Ticket | `Không có ticket mở (đóng dự án). KTT-CLOSE-1 chỉ cập nhật tài liệu (nhánh docs/ktt-close-1), xong khi PO commit.` |
+| Next Ticket | `Không có. Nợ còn lại ở docs/ai/05_BACKLOG.md mục 22–29 (nợ riêng của tab Hướng đóng chuyến nội tỉnh, thứ tự 6 BCVH chép tay, thiếu mục CHANGELOG); PO quyết có mở ticket nào không.` |
+| Last PO Status | `26/11/2026: PR #176–#180 (KTT-DC-5, DC-5c, DC-6, DC-6c, DC-6d) đã merge, main d838101. Dòng «cao thứ k trong n ngày»: PO giữ «30 ngày», không đổi sang 29 như canvas (04_DECISIONS.md #129 mục 4). PO nghiệm thu bằng mắt DC-6c / DC-6d và kiểm độc lập của hai ticket này: CHƯA RÕ — PO xác nhận. Trạng thái PO cũ hơn (KTT-9a/9b, KTT-10b/10c…): xem docs/ai/CHANGELOG_AI.md, repo không ghi lại lần nghiệm thu.` |
+| Current Branch | `main tại d838101 (merge PR #180). Nhánh tài liệu docs/ktt-close-1 (từ d838101), chưa commit.` |
+| Current Manifest | `Không có (đóng dự án). Ticket KTT-CLOSE-1 nằm ở thư mục chưa theo dõi «Claude outputs/»; manifest gần nhất trong repo: docs/ai/tickets/KTT-KD-1.md.` |
+| Current State | `Hệ thống: đăng nhập/tài khoản (5 vai trò), Quản lý mạng lưới, Dashboard động, Sản lượng đến, Xử lý và tỷ lệ phát, Nạp dữ liệu nguồn, Hàng tại KTT (7 tab). Kiểm 26/11/2026 trên d838101: npm test 1435 ca (1425 pass, 0 fail, 10 skip), npm run build mã thoát 0.` |
 | Technical Status | **Trạng thái kỹ thuật THẬT (routes, schema, tính năng) nằm ở [`docs/ai/00_SNAPSHOT.md`](../ai/00_SNAPSHOT.md) — đọc file đó, KHÔNG suy đoán từ file này.** |
-| Runtime Status | `Chưa triển khai lên NAS (đích: Synology NAS, cổng 18060). Có bản thử trên máy PO dùng bản sao DB.` |
-| PO UI Check Required | `Tuỳ theo ticket cụ thể — xem quy tắc ở PO_UI_ACCEPTANCE_WORKFLOW.md. KTT-10b: không (không đổi giao diện).` |
+| Runtime Status | `NAS Synology, cổng 18060: quy trình ở docs/ai/06_DEPLOYMENT.md mục 6 và docs/ai/20_NAS_HUONG_DAN_CHAY.md. Repo KHÔNG ghi NAS đang chạy bản nào hay đã golive lên main hiện tại chưa: 20_… tự gọi là bản demo, còn mục «Chưa kiểm chứng» (build prebuilt, vân tay SFTP, TZ, WAL trên volume), chưa có sao lưu định kỳ / HTTPS (20_…:3-4, :78-82); ticket GOLIVE-0 (31/10/2026, ngoài docs: Claude outputs/GOLIVE-0-ra-soat-toan-du-an.md:6) ghi «NAS đang chạy bản KTT-10d». Bản đang chạy trên NAS, golive d838101 đã làm chưa, nạp danh sách hàng hoàn (ItemReturn) trước golive: PO xác nhận.` |
+| PO UI Check Required | `Tuỳ theo ticket cụ thể — xem quy tắc ở PO_UI_ACCEPTANCE_WORKFLOW.md. KTT-CLOSE-1: không (chỉ tài liệu).` |
 | Governance Version | `V2 Active — tích hợp song song với docs/ai/.` |
-| Last Updated | `2026-10-27` |
+| Last Updated | `2026-11-26` |
 
 ## 3. Usage Rules
 
@@ -67,4 +67,4 @@ Fresh-chat onboarding chain:
 4. [docs/ai/00_SNAPSHOT.md](../ai/00_SNAPSHOT.md) — **technical state, BẮT BUỘC đọc, không được bỏ qua**
 5. Manifest đang mở (`docs/ai/tickets/…`, theo trường `Current Manifest`). Khung prompt cho Dev AI: `docs/ai/prompts/`.
 
-Tài liệu trạng thái cần đồng bộ với `main` (ticket DOCS riêng, mỗi file một commit): `docs/ai/00_SNAPSHOT.md` (mốc đồng bộ ghi `799c40b`, main đã đến `be5a5f4`), `docs/ai/05_BACKLOG.md` (cập nhật lần cuối 10/10), `docs/ai/CHANGELOG_AI.md` (cần kiểm mục KTT-9a, KTT-9b).
+Tài liệu trạng thái (đồng bộ ở KTT-CLOSE-1, 26/11/2026, main `d838101`): `docs/ai/00_SNAPSHOT.md` (mốc đồng bộ `d838101`; chỉ các hàng KTT của tab Hướng đóng chuyến, mục Kiểm thử và mục nợ được rà; các hàng KTT khác vẫn ghi theo ticket cũ, một số ghi «chưa giao diện» dù đã có tab — chưa rà), `docs/ai/05_BACKLOG.md` (mục 22–29 là nợ khi đóng dự án; mục 1–21 chưa rà lại), `docs/ai/CHANGELOG_AI.md` (có mục KTT-CLOSE-1 ở đầu; chưa có mục riêng cho KTT-9a, KTT-9b, KTT-10d, KTT-DC-4, DC-6, DC-6c, DC-6d — grep `^## ` ngày 26/11/2026).

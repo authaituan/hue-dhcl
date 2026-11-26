@@ -1,7 +1,7 @@
 # 📝 BACKLOG — Việc tiếp theo
 
 > File "sống", chỉ giữ VIỆC CÒN LẠI. Lịch sử: `CHANGELOG_AI.md`. Trạng thái: `00_SNAPSHOT.md`.
-> Cập nhật lần cuối: 2026-10-10 (SANLUONG-4a6).
+> Cập nhật lần cuối: 2026-11-26 (KTT-CLOSE-1: chỉ thêm mục 22–28 «Nợ còn mở khi đóng dự án» ở cuối; các mục 1–21 CHƯA rà lại, nhiều mục là trạng thái 10/10–28/10/2026 — trạng thái thật xem `00_SNAPSHOT.md`).
 
 ## Cần PO quyết định
 1. Đã có công cụ nạp seed (`scripts/import-seed.js`, NEWPROJ-2). **Còn lại**: cơ chế tạo ADMIN đầu tiên khi triển khai
@@ -70,3 +70,13 @@
 
 ## Hàng tại KTT
 21. ~~**Làm nóng cache B + Lưu thoát** (đề xuất từ KTT-12b, `43` mục 8, đề xuất 1)~~ — **ĐÃ ĐÓNG ở KTT-15 (28/10/2026)**: `server/lib/kttNong.js`, biến `KTT_WARM` (0 = tắt) / `KTT_WARM_NGAY`; xem `43_KTT_DI_CUNG_NGAY_API.md` mục 13. Còn mở (ticket khác): (a) gộp lượt đọc B + Lưu thoát và tối ưu `phanLoaiShbg` (phân loại chiếm ≈ 70% lần nguội, `43` mục 13.3); (b) tính ngày song song nhiều worker; (c) làm nóng lại định kỳ để ngày cũ không hết hạn 6 giờ (`43` mục 13.6); (d) làm nóng `tong-hop` / `chi-tiet` / `danh-sach` (phụ thuộc tham số). KHÔNG thêm bảng tổng hợp.
+
+## Nợ còn mở khi đóng dự án (KTT-CLOSE-1, 26/11/2026; số dòng kiểm bằng grep trên main `d838101`)
+22. Thiếu test cho ngưỡng «túi lớn» ở route `huong-dong-chuyen/tui`: chưa có ca đổi tham số hệ thống `ktt_dc_nguong_bg_trong_tui` cho route này (ca đổi tham số `tests/ktt-huong-dong.test.js:661-671` chỉ gọi `tong-hop` / `danh-sach`; các ca của route `tui` `:917-941` chỉ chạy ngưỡng mặc định 15); tham số `nguong` ở route `tui` chỉ có ca bị từ chối 400 (`:954`), chưa có ca nào kiểm cỡ túi (`so_bg_trong_tui`, `tui_lon`) khi một túi có hàng ở hai ngày (ca `:909-914` chỉ kiểm `so_tui` và `bg` của `tong-hop`; cỡ túi lấy từ dòng đầu tiên của túi, `kttHuongDong.js:40`).
+23. Vai trò GDVH / TIVI / TTKT chưa kiểm GIAO DIỆN tab «Hướng đóng chuyến nội tỉnh» (chỉ ADMIN trên bản chép, vai trò khác chỉ giả lập 401 / 403 — `Claude outputs/KTT-DC-6b-bao-cao.md:127`); phía máy chủ đã có test quyền (`tests/ktt-huong-dong.test.js:946-948`: TTKT 200, GDVH / TIVI 403).
+24. Hiệu năng 31 ngày của tab trên DB THẬT chưa kiểm (`KTT-DC-6b-bao-cao.md:127`); số đo hiện có chỉ trên bản chép DB: nguội 30 ngày ≈ 6,9–11 giây, ấm ≈ 12–13 ms (`42_KTT_API.md` mục 23, «Đo trên bản sao DB»).
+25. Chuỗi phụ còn thừa trong `src/components/ktt/KttHuongDong.jsx` (ngoài bảng nhãn DC-6; GIỮ NGUYÊN, chờ PO quyết giữ hay bỏ — danh mục ở `KTT-DC-6c-bao-cao.md` mục 3.3, số dòng nay lệch sau DC-6d): `:89` «Chưa tải được file. Thử lại sau.», `:110` «Đang chuẩn bị…», `:160` «Tiếp tục tải» (và «Huỷ»), `:244` «Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc», `:299` / `:348` / `:391` «Không tải được …», `:313` / `:356` / `:399` «Lỗi kết nối máy chủ.», `:603` dòng hướng dẫn chưa chọn ngày, `:886` tooltip «… % của túi này», «Trang trước» / «Trang sau» (`:924`, `:939`, `:1318`, `:1328`), `:1205` aria-label «Đóng danh sách bưu gửi», `:1231` «Tổng … bưu gửi · trang». Còn tên state `stripData` (`:185`) là di sản của «dải» đã bỏ.
+26. Dấu «≥» của «túi lớn» (`laTuiLon`: `soBg >= nguong`, `server/lib/kttHuongDong.js:26`) PO chưa xác nhận lần cuối; màn còn ghi câu này ở `KttHuongDong.jsx:1360`. Đổi sang «lớn hơn ngưỡng» chỉ sửa dấu ở một chỗ (có test giữ đúng một chỗ).
+27. KTT-DC-6c và KTT-DC-6d chưa có kiểm độc lập (chỉ có báo cáo của Dev: `Claude outputs/KTT-DC-6c-bao-cao.md`, `KTT-DC-6d-bao-cao.md`; DC-6 đã có `KTT-DC-6b-kiem-doc-lap-…`).
+28. Thứ tự 6 BCVH còn chép tay ở nhiều nơi (chỉ `THU_TU_HUONG_BCVH` ở `server/lib/kttHuongDong.js:23` đã theo canvas chốt): `server/lib/kttTinh.js:19` (`MA_BCVH_HUE`, thứ tự 535790, 536250, 535470, 537220, 537015, 533140), `server/lib/kttSchema.js:144-151` (`DIA_BAN_PHAT_MAC_DINH`), `src/constants/bcvh.js:3-10` (`BCVH_LIST`); còn thấy thêm `server/lib/kttLichXe.js:13` (`THU_TU_BCVH_B6`, cùng thứ tự canvas), `server/lib/dashboardQuery.js:9-16`, `src/components/ktt/KttDoiChieu.jsx:31`, `src/components/ktt/KttHangDen.jsx:35`. Đề xuất: gom về MỘT hằng (máy chủ) và một hằng (giao diện); KHÔNG đổi thứ tự cũ ở màn khác khi chưa có yêu cầu vì mỗi màn đang theo thứ tự riêng.
+29. `docs/ai/CHANGELOG_AI.md` chưa có mục riêng cho KTT-9a, KTT-9b, KTT-10d, KTT-DC-4, KTT-DC-6, KTT-DC-6c, KTT-DC-6d (grep `^## ` ngày 26/11/2026; mục mới nhất trước KTT-CLOSE-1 là KTT-DC-5c). Nội dung có ở báo cáo trong `Claude outputs/` (ngoài repo) và lịch sử git (`git log` PR #176–#180); bổ sung nếu PO muốn lịch sử đủ.
