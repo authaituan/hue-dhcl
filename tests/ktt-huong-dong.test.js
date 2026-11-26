@@ -15,6 +15,7 @@ const K = require('../server/lib/kttNapCap');
 const Api = require('../server/lib/kttApi');
 const TS = require('../server/lib/thamSo');
 const HDC = require('../server/lib/kttHuongDong');
+const DQ = require('../server/lib/kttDiNgayQuery');
 
 const PORT = 5990;
 const TH = '533140'; const HT = '535470'; const HTH = '536250';
@@ -394,7 +395,7 @@ test('xuất: vượt trần dòng -> 400 JSON; route chỉ thêm GET; 6 BCVH kh
   const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'routes', 'ktt.js'), 'utf8');
   assert.ok(!/router\.(post|put|patch|delete)\(/.test(src));
   const lib = fs.readFileSync(path.join(__dirname, '..', 'server', 'lib', 'kttHuongDong.js'), 'utf8');
-  assert.ok(!/'533140'|'535470'|'536250'|'537220'|'537015'|'535790'/.test(lib), '6 BCVH lấy từ kttTinh.MA_BCVH_HUE, không viết cứng thêm');
+  assert.equal(lib.split('\n').filter((l) => /'533140'|'535470'|'536250'|'537220'|'537015'|'535790'/.test(l) && !/^const THU_TU_HUONG_BCVH = /.test(l)).length, 0, '6 BCVH lấy từ kttTinh.MA_BCVH_HUE; chỉ hằng số THU_TU_HUONG_BCVH (KTT-DC-5c) được viết thứ tự cố định');
 });
 
 test('nhãn trong mã xuất và trả lời không có từ cấm (quét nguồn nhãn)', () => {
@@ -790,7 +791,7 @@ test('KTT-DC-3: không có dữ liệu — các số túi lớn bằng 0, không
 // ==========================================
 // KTT-DC-5: hướng đi theo BCVH — tong-hop (huong_bcvh, khong_ro_bcvh) và route /huong-dong-chuyen/tui.
 // ==========================================
-const SAU = HDC.MA_BCVH_LOAI; // 6 BCVH, thứ tự lấy từ MỘT hằng số của lõi
+const SAU = ['533140', '536250', '535470', '537015', '537220', '535790']; // KTT-DC-5c: thứ tự canvas chốt (Thuận Hóa, Hương Thủy, Hương Trà, Thuận An, Phú Lộc, A Lưới) — viết độc lập với lõi để đột biến lõi làm test đỏ
 const TUI_URL = (ma, extra = '', q = Q) => `/api/ktt/huong-dong-chuyen/tui${q}&ma_noi=${ma}${extra}`;
 const bgCua = (huong, ma) => huong.find((h) => h.ma_bcvh === ma);
 const tongBg = (huong) => huong.reduce((s, h) => s + h.bg, 0);
@@ -969,7 +970,7 @@ test('KTT-DC-5: trường cũ không đổi (DC-1..3) và mã 6 BCVH không vi�
   for (const k of ['ma', 'ten', 'dong_vao_530100', 'dong_thang_bcvh', 'chua_ro', 'ty_le', 'bg_trong_tui_lon', 'bg_trong_tui_nho', 'so_tui_lon', 'chuyen_co_tui_lon', 'so_bg_tui_lon_nhat']) assert.ok(k in y, k);
   assert.ok('trong_loc' in b.meta && 'bg_trong_tui_lon' in b.meta);
   const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'lib', 'kttHuongDong.js'), 'utf8');
-  assert.equal((src.match(/535790|536250|535470|537220|537015|533140/g) || []).length, 0, 'không viết cứng mã BCVH ở lõi');
+  assert.equal(src.split('\n').filter((l) => /535790|536250|535470|537220|537015|533140/.test(l) && !/^const THU_TU_HUONG_BCVH = /.test(l)).length, 0, 'không viết cứng mã BCVH ở lõi (trừ hằng số THU_TU_HUONG_BCVH của KTT-DC-5c)');
 });
 
 test('KTT-DC-5: túi chứa cả N2 lẫn N3 — cỡ túi đếm cả hai, nhưng huong_bcvh và bg_n2 chỉ đếm N2; bất biến 1 vẫn đúng', async () => {
@@ -982,4 +983,26 @@ test('KTT-DC-5: túi chứa cả N2 lẫn N3 — cỡ túi đếm cả hai, như
   assert.equal(tongBg(y.huong_bcvh), 12, 'BG N3 không vào hướng BCVH');
   const t = (await goi(TUI_URL('536003'), 'admin')).body;
   assert.deepEqual([t.items[0].so_bg_trong_tui, t.items[0].bg_n2, tongBg(t.items[0].huong_bcvh)], [15, 12, 12], 'cỡ túi 15 (N2 + N3), N2 = 12');
+});
+
+// ==========================================
+// KTT-DC-5c: thứ tự cố định 6 BCVH của huong_bcvh (canvas chốt) — từng nơi, meta, từng túi của route /tui. Dữ liệu giả.
+// ==========================================
+const THU_TU_CANVAS = ['533140', '536250', '535470', '537015', '537220', '535790']; // Thuận Hóa, Hương Thủy, Hương Trà, Thuận An, Phú Lộc, A Lưới
+test('KTT-DC-5c: thứ tự ma_bcvh của huong_bcvh đúng canvas — tong-hop (từng nơi + meta) và route tui (từng túi); số liệu theo mã không đổi', async () => {
+  duLieuBcvh();
+  const b = (await goi(TH_URL, 'admin')).body;
+  assert.ok(b.theo_noi_dong.length >= 2, 'có ≥ 2 nơi để kiểm từng nơi');
+  for (const y of b.theo_noi_dong) assert.deepEqual(y.huong_bcvh.map((h) => h.ma_bcvh), THU_TU_CANVAS, `nơi ${y.ma}`);
+  assert.deepEqual(b.meta.huong_bcvh.map((h) => h.ma_bcvh), THU_TU_CANVAS, 'meta');
+  assert.deepEqual(HDC.THU_TU_HUONG_BCVH, THU_TU_CANVAS, 'hằng số của lõi');
+  // số theo mã (không theo vị trí) vẫn đúng như DC-5: túi A đi TH 10 + HT 6, túi B TH 15, túi C HTH 20 ...
+  assert.equal(bgCua(Nh(b, '536001').huong_bcvh, TH).bg, 25); assert.equal(bgCua(Nh(b, '536001').huong_bcvh, HT).bg, 6); assert.equal(bgCua(Nh(b, '536001').huong_bcvh, HTH).bg, 20);
+  const t = (await goi(TUI_URL('536001'), 'admin')).body;
+  assert.ok(t.items.length >= 3, 'có nhiều túi');
+  for (const x of t.items) assert.deepEqual(x.huong_bcvh.map((h) => h.ma_bcvh), THU_TU_CANVAS, 'từng túi');
+  // tên BCVH ở meta lấy từ nguồn tên chung, không viết cứng thêm
+  assert.deepEqual(b.meta.huong_bcvh.map((h) => h.ten_bcvh), THU_TU_CANVAS.map((m) => DQ.TEN_BCVH[m]));
+  // các mảng khác KHÔNG đổi thứ tự (chỉ huong_bcvh): bcvh_da_loai vẫn theo MA_BCVH_LOAI
+  assert.deepEqual(b.meta.bcvh_da_loai.map((x) => x.ma), [...HDC.MA_BCVH_LOAI]);
 });
