@@ -225,16 +225,43 @@ export default function KttHuongDong() {
 
   // Gọi API khi đã có đủ tu, den hợp lệ (<= 31 ngày)
   useEffect(() => {
-    if (!tu || !den) return;
+    if (!tu || !den) {
+      setRangeError(null);
+      setErrorMsg(null);
+      setTongHopData(null);
+      setStripData(null);
+      setSelectedNoiDong(null);
+      setDsData(null);
+      setExpandedPlaceTui(null);
+      setTuiData(null);
+      setShowSmallOnly(false);
+      return;
+    }
 
     if (tu > den) {
       setRangeError('Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc');
+      setErrorMsg(null);
+      setTongHopData(null);
+      setStripData(null);
+      setSelectedNoiDong(null);
+      setDsData(null);
+      setExpandedPlaceTui(null);
+      setTuiData(null);
+      setShowSmallOnly(false);
       return;
     }
 
     const numDays = countDaysInclusive(tu, den);
     if (numDays > 31) {
       setRangeError('Chọn tối đa 31 ngày');
+      setErrorMsg(null);
+      setTongHopData(null);
+      setStripData(null);
+      setSelectedNoiDong(null);
+      setDsData(null);
+      setExpandedPlaceTui(null);
+      setTuiData(null);
+      setShowSmallOnly(false);
       return;
     }
 
@@ -242,6 +269,8 @@ export default function KttHuongDong() {
     let active = true;
     setLoading(true);
     setErrorMsg(null);
+    setTongHopData(null);
+    setStripData(null);
     setSelectedNoiDong(null);
     setDsData(null);
     setExpandedPlaceTui(null);
@@ -497,11 +526,13 @@ export default function KttHuongDong() {
   }
 
   const dongVaoTong = apiMeta?.trong_loc?.dong_vao_530100 ?? apiMeta?.dong_vao_530100 ?? 0;
-  const isEmptyData =
+  const isEmptyData = Boolean(
     tongHopData &&
     !loading &&
     !errorMsg &&
-    (tongHopData.co_du_lieu === false || (theoNoiDong.length === 0 && dongVaoTong === 0));
+    !rangeError &&
+    (tongHopData.co_du_lieu === false || (theoNoiDong.length === 0 && dongVaoTong === 0))
+  );
 
   const totalDays = tu && den ? countDaysInclusive(tu, den) : 0;
 
@@ -630,7 +661,7 @@ export default function KttHuongDong() {
       )}
 
       {/* Trạng thái đang tải */}
-      {loading && (
+      {!rangeError && loading && (
         <div className="bg-white border border-[#E4D5AE] rounded-xl p-6 flex items-center justify-center gap-2.5 text-sm text-[#4A1D6E] font-medium">
           <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
           <span>Đang tải, lần đầu có thể mất vài giây</span>
@@ -638,7 +669,7 @@ export default function KttHuongDong() {
       )}
 
       {/* Trạng thái lỗi API */}
-      {errorMsg && !loading && (
+      {!rangeError && !loading && errorMsg && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2.5 text-red-700 text-sm font-medium">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
@@ -646,14 +677,14 @@ export default function KttHuongDong() {
       )}
 
       {/* Trạng thái rỗng */}
-      {isEmptyData && (
+      {!rangeError && !loading && !errorMsg && isEmptyData && (
         <div className="bg-white border border-[#E4D5AE] rounded-xl p-6 text-center text-sm text-gray-600">
           Không có hàng trong khoảng này
         </div>
       )}
 
       {/* Nội dung chính khi có dữ liệu */}
-      {tongHopData && !loading && !errorMsg && !rangeError && !isEmptyData && nguong !== undefined && (
+      {!rangeError && !loading && !errorMsg && !isEmptyData && tongHopData && nguong !== undefined && (
         <section className="bg-white border border-[#E4D5AE] rounded-xl p-5 space-y-5">
           {/* Tiêu đề khối & dòng mô tả */}
           <div>
@@ -918,12 +949,7 @@ export default function KttHuongDong() {
                                         );
                                       })}
 
-                                      <td className="py-2 px-3 align-middle text-right font-bold text-xs tabular-nums text-gray-900">
-                                        {formatInt(bag.bg_n2 || 0)}
-                                      </td>
-                                      <td className="py-2 px-3 align-middle text-right text-xs tabular-nums text-gray-600">
-                                        1
-                                      </td>
+                                      <td colSpan={2} />
                                     </tr>
                                   );
                                 })
@@ -1255,7 +1281,7 @@ export default function KttHuongDong() {
                 {dsLoading && (
                   <div className="py-4 flex items-center justify-center gap-2 text-xs text-[#4A1D6E]">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Đang tải danh sách…</span>
+                    <span>Đang tải, lần đầu có thể mất vài giây</span>
                   </div>
                 )}
 
@@ -1269,7 +1295,7 @@ export default function KttHuongDong() {
                   <>
                     {dsData.items?.length === 0 ? (
                       <div className="py-4 text-center text-xs text-gray-500">
-                        Không có bưu gửi phù hợp.
+                        Không có hàng trong khoảng này
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
