@@ -1323,6 +1323,32 @@ async function huongDongDanhSach(db, query, { now = Date.now() } = {}) {
 }
 
 /**
+ * GET /api/ktt/huong-dong-chuyen/tui?tu=&den=&ma_noi=<mã>[&chi_tui_lon=1|0&page=&page_size=] — KTT-DC-5: từng TÚI của MỘT nơi đóng với số BG đi từng BCVH.
+ * chi_tui_lon mặc định 1 (túi từ ngưỡng trở lên, ngưỡng hệ thống); 0 = mọi túi vào 530100 của nơi đó có ≥ 1 BG N2. Không có tham số `nguong` (ngưỡng luôn là ngưỡng hệ thống).
+ */
+async function huongDongTui(db, query, { now = Date.now() } = {}) {
+  const k = docKhoang(query, ['ma_noi', 'chi_tui_lon', 'page', 'page_size']);
+  const noi = docMa(query, 'ma_noi');
+  if (!noi) throw new Q.LoiKtt('KTT_THIEU_THAM_SO', 'Thiếu tham số "ma_noi" (mã nơi đóng chuyến thư).');
+  if (HDC.MA_BCVH_LOAI.includes(noi)) throw new Q.LoiKtt('KTT_THAM_SO_SAI', 'Tham số "ma_noi" không được là một trong 6 BCVH Huế (không nằm trong bảng nơi đóng).');
+  const v = mot(query, 'chi_tui_lon');
+  const chiTuiLon = v === undefined || v === '' ? true : docCo(query, 'chi_tui_lon');
+  const trang = docSoNguyen(query, 'page', 1, 1000000, 1);
+  const kichThuoc = docSoNguyen(query, 'page_size', 1, Q.TRANG_TOI_DA, 50);
+  const nguong = CFG_HD.NGUONG_BG_TRONG_TUI;
+  const b = await boHuongDong(db, k, now);
+  const danhMuc = HDC.docDanhMuc(db);
+  const all = HDC.tuiCuaNoiApi(b.ds, noi, { chiTuiLon, nguong });
+  const batDau = (trang - 1) * kichThuoc;
+  const p = danhMuc[noi] || null;
+  return {
+    items: all.slice(batDau, batDau + kichThuoc),
+    pagination: { total: all.length, page: trang, page_size: kichThuoc, total_pages: Math.ceil(all.length / kichThuoc) },
+    meta: { ma_noi: noi, ten_noi: p ? p.ten : null, chi_tui_lon: chiTuiLon, nguong_bg_trong_tui: nguong, bcvh: HDC.MA_BCVH_LOAI.map((m) => ({ ma: m, ten: DQ.TEN_BCVH[m] || null })), tu: k.tuNgay, den: k.denNgay, nguon_xuat_luc_moi_nhat: b.doMoi ? b.doMoi.nguon_xuat_luc : null, ly_do: b.doMoi ? null : 'CHUA_CO_DU_LIEU' }
+  };
+}
+
+/**
  * GET /api/ktt/xuat/huong-dong-chuyen?tu=&den=&kieu=nhac_viec|chi_tiet[&loai_hinh=] — hai file Excel (mục 3C). Trả { tenFile, khoang, kieu, loaiHinh, tong, viet } cho route (viet(out, dungChua) ghi luồng).
  * Mọi kiểm tra / tính toán xong TRƯỚC khi route gửi header (lỗi vẫn là JSON 400/500).
  */
@@ -1357,7 +1383,7 @@ async function xuatHuongDong(db, query, { now = Date.now(), nguoiXuat = null } =
 }
 
 module.exports = {
-  huongDongTongHop, huongDongDanhSach, xuatHuongDong,
+  huongDongTongHop, huongDongDanhSach, huongDongTui, xuatHuongDong,
   docKhoang, luuThoat, tongHop, chiTiet, xuatLuuThoat, xuatKhongDat14h, khongDat14h, docKd, bucTranhCum, bucTranhChuyenXe, bucTranhDanhGia, gioDen, gioDenTheoNgay, conLaiTheoGio, huyCacheNgay, docMocBt, xuatHomSauChuaDi, meta, doPhuBcvh,
   diCungNgayTongHop, diCungNgayTheoNgay, diCungNgayTheoGio, rotLaiTheoDuongThu, lichXeGioLapBd10, lichXeTheoDuongThu, lichXeTheoBcvh, danhSachDiNgay,
   doiChieuTongHop, doiChieuThoiGianNhan, doiChieuChuaThay, doiChieuDanhGia, xuatDoiChieu, TEN_SHEET_XUAT_DC, trangThaiXuat, hangDenTongHop, hangDenTheoGio, hangDenTheoDuongThu, hangDenXe, tongQuan, xoaCache, thongKe, dongNen, chayNen, TUOI_CHUA_CHOT_MS, TUOI_DA_CHOT_MS, NGAY_TOI_DA_TRONG_NHO,
