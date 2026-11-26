@@ -2,6 +2,12 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-26] - KTT-DC-5c: đổi thứ tự 6 BCVH trong `huong_bcvh` theo canvas chốt (backend; nhánh `feat/ktt-dc-5c-thu-tu-bcvh`, từ `main` 1ea61f1)
+
+- `kttHuongDong.js`: thêm MỘT hằng số `THU_TU_HUONG_BCVH` = 533140, 536250, 535470, 537015, 537220, 535790 (kiểm lúc nạp là hoán vị của `kttTinh.MA_BCVH_HUE`, export để test); `sauBcvh` (từng nơi, từng túi ở route `tui`) và `huongMeta` (`meta.huong_bcvh`) đọc từ đó. Chỉ đổi thứ tự phần tử, không đổi tên / nghĩa / số. Không đổi `kttTinh.MA_BCVH_HUE`, `kttSchema.js`, `src/`, `MA_BCVH_LOAI`, `bcvh_da_loai`.
+- Test: `tests/ktt-huong-dong.test.js` +1 (thứ tự ở tong-hop từng nơi + meta + từng túi); `SAU` của nhóm DC-5 viết thẳng thứ tự canvas; hai test «không viết cứng mã BCVH ở lõi» nới đúng một dòng hằng số mới. Đột biến (đảo hai mã trong hằng số) làm 6 test đỏ.
+- Tài liệu: `42_KTT_API.md` (tiểu mục KTT-DC-5: thứ tự cố định, ví dụ).
+
 ## [2026-11-25] - KTT-DC-5: API «hướng đi theo BCVH» của «túi lớn» (backend; nhánh `feat/ktt-dc-5-api-theo-bcvh`, từ `main` 7c87bdc; chưa giao diện)
 
 - `kttHuongDong.js`: `gomTui` / `huongCuaNoi` (một lượt qua `rows` của các bó ngày; khóa túi 7 cột, không dùng mã túi; BG ngoài 6 BCVH hoặc không rõ vào `khong_ro_bcvh`). `tongHop`: mỗi nơi thêm `huong_bcvh` (6 phần tử `{ ma_bcvh, bg, so_tui }`) và `khong_ro_bcvh`; `meta` thêm `huong_bcvh` (6 phần tử có `ten_bcvh`, cộng qua các nơi, theo bộ lọc `loai_hinh`) và `khong_ro_bcvh`. `tuiCuaNoiApi` cho route mới. Không thêm cột vào bó ngày, không đổi cache.
