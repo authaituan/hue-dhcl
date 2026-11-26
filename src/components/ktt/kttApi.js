@@ -522,3 +522,29 @@ export async function downloadKttHuongDong({ tu, den, kieu = 'nhac_viec', loai_h
   return apiDownloadExcel(url, defaultFilename);
 }
 
+/**
+ * KTT-DC-5 / KTT-DC-6: Danh sách từng túi của một nơi đóng chuyến thư
+ * @param {Object} params { tu, den, ma_noi, chi_tui_lon, page, page_size }
+ */
+export async function fetchKttHuongDongTui({
+  tu,
+  den,
+  ma_noi,
+  chi_tui_lon = 1,
+  page = 1,
+  page_size = 50,
+} = {}) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (ma_noi) usp.set('ma_noi', String(ma_noi));
+  if (chi_tui_lon !== undefined && chi_tui_lon !== null) {
+    usp.set('chi_tui_lon', chi_tui_lon ? '1' : '0');
+  }
+  if (page) usp.set('page', String(page));
+  if (page_size) usp.set('page_size', String(page_size));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/huong-dong-chuyen/tui${query ? `?${query}` : ''}`);
+}
+
+
