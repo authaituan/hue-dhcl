@@ -8,7 +8,8 @@ import {
   X,
 } from 'lucide-react';
 import { formatInt, shiftDay } from '../quythoigian/quyThoiGianFormatters';
-import { formatKgDecimal, getQuickDateRange } from './kttFormatters';
+import { formatKgDecimal } from './kttFormatters';
+import QuyThoiGianDateRangePicker from '../quythoigian/QuyThoiGianDateRangePicker';
 import {
   fetchKttMeta,
   fetchKttHuongDongTongHop,
@@ -100,16 +101,17 @@ function ExcelDropdownButton({ tu, den, loaiHinh, disabled }) {
           setErr(null);
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-xs font-semibold text-white bg-[#4A1D6E] hover:bg-[#3B1758] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-[6px] transition-colors cursor-pointer shrink-0 shadow-none hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        title="Tải bảng tính Excel"
       >
         {downloading ? (
           <>
-            <RefreshCw className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
+            <RefreshCw className="w-3 h-3 animate-spin text-orange-600 shrink-0" />
             <span>Đang chuẩn bị…</span>
           </>
         ) : (
           <>
-            <Download className="w-3.5 h-3.5 text-white shrink-0" />
+            <Download className="w-3 h-3 text-gray-500 shrink-0" />
             <span>Tải Excel</span>
           </>
         )}
@@ -120,7 +122,7 @@ function ExcelDropdownButton({ tu, den, loaiHinh, disabled }) {
           <button
             type="button"
             onClick={() => handleDownload('nhac_viec')}
-            className="w-full text-left px-3 py-2.5 min-h-[44px] text-xs text-gray-800 hover:bg-[#FAF5E8] transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-[#FAF5E8] transition-colors cursor-pointer"
           >
             Danh sách nhắc việc (không số hiệu)
           </button>
@@ -130,7 +132,7 @@ function ExcelDropdownButton({ tu, den, loaiHinh, disabled }) {
               setOpen(false);
               setConfirmChiTiet(true);
             }}
-            className="w-full text-left px-3 py-2.5 min-h-[44px] text-xs text-gray-800 hover:bg-[#FAF5E8] transition-colors cursor-pointer border-t border-[#F0E8D4]"
+            className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-[#FAF5E8] transition-colors cursor-pointer border-t border-[#F0E8D4]"
           >
             Chi tiết có số hiệu bưu gửi
           </button>
@@ -146,14 +148,14 @@ function ExcelDropdownButton({ tu, den, loaiHinh, disabled }) {
             <button
               type="button"
               onClick={() => setConfirmChiTiet(false)}
-              className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+              className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-[6px] hover:bg-gray-50 cursor-pointer"
             >
               Huỷ
             </button>
             <button
               type="button"
               onClick={() => handleDownload('chi_tiet')}
-              className="px-3 py-1.5 min-h-[44px] text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-md cursor-pointer"
+              className="px-2.5 py-1 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-[6px] cursor-pointer"
             >
               Tiếp tục tải
             </button>
@@ -170,7 +172,7 @@ export default function KttHuongDong() {
   const [meta, setMeta] = useState(null);
   const [forbidden, setForbidden] = useState(false);
 
-  // Bộ lọc: mở tab KHÔNG tự tải, người dùng chủ động chọn ngày hoặc bấm 30 ngày / 7 ngày
+  // Bộ lọc: mở tab KHÔNG tự tải, người dùng chủ động chọn ngày hoặc bấm nút chọn nhanh
   const [tu, setTu] = useState('');
   const [den, setDen] = useState('');
   const [loaiHinh, setLoaiHinh] = useState('tat_ca');
@@ -201,7 +203,7 @@ export default function KttHuongDong() {
   // Khối «Cách tính và giới hạn»
   const [showGuide, setShowGuide] = useState(false);
 
-  // Tải nhẹ meta để nút «30 ngày» / «7 ngày» bám theo ngày dữ liệu mới nhất
+  // Tải nhẹ meta phụ trợ (nếu có bổ sung cấu hình / kiểm quyền)
   useEffect(() => {
     let active = true;
     fetchKttMeta()
@@ -406,16 +408,10 @@ export default function KttHuongDong() {
     };
   }, [selectedNoiDong, tu, den, chiTuiLon, dsPage]);
 
-  const handleQuickRange = (days) => {
-    const range = getQuickDateRange(days, meta);
-    setTu(range.from);
-    setDen(range.to);
+  const handleDateRangeChange = (range) => {
+    setTu(range?.from || '');
+    setDen(range?.to || '');
   };
-
-  const quick30 = useMemo(() => getQuickDateRange(30, meta), [meta]);
-  const quick7 = useMemo(() => getQuickDateRange(7, meta), [meta]);
-  const is30Active = tu === quick30.from && den === quick30.to;
-  const is7Active = tu === quick7.from && den === quick7.to;
 
   const apiMeta = tongHopData?.meta;
   const nguong = apiMeta?.nguong_bg_trong_tui;
@@ -537,124 +533,80 @@ export default function KttHuongDong() {
   const totalDays = tu && den ? countDaysInclusive(tu, den) : 0;
 
   return (
-    <div className="px-4 sm:px-6 py-4 max-w-[1400px] mx-auto space-y-4">
-      {/* Tiêu đề trang (h1) + Ô phạm vi số liệu (bên phải tiêu đề) */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <div className="text-xs font-semibold text-gray-600">
-            Trung tâm Khai thác · 530100 · Hàng tại KTT
+    <div className="space-y-6 px-6 pb-12 max-w-full min-w-0">
+      {/* ── ĐẦU TRANG: TIÊU ĐỀ, DÒNG META & BỘ LỌC ─────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-2 min-w-0 max-w-full">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="hue-h1">
+              Hướng đóng chuyến nội tỉnh
+            </h1>
+
+            {tu && den && apiMeta && nguong !== undefined && (
+              <>
+                <span className="text-xs font-semibold text-gray-600">Phạm vi số liệu</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFE6F5] text-[#4A1D6E]">
+                  {formatDdMmYyyy(tu)} đến {formatDdMmYyyy(den)}, {totalDays} ngày
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFE6F5] text-[#4A1D6E]">
+                  Ngưỡng: từ {nguong} BG trong túi
+                </span>
+              </>
+            )}
           </div>
-          <h1 className="hue-h1 text-2xl font-bold text-[#4A1D6E]">
-            Hướng đóng chuyến nội tỉnh
-          </h1>
+
+          <p className="text-xs text-gray-600 mt-1">
+            Trung tâm Khai thác · 530100 · Hàng tại KTT
+          </p>
         </div>
 
-        {tu && den && apiMeta && nguong !== undefined && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-gray-600">Phạm vi số liệu</span>
-            <span className="text-xs font-bold text-[#4A1D6E] bg-[#EFE6F5] rounded-md px-2.5 py-1">
-              {formatDdMmYyyy(tu)} đến {formatDdMmYyyy(den)}, {totalDays} ngày
+        {/* Cụm bộ lọc: Loại hình nơi đóng, Khoảng ngày & Nút Tải Excel */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className="inline-flex items-center bg-white rounded-[10px] border border-[#D9CBA8] p-0.5 text-xs">
+            <span className="font-semibold text-gray-600 px-2 whitespace-nowrap">
+              Loại hình nơi đóng:
             </span>
-            <span className="text-xs font-bold text-[#4A1D6E] bg-[#EFE6F5] rounded-md px-2.5 py-1">
-              Ngưỡng: từ {nguong} BG trong túi
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Bộ lọc: Khoảng ngày, Loại hình nơi đóng, Tải xuống */}
-      <div className="bg-white border border-[#E4D5AE] rounded-xl p-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-wrap items-end gap-2">
-              <span className="text-xs font-semibold text-gray-600 self-center mr-1">
-                Khoảng ngày
-              </span>
-              <label className="flex flex-col gap-1 text-xs text-gray-600">
-                <span>Từ ngày</span>
-                <input
-                  type="date"
-                  value={tu}
-                  onChange={(e) => setTu(e.target.value)}
-                  className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D9CBA8] rounded-lg text-gray-900"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-gray-600">
-                <span>Đến ngày</span>
-                <input
-                  type="date"
-                  value={den}
-                  onChange={(e) => setDen(e.target.value)}
-                  className="px-2.5 py-2 min-h-[44px] text-xs bg-white border border-[#D9CBA8] rounded-lg text-gray-900"
-                />
-              </label>
+            {LOAI_HINH_OPTIONS.map((opt) => (
               <button
+                key={opt.id}
                 type="button"
-                onClick={() => handleQuickRange(30)}
-                className={`px-3.5 py-2 min-h-[44px] text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
-                  is30Active
-                    ? 'bg-[#4A1D6E] text-white border-[#4A1D6E]'
-                    : 'bg-[#FAF6EC] text-gray-900 border-[#D9CBA8] hover:bg-[#F3EDE0]'
+                onClick={() => setLoaiHinh(opt.id)}
+                className={`px-2.5 py-1 rounded-[8px] font-semibold text-xs transition-colors cursor-pointer ${
+                  loaiHinh === opt.id
+                    ? 'bg-[#4A1D6E] text-white'
+                    : 'text-gray-700 hover:bg-cream-light'
                 }`}
               >
-                30 ngày
+                {opt.label}
               </button>
-              <button
-                type="button"
-                onClick={() => handleQuickRange(7)}
-                className={`px-3.5 py-2 min-h-[44px] text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
-                  is7Active
-                    ? 'bg-[#4A1D6E] text-white border-[#4A1D6E]'
-                    : 'bg-[#FAF6EC] text-gray-900 border-[#D9CBA8] hover:bg-[#F3EDE0]'
-                }`}
-              >
-                7 ngày
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-600 mr-1">
-                Loại hình nơi đóng
-              </span>
-              {LOAI_HINH_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setLoaiHinh(opt.id)}
-                  className={`px-3 py-2 min-h-[44px] text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
-                    loaiHinh === opt.id
-                      ? 'bg-[#4A1D6E] text-white border-[#4A1D6E]'
-                      : 'bg-white text-gray-700 border-[#D9CBA8] hover:bg-[#FAF6EC]'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
 
-          <div className="flex flex-col gap-1 items-end ml-auto">
-            <span className="text-xs font-semibold text-gray-600">Tải xuống</span>
-            <ExcelDropdownButton
-              tu={tu}
-              den={den}
-              loaiHinh={loaiHinh}
-              disabled={!tu || !den || !!rangeError || loading}
-            />
-          </div>
+          <QuyThoiGianDateRangePicker
+            dateRange={{ from: tu, to: den }}
+            onChangeDateRange={handleDateRangeChange}
+            idPrefix="ktt-huong-dong"
+          />
+
+          <ExcelDropdownButton
+            tu={tu}
+            den={den}
+            loaiHinh={loaiHinh}
+            disabled={!tu || !den || !!rangeError || loading}
+          />
         </div>
       </div>
 
       {/* Trạng thái chưa chọn ngày */}
       {(!tu || !den) && !loading && !rangeError && (
-        <div className="bg-[#FFFBEF] border border-[#E4D5AE] rounded-xl p-6 text-center text-sm text-gray-600">
-          Chọn «30 ngày», «7 ngày» hoặc nhập đủ «Từ ngày» và «Đến ngày» để xem số liệu.
+        <div className="bg-[#FFFBEF] border border-[#E4D5AE] rounded-[14px] p-6 text-center text-sm text-gray-600">
+          Chọn «Hôm nay», «7 ngày», «Tháng này» hoặc nhập đủ «Từ» và «— Đến» để xem số liệu.
         </div>
       )}
 
       {/* Lỗi khoảng ngày > 31 ngày */}
       {rangeError && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-2.5 text-amber-900 text-sm font-medium">
+        <div className="bg-amber-50 border border-amber-300 rounded-[14px] p-4 flex items-center gap-2.5 text-amber-900 text-sm font-medium">
           <AlertTriangle className="w-4 h-4 shrink-0 text-amber-700" />
           <span>{rangeError}</span>
         </div>
@@ -662,7 +614,7 @@ export default function KttHuongDong() {
 
       {/* Trạng thái đang tải */}
       {!rangeError && loading && (
-        <div className="bg-white border border-[#E4D5AE] rounded-xl p-6 flex items-center justify-center gap-2.5 text-sm text-[#4A1D6E] font-medium">
+        <div className="py-3 px-4 bg-[#FAF5E8] border border-[#E4D5AE] rounded-[10px] text-xs font-semibold text-[#5A4A62] flex items-center justify-center gap-2.5">
           <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
           <span>Đang tải, lần đầu có thể mất vài giây</span>
         </div>
@@ -670,7 +622,7 @@ export default function KttHuongDong() {
 
       {/* Trạng thái lỗi API */}
       {!rangeError && !loading && errorMsg && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2.5 text-red-700 text-sm font-medium">
+        <div className="p-3.5 bg-red-50 border border-red-200 rounded-[14px] text-xs text-red-700 flex items-center gap-2.5">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -678,20 +630,20 @@ export default function KttHuongDong() {
 
       {/* Trạng thái rỗng */}
       {!rangeError && !loading && !errorMsg && isEmptyData && (
-        <div className="bg-white border border-[#E4D5AE] rounded-xl p-6 text-center text-sm text-gray-600">
+        <div className="bg-white border border-[#E4D5AE] rounded-[14px] p-6 text-center text-sm text-gray-600">
           Không có hàng trong khoảng này
         </div>
       )}
 
       {/* Nội dung chính khi có dữ liệu */}
       {!rangeError && !loading && !errorMsg && !isEmptyData && tongHopData && nguong !== undefined && (
-        <section className="bg-white border border-[#E4D5AE] rounded-xl p-5 space-y-5">
+        <>
           {/* Tiêu đề khối & dòng mô tả */}
           <div>
             <h2 className="hue-h2 text-[17px]">
               Hàng nội tỉnh (túi) đóng đến 530100 không đóng thẳng BCVH
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-600 mt-0.5">
               Dữ liệu đang tính đối với túi &gt;={nguong} BG
             </p>
           </div>
@@ -734,9 +686,10 @@ export default function KttHuongDong() {
             </div>
           </div>
 
-          {/* Bảng hướng đi */}
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-xs border-collapse">
+          {/* Bảng hướng đi trong thẻ trắng riêng */}
+          <div className="bg-white rounded-[14px] border border-gray-200 p-4 shadow-none">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-xs border-collapse">
               <thead>
                 <tr className="bg-[#FAF5E8] border-b-2 border-[#E4D5AE] text-gray-700">
                   <th className="text-left py-2.5 px-3 font-bold align-bottom">
@@ -1023,11 +976,13 @@ export default function KttHuongDong() {
               </tbody>
             </table>
           </div>
+        </div>
 
-          {/* Bảng chi tiết */}
-          <div className="pt-2 border-t border-[#F0E8D4] space-y-3">
-            <h3 className="hue-h2 text-[17px]">Chi tiết từng nơi đóng</h3>
+        {/* Bảng chi tiết */}
+        <div className="space-y-3">
+          <h3 className="hue-h2 text-[17px]">Chi tiết từng nơi đóng</h3>
 
+          <div className="bg-white rounded-[14px] border border-gray-200 p-4 shadow-none">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-xs border-collapse">
                 <thead>
@@ -1215,49 +1170,50 @@ export default function KttHuongDong() {
               </table>
             </div>
           </div>
+        </div>
 
-          {/* Khối thu gọn 1: Danh sách bưu gửi của nơi đóng */}
-          <div className="border border-dashed border-[#E4D5AE] rounded-lg p-3 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm">
-                <b>Danh sách bưu gửi của nơi đóng</b>{' '}
-                <span className="text-gray-600">
-                  · bấm một dòng ở bảng trên để mở: số hiệu, ngày hàng đến, ngày đóng chuyến thư, số bưu gửi trong túi, mã túi, BCVH đích, dịch vụ, khối lượng; hộp chọn «Chỉ túi từ {nguong} BG trở lên» bật sẵn
+        {/* Khối thu gọn 1: Danh sách bưu gửi của nơi đóng */}
+        <div className="bg-white rounded-[14px] border border-gray-200 p-4 shadow-none space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm">
+              <b>Danh sách bưu gửi của nơi đóng</b>{' '}
+              <span className="text-gray-600">
+                · bấm một dòng ở bảng trên để mở: số hiệu, ngày hàng đến, ngày đóng chuyến thư, số bưu gửi trong túi, mã túi, BCVH đích, dịch vụ, khối lượng; hộp chọn «Chỉ túi từ {nguong} BG trở lên» bật sẵn
+              </span>
+              {selectedNoiDong && (
+                <span className="font-bold text-[#4A1D6E]">
+                  {' '}· {selectedNoiDong.ma} ({selectedNoiDong.ten || 'chưa có tên'})
                 </span>
-                {selectedNoiDong && (
-                  <span className="font-bold text-[#4A1D6E]">
-                    {' '}· {selectedNoiDong.ma} ({selectedNoiDong.ten || 'chưa có tên'})
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <ExcelDropdownButton
-                  tu={tu}
-                  den={den}
-                  loaiHinh={loaiHinh}
-                  disabled={!tu || !den || !!rangeError || loading}
-                />
-                {selectedNoiDong && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedNoiDong(null);
-                      setDsData(null);
-                    }}
-                    className="p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg border border-[#D9CBA8] text-gray-600 hover:bg-[#FAF6EC] cursor-pointer"
-                    aria-label="Đóng danh sách bưu gửi"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
-            {selectedNoiDong && (
-              <div className="space-y-3 pt-2 border-t border-[#F0E8D4]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-900 cursor-pointer min-h-[44px]">
+            <div className="flex items-center gap-2">
+              <ExcelDropdownButton
+                tu={tu}
+                den={den}
+                loaiHinh={loaiHinh}
+                disabled={!tu || !den || !!rangeError || loading}
+              />
+              {selectedNoiDong && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedNoiDong(null);
+                    setDsData(null);
+                  }}
+                  className="p-1 inline-flex items-center justify-center rounded-[6px] border border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  aria-label="Đóng danh sách bưu gửi"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {selectedNoiDong && (
+            <div className="space-y-3 pt-2 border-t border-[#F0E8D4]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-900 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={chiTuiLon}
@@ -1357,7 +1313,7 @@ export default function KttHuongDong() {
                           type="button"
                           disabled={dsPage <= 1}
                           onClick={() => setDsPage((p) => Math.max(1, p - 1))}
-                          className="px-3 py-1.5 min-h-[44px] text-xs font-medium bg-white border border-[#D9CBA8] rounded-lg disabled:opacity-50 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-medium bg-white border border-[#D9CBA8] rounded-md disabled:opacity-50 cursor-pointer"
                         >
                           Trang trước
                         </button>
@@ -1367,7 +1323,7 @@ export default function KttHuongDong() {
                           onClick={() =>
                             setDsPage((p) => Math.min(dsData.pagination.total_pages, p + 1))
                           }
-                          className="px-3 py-1.5 min-h-[44px] text-xs font-medium bg-white border border-[#D9CBA8] rounded-lg disabled:opacity-50 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-medium bg-white border border-[#D9CBA8] rounded-md disabled:opacity-50 cursor-pointer"
                         >
                           Trang sau
                         </button>
@@ -1380,7 +1336,7 @@ export default function KttHuongDong() {
           </div>
 
           {/* Khối thu gọn 2: Cách tính và giới hạn (DC-6 4.6) */}
-          <div className="border border-dashed border-[#E4D5AE] rounded-lg p-3">
+          <div className="bg-white rounded-[14px] border border-gray-200 p-4 shadow-none">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
                 <b>Cách tính và giới hạn</b>{' '}
@@ -1389,7 +1345,7 @@ export default function KttHuongDong() {
               <button
                 type="button"
                 onClick={() => setShowGuide((v) => !v)}
-                className="px-3.5 py-1.5 min-h-[44px] text-xs font-medium text-gray-800 bg-white border border-[#D9CBA8] rounded-full hover:bg-[#FAF6EC] transition-colors cursor-pointer"
+                className="px-3 py-1 text-xs font-medium text-gray-800 bg-white border border-[#D9CBA8] rounded-full hover:bg-[#FAF6EC] transition-colors cursor-pointer"
               >
                 {showGuide ? 'Đóng' : 'Mở'}
               </button>
@@ -1424,7 +1380,7 @@ export default function KttHuongDong() {
               </ul>
             )}
           </div>
-        </section>
+        </>
       )}
     </div>
   );
