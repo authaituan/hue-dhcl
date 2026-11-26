@@ -1,4 +1,6 @@
-# Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`)
+# Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận (`hue-dhcl`)
+
+Tên hiển thị ngắn: «Giám sát hàng đến». Tên mã nội bộ: hue-dhcl (giữ nguyên).
 
 Ứng dụng web nội bộ cho Bưu điện Thành phố Huế. Phiên bản `0.1.0` — khung kế thừa từ it-assets v1.0.0.
 

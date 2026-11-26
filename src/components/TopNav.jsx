@@ -109,7 +109,7 @@ export default function TopNav({ activeTab, setActiveTab, authUser, onLogout }) 
           <img src="/logo-vnpost.png" alt="Vietnam Post" className="w-[24px] object-contain" />
         </div>
         <span className="font-serif font-bold text-[11px] leading-[14px] text-white tracking-[0.02em] whitespace-nowrap">
-          GIÁM SÁT HÀNG ĐẾN<br />VÀ CHẤT LƯỢNG PHÁT
+          GIÁM SÁT HÀNG ĐẾN
         </span>
       </div>
 

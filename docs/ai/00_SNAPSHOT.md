@@ -4,7 +4,7 @@
 > Giữ file dưới ~250 dòng. Cập nhật lần cuối: 2026-11-26 (KTT-CLOSE-1: mốc đồng bộ `d838101`, tab «Hướng đóng chuyến nội tỉnh» có giao diện, số test; trước đó 2026-11-05 KTT-LICH-2: lịch chuẩn 05/11/2026; 2026-11-04: KTT-KD-1 backend + pha 2 «Bức tranh đường thư đến»; 2026-11-01: KTT-16-4 phần 1 backend; KTT-16-3; KTT-16-2; 2026-10-31: KTT-17-3b; KTT-17-2; KTT-17-1; 2026-10-29: KTT-8d; KTT-16-1; 2026-10-28: KTT-15; KTT-14; KTT-11b; KTT-12b; KTT-10c; 2026-10-27: KTT-10b; trước đó 2026-10-26: KTT-2, KTT-2b, KTT-4, KTT-5, KTT-6, KTT-7a, KTT-7b, KTT-8, KTT-8b; phần còn lại đồng bộ lần cuối ở DOCS-3, main `799c40b` = merge PR #116).
 
 ## 1. Tổng quan
-- **Tên**: Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), phiên bản `0.1.0`.
+- **Tên**: Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận (tên ngắn «Giám sát hàng đến»; đổi tên hiển thị ở KTT-RENAME-1, 26/11/2026). Tên mã nội bộ: `hue-dhcl` (giữ nguyên), phiên bản `0.1.0`.
 - **Nguồn gốc**: kế thừa khung từ it-assets v1.0.0 (xem `04_DECISIONS.md` #1).
 - **Git**: nhánh `main` (PO commit/push). Mốc đồng bộ docs này: `d838101` (merge PR #180, KTT-CLOSE-1; các hàng bảng KTT ở mục 3 được cập nhật dần theo từng ticket, hàng nào chưa ghi giao diện CHƯA được rà lại ở KTT-CLOSE-1). Danh sách PR dưới đây chỉ là #99–#116 (phần cũ, đã vào `main`); các PR #117–#180 xem `CHANGELOG_AI.md`:
   - #99 (`3cfc596`) PHAT-6: `/api/phat/ty-le` tính theo NGÀY ĐẾN (#97).

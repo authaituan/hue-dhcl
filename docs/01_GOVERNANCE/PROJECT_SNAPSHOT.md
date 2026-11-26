@@ -9,6 +9,8 @@
 
 ## 1. Purpose
 
+Tên hiển thị: «Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận» (tên ngắn «Giám sát hàng đến»). Tên mã nội bộ: hue-dhcl (giữ nguyên).
+
 This document is the Governance V2 **PROCESS/TICKET** current-state snapshot for AI onboarding in **hue-dhcl**. It answers "what ticket/phase is active in the Governance V2 workflow" — it does **NOT** duplicate technical project facts (API routes, DB schema, features, baseline data). For those, see `docs/ai/00_SNAPSHOT.md` (mục 3 dưới đây giải thích rõ).
 
 It is the **only** file that owns mutable process state (phase, ticket, branch, manifest, PO status). Other documents must point here instead of copying these values.

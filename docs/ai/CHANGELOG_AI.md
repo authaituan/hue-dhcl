@@ -2,6 +2,11 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-26] - KTT-RENAME-1: đổi TÊN HIỂN THỊ hệ thống (nhánh `chore/rename-he-thong`, từ `main` 12cc32f; không đổi mã nội bộ)
+
+- Tên đầy đủ «Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận»; tên ngắn «Giám sát hàng đến». Giao diện: `index.html:7` (`<title>`), `src/components/TopNav.jsx:112` (thanh đầu trang, tên ngắn một dòng), `src/components/LoginView.jsx` (tên đầy đủ ở thẻ trái và bản màn nhỏ + dòng phụ «Lưu thoát hàng · Lịch xe · Khớp nối nội tỉnh»). Tài liệu: `README.md`, `README_AI.md`, `CLAUDE.md`, `00_SNAPSHOT.md`, `PROJECT_SNAPSHOT.md`, `CLOSEOUT.md` (thêm «Tên mã nội bộ: hue-dhcl (giữ nguyên)»).
+- Giữ nguyên: `hue-dhcl`, `dhcl_auth_token`, `dhcl:auth-expired`, Dockerfile, docker-compose.yml, `package.json` (kể cả `description`, còn tên cũ), route, DB, tên file. Giữ tên cũ ở lịch sử: `04_DECISIONS.md:9` (quyết định gốc), `docs/ai/prompts/*:7`, các mục CHANGELOG cũ. Không có test nào so khớp tên cũ.
+
 ## [2026-11-26] - KTT-CLOSE-1: cập nhật tài liệu repo để đóng dự án (CHỈ tài liệu; nhánh `docs/ktt-close-1`, từ `main` d838101)
 
 - Không đổi mã, test, cấu hình (`git diff --stat` chỉ gồm `docs/`). Kiểm: `npm test` 1435 ca (1425 pass, 0 fail, 10 skip) và `npm run build` mã 0 trên d838101, trước và sau khi sửa tài liệu.

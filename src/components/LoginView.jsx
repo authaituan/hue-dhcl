@@ -73,9 +73,12 @@ export default function LoginView({ onLoginSuccess }) {
                 BƯU ĐIỆN<br />THÀNH PHỐ HUẾ
               </div>
             </div>
-            <h1 className="font-serif font-bold text-[30px] leading-[1.2] text-[#4A1D6E] mb-2">
-              HỆ THỐNG GIÁM SÁT<br />HÀNG ĐẾN VÀ<br />CHẤT LƯỢNG PHÁT
+            <h1 className="font-serif font-bold text-[24px] leading-[1.2] text-[#4A1D6E] mb-2">
+              HỆ THỐNG GIÁM SÁT HÀNG ĐẾN,<br />KHỚP NỐI NỘI TỈNH VÀ<br />LỊCH XE GIAO NHẬN
             </h1>
+            <p className="text-[13px] text-[#6B2F94] font-semibold mb-1">
+              Lưu thoát hàng · Lịch xe · Khớp nối nội tỉnh
+            </p>
             <p className="text-[14px] text-[#5A4A62]">
               Trung tâm Vận hành · Bưu điện Thành phố Huế
             </p>
@@ -109,8 +112,11 @@ export default function LoginView({ onLoginSuccess }) {
               </div>
             </div>
             <div className="font-serif font-bold text-[18px] text-[#4A1D6E] leading-snug">
-              HỆ THỐNG GIÁM SÁT HÀNG ĐẾN VÀ CHẤT LƯỢNG PHÁT
+              HỆ THỐNG GIÁM SÁT HÀNG ĐẾN, KHỚP NỐI NỘI TỈNH VÀ LỊCH XE GIAO NHẬN
             </div>
+            <p className="text-[12px] text-[#6B2F94] font-semibold mt-0.5">
+              Lưu thoát hàng · Lịch xe · Khớp nối nội tỉnh
+            </p>
             <p className="text-[12px] text-[#5A4A62] mt-0.5">
               Trung tâm Vận hành · Bưu điện Thành phố Huế
             </p>
