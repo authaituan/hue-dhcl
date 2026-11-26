@@ -465,3 +465,86 @@ export async function fetchKttConLaiTheoGio({ loai_ngay = 'tat_ca', bcvh } = {})
   return apiFetchJson(`/api/ktt/luu-thoat/buc-tranh-duong-thu/con-lai-theo-gio${query ? `?${query}` : ''}`);
 }
 
+/**
+ * KTT-DC-4: Tổng hợp hướng đóng chuyến nội tỉnh
+ * @param {Object} params { tu, den, loai_hinh }
+ */
+export async function fetchKttHuongDongTongHop({ tu, den, loai_hinh } = {}) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (loai_hinh && loai_hinh !== 'tat_ca') usp.set('loai_hinh', String(loai_hinh));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/huong-dong-chuyen/tong-hop${query ? `?${query}` : ''}`);
+}
+
+/**
+ * KTT-DC-4: Danh sách bưu gửi của một nơi đóng chuyến thư
+ * @param {Object} params { tu, den, noi_dong, nhom, chi_tui_lon, page, page_size }
+ */
+export async function fetchKttHuongDongDanhSach({
+  tu,
+  den,
+  noi_dong,
+  nhom = 'dong_vao_530100',
+  chi_tui_lon = 1,
+  page = 1,
+  page_size = 50,
+} = {}) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (noi_dong) usp.set('noi_dong', String(noi_dong));
+  if (nhom) usp.set('nhom', String(nhom));
+  if (chi_tui_lon !== undefined && chi_tui_lon !== null) {
+    usp.set('chi_tui_lon', chi_tui_lon ? '1' : '0');
+  }
+  if (page) usp.set('page', String(page));
+  if (page_size) usp.set('page_size', String(page_size));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/huong-dong-chuyen/danh-sach${query ? `?${query}` : ''}`);
+}
+
+/**
+ * KTT-DC-4: Tải Excel hướng đóng chuyến nội tỉnh (nhac_viec | chi_tiet)
+ * @param {Object} params { tu, den, kieu, loai_hinh }
+ */
+export async function downloadKttHuongDong({ tu, den, kieu = 'nhac_viec', loai_hinh } = {}) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  usp.set('kieu', String(kieu));
+  if (loai_hinh && loai_hinh !== 'tat_ca') usp.set('loai_hinh', String(loai_hinh));
+  const query = usp.toString();
+  const url = `/api/ktt/xuat/huong-dong-chuyen?${query}`;
+  const kieuSlug = kieu === 'chi_tiet' ? 'chi-tiet' : 'nhac-viec';
+  const defaultFilename = `KTT-huong-dong-chuyen_${kieuSlug}_${tu}_${den}.xlsx`;
+  return apiDownloadExcel(url, defaultFilename);
+}
+
+/**
+ * KTT-DC-5 / KTT-DC-6: Danh sách từng túi của một nơi đóng chuyến thư
+ * @param {Object} params { tu, den, ma_noi, chi_tui_lon, page, page_size }
+ */
+export async function fetchKttHuongDongTui({
+  tu,
+  den,
+  ma_noi,
+  chi_tui_lon = 1,
+  page = 1,
+  page_size = 50,
+} = {}) {
+  const usp = new URLSearchParams();
+  if (tu) usp.set('tu', String(tu));
+  if (den) usp.set('den', String(den));
+  if (ma_noi) usp.set('ma_noi', String(ma_noi));
+  if (chi_tui_lon !== undefined && chi_tui_lon !== null) {
+    usp.set('chi_tui_lon', chi_tui_lon ? '1' : '0');
+  }
+  if (page) usp.set('page', String(page));
+  if (page_size) usp.set('page_size', String(page_size));
+  const query = usp.toString();
+  return apiFetchJson(`/api/ktt/huong-dong-chuyen/tui${query ? `?${query}` : ''}`);
+}
+
+
