@@ -15,6 +15,7 @@
 //   GET /api/ktt/doi-chieu/danh-gia?tu=&den=[&ma_bcvh=]   KTT-16-4: khối «Đánh giá» sinh từ số thật + số dòng sheet 1–6 (lib/kttDanhGiaDoiChieu.js, doc 44 mục 10)
 //   GET /api/ktt/doi-chieu/xuat/{chua-thay,chuyen-mat-dau,chuyen-tiep-chua-quet-di,thay-o-bcvh-khac,chuyen-cham,da-co-tai-dich}?tu=&den=[&ma_bcvh=]   KTT-16-4: file .xlsx sheet 1–6 («Thông tin» + sheet dữ liệu), lib/kttDoiChieuXuat.js
 //   GET /api/ktt/huong-dong-chuyen/tong-hop?tu=&den=[&loai_hinh=] , /huong-dong-chuyen/danh-sach?tu=&den=&noi_dong=[&nhom=&chi_ghi_ngay_cu=&page=&page_size=] , /xuat/huong-dong-chuyen?tu=&den=&kieu=nhac_viec|chi_tiet[&loai_hinh=]   KTT-DC-1 (lib/kttHuongDong.js, doc 42 mục 23)
+//   GET /api/ktt/huong-dong-chuyen/tui?tu=&den=&ma_noi=[&chi_tui_lon=1|0&page=&page_size=]   KTT-DC-5: từng túi của một nơi đóng + BG đi từng BCVH (doc 42 mục 23)
 //   KTT-12 (cần tu, den): GET /api/ktt/dicungngay/{tong-hop,theo-ngay,theo-gio}, /rotlai/theo-duong-thu, /lich-xe/{gio-lap-bd10,theo-duong-thu,theo-bcvh}, /danh-sach, /hang-den/{tong-hop,theo-gio,theo-duong-thu,xe}, /tong-quan — docs/ai/43_KTT_DI_CUNG_NGAY_API.md
 // Lỗi tham số -> 400 { error (tiếng Việt, nêu tham số sai), ma }; lỗi khác -> 500 thông báo chung (không lộ nội bộ), log chỉ có mã lỗi (không số hiệu bưu gửi).
 // Lõi: server/lib/kttApi.js. Tài liệu: docs/ai/42_KTT_API.md.
@@ -79,6 +80,8 @@ router.get('/tong-quan', xuLy('tong-quan', (req) => Api.tongQuan(db, req.query))
 // KTT-DC-1: tab «Hướng đóng chuyến nội tỉnh» (nơi đóng chuyến thư vào 530100 có lẫn hàng nội tỉnh đến 6 BCVH) — chỉ THÊM (lõi lib/kttHuongDong.js, docs/ai/42_KTT_API.md mục 23).
 router.get('/huong-dong-chuyen/tong-hop', xuLy('huong-dong-chuyen/tong-hop', (req) => Api.huongDongTongHop(db, req.query)));
 router.get('/huong-dong-chuyen/danh-sach', xuLy('huong-dong-chuyen/danh-sach', (req) => Api.huongDongDanhSach(db, req.query)));
+// KTT-DC-5: từng túi của một nơi đóng + số BG đi từng BCVH (chỉ thêm).
+router.get('/huong-dong-chuyen/tui', xuLy('huong-dong-chuyen/tui', (req) => Api.huongDongTui(db, req.query)));
 
 // KTT-16-1: độ phủ dữ liệu «Hàng đến BCVH» cho đối chiếu — chỉ đọc arrival_*, không chạm bảng ktt_* (docs/ai/44_KTT_DO_PHU_BCVH.md).
 router.get('/doi-chieu/do-phu', xuLy('doi-chieu/do-phu', (req) => Api.doPhuBcvh(db, req.query)));

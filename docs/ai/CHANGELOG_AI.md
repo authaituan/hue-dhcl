@@ -2,6 +2,14 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-25] - KTT-DC-5: API «hướng đi theo BCVH» của «túi lớn» (backend; nhánh `feat/ktt-dc-5-api-theo-bcvh`, từ `main` 7c87bdc; chưa giao diện)
+
+- `kttHuongDong.js`: `gomTui` / `huongCuaNoi` (một lượt qua `rows` của các bó ngày; khóa túi 7 cột, không dùng mã túi; BG ngoài 6 BCVH hoặc không rõ vào `khong_ro_bcvh`). `tongHop`: mỗi nơi thêm `huong_bcvh` (6 phần tử `{ ma_bcvh, bg, so_tui }`) và `khong_ro_bcvh`; `meta` thêm `huong_bcvh` (6 phần tử có `ten_bcvh`, cộng qua các nơi, theo bộ lọc `loai_hinh`) và `khong_ro_bcvh`. `tuiCuaNoiApi` cho route mới. Không thêm cột vào bó ngày, không đổi cache.
+- Route mới `GET /api/ktt/huong-dong-chuyen/tui?tu=&den=&ma_noi=[&chi_tui_lon=1|0&page=&page_size=]` (`kttApi.huongDongTui`, `routes/ktt.js`): từng túi với `ngay_dong_chuyen`, `ma_tui`, `khoa_tui`, `so_bg_trong_tui`, `bg_n2`, `huong_bcvh` (6 phần tử `{ ma_bcvh, bg }`), `khong_ro_bcvh`; cùng quyền, bộ đệm và lỗi 400 như các route cùng nhóm; không có `nguong`.
+- Chỉ THÊM, không đổi tên / nghĩa trường DC-1..3. Thứ tự 6 BCVH lấy từ `kttTinh.MA_BCVH_HUE` (khác thứ tự HANDOVER; tên khớp).
+- Test: `tests/ktt-huong-dong.test.js` +10 (bất biến 1 có / không `khong_ro_bcvh`, số túi ≤ `so_tui_lon`, túi đi hai BCVH tính ở cả hai, túi có N3, `loai_hinh`, nhiều ngày, mã túi trùng, route `tui`, quyền, 400, không dữ liệu); kiểm đột biến 4 trường hợp (đếm túi theo mã túi, bỏ điều kiện N2, bỏ lọc túi lớn, số túi cộng theo BG) đều chuyển đỏ.
+- Tài liệu: `42_KTT_API.md` (tiểu mục KTT-DC-5), `00_SNAPSHOT.md`.
+
 ## [2026-11-12] - KTT-DC-3: ngưỡng «túi lớn» (số BG nội tỉnh trong túi) cho API «Hướng đóng chuyến nội tỉnh» + dọn nợ DC-2 (backend; nhánh `feat/ktt-dc-3-nguong-bg-trong-tui`, chưa giao diện)
 
 - Tham số hệ thống mới `ktt_dc_nguong_bg_trong_tui` (mặc định 15, 1..200; `server/config/ktt-huong-dong.js`, `tham-so-mac-dinh.js`, `tham-so.js`; `thamSo.coGhiDe` để biết nguồn). Ba route `tong-hop`, `danh-sach`, `xuat` nhận `nguong` (sai → 400); `meta` thêm `nguong_bg_trong_tui` và `nguon_nguong_bg_trong_tui` (mặc định / cấu hình / yêu cầu).
