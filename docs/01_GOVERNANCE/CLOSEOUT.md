@@ -3,7 +3,7 @@
 Bàn giao trạng thái cuối. Số liệu kiểm trên `main` `d838101` (merge PR #180) ngày 26/11/2026. Chi tiết kỹ thuật: `docs/ai/00_SNAPSHOT.md`; quy trình / ticket: `docs/01_GOVERNANCE/PROJECT_SNAPSHOT.md`.
 
 ## 1. Phạm vi đã giao
-Hệ thống điều hành chất lượng - khâu Phát, kế thừa khung it-assets v1.0.0 (Node 22, Express 5, better-sqlite3, React 19 + Vite). Đã có (liệt kê đầy đủ ở `00_SNAPSHOT.md` mục 3):
+Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận (tên ngắn «Giám sát hàng đến»). Tên mã nội bộ: hue-dhcl (giữ nguyên). Kế thừa khung it-assets v1.0.0 (Node 22, Express 5, better-sqlite3, React 19 + Vite). Đã có (liệt kê đầy đủ ở `00_SNAPSHOT.md` mục 3):
 - Đăng nhập / tài khoản, 5 vai trò (ADMIN, TTVH, GDVH, TIVI, TTKT), gán GDVH ↔ BCVH; Quản lý mạng lưới; Dashboard động.
 - «Hàng đến» / sản lượng đến, nạp CSV và SFTP (hẹn giờ mặc định TẮT), màn «Nạp dữ liệu nguồn», «Thay thế ngày».
 - «Xử lý và tỷ lệ phát», bảng kê `tai-ve`, tỷ lệ «Đã vu hồi»; «Tham số hệ thống» (API); «Thời gian Khai thác-Vận chuyển».

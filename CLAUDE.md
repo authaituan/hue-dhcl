@@ -4,7 +4,7 @@ Tự nạp mỗi phiên Claude Code. Bản rút gọn của `README_AI.md` cho C
 thẩm quyền riêng: mâu thuẫn với `README_AI.md` / `docs/ai/01_ROLES.md` thì các file đó thắng và phải báo lại.
 
 ## 1. Dự án
-Hệ thống điều hành chất lượng - khâu Phát (`hue-dhcl`), kế thừa khung từ it-assets v1.0.0.
+Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận (tên ngắn «Giám sát hàng đến»; tên mã nội bộ: hue-dhcl, giữ nguyên), kế thừa khung từ it-assets v1.0.0.
 Chức năng: đăng nhập/tài khoản, Quản lý mạng lưới (danh sách), Dashboard động.
 
 ## 2. Vai trò của Claude Code

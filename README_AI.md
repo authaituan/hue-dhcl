@@ -1,6 +1,6 @@
 # hue-dhcl — AI Entry Point (quy trình)
 
-Hệ thống điều hành chất lượng - khâu Phát. Điểm vào DUY NHẤT cho mọi AI mới vào dự án.
+Hệ thống giám sát hàng đến, khớp nối nội tỉnh và lịch xe giao nhận (tên ngắn «Giám sát hàng đến»). Tên mã nội bộ: hue-dhcl (giữ nguyên). Điểm vào DUY NHẤT cho mọi AI mới vào dự án.
 Hai lớp tài liệu, hai mục đích:
 - **Quy trình / governance** (file này + `docs/01_GOVERNANCE/`).
 - **Tri thức kỹ thuật** (`docs/ai/`, bắt đầu từ [docs/ai/README_AI.md](docs/ai/README_AI.md)).
