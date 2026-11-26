@@ -23,6 +23,7 @@ nếu sau này đổi sang mạng cầu thì PHẢI là `10.47.31.8` (không `lo
 (nếu máy dev tới được NAS ở đúng địa chỉ/cổng sẽ cấu hình), hoặc làm lúc bật SFTP sau. **Lần thử đầu để trống toàn bộ `SFTP_*` và `SFTP_SYNC_ENABLED`**;
 điền vào `.env`; vân tay không đổi giữa `127.0.0.1` và `10.47.31.8` vì là cùng dịch vụ SFTP *(chưa kiểm chứng)*.
 Để `SFTP_SYNC_ENABLED` trống cho tới khi thử tay xong (mục 5.6).
+Bộ nạp «Hàng tại KTT» dùng CÙNG cờ `SFTP_SYNC_ENABLED=1` và cùng nhóm `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_HOSTKEY_SHA256` (`server/index.js:125`, `server/lib/kttSftp.js:35-39`), nhưng đọc thư mục `/CSV_Report_530100` (mặc định; biến `SFTP_KTT_DIR` chỉ đổi được khi thêm vào `environment:` của compose, hiện compose chưa truyền) và KHÔNG cần `SFTP_DIRS`. Bật cờ là bật cả hai bộ nạp.
 
 ## 3. Đưa DB dev lên NAS
 Làm trên máy dev, **tắt server dev** trước. DB dev ở chế độ WAL nên dữ liệu có thể còn nằm trong `-wal`:

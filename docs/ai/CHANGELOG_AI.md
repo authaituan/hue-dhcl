@@ -2,6 +2,12 @@
 
 Ghi lại các thay đổi được thực hiện với hỗ trợ của AI. Mới nhất ở đầu, append-only, 1 mục/ticket.
 
+## [2026-11-26] - KTT-CLOSE-1: cập nhật tài liệu repo để đóng dự án (CHỈ tài liệu; nhánh `docs/ktt-close-1`, từ `main` d838101)
+
+- Không đổi mã, test, cấu hình (`git diff --stat` chỉ gồm `docs/`). Kiểm: `npm test` 1435 ca (1425 pass, 0 fail, 10 skip) và `npm run build` mã 0 trên d838101, trước và sau khi sửa tài liệu.
+- `docs/01_GOVERNANCE/PROJECT_SNAPSHOT.md`: đưa về trạng thái đóng dự án (phase, ticket = không có, nợ, nhánh, `Runtime Status` theo bằng chứng trong repo; chỗ chưa biết ghi «PO xác nhận»). `docs/ai/00_SNAPSHOT.md`: mốc `799c40b` → `d838101`, hàng KTT của tab Hướng đóng chuyến (giao diện DC-6/6c/6d, `THU_TU_HUONG_BCVH`), số test, con trỏ tới nợ. `docs/ai/03_ARCHITECTURE_MAP.md`: thêm 4 route `huong-dong-chuyen/*` + `xuat/huong-dong-chuyen`, `kttHuongDong.js`, tab giao diện. `docs/ai/04_DECISIONS.md`: #129. `docs/ai/05_BACKLOG.md`: mục 22–29. `docs/ai/06_DEPLOYMENT.md` mục 6 và `docs/ai/20_NAS_HUONG_DAN_CHAY.md` mục 2: đối chiếu biến môi trường với `docker-compose.yml:24-53`, `.env.nas.example`, mã (`PHAT_MAX_DONG` compose không truyền; `SFTP_KTT_DIR`, `KTT_WORKER`, `ARRIVALS_EXPORT_MAX_ROWS` không truyền; bộ nạp KTT dùng chung cờ `SFTP_SYNC_ENABLED`). Mới: `docs/01_GOVERNANCE/CLOSEOUT.md`.
+- Phát hiện ngoài phạm vi, KHÔNG sửa (cần ticket mã): `Dockerfile:12` trỏ «06_DEPLOYMENT.md mục 2b» (không có mục này); `docker-compose.yml:25` trỏ `server/config/nap-nguon.js:8` cho «đợt 09:30/16:30» (không có trong file; dòng đó là `require`), `:50` trỏ `server/index.js:88` (nay `:92`), `:55` trỏ `server/index.js:59-73` (nay khối `dist` ở `:65-77`); `.env.example` còn ghi SFTP «CHƯA dùng bởi server». Các mục CHANGELOG còn thiếu: `05_BACKLOG.md` mục 29.
+
 ## [2026-11-26] - KTT-DC-5c: đổi thứ tự 6 BCVH trong `huong_bcvh` theo canvas chốt (backend; nhánh `feat/ktt-dc-5c-thu-tu-bcvh`, từ `main` 1ea61f1)
 
 - `kttHuongDong.js`: thêm MỘT hằng số `THU_TU_HUONG_BCVH` = 533140, 536250, 535470, 537015, 537220, 535790 (kiểm lúc nạp là hoán vị của `kttTinh.MA_BCVH_HUE`, export để test); `sauBcvh` (từng nơi, từng túi ở route `tui`) và `huongMeta` (`meta.huong_bcvh`) đọc từ đó. Chỉ đổi thứ tự phần tử, không đổi tên / nghĩa / số. Không đổi `kttTinh.MA_BCVH_HUE`, `kttSchema.js`, `src/`, `MA_BCVH_LOAI`, `bcvh_da_loai`.
