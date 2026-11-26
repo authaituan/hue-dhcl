@@ -19,6 +19,9 @@ const NGUONG_IT_MAU = 20; // (N1 + N2) < 20 -> it_mau, ty_le = null
 const LOAI_HINH = Object.freeze(['GD1', 'GD2_GD3', 'VHX', '531120', 'KHAC']);
 const MA_KHACH_HANG_LON = '531120';
 const MA_BCVH_LOAI = MA_BCVH_HUE; // MỘT nơi duy nhất định nghĩa 6 BCVH (kttTinh.js); không viết cứng thêm chỗ thứ hai
+/** KTT-DC-5c: thứ tự CỐ ĐỊNH 6 BCVH của mọi mảng `huong_bcvh` (từng nơi, meta, từng túi) theo canvas chốt: Thuận Hóa, Hương Thủy, Hương Trà, Thuận An, Phú Lộc, A Lưới. MỘT chỗ duy nhất giữ thứ tự này; tên BCVH vẫn lấy từ DQ.TEN_BCVH. KHÔNG đổi MA_BCVH_LOAI (các màn khác dùng). */
+const THU_TU_HUONG_BCVH = Object.freeze(['533140', '536250', '535470', '537015', '537220', '535790']);
+if (THU_TU_HUONG_BCVH.length !== MA_BCVH_LOAI.length || !MA_BCVH_LOAI.every((m) => THU_TU_HUONG_BCVH.includes(m))) throw new Error('THU_TU_HUONG_BCVH phải là hoán vị của 6 BCVH (kttTinh.MA_BCVH_HUE)');
 /** KTT-DC-3: «túi lớn» = số BG nội tỉnh trong túi TỪ ngưỡng trở lên. MỘT chỗ duy nhất: đổi sang «lớn hơn ngưỡng» chỉ cần sửa dấu ở dòng này (>= thành >). */
 const laTuiLon = (soBg, nguong) => soBg >= nguong;
 
@@ -40,11 +43,11 @@ function gomTui(ds) {
   }
   return out;
 }
-/** 6 phần tử { ma_bcvh, bg } theo thứ tự MA_BCVH_LOAI từ bảng đếm theo mã; bg ngoài 6 BCVH (hoặc mã trống) vào khong_ro. */
+/** 6 phần tử { ma_bcvh, bg } theo thứ tự THU_TU_HUONG_BCVH từ bảng đếm theo mã; bg ngoài 6 BCVH (hoặc mã trống) vào khong_ro. */
 function sauBcvh(bc) {
   const loai = new Set(MA_BCVH_LOAI);
   let khongRo = 0; for (const [k, v] of Object.entries(bc)) if (!loai.has(k)) khongRo += v;
-  return { huong: MA_BCVH_LOAI.map((m) => ({ ma_bcvh: m, bg: bc[m] || 0 })), khong_ro: khongRo };
+  return { huong: THU_TU_HUONG_BCVH.map((m) => ({ ma_bcvh: m, bg: bc[m] || 0 })), khong_ro: khongRo };
 }
 /** Hướng đi theo BCVH của MỘT nơi, chỉ túi lớn: { huong_bcvh: [{ma_bcvh, bg, so_tui}], khong_ro_bcvh }. Số túi: túi có ≥ 1 BG đi BCVH ấy (một túi nhiều BCVH tính ở từng BCVH). */
 function huongCuaNoi(tuiCuaNoi, nguong) {
@@ -233,7 +236,7 @@ function tongHop(ds, danhMuc, loaiHinh = null, nguong = CFG.NGUONG_BG_TRONG_TUI)
   const noiLon = dongNoi.filter((r) => r.bg_trong_tui_lon > 0);
   const top8Lon = noiLon.map((r) => r.bg_trong_tui_lon).sort((a, b) => b - a).slice(0, 8).reduce((s, x) => s + x, 0);
   // KTT-DC-5: cộng qua các nơi (túi của hai nơi khác nhau không trùng nên cộng số túi là hợp lệ).
-  const huongMeta = MA_BCVH_LOAI.map((m, i) => ({ ma_bcvh: m, ten_bcvh: tenBcvh[m] || null, bg: dongNoi.reduce((s, r) => s + r.huong_bcvh[i].bg, 0), so_tui: dongNoi.reduce((s, r) => s + r.huong_bcvh[i].so_tui, 0) }));
+  const huongMeta = THU_TU_HUONG_BCVH.map((m, i) => ({ ma_bcvh: m, ten_bcvh: tenBcvh[m] || null, bg: dongNoi.reduce((s, r) => s + r.huong_bcvh[i].bg, 0), so_tui: dongNoi.reduce((s, r) => s + r.huong_bcvh[i].so_tui, 0) }));
   const khongRoMeta = dongNoi.reduce((s, r) => s + r.khong_ro_bcvh, 0);
   const tyTop8Lon = bgLon > 0 && noiLon.length > 8 ? top8Lon / bgLon : null;
   const meta = {
@@ -310,4 +313,4 @@ function docDanhMuc(db) {
   return m;
 }
 
-module.exports = { laTuiLon, tinhNgay, boRong, tongHop, dongCuaNoi, dongApi, tuiCuaNoiApi, docDanhMuc, nhomLoaiHinh, LOAI_HINH, MA_BCVH_LOAI, NGAY_LECH_CU, NGUONG_IT_MAU };
+module.exports = { laTuiLon, tinhNgay, boRong, tongHop, dongCuaNoi, dongApi, tuiCuaNoiApi, docDanhMuc, nhomLoaiHinh, LOAI_HINH, MA_BCVH_LOAI, THU_TU_HUONG_BCVH, NGAY_LECH_CU, NGUONG_IT_MAU };
