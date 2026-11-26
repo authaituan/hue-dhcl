@@ -786,3 +786,200 @@ test('KTT-DC-3: không có dữ liệu — các số túi lớn bằng 0, không
   assert.ok((src.match(/laTuiLon\(/g) || []).length >= 4, 'mọi chỗ dùng gọi hàm chung');
   assert.equal((src.match(/>= nguong/g) || []).length, 1, 'dấu so sánh với ngưỡng chỉ ở MỘT chỗ');
 });
+
+// ==========================================
+// KTT-DC-5: hướng đi theo BCVH — tong-hop (huong_bcvh, khong_ro_bcvh) và route /huong-dong-chuyen/tui.
+// ==========================================
+const SAU = HDC.MA_BCVH_LOAI; // 6 BCVH, thứ tự lấy từ MỘT hằng số của lõi
+const TUI_URL = (ma, extra = '', q = Q) => `/api/ktt/huong-dong-chuyen/tui${q}&ma_noi=${ma}${extra}`;
+const bgCua = (huong, ma) => huong.find((h) => h.ma_bcvh === ma);
+const tongBg = (huong) => huong.reduce((s, h) => s + h.bg, 0);
+/**
+ * Dữ liệu DC-5 (ngày 20, 21, 22; ngưỡng 15):
+ *  536001 VHX: túi A (ngày 20, mã túi TRUNG) 16 BG = TH 10 + HT 6 · túi B (ngày 20, mã túi TRUNG) 15 BG = TH 15 · túi C (ngày 21) 20 BG = HTH 20 · túi nhỏ D (ngày 22) 14 BG = TH 14.
+ *  536002 VHX: túi 15 BG ngày 22 đi cả TH lẫn HT (8 + 7).
+ *  531120 GD3: túi 30 BG ngày 21 = HTH 30.   TH (một trong 6 BCVH) đóng 40 BG: bị loại khỏi bảng.
+ */
+function duLieuBcvh() {
+  danhMuc(); danhMucThem(['536002', 'VHX hai', 'VHX']);
+  const A = tuiNhieu('536001', '2026-10-20', { n2: 10, so: '1', soHieu: 'TUI-TRUNG', nhan: [TH] });
+  // túi A có 16 BG: 10 đi TH + 6 đi HT — thêm 6 BG vào CÙNG túi bằng tay
+  for (let i = 0; i < 6; i++) { const s = sh(); bg(A, s); const d = tui({ chieu: 'DI', luong: 'KHAI_THAC_DI', to_pos: HT, bd10_di_gio_di: '2026-10-20 20:00:00', gio_quet_tui_di: '2026-10-20 20:00:00', bd10_di_so_hieu: `BD10-I-${seq}`, bd10_di_ma_diem_nhan: HT }); bg(d, s); }
+  tuiNhieu('536001', '2026-10-20', { n2: 15, so: '2', soHieu: 'TUI-TRUNG', nhan: [TH] });
+  tuiNhieu('536001', '2026-10-21', { n2: 20, so: '3', nhan: [HTH] });
+  tuiNhieu('536001', '2026-10-22', { n2: 14, so: '4', nhan: [TH] });
+  tuiNhieu('536002', '2026-10-22', { n2: 15, so: '5', nhan: [TH, HT] });
+  tuiNhieu('531120', '2026-10-21', { n2: 30, so: '6', nhan: [HTH] });
+  tuiNhieu(TH, '2026-10-20', { n2: 40, so: '7', nhan: [HTH] });
+  capOk('2026-10-23 10:00:00');
+}
+function kiemBatBien(b, nhan) {
+  const m = b.meta;
+  for (const y of b.theo_noi_dong) {
+    assert.equal(y.huong_bcvh.length, 6, `${nhan}: ${y.ma} đủ 6 phần tử`);
+    assert.deepEqual(y.huong_bcvh.map((h) => h.ma_bcvh), SAU, `${nhan}: thứ tự cố định`);
+    assert.equal(tongBg(y.huong_bcvh) + y.khong_ro_bcvh, y.bg_trong_tui_lon, `${nhan}: bất biến 1 nơi ${y.ma}`);
+    for (const h of y.huong_bcvh) assert.ok(h.so_tui <= y.so_tui_lon && h.so_tui >= 0 && (h.bg > 0) === (h.so_tui > 0), `${nhan}: số túi ≤ so_tui_lon, nơi ${y.ma}, BCVH ${h.ma_bcvh}`);
+  }
+  assert.equal(m.huong_bcvh.length, 6); assert.deepEqual(m.huong_bcvh.map((h) => h.ma_bcvh), SAU);
+  assert.equal(tongBg(m.huong_bcvh) + m.khong_ro_bcvh, m.bg_trong_tui_lon, `${nhan}: bất biến 1 toàn bảng`);
+  SAU.forEach((ma, i) => {
+    assert.equal(m.huong_bcvh[i].bg, b.theo_noi_dong.reduce((s, y) => s + y.huong_bcvh[i].bg, 0), `${nhan}: cộng dọc bg ${ma}`);
+    assert.equal(m.huong_bcvh[i].so_tui, b.theo_noi_dong.reduce((s, y) => s + y.huong_bcvh[i].so_tui, 0), `${nhan}: cộng dọc số túi ${ma}`);
+    assert.ok(typeof m.huong_bcvh[i].ten_bcvh === 'string', 'tên BCVH có từ hằng số');
+  });
+  assert.equal(m.khong_ro_bcvh, b.theo_noi_dong.reduce((s, y) => s + y.khong_ro_bcvh, 0));
+}
+const hoSoNoi = { 536001: { ten: 'x', loai: 'VHX', bdx: null } };
+/** Bó ngày giả đúng khuôn tinhNgay (chỉ phần tongHop cần). */
+const boGia = (ngay, rows) => ({ ngay, co_du_lieu: true, tong: { tong: rows.length, n1: 0, n2: rows.length, n3: 0 }, noi: { 536001: { n1: 0, n2: rows.length, n3: 0, kg_n2: 0, cu: 0, sv: {}, bc: {}, lan: [], chuyen: [], tui: [[20, rows.length, 'c']] } }, rows });
+const dongGia = (ngay, bcvh, khoa, size) => ({ noi: '536001', chua_ro: false, bcvh, khoa_tui: khoa, tui_k: khoa, bg_tui: size, ngay_dong: ngay, ma_tui: 'X' });
+
+test('KTT-DC-5: tong-hop — huong_bcvh đủ 6 phần tử theo thứ tự cố định; bất biến 1; túi hai BCVH tính ở cả hai; số túi ≤ so_tui_lon; chỉ túi lớn', async () => {
+  duLieuBcvh();
+  const b = (await goi(TH_URL, 'admin')).body;
+  kiemBatBien(b, 'mặc định');
+  const a = Nh(b, '536001');
+  assert.deepEqual([a.bg_trong_tui_lon, a.so_tui_lon], [16 + 15 + 20, 3], 'túi nhỏ D (14) không vào');
+  const bg0 = (ma) => bgCua(a.huong_bcvh, ma);
+  assert.deepEqual([bg0(TH).bg, bg0(TH).so_tui], [10 + 15, 2], 'TH: túi A (10) + túi B (15); túi D nhỏ không tính');
+  assert.deepEqual([bg0(HT).bg, bg0(HT).so_tui], [6, 1]);
+  assert.deepEqual([bg0(HTH).bg, bg0(HTH).so_tui], [20, 1]);
+  for (const ma of SAU.filter((x) => ![TH, HT, HTH].includes(x))) assert.deepEqual([bg0(ma).bg, bg0(ma).so_tui], [0, 0], 'BCVH không có hàng vẫn có phần tử bằng 0');
+  assert.equal(a.khong_ro_bcvh, 0);
+  assert.ok(a.huong_bcvh.reduce((s, h) => s + h.so_tui, 0) > a.so_tui_lon, 'túi A tính ở TH và HT: Σ số túi 6 BCVH > so_tui_lon');
+  const c = Nh(b, '536002');
+  assert.deepEqual([bgCua(c.huong_bcvh, TH).bg, bgCua(c.huong_bcvh, HT).bg, bgCua(c.huong_bcvh, TH).so_tui, bgCua(c.huong_bcvh, HT).so_tui, c.so_tui_lon], [8, 7, 1, 1, 1], 'một túi 15 BG đi hai BCVH: 1 túi ở mỗi BCVH, so_tui_lon = 1');
+  assert.equal(b.meta.khong_ro_bcvh, 0);
+  assert.equal(b.theo_noi_dong.some((y) => y.ma === TH), false);
+  assert.equal(b.meta.huong_bcvh.find((h) => h.ma_bcvh === TH).so_tui, 2 + 1, 'cộng dọc số túi: 2 (536001) + 1 (536002)');
+});
+
+test('KTT-DC-5: mã túi trùng ở hai túi khác khóa không bị gộp (số túi theo BCVH đếm theo khóa túi, không theo mã túi)', async () => {
+  duLieuBcvh();
+  const b = (await goi(TH_URL, 'admin')).body;
+  const ds = (await goi(`${DS_URL}&page_size=100`, 'admin')).body;
+  assert.equal(new Set(ds.items.filter((x) => x.ma_tui === 'TUI-TRUNG').map((x) => x.khoa_tui)).size, 2, 'dữ liệu có hai túi chung mã túi');
+  assert.equal(bgCua(Nh(b, '536001').huong_bcvh, TH).so_tui, 2, 'TH: hai túi (A, B) dù chung mã túi');
+  const t = (await goi(TUI_URL('536001'), 'admin')).body;
+  assert.equal(t.items.filter((x) => x.ma_tui === 'TUI-TRUNG').length, 2, 'route tui: hai túi chung mã vẫn là hai dòng');
+});
+
+test('KTT-DC-5: khong_ro_bcvh — BG có BCVH đích ngoài 6 BCVH không bị nhét vào BCVH nào; Σ 6 + khong_ro = bg_trong_tui_lon', () => {
+  const ngay = '2026-10-20'; const khoa = 'k1|1|1|1|1|1|1'; const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(dongGia(ngay, TH, khoa, 16));
+  for (let i = 0; i < 4; i++) rows.push(dongGia(ngay, '999999', khoa, 16)); // ngoài 6 BCVH
+  for (let i = 0; i < 2; i++) rows.push(dongGia(ngay, '', khoa, 16)); // không xác định
+  const th = HDC.tongHop([boGia(ngay, rows)], hoSoNoi, null, 15);
+  const y = th.theo_noi_dong[0];
+  assert.equal(y.bg_trong_tui_lon, 16); assert.equal(bgCua(y.huong_bcvh, TH).bg, 10); assert.equal(y.khong_ro_bcvh, 6);
+  assert.equal(tongBg(y.huong_bcvh) + y.khong_ro_bcvh, y.bg_trong_tui_lon);
+  assert.equal(th.meta.khong_ro_bcvh, 6); assert.equal(tongBg(th.meta.huong_bcvh) + th.meta.khong_ro_bcvh, th.meta.bg_trong_tui_lon);
+  assert.equal(bgCua(y.huong_bcvh, TH).so_tui, 1, 'một túi');
+  const t = HDC.tuiCuaNoiApi([boGia(ngay, rows)], '536001', { nguong: 15 })[0];
+  assert.equal(t.khong_ro_bcvh, 6); assert.equal(tongBg(t.huong_bcvh) + t.khong_ro_bcvh, t.bg_n2);
+});
+
+test('KTT-DC-5: bộ lọc loai_hinh — meta.huong_bcvh tính lại theo bộ lọc; bất biến giữ ở mọi nhóm; Σ năm nhóm = toàn tập', async () => {
+  duLieuBcvh();
+  const full = (await goi(TH_URL, 'admin')).body; kiemBatBien(full, 'toàn tập');
+  const tong = SAU.map(() => ({ bg: 0, so_tui: 0 }));
+  for (const lh of HDC.LOAI_HINH) {
+    const b = (await goi(`${TH_URL}&loai_hinh=${lh}`, 'admin')).body; kiemBatBien(b, lh);
+    b.meta.huong_bcvh.forEach((h, i) => { tong[i].bg += h.bg; tong[i].so_tui += h.so_tui; });
+  }
+  full.meta.huong_bcvh.forEach((h, i) => { assert.equal(tong[i].bg, h.bg); assert.equal(tong[i].so_tui, h.so_tui); });
+  const vhx = (await goi(`${TH_URL}&loai_hinh=VHX`, 'admin')).body;
+  assert.equal(vhx.meta.huong_bcvh.find((h) => h.ma_bcvh === HTH).bg, 20, 'VHX: chỉ HTH 20 (531120 thuộc nhóm riêng, không lẫn)');
+  const kl = (await goi(`${TH_URL}&loai_hinh=531120`, 'admin')).body;
+  assert.equal(kl.meta.huong_bcvh.find((h) => h.ma_bcvh === HTH).bg, 30);
+  const gd1 = (await goi(`${TH_URL}&loai_hinh=GD1`, 'admin')).body; assert.ok(gd1.meta.huong_bcvh.every((h) => h.bg === 0 && h.so_tui === 0));
+});
+
+test('KTT-DC-5: khoảng nhiều ngày — BG cộng qua ngày, số túi đếm túi khác nhau (không cộng số túi theo ngày)', async () => {
+  duLieuBcvh();
+  const mot = async (tu, den) => (await goi(`/api/ktt/huong-dong-chuyen/tong-hop?tu=${tu}&den=${den}`, 'admin')).body;
+  const n20 = await mot('2026-10-20', '2026-10-20'); const n21 = await mot('2026-10-21', '2026-10-21'); const n22 = await mot('2026-10-22', '2026-10-22'); const all = await mot('2026-10-20', '2026-10-22');
+  for (const [b, nhan] of [[n20, '20'], [n21, '21'], [n22, '22'], [all, '20–22']]) kiemBatBien(b, nhan);
+  SAU.forEach((ma, i) => { assert.equal(all.meta.huong_bcvh[i].bg, n20.meta.huong_bcvh[i].bg + n21.meta.huong_bcvh[i].bg + n22.meta.huong_bcvh[i].bg, `BG ${ma} cộng qua ngày`); });
+  assert.equal(bgCua(Nh(all, '536001').huong_bcvh, TH).so_tui, 2);
+  assert.equal(all.meta.so_tui_lon, 3 + 1 + 1, 'túi lớn: 536001 ×3, 536002 ×1, 531120 ×1');
+  // cùng một túi KHÔNG bị đếm hai lần dù có hàng ở hai bó ngày: bó giả hai ngày chứa túi cùng khóa 7 cột
+  const th = HDC.tongHop([
+    boGia('2026-10-20', [dongGia('2026-10-20', TH, 'T|1', 20), dongGia('2026-10-20', TH, 'T|1', 20)]),
+    boGia('2026-10-21', [dongGia('2026-10-20', TH, 'T|1', 20), dongGia('2026-10-21', TH, 'T|2', 20)])
+  ], hoSoNoi, null, 15);
+  assert.equal(bgCua(th.theo_noi_dong[0].huong_bcvh, TH).so_tui, 2, 'khóa T|1 xuất hiện ở hai ngày: một túi; T|2: một túi');
+  assert.equal(bgCua(th.theo_noi_dong[0].huong_bcvh, TH).bg, 4, 'BG vẫn cộng đủ');
+});
+
+test('KTT-DC-5: route tui — bg_n2 Σ = bg_trong_tui_lon; số túi = so_tui_lon; huong_bcvh 6 phần tử; thứ tự ngày đóng rồi cỡ túi giảm dần; chi_tui_lon', async () => {
+  duLieuBcvh();
+  const b = (await goi(TH_URL, 'admin')).body;
+  for (const ma of ['536001', '536002', '531120']) {
+    const y = Nh(b, ma);
+    const t = (await goi(TUI_URL(ma), 'admin')).body;
+    assert.equal(t.items.reduce((s, x) => s + x.bg_n2, 0), y.bg_trong_tui_lon, `${ma}: Σ bg_n2`);
+    assert.equal(t.pagination.total, y.so_tui_lon, `${ma}: số túi`);
+    SAU.forEach((m, i) => assert.equal(t.items.reduce((s, x) => s + x.huong_bcvh[i].bg, 0), y.huong_bcvh[i].bg, `${ma}: Σ BG ${m}`));
+    for (const x of t.items) {
+      assert.deepEqual(x.huong_bcvh.map((h) => h.ma_bcvh), SAU); assert.equal(tongBg(x.huong_bcvh) + x.khong_ro_bcvh, x.bg_n2);
+      assert.ok(x.so_bg_trong_tui >= 15 && x.so_bg_trong_tui >= x.bg_n2); assert.equal(x.khoa_tui.split('|').length, 7);
+    }
+  }
+  const t = (await goi(TUI_URL('536001'), 'admin')).body;
+  assert.deepEqual(t.items.map((x) => [x.ngay_dong_chuyen, x.so_bg_trong_tui]), [['2026-10-20', 16], ['2026-10-20', 15], ['2026-10-21', 20]], 'ngày đóng tăng, rồi cỡ túi giảm');
+  assert.equal(t.meta.chi_tui_lon, true); assert.equal(t.meta.ma_noi, '536001'); assert.equal(t.meta.bcvh.length, 6);
+  const moi = (await goi(TUI_URL('536001', '&chi_tui_lon=0'), 'admin')).body;
+  assert.equal(moi.pagination.total, 4, 'mọi túi có BG N2, gồm túi nhỏ 14'); assert.equal(moi.items.filter((x) => !x.tui_lon).length, 1);
+  assert.equal((await goi(TUI_URL('536001', '&chi_tui_lon=1'), 'admin')).body.pagination.total, 3);
+  const trang = (await goi(TUI_URL('536001', '&chi_tui_lon=0&page=2&page_size=3'), 'admin')).body;
+  assert.equal(trang.items.length, 1); assert.equal(trang.pagination.total_pages, 2);
+  const rong = (await goi(TUI_URL('888888'), 'admin')).body; assert.deepEqual(rong.items, []); assert.equal(rong.pagination.total, 0);
+  assert.ok(!/KTT-DEMO-\d+/.test(JSON.stringify(t)), 'không số hiệu bưu gửi');
+});
+
+test('KTT-DC-5: route tui — quyền 401/403, 400 (khoảng quá 31 ngày, thiếu ma_noi, nơi không hợp lệ, 6 BCVH, tham số lạ / sai), 31 ngày hợp lệ', async () => {
+  duLieuBcvh();
+  const url = TUI_URL('536001');
+  assert.equal((await goi(url)).status, 401);
+  for (const w of ['admin', 'ttvh', 'ttkt']) assert.equal((await goi(url, w)).status, 200, w);
+  for (const w of ['gdvh', 'tivi']) assert.equal((await goi(url, w)).status, 403, w);
+  assert.equal((await goi(url, 'admin', { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } })).status, 404);
+  assert.deepEqual((await goi(url, 'admin')).body, (await goi(url, 'ttkt')).body);
+  const sai = [
+    TUI_URL('536001', '', '?tu=2026-10-01&den=2026-11-05'), // 36 ngày
+    `/api/ktt/huong-dong-chuyen/tui${Q}`, `/api/ktt/huong-dong-chuyen/tui${Q}&ma_noi=`, // thiếu ma_noi
+    TUI_URL('a%20b%3Bc%27--'), TUI_URL(TH), TUI_URL('536001', '&chi_tui_lon=2'), TUI_URL('536001', '&la=1'), TUI_URL('536001', '&nguong=10'),
+    TUI_URL('536001', '&page=0'), TUI_URL('536001', '&page_size=201'), '/api/ktt/huong-dong-chuyen/tui?ma_noi=536001', TUI_URL('536001', '&ma_noi=536002')
+  ];
+  for (const u of sai) { const r = await goi(u, 'admin'); assert.equal(r.status, 400, u); assert.ok(r.body.ma, u); }
+  assert.equal((await goi(TUI_URL('536001', '', '?tu=2026-10-01&den=2026-10-31'), 'admin')).status, 200, 'đúng 31 ngày hợp lệ');
+});
+
+test('KTT-DC-5: không có dữ liệu — huong_bcvh vẫn 6 phần tử bằng 0, khong_ro 0; route tui rỗng, không lỗi', async () => {
+  const b = (await goi(TH_URL, 'admin')).body;
+  assert.equal(b.meta.huong_bcvh.length, 6); assert.ok(b.meta.huong_bcvh.every((h) => h.bg === 0 && h.so_tui === 0)); assert.equal(b.meta.khong_ro_bcvh, 0);
+  const t = (await goi(TUI_URL('536001'), 'admin')).body; assert.deepEqual(t.items, []); assert.equal(t.meta.ly_do, 'CHUA_CO_DU_LIEU');
+});
+
+test('KTT-DC-5: trường cũ không đổi (DC-1..3) và mã 6 BCVH không viết cứng ở lõi', async () => {
+  duLieuBcvh();
+  const b = (await goi(TH_URL, 'admin')).body; const y = Nh(b, '536001');
+  for (const k of ['ma', 'ten', 'dong_vao_530100', 'dong_thang_bcvh', 'chua_ro', 'ty_le', 'bg_trong_tui_lon', 'bg_trong_tui_nho', 'so_tui_lon', 'chuyen_co_tui_lon', 'so_bg_tui_lon_nhat']) assert.ok(k in y, k);
+  assert.ok('trong_loc' in b.meta && 'bg_trong_tui_lon' in b.meta);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'server', 'lib', 'kttHuongDong.js'), 'utf8');
+  assert.equal((src.match(/535790|536250|535470|537220|537015|533140/g) || []).length, 0, 'không viết cứng mã BCVH ở lõi');
+});
+
+test('KTT-DC-5: túi chứa cả N2 lẫn N3 — cỡ túi đếm cả hai, nhưng huong_bcvh và bg_n2 chỉ đếm N2; bất biến 1 vẫn đúng', async () => {
+  danhMuc(); danhMucThem(['536003', 'VHX ba', 'VHX']);
+  tuiNhieu('536003', '2026-10-21', { n2: 12, n3: 3, so: '6', nhan: [HT, TH] });
+  capOk('2026-10-23 10:00:00');
+  const b = (await goi(TH_URL, 'admin')).body; kiemBatBien(b, 'N2+N3');
+  const y = Nh(b, '536003');
+  assert.deepEqual([y.bg_trong_tui_lon, y.chua_ro, y.so_tui_lon], [12, 3, 1]);
+  assert.equal(tongBg(y.huong_bcvh), 12, 'BG N3 không vào hướng BCVH');
+  const t = (await goi(TUI_URL('536003'), 'admin')).body;
+  assert.deepEqual([t.items[0].so_bg_trong_tui, t.items[0].bg_n2, tongBg(t.items[0].huong_bcvh)], [15, 12, 12], 'cỡ túi 15 (N2 + N3), N2 = 12');
+});
